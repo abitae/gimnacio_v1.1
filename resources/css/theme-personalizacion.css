@@ -1,0 +1,141 @@
+/**
+ * Módulo de personalización de tema — gimnacio_v1
+ * Basado en la documentación de FluxUI: https://fluxui.dev/docs/theming
+ *
+ * Flux usa dos familias de color:
+ * - Base: texto, fondos, bordes (por defecto zinc; se puede reasignar a slate/gray/neutral).
+ * - Acento: botones primarios e interactivos (--color-accent, --color-accent-content, --color-accent-foreground).
+ *
+ * Para cambiar tema: edita las variables en @theme y, si usas otro gris como base,
+ * reasigna --color-zinc-* a esa paleta (Flux referencia zinc internamente).
+ */
+
+@theme {
+    /* ----- Tipografía (heredada del proyecto) ----- */
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* ----- Base: paleta zinc (Flux la usa por defecto) -----
+     * Para usar slate como base, reemplaza cada línea por:
+     *   --color-zinc-50: var(--color-slate-50);
+     *   --color-zinc-100: var(--color-slate-100);
+     *   ... hasta 950 (Tailwind ya define slate/gray/neutral).
+     */
+    --color-zinc-50: #fafafa;
+    --color-zinc-100: #f5f5f5;
+    --color-zinc-200: #e5e5e5;
+    --color-zinc-300: #d4d4d4;
+    --color-zinc-400: #a3a3a3;
+    --color-zinc-500: #737373;
+    --color-zinc-600: #525252;
+    --color-zinc-700: #404040;
+    --color-zinc-800: #262626;
+    --color-zinc-900: #171717;
+    --color-zinc-950: #0a0a0a;
+
+    /* ----- Acento (botones primarios, enlaces, etc.) -----
+     * Modo claro: fondo oscuro, texto claro.
+     * Modo oscuro: se invierte en @layer theme más abajo.
+     * Ejemplos de acento con paletas Tailwind:
+     *   Azul:  --color-accent: var(--color-blue-600); --color-accent-content: var(--color-blue-700);
+     *   Verde: --color-accent: var(--color-green-600); --color-accent-content: var(--color-green-700);
+     *   Rojo:  --color-accent: var(--color-red-600);   --color-accent-content: var(--color-red-700);
+     */
+    --color-accent: var(--color-neutral-800);
+    --color-accent-content: var(--color-neutral-800);
+    --color-accent-foreground: var(--color-white);
+
+    /* ----- Colores semánticos del proyecto (opcional) -----
+     * Usar en vistas como: style="--state-color: var(--theme-state-programada)"
+     * o en Tailwind: bg-[var(--theme-state-confirmada)]
+     */
+    --theme-state-programada: var(--color-blue-500);
+    --theme-state-confirmada: var(--color-green-500);
+    --theme-state-en-curso: var(--color-amber-500);
+    --theme-state-completada: var(--color-zinc-500);
+    --theme-state-cancelada: var(--color-red-500);
+    --theme-state-no-asistio: var(--color-orange-500);
+}
+
+@layer theme {
+    .dark {
+        --color-accent: var(--color-white);
+        --color-accent-content: var(--color-white);
+        --color-accent-foreground: var(--color-neutral-800);
+
+        /* Ajustes opcionales para acentos de color en dark (si cambias a blue/green/etc.) */
+        /* --color-accent: var(--color-blue-400); */
+        /* --color-accent-content: var(--color-blue-300); */
+        /* --color-accent-foreground: var(--color-neutral-900); */
+    }
+}
+
+/* Clases de acento aplicadas al html (persistidas por usuario) */
+html.accent-blue {
+    --color-accent: var(--color-blue-600);
+    --color-accent-content: var(--color-blue-700);
+    --color-accent-foreground: var(--color-white);
+}
+html.dark.accent-blue {
+    --color-accent: var(--color-blue-400);
+    --color-accent-content: var(--color-blue-300);
+    --color-accent-foreground: var(--color-neutral-900);
+}
+
+html.accent-green {
+    --color-accent: var(--color-green-600);
+    --color-accent-content: var(--color-green-700);
+    --color-accent-foreground: var(--color-white);
+}
+html.dark.accent-green {
+    --color-accent: var(--color-green-400);
+    --color-accent-content: var(--color-green-300);
+    --color-accent-foreground: var(--color-neutral-900);
+}
+
+html.accent-red {
+    --color-accent: var(--color-red-600);
+    --color-accent-content: var(--color-red-700);
+    --color-accent-foreground: var(--color-white);
+}
+html.dark.accent-red {
+    --color-accent: var(--color-red-400);
+    --color-accent-content: var(--color-red-300);
+    --color-accent-foreground: var(--color-neutral-900);
+}
+
+html.accent-violet {
+    --color-accent: var(--color-violet-600);
+    --color-accent-content: var(--color-violet-700);
+    --color-accent-foreground: var(--color-white);
+}
+html.dark.accent-violet {
+    --color-accent: var(--color-violet-400);
+    --color-accent-content: var(--color-violet-300);
+    --color-accent-foreground: var(--color-neutral-900);
+}
+
+html.accent-indigo {
+    --color-accent: var(--color-indigo-600);
+    --color-accent-content: var(--color-indigo-700);
+    --color-accent-foreground: var(--color-white);
+}
+html.dark.accent-indigo {
+    --color-accent: var(--color-indigo-400);
+    --color-accent-content: var(--color-indigo-300);
+    --color-accent-foreground: var(--color-neutral-900);
+}
+
+html.accent-amber {
+    --color-accent: var(--color-amber-600);
+    --color-accent-content: var(--color-amber-700);
+    --color-accent-foreground: var(--color-neutral-900);
+}
+html.dark.accent-amber {
+    --color-accent: var(--color-amber-400);
+    --color-accent-content: var(--color-amber-300);
+    --color-accent-foreground: var(--color-neutral-900);
+}
+
+html.accent-neutral {
+    /* Por defecto ya definido en @theme; no sobrescribir */
+}
