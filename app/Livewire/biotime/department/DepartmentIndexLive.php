@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Biotime\Department;
+namespace App\Livewire\biotime\department;
 
 use App\Services\BiotimeApiClient;
 use Illuminate\Pagination\LengthAwarePaginator;

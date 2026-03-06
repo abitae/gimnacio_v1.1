@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Biotime;
+namespace App\Livewire\biotime;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Integration\BiotimeSetting;

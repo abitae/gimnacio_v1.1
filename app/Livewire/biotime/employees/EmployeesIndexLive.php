@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Biotime\Employees;
+namespace App\Livewire\biotime\employees;
 
 use App\Models\Core\Cliente;
 use App\Services\BiotimeApiClient;

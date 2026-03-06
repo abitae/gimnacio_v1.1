@@ -147,12 +147,12 @@ Route::middleware(['auth'])->group(function () {
 
     // Integración BioTime (ZKTeco)
     Route::middleware('permission:biotime.view')->group(function () {
-        Route::get('biotime', \App\Livewire\Biotime\BiotimeIndexLive::class)->name('biotime.index');
-        Route::get('biotime/config', \App\Livewire\Biotime\BiotimeConfigLive::class)->name('biotime.config');
-        Route::get('biotime/sync', \App\Livewire\Biotime\BiotimeSyncLive::class)->name('biotime.sync');
-        Route::get('biotime/areas', \App\Livewire\Biotime\Area\AreaIndexLive::class)->name('biotime.areas');
-        Route::get('biotime/departments', \App\Livewire\Biotime\Department\DepartmentIndexLive::class)->name('biotime.departments');
-        Route::get('biotime/employees', \App\Livewire\Biotime\Employees\EmployeesIndexLive::class)->name('biotime.employees');
+        Route::get('biotime', \App\Livewire\biotime\BiotimeIndexLive::class)->name('biotime.index');
+        Route::get('biotime/config', \App\Livewire\biotime\BiotimeConfigLive::class)->name('biotime.config');
+        Route::get('biotime/sync', \App\Livewire\biotime\BiotimeSyncLive::class)->name('biotime.sync');
+        Route::get('biotime/areas', \App\Livewire\biotime\area\AreaIndexLive::class)->name('biotime.areas');
+        Route::get('biotime/departments', \App\Livewire\biotime\department\DepartmentIndexLive::class)->name('biotime.departments');
+        Route::get('biotime/employees', \App\Livewire\biotime\employees\EmployeesIndexLive::class)->name('biotime.employees');
     });
 
     Volt::route('settings/profile', 'settings.profile')->name('profile.edit');

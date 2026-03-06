@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Biotime;
+namespace App\Livewire\biotime;
 
 use App\Models\Core\Asistencia;
 use App\Models\Core\Cliente;
