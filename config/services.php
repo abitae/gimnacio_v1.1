@@ -40,6 +40,7 @@ return [
         'username' => env('BIOTIME_USERNAME'),
         'password' => env('BIOTIME_PASSWORD'),
         'auth_type' => env('BIOTIME_AUTH_TYPE', 'jwt'),
+        'enabled' => env('BIOTIME_ENABLED', true),
     ],
 
 ];

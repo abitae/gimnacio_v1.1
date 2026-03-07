@@ -7,6 +7,12 @@ use App\Models\Integration\BiotimeSetting;
 use App\Services\BiotimeApiClient;
 use Livewire\Component;
 
+/**
+ * Configuración de conexión BioTime/ZKTeco.
+ * Toda la conexión se gestiona desde este componente (frontend):
+ * base_url, username, password, auth_type, enabled. Se guarda en biotime_settings.
+ * Las variables de entorno (BIOTIME_*) son opcionales y solo se usan como valor inicial o respaldo.
+ */
 class BiotimeConfigLive extends Component
 {
     use FlashesToast;
@@ -49,6 +55,7 @@ class BiotimeConfigLive extends Component
             $this->base_url = $config['base_url'] ?? '';
             $this->username = $config['username'] ?? '';
             $this->auth_type = $config['auth_type'] ?? 'jwt';
+            $this->enabled = (bool) ($config['enabled'] ?? true);
         }
     }
 

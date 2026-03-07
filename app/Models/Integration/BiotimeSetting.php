@@ -53,7 +53,7 @@ class BiotimeSetting extends Model
             'username' => $config['username'] ?? '',
             'password' => $config['password'] ?? '',
             'auth_type' => $config['auth_type'] ?? 'jwt',
-            'enabled' => true,
+            'enabled' => (bool) ($config['enabled'] ?? true),
         ]);
     }
 
