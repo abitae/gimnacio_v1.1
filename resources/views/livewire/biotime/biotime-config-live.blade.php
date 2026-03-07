@@ -18,6 +18,17 @@
         </div>
     </div>
 
+    <!-- Aviso: precauciones firewall (nube → red local) -->
+    <div role="status" aria-live="polite"
+        class="flex gap-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-800 shadow-sm dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-200">
+        <flux:icon name="shield-exclamation" class="h-6 w-6 shrink-0" />
+        <div class="space-y-1">
+            <p class="font-semibold">Conexión desde la nube a red local</p>
+            <p class="text-sm">
+                Si esta aplicación está en la nube y BioTime en su red local (reenvío de puertos o túnel), la nube debe contar con el permiso correspondiente para acceder: configure el firewall de la red local para autorizar únicamente las IPs de este servidor (o use VPN). No exponga el puerto de BioTime a internet.
+            </p>
+        </div>
+    </div>
 
     <!-- Form -->
     <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
