@@ -49,6 +49,9 @@ Route::middleware(['auth'])->group(function () {
 
     // Matrículas de Clientes (Membresías y Clases)
     Route::get('cliente-matriculas', \App\Livewire\ClienteMatriculas\ClienteMatriculaLive::class)->middleware('permission:cliente-matriculas.view')->name('cliente-matriculas.index');
+    Route::get('cliente-matriculas/{clienteMatricula}/cuotas', \App\Livewire\Enrollments\Installments\Schedule::class)->middleware('permission:cliente-matriculas.view')->name('cliente-matriculas.cuotas');
+    Route::get('cliente-matriculas/{clienteMatricula}/cuotas/crear', \App\Livewire\Enrollments\Installments\PlanForm::class)->middleware('permission:cliente-matriculas.create')->name('cliente-matriculas.cuotas.crear');
+    Route::get('cuotas/{installment}/pagar', \App\Livewire\Enrollments\Installments\PaymentForm::class)->middleware('permission:cliente-matriculas.update')->name('cuotas.pagar');
 
     // Cajas
     Route::get('cajas', \App\Livewire\Cajas\CajaLive::class)->middleware('permission:cajas.view')->name('cajas.index');
@@ -58,12 +61,51 @@ Route::middleware(['auth'])->group(function () {
 
     // Punto de Venta
     Route::get('pos', \App\Livewire\POS\POSLive::class)->middleware('permission:pos.view')->name('pos.index');
+    Route::get('pos/ventas-credito', \App\Livewire\Pos\CreditSales::class)->middleware('permission:pos.view')->name('pos.ventas-credito');
+    Route::get('pos/cuentas-por-cobrar', \App\Livewire\Pos\CustomerDebts::class)->middleware('permission:pos.view')->name('pos.cuentas-por-cobrar');
+
+    // Comprobante de venta (HTML y PDF para modal)
+    Route::get('ventas/{venta}/comprobante', [\App\Http\Controllers\ComprobanteVentaController::class, 'show'])
+        ->middleware('permission:pos.view')
+        ->name('ventas.comprobante');
+    Route::get('ventas/{venta}/comprobante.pdf', [\App\Http\Controllers\ComprobanteVentaController::class, 'pdf'])
+        ->middleware('permission:pos.view')
+        ->name('ventas.comprobante.pdf');
+
+    // Cupones de descuento
+    Route::prefix('cupones')->name('cupones.')->middleware('permission:cupones.view')->group(function () {
+        Route::get('/', \App\Livewire\Coupons\Index::class)->name('index');
+        Route::get('create', \App\Livewire\Coupons\Form::class)->name('create')->middleware('permission:cupones.create');
+        Route::get('{coupon}/edit', \App\Livewire\Coupons\Form::class)->name('edit')->middleware('permission:cupones.update');
+        Route::get('{coupon}', \App\Livewire\Coupons\Show::class)->name('show');
+    });
 
     // Catálogos
     Route::get('categorias-productos', \App\Livewire\Categorias\CategoriaProductoLive::class)->middleware('permission:categorias-productos.view')->name('categorias-productos.index');
     Route::get('productos', \App\Livewire\Productos\ProductoLive::class)->middleware('permission:productos.view')->name('productos.index');
     Route::get('servicios', \App\Livewire\Servicios\ServicioExternoLive::class)->middleware('permission:servicios.view')->name('servicios.index');
     Route::get('clases', \App\Livewire\Clases\ClaseLive::class)->middleware('permission:clases.view')->name('clases.index');
+
+    // Alquileres
+    Route::prefix('alquileres')->name('rentals.')->middleware('permission:rentals.view')->group(function () {
+        Route::get('espacios', \App\Livewire\Rentals\Spaces\Index::class)->name('spaces.index');
+        Route::get('calendario', \App\Livewire\Rentals\Calendar\Index::class)->name('calendar.index');
+        Route::get('reservas/crear', \App\Livewire\Rentals\Bookings\Form::class)->name('bookings.create')->middleware('permission:rentals.create');
+        Route::get('reservas/{rental}/editar', \App\Livewire\Rentals\Bookings\Form::class)->name('bookings.edit')->middleware('permission:rentals.update');
+        Route::get('reservas/{rental}', \App\Livewire\Rentals\Bookings\Show::class)->name('bookings.show');
+        Route::get('reporte-ingresos', \App\Livewire\Rentals\Report::class)->name('report');
+    });
+
+    // Personal / Empleados
+    Route::prefix('empleados')->name('employees.')->middleware('permission:employees.view')->group(function () {
+        Route::get('/', \App\Livewire\Employees\Index::class)->name('index');
+        Route::get('crear', \App\Livewire\Employees\Form::class)->name('create')->middleware('permission:employees.create');
+        Route::get('{employee}/editar', \App\Livewire\Employees\Form::class)->name('edit')->middleware('permission:employees.update');
+        Route::get('{employee}', \App\Livewire\Employees\Show::class)->name('show');
+        Route::get('asistencia/listado', \App\Livewire\Employees\Attendances\Index::class)->name('attendances.index');
+        Route::get('asistencia/registrar', \App\Livewire\Employees\Attendances\Form::class)->name('attendances.create')->middleware('permission:attendance.create');
+        Route::get('asistencia/reporte', \App\Livewire\Employees\Attendances\Report::class)->name('attendances.report');
+    });
 
     // Módulo de Reportes (índice, reportes por tipo y exportación PDF/Excel)
     Route::prefix('reportes')->name('reportes.')->middleware('permission:reportes.view')->group(function () {
@@ -77,6 +119,8 @@ Route::middleware(['auth'])->group(function () {
         Route::get('cajas', \App\Livewire\Reportes\ReporteCajasLive::class)->name('cajas');
         Route::get('productos-servicios', \App\Livewire\Reportes\ReporteProductosServiciosLive::class)->name('productos-servicios');
         Route::get('gimnasio', \App\Livewire\Reportes\ReporteGimnasioLive::class)->name('gimnasio');
+        Route::get('cuentas-por-cobrar', \App\Livewire\Pos\CustomerDebts::class)->name('cuentas-por-cobrar');
+        Route::get('cuotas-vencidas', \App\Livewire\Reportes\ReporteCuotasVencidasLive::class)->name('cuotas-vencidas');
         // Exportación PDF
         Route::get('ventas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfVentas'])->name('ventas.exportar.pdf');
         Route::get('matriculas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfMatriculas'])->name('matriculas.exportar.pdf');
@@ -123,6 +167,14 @@ Route::middleware(['auth'])->group(function () {
         Route::redirect('gestion-nutricional/nutricion', 'gestion-nutricional', 301);
         Route::redirect('gestion-nutricional/citas', 'gestion-nutricional', 301);
         Route::redirect('medidas-nutricion', 'gestion-nutricional', 301)->name('medidas-nutricion.index');
+        Route::get('gestion-nutricional/objetivos', \App\Livewire\Nutrition\Goals\Index::class)->name('gestion-nutricional.objetivos.index');
+        Route::get('gestion-nutricional/objetivos/crear', \App\Livewire\Nutrition\Goals\Form::class)->name('gestion-nutricional.objetivos.create');
+        Route::get('gestion-nutricional/objetivos/{goal}/seguimiento/crear', \App\Livewire\Nutrition\Progress\Form::class)->name('gestion-nutricional.objetivos.seguimiento.create');
+        Route::get('gestion-nutricional/objetivos/{goal}/editar', \App\Livewire\Nutrition\Goals\Form::class)->name('gestion-nutricional.objetivos.edit');
+        Route::get('gestion-nutricional/objetivos/{goal}', \App\Livewire\Nutrition\Goals\Show::class)->name('gestion-nutricional.objetivos.show');
+        Route::get('gestion-nutricional/salud/{cliente}', function (App\Models\Core\Cliente $cliente) {
+            return redirect()->route('gestion-nutricional.index', ['salud' => $cliente->id]);
+        })->name('gestion-nutricional.salud');
     });
 
     // CRM
@@ -140,6 +192,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('clientes/{cliente}/etiquetas', \App\Livewire\Crm\ClienteTagsLive::class)->name('clientes.etiquetas');
     });
     Route::get('crm/mensajes', \App\Livewire\Crm\MensajesLive::class)->middleware('permission:crm-mensajes.view')->name('crm.mensajes');
+
+    // Configuración: Métodos de pago
+    Route::get('configuracion/metodos-pago', \App\Livewire\Settings\PaymentMethods\Index::class)->middleware('permission:payment-methods.view')->name('payment-methods.index');
 
     // Administración (por permiso)
     Route::get('usuarios', \App\Livewire\Usuarios\UsuarioLive::class)->middleware('permission:usuarios.view')->name('usuarios.index');

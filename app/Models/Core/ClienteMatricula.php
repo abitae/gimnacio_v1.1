@@ -19,6 +19,7 @@ class ClienteMatricula extends Model
         'tipo',
         'membresia_id',
         'clase_id',
+        'fecha_matricula',
         'fecha_inicio',
         'fecha_fin',
         'estado',
@@ -36,6 +37,7 @@ class ClienteMatricula extends Model
     protected function casts(): array
     {
         return [
+            'fecha_matricula' => 'date',
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
             'fechas_congelacion' => 'array',
@@ -71,6 +73,11 @@ class ClienteMatricula extends Model
     public function asistencias(): HasMany
     {
         return $this->hasMany(Asistencia::class, 'cliente_matricula_id');
+    }
+
+    public function installmentPlan(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(EnrollmentInstallmentPlan::class, 'cliente_matricula_id');
     }
 
     // Métodos de ayuda

@@ -22,7 +22,8 @@ class LeadService
         if (!empty($filters['search'])) {
             $term = $filters['search'];
             $q->where(function ($query) use ($term) {
-                $query->where('telefono', 'like', "%{$term}%")
+                $query->where('codigo', 'like', "%{$term}%")
+                    ->orWhere('telefono', 'like', "%{$term}%")
                     ->orWhere('whatsapp', 'like', "%{$term}%")
                     ->orWhere('nombres', 'like', "%{$term}%")
                     ->orWhere('apellidos', 'like', "%{$term}%")
@@ -79,7 +80,8 @@ class LeadService
             if ($search !== '') {
                 $term = $search;
                 $query->where(function ($q) use ($term) {
-                    $q->where('telefono', 'like', "%{$term}%")
+                    $q->where('codigo', 'like', "%{$term}%")
+                        ->orWhere('telefono', 'like', "%{$term}%")
                         ->orWhere('whatsapp', 'like', "%{$term}%")
                         ->orWhere('nombres', 'like', "%{$term}%")
                         ->orWhere('apellidos', 'like', "%{$term}%")

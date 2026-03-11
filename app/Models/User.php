@@ -41,6 +41,7 @@ class User extends Authenticatable
         'sidebar_bg',
         'header_bg',
         'body_bg',
+        'font_size',
     ];
 
     /**

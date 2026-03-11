@@ -9,6 +9,7 @@ use App\Services\ClienteService;
 use App\Services\EvaluacionMedidasNutricionService;
 use App\Services\ReporteService;
 use App\Services\SeguimientoNutricionService;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -40,7 +41,11 @@ class GestionNutricionalUnificadoLive extends Component
         'cita' => false,
         'delete_cita' => false,
         'reporte_preview' => false,
+        'salud' => false,
     ];
+
+    /** ID del cliente para el modal de datos de salud. */
+    public ?int $saludClienteId = null;
 
     /** ID de evaluación para el reporte en previsualización */
     public $evaluacionIdReporte = null;
@@ -127,6 +132,25 @@ class GestionNutricionalUnificadoLive extends Component
         $this->evaluacionFormData['evaluado_por'] = auth()->id();
         $this->nutricionFormData['fecha'] = now()->format('Y-m-d');
         $this->citaFormData['fecha_hora'] = now()->addDay()->format('Y-m-d\TH:i');
+        $saludId = request()->query('salud');
+        if ($saludId && is_numeric($saludId)) {
+            $this->saludClienteId = (int) $saludId;
+            $this->modalState['salud'] = true;
+        }
+    }
+
+    public function openSaludModal(int $clienteId): void
+    {
+        $this->authorize('gestion-nutricional.update');
+        $this->saludClienteId = $clienteId;
+        $this->modalState['salud'] = true;
+    }
+
+    #[On('close-salud-modal')]
+    public function closeSaludModal(): void
+    {
+        $this->modalState['salud'] = false;
+        $this->saludClienteId = null;
     }
 
     public function updatingClienteSearch($value)

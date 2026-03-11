@@ -30,6 +30,7 @@ class Lead extends Model
     ];
 
     protected $fillable = [
+        'codigo',
         'tipo_documento',
         'numero_documento',
         'nombres',
@@ -100,6 +101,29 @@ class Lead extends Model
     public function campaignTargets(): HasMany
     {
         return $this->hasMany(CampaignTarget::class, 'lead_id');
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (Lead $lead) {
+            if (empty($lead->codigo)) {
+                $lead->codigo = self::generarCodigo();
+            }
+        });
+    }
+
+    public static function generarCodigo(): string
+    {
+        $year = now()->format('Y');
+        $last = self::withTrashed()
+            ->where('codigo', 'like', "LEAD-{$year}-%")
+            ->orderByDesc('id')
+            ->first();
+        $num = 1;
+        if ($last && preg_match('/LEAD-\d{4}-(\d+)/', $last->codigo ?? '', $m)) {
+            $num = (int) $m[1] + 1;
+        }
+        return sprintf('LEAD-%s-%04d', $year, $num);
     }
 
     public function getNombreCompletoAttribute(): string

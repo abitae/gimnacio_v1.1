@@ -15,6 +15,7 @@ class ClienteMembresia extends Model
     protected $fillable = [
         'cliente_id',
         'membresia_id',
+        'fecha_matricula',
         'fecha_inicio',
         'fecha_fin',
         'estado',
@@ -30,6 +31,7 @@ class ClienteMembresia extends Model
     protected function casts(): array
     {
         return [
+            'fecha_matricula' => 'date',
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
             'fechas_congelacion' => 'array',

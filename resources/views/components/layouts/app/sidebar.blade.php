@@ -1,16 +1,16 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="{{ $bodyAppearanceClass ?? 'dark' }} {{ $accentClass ?? 'accent-neutral' }}" data-appearance="{{ $appearanceValue ?? 'system' }}" data-appearance-sidebar="{{ $appearanceSidebarValue ?? 'system' }}" data-appearance-header="{{ $appearanceHeaderValue ?? 'system' }}" data-accent="{{ $accentValue ?? 'neutral' }}" data-sidebar-bg="{{ $sidebarBgValue ?? 'default' }}" data-header-bg="{{ $headerBgValue ?? 'default' }}" data-body-bg="{{ $bodyBgValue ?? 'default' }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="{{ $bodyAppearanceClass ?? 'dark' }} {{ $accentClass ?? 'accent-neutral' }}" data-appearance="{{ $appearanceValue ?? 'system' }}" data-appearance-sidebar="{{ $appearanceSidebarValue ?? 'system' }}" data-appearance-header="{{ $appearanceHeaderValue ?? 'system' }}" data-accent="{{ $accentValue ?? 'neutral' }}" data-sidebar-bg="{{ $sidebarBgValue ?? 'default' }}" data-header-bg="{{ $headerBgValue ?? 'default' }}" data-body-bg="{{ $bodyBgValue ?? 'default' }}" data-font-size="{{ $fontSizeValue ?? 'base' }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen antialiased transition-colors {{ $bodyBgClass ?? 'bg-white dark:bg-zinc-800' }}">
-        <flux:sidebar id="app-sidebar" sticky collapsible="mobile" class="{{ $sidebarAppearanceClass ?? 'dark' }} {{ $sidebarBgClass ?? 'bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700' }}">
+    <body class="min-h-screen antialiased transition-colors {{ $fontSizeClass ?? 'text-base' }} {{ $bodyBgClass ?? 'bg-white dark:bg-zinc-800' }}">
+        <flux:sidebar id="app-sidebar" sticky collapsible class="{{ $sidebarAppearanceClass ?? 'dark' }} {{ $sidebarBgClass ?? 'bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700' }}">
             <flux:sidebar.header>
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-2 px-2 py-2 min-w-0" wire:navigate>
                     <img src="{{ asset('Open9/logo_completo_sin_fondo.png') }}" alt="{{ config('app.name', 'Open9') }}" class="h-8 max-h-8 w-auto object-contain" />
                 </a>
 
-                <flux:sidebar.collapse class="lg:hidden" />
+                <flux:sidebar.collapse />
             </flux:sidebar.header>
 
             <flux:sidebar.search placeholder="Buscar..." />
@@ -52,6 +52,9 @@
                 <flux:sidebar.group expandable heading="Gestión Nutricional" class="grid" :expanded="request()->routeIs('gestion-nutricional.*')">
                     <flux:sidebar.item icon="clipboard-document-list" :href="route('gestion-nutricional.index')" :current="request()->routeIs('gestion-nutricional.index')" wire:navigate>
                         {{ __('Gestión Nutricional') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="flag" :href="route('gestion-nutricional.objetivos.index')" :current="request()->routeIs('gestion-nutricional.objetivos.*')" wire:navigate>
+                        {{ __('Objetivos') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="calendar" :href="route('gestion-nutricional.calendario')" :current="request()->routeIs('gestion-nutricional.calendario')" wire:navigate>
                         {{ __('Calendario') }}
@@ -118,6 +121,37 @@
                     <flux:sidebar.item icon="document-chart-bar" :href="route('reportes.index')" :current="request()->routeIs('reportes.index')" wire:navigate>
                         {{ __('Reportes') }}
                     </flux:sidebar.item>
+                    <flux:sidebar.item icon="document-text" :href="route('reportes.cuentas-por-cobrar')" :current="request()->routeIs('reportes.cuentas-por-cobrar')" wire:navigate>
+                        {{ __('Cuentas por cobrar') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="currency-dollar" :href="route('reportes.cuotas-vencidas')" :current="request()->routeIs('reportes.cuotas-vencidas')" wire:navigate>
+                        {{ __('Cuotas vencidas') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+                @endcan
+
+                @can('rentals.view')
+                <flux:sidebar.group expandable heading="Alquileres" class="grid" :expanded="request()->routeIs('rentals.*')">
+                    <flux:sidebar.item icon="building-office-2" :href="route('rentals.spaces.index')" :current="request()->routeIs('rentals.spaces.*')" wire:navigate>
+                        {{ __('Espacios') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="calendar" :href="route('rentals.calendar.index')" :current="request()->routeIs('rentals.calendar.*')" wire:navigate>
+                        {{ __('Calendario') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="document-chart-bar" :href="route('rentals.report')" :current="request()->routeIs('rentals.report')" wire:navigate>
+                        {{ __('Reporte ingresos') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+                @endcan
+
+                @can('employees.view')
+                <flux:sidebar.group expandable heading="Personal" class="grid" :expanded="request()->routeIs('employees.*')">
+                    <flux:sidebar.item icon="users" :href="route('employees.index')" :current="request()->routeIs('employees.index') || request()->routeIs('employees.show') || request()->routeIs('employees.edit')" wire:navigate>
+                        {{ __('Empleados') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="clipboard-document-check" :href="route('employees.attendances.index')" :current="request()->routeIs('employees.attendances.*')" wire:navigate>
+                        {{ __('Asistencia') }}
+                    </flux:sidebar.item>
                 </flux:sidebar.group>
                 @endcan
 
@@ -128,13 +162,24 @@
                     </flux:sidebar.item>
                     @endcan
                     @can('pos.view')
-                    <flux:sidebar.item icon="shopping-cart" :href="route('pos.index')" :current="request()->routeIs('pos.*')" wire:navigate>
+                    <flux:sidebar.item icon="shopping-cart" :href="route('pos.index')" :current="request()->routeIs('pos.index')" wire:navigate>
                         {{ __('Punto de Venta') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="credit-card" :href="route('pos.ventas-credito')" :current="request()->routeIs('pos.ventas-credito')" wire:navigate>
+                        {{ __('Ventas a crédito') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="document-text" :href="route('pos.cuentas-por-cobrar')" :current="request()->routeIs('pos.cuentas-por-cobrar')" wire:navigate>
+                        {{ __('Cuentas por cobrar') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('cupones.view')
+                    <flux:sidebar.item icon="ticket" :href="route('cupones.index')" :current="request()->routeIs('cupones.*')" wire:navigate>
+                        {{ __('Cupones') }}
                     </flux:sidebar.item>
                     @endcan
                 </flux:sidebar.group>
 
-                <flux:sidebar.group expandable heading="Productos" class="grid" :expanded="request()->routeIs('categorias-productos.*') || request()->routeIs('productos.*')">
+                <flux:sidebar.group expandable heading="Productos" class="grid" :expanded="request()->routeIs('categorias-productos.*') || request()->routeIs('productos.*') || request()->routeIs('servicios.*')">
                     @can('categorias-productos.view')
                     <flux:sidebar.item icon="tag" :href="route('categorias-productos.index')" :current="request()->routeIs('categorias-productos.*')" wire:navigate>
                         {{ __('Categorías Productos') }}
@@ -145,15 +190,15 @@
                         {{ __('Productos') }}
                     </flux:sidebar.item>
                     @endcan
-                </flux:sidebar.group>
-
-                @can('servicios.view')
-                <flux:sidebar.group expandable heading="Servicios" class="grid" :expanded="request()->routeIs('servicios.*')">
+                    @can('servicios.view')
                     <flux:sidebar.item icon="wrench-screwdriver" :href="route('servicios.index')" :current="request()->routeIs('servicios.*')" wire:navigate>
                         {{ __('Servicios') }}
                     </flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
-                @endcan
+
+                
+                
 
                 @can('biotime.view')
                 <flux:sidebar.group expandable heading="Integración BioTime" class="grid" :expanded="request()->routeIs('biotime.*')">
@@ -174,6 +219,14 @@
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="users" :href="route('biotime.employees')" :current="request()->routeIs('biotime.employees')" wire:navigate>
                         {{ __('Empleados BioTime') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+                @endcan
+
+                @can('payment-methods.view')
+                <flux:sidebar.group expandable heading="Configuración" class="grid" :expanded="request()->routeIs('payment-methods.*')">
+                    <flux:sidebar.item icon="credit-card" :href="route('payment-methods.index')" :current="request()->routeIs('payment-methods.*')" wire:navigate>
+                        {{ __('Métodos de pago') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
                 @endcan
@@ -299,6 +352,9 @@
                 <flux:navbar.item :href="route('checking.index')" :current="request()->routeIs('checking.*')" wire:navigate>
                     {{ __('Checking') }}
                 </flux:navbar.item>
+                <flux:navbar.item :href="route('pos.index')" :current="request()->routeIs('pos.*')" wire:navigate>
+                    {{ __('Punto de Venta') }}
+                </flux:navbar.item>
             </flux:navbar>
         </flux:header>
 
@@ -353,6 +409,7 @@
                     } catch (e) {}
                     return null;
                 }
+                var fontSizeClasses = { sm: 'text-sm', base: 'text-base', lg: 'text-lg' };
                 function applyAppearance(params) {
                     var appearance = params.appearance || 'system';
                     var appearanceSidebar = params.appearance_sidebar || 'system';
@@ -361,6 +418,7 @@
                     var sidebarBg = params.sidebar_bg || 'default';
                     var headerBg = params.header_bg || 'default';
                     var bodyBg = params.body_bg || 'default';
+                    var fontSize = params.font_size || 'base';
                     var html = document.documentElement;
                     html.classList.remove('light', 'dark');
                     html.classList.add(resolveMode(appearance));
@@ -373,6 +431,7 @@
                     html.setAttribute('data-sidebar-bg', sidebarBg);
                     html.setAttribute('data-header-bg', headerBg);
                     html.setAttribute('data-body-bg', bodyBg);
+                    html.setAttribute('data-font-size', fontSize);
                     var sidebarMode = resolveMode(appearanceSidebar);
                     var sidebarEl = document.getElementById('app-sidebar');
                     if (sidebarEl) {
@@ -388,9 +447,9 @@
                     var bodyEl = document.body;
                     if (bodyEl) {
                         var bodyParts = bodyEl.className.split(/\s+/).filter(function(c) {
-                            return c && !/^bg-\w+(-\d+)?(\/\d+)?$/.test(c) && !/^dark:bg-\w+(-\d+)?(\/\d+)?$/.test(c);
+                            return c && !/^bg-\w+(-\d+)?(\/\d+)?$/.test(c) && !/^dark:bg-\w+(-\d+)?(\/\d+)?$/.test(c) && c !== 'text-sm' && c !== 'text-base' && c !== 'text-lg';
                         });
-                        bodyEl.className = (bodyParts.join(' ') + ' ' + (bodyBgClasses[bodyBg] || bodyBgClasses.default)).trim();
+                        bodyEl.className = (bodyParts.join(' ') + ' ' + (fontSizeClasses[fontSize] || fontSizeClasses.base) + ' ' + (bodyBgClasses[bodyBg] || bodyBgClasses.default)).trim();
                     }
                     try {
                         localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -400,7 +459,8 @@
                             accent: accent,
                             sidebar_bg: sidebarBg,
                             header_bg: headerBg,
-                            body_bg: bodyBg
+                            body_bg: bodyBg,
+                            font_size: fontSize
                         }));
                     } catch (e) {}
                 }
@@ -412,7 +472,8 @@
                         accent: document.documentElement.getAttribute('data-accent') || 'neutral',
                         sidebar_bg: document.documentElement.getAttribute('data-sidebar-bg') || 'default',
                         header_bg: document.documentElement.getAttribute('data-header-bg') || 'default',
-                        body_bg: document.documentElement.getAttribute('data-body-bg') || 'default'
+                        body_bg: document.documentElement.getAttribute('data-body-bg') || 'default',
+                        font_size: document.documentElement.getAttribute('data-font-size') || 'base'
                     };
                 }
                 function restoreAppearanceFromStorage() {

@@ -81,7 +81,7 @@
         @endif
     </div>
 
-    <!-- Datos de Salud -->
+    <!-- Datos de Salud (resumen legado; editar en Gestión Nutricional) -->
     @if ($cliente->datos_salud)
         <div class="border-t border-zinc-200 dark:border-zinc-700 pt-2">
             <p class="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Salud</p>
@@ -105,8 +105,30 @@
                     </div>
                 @endif
             </div>
+            @can('gestion-nutricional.update')
+            <flux:button variant="ghost" size="xs" wire:click="openSaludModal({{ $cliente->id }})" class="mt-1">
+                <flux:icon name="pencil" class="w-3.5 h-3.5" /> Ver/editar en Gestión Nutricional
+            </flux:button>
+            @endcan
         </div>
+    @else
+        @can('gestion-nutricional.update')
+        <div class="border-t border-zinc-200 dark:border-zinc-700 pt-2">
+            <flux:button variant="ghost" size="xs" wire:click="openSaludModal({{ $cliente->id }})">
+                <flux:icon name="heart" class="w-3.5 h-3.5" /> Salud / Nutrición
+            </flux:button>
+        </div>
+        @endcan
     @endif
+
+    <!-- Objetivos nutricionales -->
+    @can('gestion-nutricional.view')
+    <div class="border-t border-zinc-200 dark:border-zinc-700 pt-2">
+        <a href="{{ route('gestion-nutricional.objetivos.index', ['cliente_id' => $cliente->id]) }}" wire:navigate class="inline-flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
+            <flux:icon name="flag" class="w-3.5 h-3.5" /> Objetivos nutricionales
+        </a>
+    </div>
+    @endcan
 
     <!-- Contacto de Emergencia -->
     @if ($cliente->datos_emergencia)

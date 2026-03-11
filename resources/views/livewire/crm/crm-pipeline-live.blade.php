@@ -69,6 +69,9 @@
                         <div class="p-3">
                             <div class="flex justify-between items-start gap-1">
                                 <div class="min-w-0 flex-1" wire:click="openLeadDetail({{ $lead->id }})">
+                                    @if($lead->codigo)
+                                    <p class="text-xs font-mono text-zinc-500 dark:text-zinc-400">{{ $lead->codigo }}</p>
+                                    @endif
                                     <p class="font-medium text-sm text-zinc-900 dark:text-zinc-100 truncate">{{ $lead->nombre_completo }}</p>
                                     <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $lead->telefono }}</p>
                                     @if($lead->email)

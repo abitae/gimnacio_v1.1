@@ -22,6 +22,12 @@ class Cliente extends Model
         'telefono',
         'email',
         'direccion',
+        'ocupacion',
+        'fecha_nacimiento',
+        'lugar_nacimiento',
+        'estado_civil',
+        'numero_hijos',
+        'placa_carro',
         'estado_cliente',
         'foto',
         'sexo',
@@ -38,6 +44,7 @@ class Cliente extends Model
     protected function casts(): array
     {
         return [
+            'fecha_nacimiento' => 'date',
             'datos_salud' => 'array',
             'datos_emergencia' => 'array',
             'consentimientos' => 'array',
@@ -185,6 +192,21 @@ class Cliente extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
+    public function clientDebts(): HasMany
+    {
+        return $this->hasMany(ClientDebt::class, 'cliente_id');
+    }
+
+    public function nutritionGoals(): HasMany
+    {
+        return $this->hasMany(NutritionGoal::class, 'cliente_id');
+    }
+
+    public function healthRecord(): \Illuminate\Database\Eloquent\Relations\HasOne
+    {
+        return $this->hasOne(HealthRecord::class, 'cliente_id');
+    }
+
     /**
      * Obtener el total de deuda del cliente
      * Suma todos los saldos pendientes de sus pagos (último saldo de cada membresía/matrícula)
@@ -229,6 +251,21 @@ class Cliente extends Model
                 $deudaTotal += $ultimoPago->saldo_pendiente;
             }
         }
+
+        // Deudas por ventas a crédito y otros orígenes (client_debts)
+        $deudaTotal += (float) $this->clientDebts()->pendientes()->sum('saldo_pendiente');
+
+        // Cuotas de matrícula pendientes o vencidas (enrollment_installments)
+        $cuotasPendientes = \App\Models\Core\EnrollmentInstallment::query()
+            ->whereIn('enrollment_installment_plan_id', function ($q) {
+                $q->select('id')->from('enrollment_installment_plans')
+                    ->whereIn('cliente_matricula_id', function ($q2) {
+                        $q2->select('id')->from('cliente_matriculas')->where('cliente_id', $this->id);
+                    });
+            })
+            ->whereIn('estado', ['pendiente', 'vencida'])
+            ->sum('monto');
+        $deudaTotal += (float) $cuotasPendientes;
 
         return round($deudaTotal, 2);
     }

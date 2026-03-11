@@ -38,6 +38,7 @@
         <table class="w-full text-sm">
             <thead class="bg-zinc-50 dark:bg-zinc-900">
                 <tr>
+                    <th class="px-4 py-2 text-left font-medium text-zinc-500">Código</th>
                     <th class="px-4 py-2 text-left font-medium text-zinc-500">Contacto</th>
                     <th class="px-4 py-2 text-left font-medium text-zinc-500">Etapa</th>
                     <th class="px-4 py-2 text-left font-medium text-zinc-500">Asignado</th>
@@ -48,6 +49,7 @@
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                 @forelse($leads as $lead)
                 <tr>
+                    <td class="px-4 py-2 text-xs font-mono text-zinc-600 dark:text-zinc-400">{{ $lead->codigo ?? '—' }}</td>
                     <td class="px-4 py-2">
                         <a href="{{ route('crm.leads.show', $lead->id) }}" wire:navigate class="font-medium text-zinc-900 dark:text-zinc-100 hover:underline">{{ $lead->nombre_completo }}</a>
                         <p class="text-xs text-zinc-500">{{ $lead->telefono }}</p>
@@ -60,7 +62,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="5" class="px-4 py-8 text-center text-zinc-500">No hay leads con estos filtros</td></tr>
+                <tr><td colspan="6" class="px-4 py-8 text-center text-zinc-500">No hay leads con estos filtros</td></tr>
                 @endforelse
             </tbody>
         </table>

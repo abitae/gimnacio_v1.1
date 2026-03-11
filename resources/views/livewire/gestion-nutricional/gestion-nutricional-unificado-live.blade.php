@@ -977,6 +977,17 @@
             </div>
         @endif
     </flux:modal>
+
+    @can('gestion-nutricional.update')
+    <flux:modal name="salud-modal" wire:model="modalState.salud" focusable flyout variant="floating" class="md:w-lg">
+        <div class="p-4">
+            <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Salud / Nutrición</h2>
+            @if($saludClienteId)
+                <livewire:nutrition.health-record-form :cliente-id="$saludClienteId" :key="'salud-'.$saludClienteId" />
+            @endif
+        </div>
+    </flux:modal>
+    @endcan
 </div>
 
 <script>

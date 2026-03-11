@@ -243,7 +243,12 @@
                                                 </span>
                                             </td>
                                             <td class="px-4 py-2.5 text-xs">
-                                                <div class="flex gap-1">
+                                                <div class="flex gap-1 flex-wrap">
+                                                    @can('cliente-matriculas.view')
+                                                    <a href="{{ route('cliente-matriculas.cuotas', $matricula) }}" wire:navigate aria-label="Cuotas">
+                                                        <flux:button variant="ghost" size="xs" icon="currency-dollar">Cuotas</flux:button>
+                                                    </a>
+                                                    @endcan
                                                     @if ($matricula->estado !== 'completada')
                                                         @can('cliente-matriculas.update')
                                                         <flux:button variant="ghost" size="xs" icon="pencil"

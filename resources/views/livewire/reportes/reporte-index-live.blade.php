@@ -103,5 +103,27 @@
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">Más vendidos y stock bajo</p>
             </div>
         </a>
+
+        <a href="{{ route('reportes.cuentas-por-cobrar') }}" wire:navigate
+            class="flex items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition">
+            <span class="flex h-12 w-12 items-center justify-center rounded-lg bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400">
+                <flux:icon name="document-text" class="size-6" />
+            </span>
+            <div>
+                <span class="font-semibold text-zinc-900 dark:text-zinc-100">Cuentas por cobrar</span>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">Deudas y ventas a crédito</p>
+            </div>
+        </a>
+
+        <a href="{{ route('reportes.cuotas-vencidas') }}" wire:navigate
+            class="flex items-center gap-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 hover:bg-zinc-50 dark:hover:bg-zinc-700/50 transition">
+            <span class="flex h-12 w-12 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">
+                <flux:icon name="currency-dollar" class="size-6" />
+            </span>
+            <div>
+                <span class="font-semibold text-zinc-900 dark:text-zinc-100">Cuotas vencidas</span>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">Cuotas de matrícula pendientes de pago</p>
+            </div>
+        </a>
     </div>
 </div>

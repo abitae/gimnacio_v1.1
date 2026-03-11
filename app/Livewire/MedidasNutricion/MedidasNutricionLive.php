@@ -11,6 +11,7 @@ use App\Services\EvaluacionMedidasNutricionService;
 use App\Services\ReporteService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Collection as SupportCollection;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -40,7 +41,10 @@ class MedidasNutricionLive extends Component
         'delete_evaluacion' => false,
         'delete_cita' => false,
         'reporte_preview' => false,
+        'salud' => false,
     ];
+
+    public ?int $saludClienteId = null;
 
     public $evaluacionIdReporte = null;
 
@@ -189,6 +193,19 @@ class MedidasNutricionLive extends Component
         $this->clientes = collect([]);
         $this->isSearching = false;
         $this->resetPage();
+    }
+
+    public function openSaludModal(int $clienteId): void
+    {
+        $this->saludClienteId = $clienteId;
+        $this->modalState['salud'] = true;
+    }
+
+    #[On('close-salud-modal')]
+    public function closeSaludModal(): void
+    {
+        $this->modalState['salud'] = false;
+        $this->saludClienteId = null;
     }
 
     // Evaluación methods

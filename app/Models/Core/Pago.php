@@ -18,6 +18,9 @@ class Pago extends Model
         'monto',
         'moneda',
         'metodo_pago',
+        'payment_method_id',
+        'numero_operacion',
+        'entidad_financiera',
         'fecha_pago',
         'es_pago_parcial',
         'saldo_pendiente',
@@ -59,5 +62,10 @@ class Pago extends Model
     public function caja(): BelongsTo
     {
         return $this->belongsTo(Caja::class);
+    }
+
+    public function paymentMethod(): BelongsTo
+    {
+        return $this->belongsTo(PaymentMethod::class);
     }
 }

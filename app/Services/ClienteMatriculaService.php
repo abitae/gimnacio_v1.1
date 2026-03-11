@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 
 class ClienteMatriculaService
 {
@@ -86,6 +87,10 @@ class ClienteMatriculaService
                 $validated['fecha_fin'] = Carbon::parse($validated['fecha_inicio'])->addDays($dias)->toDateString();
             }
 
+            $validated['fecha_matricula'] = isset($validated['fecha_matricula'])
+                ? Carbon::parse($validated['fecha_matricula'])->toDateString()
+                : Carbon::today()->toDateString();
+
             // Calcular precio_final si no está presente
             if (!isset($validated['precio_final'])) {
                 $precioLista = $validated['precio_lista'] ?? 0;
@@ -127,7 +132,7 @@ class ClienteMatriculaService
             'saldo_pendiente' => $clienteMatricula->precio_final,
             'comprobante_tipo' => null,
             'comprobante_numero' => null,
-            'registrado_por' => auth()->id(),
+            'registrado_por' => Auth::user()->id,
         ]);
     }
 
@@ -144,7 +149,7 @@ class ClienteMatriculaService
 
         // Validar que exista una caja abierta
         $cajaService = app(CajaService::class);
-        if (!$cajaService->validarCajaAbierta(auth()->id())) {
+        if (!$cajaService->validarCajaAbierta(Auth::user()->id)) {
             throw new \Exception('No hay una caja abierta. Por favor, abra una caja antes de registrar pagos.');
         }
 
@@ -167,19 +172,31 @@ class ClienteMatriculaService
             $nuevoSaldoPendiente = $saldoPendiente - $montoPago;
             $esPagoParcial = $nuevoSaldoPendiente > 0;
 
+            $metodoPago = $data['metodo_pago'] ?? 'efectivo';
+            $paymentMethodId = $data['payment_method_id'] ?? null;
+            if ($paymentMethodId) {
+                $pm = \App\Models\Core\PaymentMethod::find($paymentMethodId);
+                if ($pm) {
+                    $metodoPago = $pm->nombre;
+                }
+            }
+
             // Crear nuevo registro de pago asociado a la caja
             $pago = Pago::create([
                 'cliente_id' => $clienteMatricula->cliente_id,
                 'cliente_matricula_id' => $clienteMatricula->id,
                 'monto' => $montoPago,
                 'moneda' => $data['moneda'] ?? 'PEN',
-                'metodo_pago' => $data['metodo_pago'] ?? 'efectivo',
+                'metodo_pago' => $metodoPago,
+                'payment_method_id' => $paymentMethodId,
+                'numero_operacion' => $data['numero_operacion'] ?? null,
+                'entidad_financiera' => $data['entidad_financiera'] ?? null,
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
                 'es_pago_parcial' => $esPagoParcial,
                 'saldo_pendiente' => $nuevoSaldoPendiente,
                 'comprobante_tipo' => $data['comprobante_tipo'] ?? null,
                 'comprobante_numero' => $data['comprobante_numero'] ?? null,
-                'registrado_por' => auth()->id(),
+                'registrado_por' => Auth::user()->id,
                 'caja_id' => $caja->id,
             ]);
 
@@ -303,6 +320,7 @@ class ClienteMatriculaService
         $rules = [
             'cliente_id' => [$isUpdate ? 'sometimes' : 'required', 'exists:clientes,id'],
             'tipo' => ['required', 'string', 'in:membresia,clase'],
+            'fecha_matricula' => ['nullable', 'date'],
             'fecha_inicio' => [$isUpdate ? 'sometimes' : 'required', 'date'],
             'fecha_fin' => [
                 $isUpdate ? 'sometimes' : ($tipo === 'membresia' ? 'required' : 'nullable'),

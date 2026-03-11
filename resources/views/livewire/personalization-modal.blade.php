@@ -15,6 +15,7 @@ new class extends Component {
     public string $sidebar_bg = 'default';
     public string $header_bg = 'default';
     public string $body_bg = 'default';
+    public string $font_size = 'base';
 
     public function mount(): void
     {
@@ -41,6 +42,7 @@ new class extends Component {
         $this->sidebar_bg = $user->sidebar_bg ?? 'default';
         $this->header_bg = $user->header_bg ?? 'default';
         $this->body_bg = $user->body_bg ?? 'default';
+        $this->font_size = $user->font_size ?? 'base';
     }
 
     /** Tema del cuerpo (contenido principal) */
@@ -102,6 +104,14 @@ new class extends Component {
         $this->dispatchAppearanceUpdated();
     }
 
+    public function setFontSize(string $value): void
+    {
+        if (! in_array($value, ['sm', 'base', 'lg'], true) || ! Auth::check()) return;
+        Auth::user()->update(['font_size' => $value]);
+        $this->font_size = $value;
+        $this->dispatchAppearanceUpdated();
+    }
+
     private function dispatchAppearanceUpdated(): void
     {
         $user = Auth::user();
@@ -112,15 +122,16 @@ new class extends Component {
             accent: $user->accent ?? 'neutral',
             sidebar_bg: $this->sidebar_bg,
             header_bg: $this->header_bg,
-            body_bg: $this->body_bg
+            body_bg: $this->body_bg,
+            font_size: $this->font_size
         );
     }
 }; ?>
 
 <div wire:key="personalization-modal">
-    <flux:button icon="paint-brush" size="sm" variant="ghost" class="w-full justify-start gap-2" wire:click="openModal" title="{{ __('Personalize') }}">
+    <flux:sidebar.item icon="paint-brush" class="w-full justify-start gap-2" wire:click="openModal" as="button" type="button" title="{{ __('Personalize') }}">
         <span class="truncate">{{ __('Personalize') }}</span>
-    </flux:button>
+    </flux:sidebar.item>
 
     <flux:modal name="personalization-modal" wire:model="showModal" focusable class="md:max-w-md">
         {{-- Contenedor en modo claro fijo para que el modal siempre se vea claro --}}
@@ -169,6 +180,17 @@ new class extends Component {
                         <button type="button" wire:click="setAppearance('system')" class="min-w-0 flex-1 rounded-md px-2 py-2 text-xs transition @if($appearance === 'system') bg-white shadow @else hover:bg-zinc-200 @endif text-zinc-900" title="{{ __('System') }}">
                             <flux:icon name="computer-desktop" class="mx-auto size-4" />
                         </button>
+                    </div>
+                </div>
+
+                <div>
+                    <flux:text class="mb-2 block text-sm font-medium text-zinc-900">{{ __('Font size') }}</flux:text>
+                    <div class="flex gap-2">
+                        @foreach(['sm' => 'Pequeño', 'base' => 'Mediano', 'lg' => 'Grande'] as $val => $label)
+                            <button type="button" wire:click="setFontSize('{{ $val }}')" class="flex-1 rounded-lg border border-zinc-200 px-3 py-2 text-sm transition hover:border-zinc-300 text-zinc-900 @if($font_size === $val) border-accent ring-2 ring-accent @endif" title="{{ $label }}">
+                                {{ $label }}
+                            </button>
+                        @endforeach
                     </div>
                 </div>
 

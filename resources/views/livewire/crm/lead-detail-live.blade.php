@@ -17,6 +17,9 @@
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4">
         <div class="flex items-start justify-between gap-2">
             <div>
+                @if($lead->codigo)
+                <p class="text-xs font-mono text-zinc-500 dark:text-zinc-400 mb-0.5">{{ $lead->codigo }}</p>
+                @endif
                 <h1 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $lead->nombre_completo }}</h1>
                 <p class="text-sm text-zinc-500">{{ $lead->stage->nombre }}</p>
                 <div class="mt-3 grid gap-2 sm:grid-cols-2 text-sm">

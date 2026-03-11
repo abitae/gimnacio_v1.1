@@ -6,6 +6,7 @@ use App\Livewire\Concerns\FlashesToast;
 use App\Models\Core\Cliente;
 use App\Services\ClienteService;
 use Illuminate\Support\Facades\Storage;
+use Livewire\Attributes\On;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -30,7 +31,11 @@ class ClienteLive extends Component
         'create' => false,
         'delete' => false,
         'photo' => false,
+        'salud' => false,
     ];
+
+    /** ID del cliente para el modal de datos de salud (gestión nutricional). */
+    public ?int $saludClienteId = null;
 
     // Selected items
     public $clienteId = null;
@@ -52,14 +57,15 @@ class ClienteLive extends Component
         'telefono' => '',
         'email' => '',
         'direccion' => '',
+        'ocupacion' => '',
+        'fecha_nacimiento' => '',
+        'lugar_nacimiento' => '',
+        'estado_civil' => '',
+        'numero_hijos' => '',
+        'placa_carro' => '',
         'sexo' => '',
         'biotime_state' => false,
         'biotime_update' => false,
-        'datos_salud' => [
-            'alergias' => '',
-            'medicamentos' => '',
-            'lesiones' => '',
-        ],
         'datos_emergencia' => [
             'nombre' => '',
             'telefono' => '',
@@ -164,6 +170,19 @@ class ClienteLive extends Component
         $this->capturedPhotoUrl = null;
     }
 
+    public function openSaludModal(int $clienteId): void
+    {
+        $this->saludClienteId = $clienteId;
+        $this->modalState['salud'] = true;
+    }
+
+    #[On('close-salud-modal')]
+    public function closeSaludModal(): void
+    {
+        $this->modalState['salud'] = false;
+        $this->saludClienteId = null;
+    }
+
     public function closeModal()
     {
         if (isset($this->formData['foto_captured'])) {
@@ -178,7 +197,9 @@ class ClienteLive extends Component
             'create' => false,
             'delete' => false,
             'photo' => false,
+            'salud' => false,
         ];
+        $this->saludClienteId = null;
         $this->photoClienteId = null;
         $this->foto = null;
         $this->currentPhoto = null;
@@ -351,14 +372,15 @@ class ClienteLive extends Component
             'telefono' => $cliente->telefono ?? '',
             'email' => $cliente->email ?? '',
             'direccion' => $cliente->direccion ?? '',
+            'ocupacion' => $cliente->ocupacion ?? '',
+            'fecha_nacimiento' => $cliente->fecha_nacimiento ? $cliente->fecha_nacimiento->format('Y-m-d') : '',
+            'lugar_nacimiento' => $cliente->lugar_nacimiento ?? '',
+            'estado_civil' => $cliente->estado_civil ?? '',
+            'numero_hijos' => $cliente->numero_hijos !== null ? (string) $cliente->numero_hijos : '',
+            'placa_carro' => $cliente->placa_carro ?? '',
             'sexo' => $cliente->sexo ?? '',
             'biotime_state' => (bool) $cliente->biotime_state,
             'biotime_update' => (bool) $cliente->biotime_update,
-            'datos_salud' => [
-                'alergias' => $cliente->datos_salud['alergias'] ?? '',
-                'medicamentos' => $cliente->datos_salud['medicamentos'] ?? '',
-                'lesiones' => $cliente->datos_salud['lesiones'] ?? '',
-            ],
             'datos_emergencia' => [
                 'nombre' => $cliente->datos_emergencia['nombre_contacto'] ?? '',
                 'telefono' => $cliente->datos_emergencia['telefono_contacto'] ?? '',
@@ -383,11 +405,6 @@ class ClienteLive extends Component
             'direccion' => $this->formData['direccion'] ?: null,
             'sexo' => $this->formData['sexo'] ?: null,
             'biotime_update' => (bool) ($this->formData['biotime_update'] ?? false),
-            'datos_salud' => [
-                'alergias' => $this->formData['datos_salud']['alergias'] ?: null,
-                'medicamentos' => $this->formData['datos_salud']['medicamentos'] ?: null,
-                'lesiones' => $this->formData['datos_salud']['lesiones'] ?: null,
-            ],
             'datos_emergencia' => [
                 'nombre_contacto' => $this->formData['datos_emergencia']['nombre'] ?: null,
                 'telefono_contacto' => $this->formData['datos_emergencia']['telefono'] ?: null,
@@ -428,14 +445,15 @@ class ClienteLive extends Component
             'telefono' => '',
             'email' => '',
             'direccion' => '',
+            'ocupacion' => '',
+            'fecha_nacimiento' => '',
+            'lugar_nacimiento' => '',
+            'estado_civil' => '',
+            'numero_hijos' => '',
+            'placa_carro' => '',
             'sexo' => '',
             'biotime_state' => false,
             'biotime_update' => false,
-            'datos_salud' => [
-                'alergias' => '',
-                'medicamentos' => '',
-                'lesiones' => '',
-            ],
             'datos_emergencia' => [
                 'nombre' => '',
                 'telefono' => '',

@@ -78,6 +78,8 @@ class AppServiceProvider extends ServiceProvider
             $sidebarBgValue = 'default';
             $headerBgValue = 'default';
             $bodyBgValue = 'default';
+            $fontSizeValue = 'base';
+            $fontSizeClass = 'text-base';
 
             if (Auth::check()) {
                 $user = Auth::user();
@@ -92,9 +94,15 @@ class AppServiceProvider extends ServiceProvider
                 $sidebarBgValue = $user->sidebar_bg ?? 'default';
                 $headerBgValue = $user->header_bg ?? 'default';
                 $bodyBgValue = $user->body_bg ?? 'default';
+                $fontSizeValue = $user->font_size ?? 'base';
                 $sidebarBgClass = $sidebarBgClasses[$sidebarBgValue] ?? $sidebarBgClasses['default'];
                 $headerBgClass = $headerBgClasses[$headerBgValue] ?? $headerBgClasses['default'];
                 $bodyBgClass = $bodyBgClasses[$bodyBgValue] ?? $bodyBgClasses['default'];
+                $fontSizeClass = match ($fontSizeValue) {
+                    'sm' => 'text-sm',
+                    'lg' => 'text-lg',
+                    default => 'text-base',
+                };
             }
 
             $view->with('bodyAppearanceClass', $bodyAppearanceClass);
@@ -111,6 +119,8 @@ class AppServiceProvider extends ServiceProvider
             $view->with('sidebarBgValue', $sidebarBgValue);
             $view->with('headerBgValue', $headerBgValue);
             $view->with('bodyBgValue', $bodyBgValue);
+            $view->with('fontSizeValue', $fontSizeValue);
+            $view->with('fontSizeClass', $fontSizeClass);
         });
     }
 }

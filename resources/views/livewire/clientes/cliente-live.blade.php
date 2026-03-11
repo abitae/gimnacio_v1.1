@@ -227,18 +227,40 @@
                         class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"></textarea>
                     <flux:error name="formData.direccion" />
                 </div>
-
-                <!-- Datos de Salud -->
-                <div class="rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-700">
-                    <h3 class="mb-2 text-xs font-semibold text-zinc-900 dark:text-zinc-100">Datos de Salud</h3>
-                    <div class="space-y-2">
-                        <flux:input size="xs" wire:model="formData.datos_salud.alergias" label="Alergias"
-                            placeholder="Ej: Ninguna, Polen, etc." />
-                        <flux:input size="xs" wire:model="formData.datos_salud.medicamentos"
-                            label="Medicamentos" placeholder="Ej: Ninguno, Antihistamínico, etc." />
-                        <flux:input size="xs" wire:model="formData.datos_salud.lesiones" label="Lesiones"
-                            placeholder="Ej: Ninguna, Rodilla izquierda, etc." />
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <flux:label class="text-xs">Ocupación</flux:label>
+                        <flux:input wire:model="formData.ocupacion" class="text-xs" />
                     </div>
+                    <div>
+                        <flux:label class="text-xs">Fecha nacimiento</flux:label>
+                        <flux:input type="date" wire:model="formData.fecha_nacimiento" class="text-xs" />
+                    </div>
+                </div>
+                <div>
+                    <flux:label class="text-xs">Lugar nacimiento</flux:label>
+                    <flux:input wire:model="formData.lugar_nacimiento" class="text-xs" />
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <div>
+                        <flux:label class="text-xs">Estado civil</flux:label>
+                        <select wire:model="formData.estado_civil" class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                            <option value="">—</option>
+                            <option value="soltero">Soltero/a</option>
+                            <option value="casado">Casado/a</option>
+                            <option value="conviviente">Conviviente</option>
+                            <option value="divorciado">Divorciado/a</option>
+                            <option value="viudo">Viudo/a</option>
+                        </select>
+                    </div>
+                    <div>
+                        <flux:label class="text-xs">Nº hijos</flux:label>
+                        <flux:input type="number" min="0" wire:model="formData.numero_hijos" class="text-xs" />
+                    </div>
+                </div>
+                <div>
+                    <flux:label class="text-xs">Placa carro (opcional)</flux:label>
+                    <flux:input wire:model="formData.placa_carro" class="text-xs" placeholder="Opcional" />
                 </div>
 
                 <!-- Datos de Emergencia -->
@@ -478,7 +500,7 @@
                                 <svg class="w-4 h-4 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                                     <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
                                 </svg>
-                                <span>Al hacer clic en <strong>Activar cámara</strong> el navegador te pedirá permiso para usar la cámara. Acepta para poder tomar la foto.</span>
+                                <span>Al hacer clic en <strong>Activar cámara</strong> se solicitará el permiso correspondiente (cámara). Acepta en el navegador para poder tomar la foto.</span>
                             </p>
                         </div>
 
@@ -506,15 +528,16 @@
                         <!-- Permiso denegado: cómo habilitar de nuevo -->
                         <div x-show="cameraSupported && cameraPermissionDenied" x-transition
                             class="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-                            <p class="text-xs font-semibold text-amber-800 dark:text-amber-200 mb-1">Permiso de cámara denegado</p>
-                            <p class="text-xs text-amber-700 dark:text-amber-300 mb-2">
-                                Para tomar la foto hay que permitir el acceso a la cámara. Haz lo siguiente y vuelve a pulsar <strong>Activar cámara</strong>:
+                            <p class="text-sm font-semibold text-amber-800 dark:text-amber-200 mb-2">Permiso de cámara denegado</p>
+                            <p class="text-xs text-amber-700 dark:text-amber-300 mb-3">
+                                Para tomar la foto debes conceder el permiso correspondiente (cámara) en el navegador. Después pulsa <strong>Intentar de nuevo</strong>.
                             </p>
-                            <ul class="text-xs text-amber-700 dark:text-amber-300 list-disc list-inside space-y-0.5">
-                                <li>Chrome/Edge: clic en el icono de candado o información en la barra de direcciones → Permisos → Cámara → Permitir.</li>
-                                <li>Firefox: clic en el icono de candado → Limpiar cookies y permisos del sitio, o en Ajustes → Privacidad → Permisos.</li>
-                            </ul>
-                            <button type="button" class="mt-3 inline-flex items-center justify-center rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-purple-500"
+                            <div class="space-y-2 text-xs text-amber-700 dark:text-amber-300">
+                                <p><strong>Chrome o Edge:</strong> Haz clic en el icono de candado o información (a la izquierda de la URL) → <strong>Permisos</strong> → <strong>Cámara</strong> → elige <strong>Permitir</strong>.</p>
+                                <p><strong>Firefox:</strong> Haz clic en el icono de candado o escudo a la izquierda de la URL → <strong>Permisos</strong> → marca <strong>Cámara</strong> como Permitir. Si no ves la opción, usa el menú del navegador → Ajustes → Privacidad y seguridad → Permisos → Configuración de la cámara.</p>
+                                <p><strong>Safari:</strong> Menú Safari → Ajustes (o Preferencias) → Sitios web → Cámara → permite el acceso para este sitio.</p>
+                            </div>
+                            <button type="button" class="mt-4 inline-flex items-center justify-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-purple-500 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2"
                                 @click="cameraError = ''; cameraPermissionDenied = false; startCamera();">
                                 Intentar de nuevo
                             </button>
@@ -543,10 +566,10 @@
                                             d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
                                     </svg>
                                     <p class="text-sm text-zinc-600 dark:text-zinc-400 text-center mb-1">
-                                        Se pedirá permiso para usar la cámara
+                                        Se solicitará el permiso correspondiente (cámara)
                                     </p>
                                     <p class="text-xs text-zinc-500 dark:text-zinc-500 text-center mb-4">
-                                        Acepta en el navegador cuando aparezca el aviso
+                                        Acepta en el navegador cuando aparezca la solicitud
                                     </p>
                                     <button type="button"
                                         @click.stop="requestCameraPermission()"
@@ -561,8 +584,8 @@
                                     class="absolute inset-0 flex items-center justify-center bg-zinc-900/70">
                                     <div class="flex flex-col items-center gap-2">
                                         <div class="animate-spin rounded-full h-10 w-10 border-2 border-white border-t-transparent"></div>
-                                        <p class="text-sm text-white font-medium">Solicitando permiso de cámara...</p>
-                                        <p class="text-xs text-white/80">Acepta en el navegador si aparece el aviso</p>
+                                        <p class="text-sm text-white font-medium">Solicitando el permiso correspondiente...</p>
+                                        <p class="text-xs text-white/80">Acepta en el navegador cuando aparezca la solicitud</p>
                                     </div>
                                 </div>
                             </div>
@@ -713,6 +736,17 @@
                 <span wire:loading wire:target="delete">Eliminando...</span>
             </span>
             </flux:button>
+        </div>
+    </flux:modal>
+    @endcan
+
+    @can('gestion-nutricional.update')
+    <flux:modal name="salud-modal" wire:model="modalState.salud" focusable flyout variant="floating" class="md:w-lg">
+        <div class="p-4">
+            <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Salud / Nutrición</h2>
+            @if($saludClienteId)
+                <livewire:nutrition.health-record-form :cliente-id="$saludClienteId" :key="'salud-'.$saludClienteId" />
+            @endif
         </div>
     </flux:modal>
     @endcan

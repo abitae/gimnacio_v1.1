@@ -38,8 +38,12 @@ class DatabaseSeeder extends Seeder
             ServicioExternoSeeder::class,     // Depende de CategoriaServicio
             ClaseSeeder::class,               // Depende de User (instructores)
             ComprobanteConfigSeeder::class,   // Sin dependencias
+            PaymentMethodSeeder::class,       // Métodos de pago (antes de caja/pagos)
+            RentableSpaceSeeder::class,       // Espacios para alquiler (sin dependencias)
+            DiscountCouponSeeder::class,      // Cupones de descuento (sin dependencias)
             // Seeders de caja (necesario para pagos)
             CajaSeeder::class,                // Depende de User
+            EmployeeSeeder::class,            // Empleados (depende de User)
             // ClienteMembresiaSeeder::class, // Deshabilitado: clientes sin matrículas/membresías
             // PagoSeeder::class,             // Depende de ClienteMembresia y Caja
             // AsistenciaSeeder::class,       // Depende de ClienteMembresia
@@ -47,6 +51,8 @@ class DatabaseSeeder extends Seeder
             EvaluacionMedidasNutricionSeeder::class,   // Depende de Cliente
             CitaSeeder::class,                // Depende de Cliente, EvaluacionMedidasNutricion
             SeguimientoNutricionSeeder::class, // Depende de Cliente, Cita, User (nutricionista)
+            HealthRecordSeeder::class,        // Datos de salud (depende de Cliente)
+            NutritionGoalSeeder::class,       // Objetivos nutricionales (depende de Cliente, User)
             CrmMensajeSeeder::class,          // Depende de Cliente, User
             CrmStageSeeder::class,             // Etapas CRM (antes de leads)
             LossReasonSeeder::class,          // Motivos de pérdida CRM

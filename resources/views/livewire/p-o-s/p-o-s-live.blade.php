@@ -347,35 +347,8 @@
             </div>
         </div>
 
-        <!-- Right Panel - Carrito -->
+        <!-- Right Panel - Carrito y Procesar venta -->
         <div class="w-1/3 flex flex-col bg-zinc-50 dark:bg-zinc-900">
-            <!-- Cliente -->
-            <div class="p-4 border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800">
-                <div class="flex items-center justify-between mb-2">
-                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Cliente</label>
-                    <flux:button size="xs" variant="ghost" wire:click="$set('mostrarModalCliente', true)">
-                        {{ $clienteSeleccionado ? 'Cambiar' : 'Seleccionar' }}
-                    </flux:button>
-                </div>
-                @if ($clienteSeleccionado)
-                    <div class="flex items-center justify-between p-2 rounded bg-zinc-100 dark:bg-zinc-700">
-                        <div>
-                            <p class="text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                                {{ $clienteSeleccionado->nombres }} {{ $clienteSeleccionado->apellidos }}
-                            </p>
-                            <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                                {{ $clienteSeleccionado->tipo_documento }}: {{ $clienteSeleccionado->numero_documento }}
-                            </p>
-                        </div>
-                        <flux:button size="xs" variant="ghost" color="red" wire:click="limpiarCliente">
-                            ✕
-                        </flux:button>
-                    </div>
-                @else
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400 italic">Venta sin cliente (walk-in)</p>
-                @endif
-            </div>
-
             <!-- Carrito -->
             <div class="flex-1 overflow-y-auto p-4">
                 <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Carrito de Compras</h3>
@@ -426,68 +399,26 @@
             <div class="border-t border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-4 space-y-3">
                 <div class="space-y-2 text-sm">
                     <div class="flex justify-between">
-                        <span class="text-zinc-600 dark:text-zinc-400">Subtotal (IGV incluido):</span>
+                        <span class="text-zinc-600 dark:text-zinc-400">Subtotal:</span>
                         <span class="font-medium text-zinc-900 dark:text-zinc-100">S/ {{ number_format($this->subtotal, 2) }}</span>
                     </div>
-                    <div class="flex justify-between">
+                    <div class="flex justify-between items-center gap-2">
                         <span class="text-zinc-600 dark:text-zinc-400">Descuento:</span>
-                        <input 
-                            type="number" 
-                            wire:model.live="descuento"
-                            step="0.01"
-                            min="0"
+                        <input type="number" wire:model.live="descuento" step="0.01" min="0"
                             class="w-24 rounded border border-zinc-300 bg-white px-2 py-1 text-right text-sm text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
-                    </div>
-                    <div class="flex justify-between text-xs text-zinc-500 dark:text-zinc-400">
-                        <span>Subtotal sin IGV:</span>
-                        <span>S/ {{ number_format($this->subtotalSinIgv, 2) }}</span>
-                    </div>
-                    <div class="flex justify-between text-xs text-zinc-500 dark:text-zinc-400">
-                        <span>IGV (18% incluido):</span>
-                        <span>S/ {{ number_format($this->igv, 2) }}</span>
                     </div>
                     <div class="flex justify-between pt-2 border-t border-zinc-200 dark:border-zinc-700">
                         <span class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Total:</span>
                         <span class="text-lg font-bold text-purple-600 dark:text-purple-400">S/ {{ number_format($this->total, 2) }}</span>
                     </div>
                 </div>
-
-                <div class="space-y-2">
-                    <div>
-                        <label class="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Tipo de Comprobante</label>
-                        <select wire:model="tipoComprobante"
-                            class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
-                            <option value="ticket">Ticket</option>
-                            <option value="boleta">Boleta</option>
-                            <option value="factura">Factura</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Método de Pago</label>
-                        <select wire:model="metodoPago"
-                            class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
-                            <option value="efectivo">Efectivo</option>
-                            <option value="tarjeta">Tarjeta</option>
-                            <option value="transferencia">Transferencia</option>
-                            <option value="yape">Yape</option>
-                            <option value="plin">Plin</option>
-                        </select>
-                    </div>
-                </div>
-
                 <div class="flex gap-2">
                     <flux:button variant="ghost" wire:click="limpiarCarrito" class="flex-1" wire:loading.attr="disabled">
                         Limpiar
                     </flux:button>
-                    <flux:button 
-                        color="purple" 
-                        variant="primary" 
-                        wire:click="procesarVenta" 
-                        class="flex-1"
-                        wire:loading.attr="disabled"
-                        :disabled="empty($carrito)">
-                        <span wire:loading.remove wire:target="procesarVenta">Procesar Venta</span>
-                        <span wire:loading wire:target="procesarVenta">Procesando...</span>
+                    <flux:button color="purple" variant="primary" wire:click="abrirModalProcesarVenta" class="flex-1"
+                        wire:loading.attr="disabled" :disabled="empty($carrito)">
+                        Procesar venta
                     </flux:button>
                 </div>
             </div>
@@ -496,7 +427,7 @@
     </div>
 
     <!-- Modal Cobro membresía/clase -->
-    <flux:modal name="cobro-modal" wire:model="mostrarModalCobro" focusable flyout variant="floating" class="md:w-lg">
+    <flux:modal name="cobro-modal" wire:model="mostrarModalCobro" focusable  class="md:w-lg">
         <form wire:submit.prevent="procesarCobro">
             <div class="space-y-3 p-4">
                 <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Registrar cobro</h2>
@@ -511,15 +442,19 @@
                 @endif
                 <div>
                     <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">Método de pago</label>
-                    <select wire:model="cobroFormData.metodo_pago"
+                    <select wire:model.live="cobroFormData.payment_method_id"
                         class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
-                        <option value="efectivo">Efectivo</option>
-                        <option value="tarjeta">Tarjeta</option>
-                        <option value="transferencia">Transferencia</option>
-                        <option value="yape">Yape</option>
-                        <option value="plin">Plin</option>
+                        @foreach($paymentMethods as $pm)
+                            <option value="{{ $pm->id }}">{{ $pm->nombre }}</option>
+                        @endforeach
                     </select>
                 </div>
+                @if($cobroPaymentMethod?->requiere_numero_operacion)
+                <flux:input size="xs" wire:model="cobroFormData.numero_operacion" label="Nº operación" placeholder="Obligatorio" />
+                @endif
+                @if($cobroPaymentMethod?->requiere_entidad)
+                <flux:input size="xs" wire:model="cobroFormData.entidad_financiera" label="Entidad financiera" placeholder="Obligatorio" />
+                @endif
                 <div class="grid grid-cols-2 gap-2">
                     <div>
                         <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">Comprobante</label>
@@ -546,55 +481,239 @@
         </form>
     </flux:modal>
 
-    <!-- Modal Selección Cliente -->
-    <flux:modal name="cliente-modal" wire:model="mostrarModalCliente" focusable flyout variant="floating" class="md:w-lg">
-        <div class="p-4">
-            <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Seleccionar Cliente</h2>
-            <div class="space-y-2 max-h-96 overflow-y-auto">
-                @foreach ($clientes as $cliente)
-                    <div 
-                        wire:click="seleccionarCliente({{ $cliente->id }})"
-                        class="cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 hover:border-purple-500 transition-all">
-                        <p class="font-medium text-sm text-zinc-900 dark:text-zinc-100">
-                            {{ $cliente->nombres }} {{ $cliente->apellidos }}
-                        </p>
-                        <p class="text-xs text-zinc-500 dark:text-zinc-400">
-                            {{ $cliente->tipo_documento }}: {{ $cliente->numero_documento }}
-                        </p>
-                    </div>
-                @endforeach
+    <!-- Modal Procesar venta (paso 2: cliente, cupón, comprobante, pago) -->
+    <flux:modal name="procesar-venta-modal" wire:model="mostrarModalProcesarVenta" focusable  class="md:w-xl">
+        <div class="p-4 space-y-4">
+            <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Procesar venta</h2>
+
+            <!-- Tipo de comprador -->
+            <div>
+                <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 block">Comprador</label>
+                <flux:radio.group wire:model.live="tipoComprador" variant="segmented">
+                    <flux:radio value="cliente" label="Cliente gimnasio" />
+                    <flux:radio value="empleado" label="Empleado" />
+                    <flux:radio value="cliente_solo_venta" label="Cliente solo venta" />
+                </flux:radio.group>
             </div>
-            <div class="mt-4 flex justify-end">
-                <flux:button variant="ghost" wire:click="$set('mostrarModalCliente', false)">Cerrar</flux:button>
+
+            @if ($tipoComprador === 'cliente')
+                <div>
+                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Cliente</label>
+                    @if ($clienteSeleccionado)
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-2">
+                                <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $clienteSeleccionado->nombres }} {{ $clienteSeleccionado->apellidos }}</span>
+                                <span class="text-xs text-zinc-500 dark:text-zinc-400 ml-1">· {{ $clienteSeleccionado->tipo_documento }} {{ $clienteSeleccionado->numero_documento }}</span>
+                            </div>
+                            <flux:button size="xs" variant="ghost" wire:click="limpiarCliente">Cambiar</flux:button>
+                        </div>
+                    @else
+                        <div class="relative">
+                            <flux:input type="text" wire:model.live.debounce.300ms="clienteSearchProcesar"
+                                placeholder="Buscar por nombre o documento..."
+                                icon="magnifying-glass" class="w-full" />
+                            @if ($clientesProcesar && $clientesProcesar->isNotEmpty())
+                                <div class="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg max-h-48 overflow-y-auto">
+                                    @foreach ($clientesProcesar as $c)
+                                        <button type="button" wire:click="seleccionarCliente({{ $c->id }})"
+                                            class="w-full px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700/50 flex justify-between">
+                                            <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $c->nombres }} {{ $c->apellidos }}</span>
+                                            <span class="text-zinc-500 dark:text-zinc-400 text-xs">{{ $c->tipo_documento }} {{ $c->numero_documento }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @elseif (strlen(trim($clienteSearchProcesar)) >= 2)
+                                <div class="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 text-sm text-zinc-500 dark:text-zinc-400">
+                                    No se encontraron clientes.
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @endif
+
+            @if ($tipoComprador === 'empleado')
+                <div>
+                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Empleado</label>
+                    @if ($employeeSeleccionado)
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-2">
+                                <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $employeeSeleccionado->nombre_completo }}</span>
+                                <span class="text-xs text-zinc-500 dark:text-zinc-400 ml-1">· {{ $employeeSeleccionado->documento ?? '—' }}</span>
+                            </div>
+                            <flux:button size="xs" variant="ghost" wire:click="limpiarEmpleado">Cambiar</flux:button>
+                        </div>
+                    @else
+                        <div class="relative">
+                            <flux:input type="text" wire:model.live.debounce.300ms="employeeSearchProcesar"
+                                placeholder="Buscar por nombre o documento..."
+                                icon="magnifying-glass" class="w-full" />
+                            @if ($employeesProcesar && $employeesProcesar->isNotEmpty())
+                                <div class="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 shadow-lg max-h-48 overflow-y-auto">
+                                    @foreach ($employeesProcesar as $emp)
+                                        <button type="button" wire:click="seleccionarEmpleado({{ $emp->id }})"
+                                            class="w-full px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700/50 flex justify-between">
+                                            <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $emp->nombre_completo }}</span>
+                                            <span class="text-zinc-500 dark:text-zinc-400 text-xs">{{ $emp->documento ?? '—' }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                            @elseif (strlen(trim($employeeSearchProcesar)) >= 2)
+                                <div class="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 text-sm text-zinc-500 dark:text-zinc-400">
+                                    No se encontraron empleados.
+                                </div>
+                            @endif
+                        </div>
+                    @endif
+                </div>
+            @endif
+
+            @if ($tipoComprador === 'cliente_solo_venta')
+                <div class="grid grid-cols-1 gap-2">
+                    <flux:input wire:model="clienteSoloVentaNombre" label="Nombre completo" placeholder="Obligatorio" required />
+                    <flux:input wire:model="clienteSoloVentaDocumento" label="Documento" placeholder="Obligatorio" required />
+                    <flux:input wire:model="clienteSoloVentaTelefono" label="Teléfono (opcional)" placeholder="Opcional" />
+                </div>
+            @endif
+
+            <!-- Cupón -->
+            <div class="flex justify-between items-center gap-2">
+                <span class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Cupón</span>
+                @if(!$cuponAplicado)
+                    <div class="flex gap-1 flex-1 max-w-xs">
+                        <flux:input size="xs" wire:model="codigoCupon" placeholder="Código" class="flex-1" />
+                        <flux:button size="xs" variant="ghost" wire:click="aplicarCupon">Aplicar</flux:button>
+                    </div>
+                @else
+                    <span class="text-green-600 dark:text-green-400 text-sm">-S/ {{ number_format($montoDescuentoCupon, 2) }}</span>
+                    <flux:button size="xs" variant="ghost" color="red" wire:click="quitarCupon">Quitar</flux:button>
+                @endif
+            </div>
+
+            <!-- Tipo comprobante y método de pago -->
+            <div class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Tipo comprobante</label>
+                    <select wire:model="tipoComprobante"
+                        class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="ticket">Ticket</option>
+                        <option value="boleta">Boleta</option>
+                        <option value="factura">Factura</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Método de pago</label>
+                    <select wire:model.live="paymentMethodId"
+                        class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        @foreach($paymentMethods as $pm)
+                            <option value="{{ $pm->id }}">{{ $pm->nombre }}</option>
+                        @endforeach
+                    </select>
+                </div>
+            </div>
+            @if($selectedPaymentMethod?->requiere_numero_operacion)
+                <flux:input wire:model="numeroOperacion" label="Nº operación" placeholder="Obligatorio" />
+            @endif
+            @if($selectedPaymentMethod?->requiere_entidad)
+                <flux:input wire:model="entidadFinanciera" label="Entidad financiera" placeholder="Obligatorio" />
+            @endif
+
+            <!-- Venta a crédito (solo cliente o empleado) -->
+            @if(($tipoComprador === 'cliente' && $clienteId) || ($tipoComprador === 'empleado' && $employeeId))
+                <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3">
+                    <div class="flex items-center gap-2 mb-2">
+                        <flux:checkbox wire:model.live="esCredito" id="pos-es-credito" />
+                        <label for="pos-es-credito" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Venta a crédito</label>
+                    </div>
+                    @if($esCredito)
+                        <div class="grid grid-cols-2 gap-2">
+                            <flux:input type="number" step="0.01" min="0" wire:model="montoInicial" label="Monto inicial (S/)" placeholder="0" />
+                            <flux:input type="date" wire:model="fechaVencimientoDeuda" label="Vencimiento deuda" />
+                        </div>
+                    @endif
+                </div>
+            @endif
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                <flux:button variant="ghost" wire:click="cerrarModalProcesarVenta">Cancelar</flux:button>
+                <flux:button variant="primary" color="purple" wire:click="abrirModalConfirmacionVenta">
+                    Siguiente
+                </flux:button>
             </div>
         </div>
     </flux:modal>
 
-    <!-- Modal Confirmación Venta -->
-    <flux:modal name="confirmacion-modal" wire:model="mostrarModalConfirmacion" focusable flyout variant="floating" class="md:w-lg">
-        @if ($ventaProcesada)
-            <div class="p-4">
-                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Venta Procesada Exitosamente</h2>
-                <div class="space-y-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-4">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-zinc-600 dark:text-zinc-400">Número de Venta:</span>
-                        <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $ventaProcesada->numero_venta }}</span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-zinc-600 dark:text-zinc-400">Comprobante:</span>
-                        <span class="font-medium text-zinc-900 dark:text-zinc-100">
-                            {{ strtoupper($ventaProcesada->tipo_comprobante) }} {{ $ventaProcesada->serie_comprobante }}-{{ $ventaProcesada->numero_comprobante }}
-                        </span>
-                    </div>
-                    <div class="flex justify-between text-sm">
-                        <span class="text-zinc-600 dark:text-zinc-400">Total:</span>
-                        <span class="font-bold text-purple-600 dark:text-purple-400">S/ {{ number_format($ventaProcesada->total, 2) }}</span>
-                    </div>
+    <!-- Modal Confirmación de venta (resumen antes de confirmar) -->
+    <flux:modal name="confirmacion-venta-modal" wire:model="mostrarModalConfirmacionVenta" focusable  class="md:w-lg">
+        <div class="p-4">
+            <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Confirmar venta</h2>
+            <div class="space-y-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-4 text-sm">
+                <div class="flex justify-between">
+                    <span class="text-zinc-600 dark:text-zinc-400">Comprador:</span>
+                    <span class="font-medium text-zinc-900 dark:text-zinc-100">
+                        @if($tipoComprador === 'cliente' && $clienteSeleccionado)
+                            {{ $clienteSeleccionado->nombres }} {{ $clienteSeleccionado->apellidos }}
+                        @elseif($tipoComprador === 'empleado' && $employeeSeleccionado)
+                            {{ $employeeSeleccionado->nombre_completo }}
+                        @elseif($tipoComprador === 'cliente_solo_venta')
+                            {{ $clienteSoloVentaNombre }} · {{ $clienteSoloVentaDocumento }}
+                        @else
+                            —
+                        @endif
+                    </span>
                 </div>
-                <div class="mt-4 flex justify-end">
-                    <flux:button variant="primary" wire:click="cerrarModalConfirmacion">Aceptar</flux:button>
+                <div class="flex justify-between">
+                    <span class="text-zinc-600 dark:text-zinc-400">Comprobante:</span>
+                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ ucfirst($tipoComprobante) }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-zinc-600 dark:text-zinc-400">Método de pago:</span>
+                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $selectedPaymentMethod?->nombre ?? '—' }}</span>
+                </div>
+                @if($esCredito)
+                    <div class="flex justify-between">
+                        <span class="text-zinc-600 dark:text-zinc-400">Venta a crédito:</span>
+                        <span class="font-medium text-amber-600 dark:text-amber-400">S/ {{ number_format($montoInicial, 2) }} inicial · vence {{ $fechaVencimientoDeuda ? \Carbon\Carbon::parse($fechaVencimientoDeuda)->format('d/m/Y') : '—' }}</span>
+                    </div>
+                @endif
+                <div class="flex justify-between pt-2 border-t border-zinc-200 dark:border-zinc-700">
+                    <span class="font-semibold text-zinc-900 dark:text-zinc-100">Total:</span>
+                    <span class="font-bold text-purple-600 dark:text-purple-400">S/ {{ number_format($this->total, 2) }}</span>
                 </div>
             </div>
-        @endif
+            <div class="mt-4 flex justify-end gap-2">
+                <flux:button variant="ghost" wire:click="cerrarModalConfirmacionVenta">Volver</flux:button>
+                <flux:button variant="primary" color="purple" wire:click="confirmarYProcesarVenta" wire:loading.attr="disabled" wire:target="confirmarYProcesarVenta">
+                    <span wire:loading.remove wire:target="confirmarYProcesarVenta">Confirmar venta</span>
+                    <span wire:loading wire:target="confirmarYProcesarVenta">Procesando...</span>
+                </flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    <!-- Modal previsualización PDF del comprobante -->
+    <flux:modal name="comprobante-pdf-modal" wire:model="mostrarModalComprobante" focusable  class="md:max-w-4xl">
+        <div class="p-4 flex flex-col">
+            <div class="flex items-center justify-between mb-3">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Comprobante de venta</h2>
+                <div class="flex gap-2">
+                    @if($ventaIdComprobante)
+                        <a href="{{ route('ventas.comprobante.pdf', ['venta' => $ventaIdComprobante]) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestaña
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" wire:click="cerrarModalComprobante">Cerrar</flux:button>
+                </div>
+            </div>
+            @if($ventaIdComprobante)
+                <iframe
+                    src="{{ route('ventas.comprobante.pdf', ['venta' => $ventaIdComprobante]) }}"
+                    class="w-full border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Comprobante PDF">
+                </iframe>
+            @endif
+        </div>
     </flux:modal>
 </div>
