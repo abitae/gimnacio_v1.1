@@ -13,6 +13,12 @@ class Caja extends Model
 {
     use HasFactory;
 
+    protected const REFERENCIAS_COBRO_CON_PAGO = [
+        ClienteMatricula::class,
+        ClienteMembresia::class,
+        EnrollmentInstallment::class,
+    ];
+
     protected $fillable = [
         'usuario_id',
         'saldo_inicial',
@@ -89,6 +95,10 @@ class Caja extends Model
 
         $totalMovimientosEntrada = (float) $this->movimientos()
             ->where('tipo', 'entrada')
+            ->where(function ($query) {
+                $query->whereNull('referencia_tipo')
+                    ->orWhereNotIn('referencia_tipo', self::REFERENCIAS_COBRO_CON_PAGO);
+            })
             ->where('fecha_movimiento', '>=', $this->fecha_apertura)
             ->where(function ($query) {
                 if ($this->fecha_cierre) {
@@ -175,6 +185,10 @@ class Caja extends Model
 
         $cantidadMovimientos = $this->movimientos()
             ->where('tipo', 'entrada')
+            ->where(function ($query) {
+                $query->whereNull('referencia_tipo')
+                    ->orWhereNotIn('referencia_tipo', self::REFERENCIAS_COBRO_CON_PAGO);
+            })
             ->where('fecha_movimiento', '>=', $this->fecha_apertura)
             ->where(function ($query) {
                 if ($this->fecha_cierre) {

@@ -81,20 +81,40 @@ class EnrollmentInstallmentService
             $plan = $installment->plan;
             $matricula = $plan->clienteMatricula;
             $monto = (float) ($data['monto'] ?? $installment->monto);
-            $cajaId = $data['caja_id'] ?? null;
+            $cajaService = app(CajaService::class);
+
+            if (! $cajaService->validarCajaAbierta(auth()->id())) {
+                throw new \InvalidArgumentException('No hay una caja abierta. Abra una caja antes de registrar el pago de cuota.');
+            }
+
+            $caja = ! empty($data['caja_id'])
+                ? \App\Models\Core\Caja::findOrFail((int) $data['caja_id'])
+                : $cajaService->obtenerOCrearCajaAbierta();
+            $saldoPendienteActual = app(ClienteMatriculaService::class)->obtenerSaldoPendiente($matricula->id);
+            $saldoPendienteNuevo = max(0, $saldoPendienteActual - $monto);
 
             $pago = Pago::create([
                 'cliente_id' => $matricula->cliente_id,
                 'cliente_matricula_id' => $matricula->id,
                 'monto' => $monto,
-                'metodo_pago' => 'Cuota ' . $installment->numero_cuota,
+                'metodo_pago' => $data['metodo_pago'] ?? ('Cuota ' . $installment->numero_cuota),
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
                 'payment_method_id' => $data['payment_method_id'] ?? null,
                 'numero_operacion' => $data['numero_operacion'] ?? null,
                 'entidad_financiera' => $data['entidad_financiera'] ?? null,
-                'caja_id' => $cajaId,
+                'es_pago_parcial' => $saldoPendienteNuevo > 0,
+                'saldo_pendiente' => $saldoPendienteNuevo,
+                'caja_id' => $caja->id,
                 'registrado_por' => auth()->id(),
             ]);
+
+            $cajaService->registrarIngresoPorPago(
+                $pago,
+                'Pago cuota ' . $installment->numero_cuota . ' - ' . $matricula->nombre,
+                EnrollmentInstallment::class,
+                $installment->id,
+                'Pago de cuota programada'
+            );
 
             $installment->update([
                 'estado' => $monto >= (float) $installment->monto ? 'pagada' : 'parcial',

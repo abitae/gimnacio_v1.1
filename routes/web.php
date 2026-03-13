@@ -61,8 +61,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Punto de Venta
     Route::get('pos', \App\Livewire\POS\POSLive::class)->middleware('permission:pos.view')->name('pos.index');
-    Route::get('pos/ventas-credito', \App\Livewire\Pos\CreditSales::class)->middleware('permission:pos.view')->name('pos.ventas-credito');
-    Route::get('pos/cuentas-por-cobrar', \App\Livewire\Pos\CustomerDebts::class)->middleware('permission:pos.view')->name('pos.cuentas-por-cobrar');
+    Route::get('pos/ventas-credito', \App\Livewire\POS\CreditSales::class)->middleware('permission:pos.view')->name('pos.ventas-credito');
+    Route::get('pos/cuentas-por-cobrar', \App\Livewire\POS\CustomerDebts::class)->middleware('permission:pos.view')->name('pos.cuentas-por-cobrar');
 
     // Comprobante de venta (HTML y PDF para modal)
     Route::get('ventas/{venta}/comprobante', [\App\Http\Controllers\ComprobanteVentaController::class, 'show'])
@@ -119,7 +119,7 @@ Route::middleware(['auth'])->group(function () {
         Route::get('cajas', \App\Livewire\Reportes\ReporteCajasLive::class)->name('cajas');
         Route::get('productos-servicios', \App\Livewire\Reportes\ReporteProductosServiciosLive::class)->name('productos-servicios');
         Route::get('gimnasio', \App\Livewire\Reportes\ReporteGimnasioLive::class)->name('gimnasio');
-        Route::get('cuentas-por-cobrar', \App\Livewire\Pos\CustomerDebts::class)->name('cuentas-por-cobrar');
+        Route::get('cuentas-por-cobrar', \App\Livewire\POS\CustomerDebts::class)->name('cuentas-por-cobrar');
         Route::get('cuotas-vencidas', \App\Livewire\Reportes\ReporteCuotasVencidasLive::class)->name('cuotas-vencidas');
         // Exportación PDF
         Route::get('ventas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfVentas'])->name('ventas.exportar.pdf');

@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Validator;
 
 class AsistenciaService
 {
+    public function __construct(
+        protected ClientEnrollmentService $clientEnrollmentService,
+    ) {
+    }
+
     /**
      * Buscar cliente por documento o nombre (un solo resultado)
      */
@@ -67,25 +72,7 @@ class AsistenciaService
      */
     public function obtenerMembresiaActivaParaIngreso(int $clienteId): ClienteMembresia|ClienteMatricula|null
     {
-        $hoy = today();
-
-        $matriculaActiva = ClienteMatricula::where('cliente_id', $clienteId)
-            ->where('tipo', 'membresia')
-            ->where('estado', 'activa')
-            ->where('fecha_inicio', '<=', $hoy)
-            ->where(function ($query) use ($hoy) {
-                $query->whereNull('fecha_fin')
-                    ->orWhere('fecha_fin', '>=', $hoy);
-            })
-            ->with(['membresia', 'cliente'])
-            ->orderBy('fecha_inicio', 'desc')
-            ->first();
-
-        if ($matriculaActiva) {
-            return $matriculaActiva;
-        }
-
-        return $this->obtenerMembresiaActiva($clienteId);
+        return $this->clientEnrollmentService->resolveActiveEnrollmentModel($clienteId);
     }
 
     /**

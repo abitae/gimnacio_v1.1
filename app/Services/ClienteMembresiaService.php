@@ -150,6 +150,20 @@ class ClienteMembresiaService
                 'caja_id' => $caja->id,
             ]);
 
+            $cajaService = app(CajaService::class);
+            $concepto = 'Cobro de membresia legacy - ' . ($clienteMembresia->membresia->nombre ?? 'N/A');
+            $observaciones = 'Metodo de pago: ' . $metodoPago;
+            if (! empty($data['comprobante_tipo']) || ! empty($data['comprobante_numero'])) {
+                $observaciones .= ', Comprobante: ' . strtoupper((string) ($data['comprobante_tipo'] ?? '')) . ' ' . ($data['comprobante_numero'] ?? '');
+            }
+            $cajaService->registrarIngresoPorPago(
+                $pago,
+                $concepto,
+                ClienteMembresia::class,
+                $clienteMembresia->id,
+                trim($observaciones, ', ')
+            );
+
             return $pago;
         });
     }

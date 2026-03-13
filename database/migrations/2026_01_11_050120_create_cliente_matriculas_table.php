@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    protected function isSqlite(): bool
+    {
+        return Schema::getConnection()->getDriverName() === 'sqlite';
+    }
+
     /**
      * Run the migrations.
      */
@@ -19,7 +24,7 @@ return new class extends Migration
             $table->foreignId('membresia_id')->nullable()->constrained('membresias')->onDelete('restrict');
             $table->foreignId('clase_id')->nullable()->constrained('clases')->onDelete('restrict');
             $table->date('fecha_inicio');
-            $table->date('fecha_fin')->nullable(); // Nullable para clases que pueden no tener fecha fin
+            $table->date('fecha_fin')->nullable();
             $table->enum('estado', ['activa', 'vencida', 'cancelada', 'congelada', 'completada'])->default('activa');
             $table->decimal('precio_lista', 10, 2);
             $table->decimal('descuento_monto', 10, 2)->default(0);
@@ -28,9 +33,8 @@ return new class extends Migration
             $table->string('canal_venta')->nullable();
             $table->json('fechas_congelacion')->nullable();
             $table->text('motivo_cancelacion')->nullable();
-            // Campos específicos para clases
-            $table->integer('sesiones_totales')->nullable(); // Para clases tipo paquete
-            $table->integer('sesiones_usadas')->default(0); // Sesiones utilizadas
+            $table->integer('sesiones_totales')->nullable();
+            $table->integer('sesiones_usadas')->default(0);
             $table->timestamps();
 
             $table->index('cliente_id');
@@ -41,9 +45,11 @@ return new class extends Migration
             $table->index('fecha_inicio');
             $table->index('fecha_fin');
         });
-        
-        // Asegurar que solo uno de membresia_id o clase_id esté presente según el tipo
-        // Usar DB::statement para agregar el constraint CHECK
+
+        if ($this->isSqlite()) {
+            return;
+        }
+
         DB::statement('ALTER TABLE cliente_matriculas ADD CONSTRAINT check_tipo_matricula CHECK ((tipo = \'membresia\' AND membresia_id IS NOT NULL AND clase_id IS NULL) OR (tipo = \'clase\' AND clase_id IS NOT NULL AND membresia_id IS NULL))');
     }
 

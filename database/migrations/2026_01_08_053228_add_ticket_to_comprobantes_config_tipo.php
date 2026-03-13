@@ -7,11 +7,20 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
+    protected function isSqlite(): bool
+    {
+        return Schema::getConnection()->getDriverName() === 'sqlite';
+    }
+
     /**
      * Run the migrations.
      */
     public function up(): void
     {
+        if ($this->isSqlite()) {
+            return;
+        }
+
         Schema::table('comprobantes_config', function (Blueprint $table) {
             DB::statement("ALTER TABLE comprobantes_config MODIFY COLUMN tipo ENUM('ticket', 'boleta', 'factura')");
         });
@@ -22,6 +31,10 @@ return new class extends Migration
      */
     public function down(): void
     {
+        if ($this->isSqlite()) {
+            return;
+        }
+
         Schema::table('comprobantes_config', function (Blueprint $table) {
             DB::statement("ALTER TABLE comprobantes_config MODIFY COLUMN tipo ENUM('boleta', 'factura')");
         });

@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Livewire\Pos;
+namespace App\Livewire\POS;
 
 use App\Models\Core\Venta;
 use Livewire\Component;

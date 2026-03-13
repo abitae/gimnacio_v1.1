@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Core\Caja;
+use App\Models\Core\Pago;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -146,6 +147,28 @@ class CajaService
                 'fecha_movimiento' => now(),
             ]);
         });
+    }
+
+    public function registrarIngresoPorPago(
+        Pago $pago,
+        string $concepto,
+        ?string $referenciaTipo = null,
+        ?int $referenciaId = null,
+        ?string $observaciones = null
+    ): \App\Models\Core\CajaMovimiento {
+        if (! $pago->caja_id) {
+            throw new \InvalidArgumentException('El pago debe estar asociado a una caja abierta.');
+        }
+
+        return $this->registrarMovimiento(
+            $pago->caja_id,
+            'entrada',
+            (float) $pago->monto,
+            $concepto,
+            $referenciaTipo ?? Pago::class,
+            $referenciaId ?? $pago->id,
+            $observaciones
+        );
     }
 
     /**
