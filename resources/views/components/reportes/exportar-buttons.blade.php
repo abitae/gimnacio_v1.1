@@ -1,4 +1,4 @@
-@props(['tipo' => 'ventas', 'fechaDesde' => '', 'fechaHasta' => '', 'estado' => '', 'createdById' => '', 'trainerUserId' => ''])
+@props(['tipo' => 'ventas', 'fechaDesde' => '', 'fechaHasta' => '', 'estado' => '', 'createdById' => '', 'trainerUserId' => '', 'vigencia' => '', 'ventanaDias' => ''])
 @php
     $params = [];
     if ($fechaDesde) $params['fecha_desde'] = $fechaDesde;
@@ -7,6 +7,8 @@
     if ($tipo === 'clientes') {
         if ($createdById !== '' && $createdById !== null) $params['created_by'] = $createdById;
         if ($trainerUserId !== '' && $trainerUserId !== null) $params['trainer_user_id'] = $trainerUserId;
+        if ($vigencia !== '' && $vigencia !== null) $params['vigencia'] = $vigencia;
+        if ($ventanaDias !== '' && $ventanaDias !== null) $params['ventana_dias'] = $ventanaDias;
     }
     $urlPdf = route('reportes.' . $tipo . '.exportar.pdf', $params);
     $urlExcel = route('reportes.' . $tipo . '.exportar.excel', $params);

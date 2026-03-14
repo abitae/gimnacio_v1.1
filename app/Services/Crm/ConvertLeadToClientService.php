@@ -4,6 +4,7 @@ namespace App\Services\Crm;
 
 use App\Models\Core\Cliente;
 use App\Models\Crm\Lead;
+use App\Services\ClienteMatriculaService;
 use App\Services\ClienteService;
 use Illuminate\Support\Facades\DB;
 
@@ -11,7 +12,8 @@ class ConvertLeadToClientService
 {
     public function __construct(
         protected ClienteService $clienteService,
-        protected LeadService $leadService
+        protected LeadService $leadService,
+        protected ClienteMatriculaService $clienteMatriculaService
     ) {}
 
     /**
@@ -78,37 +80,30 @@ class ConvertLeadToClientService
         if (!$membresia) {
             return;
         }
-        $fechaInicio = now()->toDateString();
-        $fechaFin = now()->addDays($membresia->duracion_dias)->toDateString();
-        $precioFinal = $membresia->precio_base - ($data['pago']['descuento'] ?? 0);
-
-        $cm = \App\Models\Core\ClienteMembresia::create([
+        $matricula = $this->clienteMatriculaService->create([
             'cliente_id' => $cliente->id,
+            'tipo' => 'membresia',
             'membresia_id' => $membresia->id,
-            'fecha_inicio' => $fechaInicio,
-            'fecha_fin' => $fechaFin,
+            'fecha_matricula' => now()->toDateString(),
+            'fecha_inicio' => now()->toDateString(),
             'estado' => 'activa',
             'precio_lista' => $membresia->precio_base,
             'descuento_monto' => $data['pago']['descuento'] ?? 0,
-            'precio_final' => $precioFinal,
+            'precio_final' => $membresia->precio_base - ($data['pago']['descuento'] ?? 0),
             'asesor_id' => auth()->id(),
             'canal_venta' => 'crm',
+            'modalidad_pago' => 'contado',
         ]);
 
-            if (!empty($data['pago']['monto']) && $data['pago']['monto'] > 0) {
-                $cajaAbierta = \App\Models\Core\Caja::where('estado', 'abierta')->first();
-                if ($cajaAbierta) {
-                    \App\Models\Core\Pago::create([
-                        'cliente_id' => $cliente->id,
-                        'cliente_membresia_id' => $cm->id,
-                        'caja_id' => $cajaAbierta->id,
-                        'monto' => $data['pago']['monto'],
-                        'saldo_pendiente' => max(0, $precioFinal - (float) $data['pago']['monto']),
-                        'fecha_pago' => now(),
-                        'metodo_pago' => $data['pago']['metodo_pago'] ?? 'efectivo',
-                        'registrado_por' => auth()->id(),
-                    ]);
-                }
+        if (! empty($data['pago']['monto']) && $data['pago']['monto'] > 0) {
+            $cajaAbierta = \App\Models\Core\Caja::where('estado', 'abierta')->first();
+            if ($cajaAbierta) {
+                $this->clienteMatriculaService->procesarPago($matricula->id, [
+                    'monto_pago' => $data['pago']['monto'],
+                    'metodo_pago' => $data['pago']['metodo_pago'] ?? 'efectivo',
+                    'fecha_pago' => now(),
+                ]);
             }
+        }
     }
 }

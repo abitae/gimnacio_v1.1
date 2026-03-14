@@ -20,6 +20,7 @@ class ReporteMatriculasExport implements FromCollection, WithHeadings, WithTitle
         $matriculas = $this->data['matriculas'] ?? collect();
         return $matriculas->map(function ($m) {
             return [
+                $m->fecha_matricula ? $m->fecha_matricula->format('d/m/Y') : '',
                 $m->fecha_inicio ? $m->fecha_inicio->format('d/m/Y') : '',
                 $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '',
                 $m->cliente ? ($m->cliente->tipo_documento ?? '') . ' ' . ($m->cliente->numero_documento ?? '') : '',
@@ -38,6 +39,7 @@ class ReporteMatriculasExport implements FromCollection, WithHeadings, WithTitle
     public function headings(): array
     {
         return [
+            'Fecha matrícula',
             'Fecha inicio',
             'Cliente',
             'Documento',

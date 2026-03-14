@@ -15,9 +15,29 @@ class CajaMovimiento extends Model
 
     protected $table = 'caja_movimientos';
 
+    public const CATEGORIA_APERTURA = 'apertura';
+    public const CATEGORIA_MANUAL_INGRESO = 'manual_ingreso';
+    public const CATEGORIA_MANUAL_SALIDA = 'manual_salida';
+    public const CATEGORIA_MEMBRESIA = 'membresia';
+    public const CATEGORIA_CLASE = 'clase';
+    public const CATEGORIA_CUOTA = 'cuota';
+    public const CATEGORIA_POS = 'pos';
+    public const CATEGORIA_ALQUILER = 'alquiler';
+    public const CATEGORIA_AJUSTE = 'ajuste';
+
+    public const ORIGEN_CAJA = 'caja';
+    public const ORIGEN_CLIENTE_MEMBRESIAS = 'cliente_membresias';
+    public const ORIGEN_CLIENTE_MATRICULAS = 'cliente_matriculas';
+    public const ORIGEN_ENROLLMENT_INSTALLMENTS = 'enrollment_installments';
+    public const ORIGEN_VENTAS = 'ventas';
+    public const ORIGEN_RENTALS = 'rentals';
+    public const ORIGEN_MANUAL = 'manual';
+
     protected $fillable = [
         'caja_id',
         'tipo',
+        'categoria',
+        'origen_modulo',
         'monto',
         'concepto',
         'referencia_tipo',
@@ -81,5 +101,20 @@ class CajaMovimiento extends Model
     public function esSalida(): bool
     {
         return $this->tipo === 'salida';
+    }
+
+    public function getTipoVisualAttribute(): string
+    {
+        return match ($this->categoria) {
+            self::CATEGORIA_MEMBRESIA => 'Membresia',
+            self::CATEGORIA_CLASE => 'Clase',
+            self::CATEGORIA_CUOTA => 'Cuota',
+            self::CATEGORIA_POS => 'POS',
+            self::CATEGORIA_ALQUILER => 'Alquiler',
+            self::CATEGORIA_MANUAL_INGRESO => 'Ingreso manual',
+            self::CATEGORIA_MANUAL_SALIDA => 'Salida manual',
+            self::CATEGORIA_APERTURA => 'Apertura',
+            default => 'Ajuste',
+        };
     }
 }

@@ -17,13 +17,43 @@
 
             <flux:sidebar.nav>
                 <flux:sidebar.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                    {{ __('Dashboard') }}
+                    {{ __('Inicio') }}
                 </flux:sidebar.item>
 
-                <flux:sidebar.group expandable heading="Gestión de Clientes" class="grid" :expanded="request()->routeIs('clientes.*') || request()->routeIs('membresias.*') || request()->routeIs('cliente-matriculas.*') || request()->routeIs('checking.*') || request()->routeIs('clases.*')">
+                @canany(['checking.view', 'cajas.view', 'pos.view'])
+                <flux:sidebar.group expandable heading="Operación diaria" class="grid" :expanded="request()->routeIs('checking.*') || request()->routeIs('cajas.*') || request()->routeIs('pos.*')">
+                    @can('checking.view')
+                    <flux:sidebar.item icon="check-circle" :href="route('checking.index')" :current="request()->routeIs('checking.*')" wire:navigate>
+                        {{ __('Checking') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('cajas.view')
+                    <flux:sidebar.item icon="banknotes" :href="route('cajas.index')" :current="request()->routeIs('cajas.*')" wire:navigate>
+                        {{ __('Caja') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('pos.view')
+                    <flux:sidebar.item icon="shopping-cart" :href="route('pos.index')" :current="request()->routeIs('pos.index')" wire:navigate>
+                        {{ __('Punto de venta') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="credit-card" :href="route('pos.ventas-credito')" :current="request()->routeIs('pos.ventas-credito')" wire:navigate>
+                        {{ __('Ventas a crédito') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="document-text" :href="route('pos.cuentas-por-cobrar')" :current="request()->routeIs('pos.cuentas-por-cobrar')" wire:navigate>
+                        {{ __('Cobros pendientes') }}
+                    </flux:sidebar.item>
+                    @endcan
+                </flux:sidebar.group>
+                @endcanany
+
+                @canany(['clientes.view', 'membresias.view', 'cliente-matriculas.view', 'clases.view'])
+                <flux:sidebar.group expandable heading="Clientes" class="grid" :expanded="request()->routeIs('clientes.*') || request()->routeIs('membresias.*') || request()->routeIs('cliente-matriculas.*') || request()->routeIs('clases.*')">
                     @can('clientes.view')
-                    <flux:sidebar.item icon="users" :href="route('clientes.index')" :current="request()->routeIs('clientes.*')" wire:navigate>
+                    <flux:sidebar.item icon="users" :href="route('clientes.index')" :current="request()->routeIs('clientes.index')" wire:navigate>
                         {{ __('Clientes') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="user-circle" :href="route('clientes.perfil.index')" :current="request()->routeIs('clientes.perfil*')" wire:navigate>
+                        {{ __('Perfil de cliente') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('membresias.view')
@@ -31,27 +61,24 @@
                         {{ __('Membresías') }}
                     </flux:sidebar.item>
                     @endcan
+                    @can('cliente-matriculas.view')
+                    <flux:sidebar.item icon="user-group" :href="route('cliente-matriculas.index')" :current="request()->routeIs('cliente-matriculas.*')" wire:navigate>
+                        {{ __('Matrículas') }}
+                    </flux:sidebar.item>
+                    @endcan
                     @can('clases.view')
                     <flux:sidebar.item icon="academic-cap" :href="route('clases.index')" :current="request()->routeIs('clases.*')" wire:navigate>
                         {{ __('Clases') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('cliente-matriculas.view')
-                    <flux:sidebar.item icon="user-group" :href="route('cliente-matriculas.index')" :current="request()->routeIs('cliente-matriculas.*')" wire:navigate>
-                        {{ __('Cliente Matrículas') }}
-                    </flux:sidebar.item>
-                    @endcan
-                    @can('checking.view')
-                    <flux:sidebar.item icon="check-circle" :href="route('checking.index')" :current="request()->routeIs('checking.*')" wire:navigate>
-                        {{ __('Checking') }}
-                    </flux:sidebar.item>
-                    @endcan
                 </flux:sidebar.group>
+                @endcanany
 
-                @can('gestion-nutricional.view')
-                <flux:sidebar.group expandable heading="Gestión Nutricional" class="grid" :expanded="request()->routeIs('gestion-nutricional.*')">
+                @canany(['gestion-nutricional.view', 'ejercicios-rutinas.view'])
+                <flux:sidebar.group expandable heading="Bienestar" class="grid" :expanded="request()->routeIs('gestion-nutricional.*') || request()->routeIs('ejercicios.*') || request()->routeIs('rutinas-base.*') || request()->routeIs('clientes.rutinas.*') || request()->routeIs('clientes.sesiones.*') || request()->routeIs('ejercicios-rutinas.*')">
+                    @can('gestion-nutricional.view')
                     <flux:sidebar.item icon="clipboard-document-list" :href="route('gestion-nutricional.index')" :current="request()->routeIs('gestion-nutricional.index')" wire:navigate>
-                        {{ __('Gestión Nutricional') }}
+                        {{ __('Gestión nutricional') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="flag" :href="route('gestion-nutricional.objetivos.index')" :current="request()->routeIs('gestion-nutricional.objetivos.*')" wire:navigate>
                         {{ __('Objetivos') }}
@@ -59,11 +86,8 @@
                     <flux:sidebar.item icon="calendar" :href="route('gestion-nutricional.calendario')" :current="request()->routeIs('gestion-nutricional.calendario')" wire:navigate>
                         {{ __('Calendario') }}
                     </flux:sidebar.item>
-                </flux:sidebar.group>
-                @endcan
-
-                @can('ejercicios-rutinas.view')
-                <flux:sidebar.group expandable heading="Ejercicios y Rutinas" class="grid" :expanded="request()->routeIs('ejercicios.*') || request()->routeIs('rutinas-base.*') || request()->routeIs('clientes.rutinas.*') || request()->routeIs('ejercicios-rutinas.*')">
+                    @endcan
+                    @can('ejercicios-rutinas.view')
                     <flux:sidebar.item icon="fire" :href="route('ejercicios.index')" :current="request()->routeIs('ejercicios.*')" wire:navigate>
                         {{ __('Ejercicios') }}
                     </flux:sidebar.item>
@@ -79,10 +103,12 @@
                     <flux:sidebar.item icon="clipboard-document-check" :href="route('ejercicios-rutinas.cumplimiento')" :current="request()->routeIs('ejercicios-rutinas.cumplimiento')" wire:navigate>
                         {{ __('Cumplimiento') }}
                     </flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
-                @endcan
+                @endcanany
 
-                <flux:sidebar.group expandable heading="CRM" class="grid" :expanded="request()->routeIs('crm.*')">
+                @canany(['crm.view', 'crm-mensajes.view', 'cupones.view'])
+                <flux:sidebar.group expandable heading="Comercial" class="grid" :expanded="request()->routeIs('crm.*') || request()->routeIs('cupones.*')">
                     @can('crm.view')
                     <flux:sidebar.item icon="view-columns" :href="route('crm.pipeline')" :current="request()->routeIs('crm.pipeline')" wire:navigate>
                         {{ __('Pipeline') }}
@@ -96,80 +122,19 @@
                     <flux:sidebar.item icon="banknotes" :href="route('crm.deals')" :current="request()->routeIs('crm.deals')" wire:navigate>
                         {{ __('Oportunidades') }}
                     </flux:sidebar.item>
-                    <flux:sidebar.item icon="document-chart-bar" :href="route('crm.reportes')" :current="request()->routeIs('crm.reportes')" wire:navigate>
-                        {{ __('Reportes CRM') }}
+                    <flux:sidebar.item icon="megaphone" :href="route('crm.campaigns')" :current="request()->routeIs('crm.campaigns*')" wire:navigate>
+                        {{ __('Campañas') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="tag" :href="route('crm.etiquetas')" :current="request()->routeIs('crm.etiquetas')" wire:navigate>
                         {{ __('Etiquetas') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="arrow-path" :href="route('crm.renovacion-reactivacion')" :current="request()->routeIs('crm.renovacion-reactivacion')" wire:navigate>
-                        {{ __('Renovación / Reactivación') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="megaphone" :href="route('crm.campaigns')" :current="request()->routeIs('crm.campaigns*')" wire:navigate>
-                        {{ __('Campañas') }}
+                        {{ __('Renovación y reactivación') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('crm-mensajes.view')
                     <flux:sidebar.item icon="chat-bubble-left-right" :href="route('crm.mensajes')" :current="request()->routeIs('crm.mensajes')" wire:navigate>
                         {{ __('Mensajes WhatsApp') }}
-                    </flux:sidebar.item>
-                    @endcan
-                </flux:sidebar.group>
-
-                @can('reportes.view')
-                <flux:sidebar.group expandable heading="Reportes" class="grid" :expanded="request()->routeIs('reportes.*')">
-                    <flux:sidebar.item icon="document-chart-bar" :href="route('reportes.index')" :current="request()->routeIs('reportes.index')" wire:navigate>
-                        {{ __('Reportes') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="document-text" :href="route('reportes.cuentas-por-cobrar')" :current="request()->routeIs('reportes.cuentas-por-cobrar')" wire:navigate>
-                        {{ __('Cuentas por cobrar') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="currency-dollar" :href="route('reportes.cuotas-vencidas')" :current="request()->routeIs('reportes.cuotas-vencidas')" wire:navigate>
-                        {{ __('Cuotas vencidas') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
-                @endcan
-
-                @can('rentals.view')
-                <flux:sidebar.group expandable heading="Alquileres" class="grid" :expanded="request()->routeIs('rentals.*')">
-                    <flux:sidebar.item icon="building-office-2" :href="route('rentals.spaces.index')" :current="request()->routeIs('rentals.spaces.*')" wire:navigate>
-                        {{ __('Espacios') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="calendar" :href="route('rentals.calendar.index')" :current="request()->routeIs('rentals.calendar.*')" wire:navigate>
-                        {{ __('Calendario') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="document-chart-bar" :href="route('rentals.report')" :current="request()->routeIs('rentals.report')" wire:navigate>
-                        {{ __('Reporte ingresos') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
-                @endcan
-
-                @can('employees.view')
-                <flux:sidebar.group expandable heading="Personal" class="grid" :expanded="request()->routeIs('employees.*')">
-                    <flux:sidebar.item icon="users" :href="route('employees.index')" :current="request()->routeIs('employees.index') || request()->routeIs('employees.show') || request()->routeIs('employees.edit')" wire:navigate>
-                        {{ __('Empleados') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="clipboard-document-check" :href="route('employees.attendances.index')" :current="request()->routeIs('employees.attendances.*')" wire:navigate>
-                        {{ __('Asistencia') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
-                @endcan
-
-                <flux:sidebar.group expandable heading="Ventas" class="grid" :expanded="request()->routeIs('cajas.*') || request()->routeIs('pos.*')">
-                    @can('cajas.view')
-                    <flux:sidebar.item icon="banknotes" :href="route('cajas.index')" :current="request()->routeIs('cajas.*')" wire:navigate>
-                        {{ __('Caja') }}
-                    </flux:sidebar.item>
-                    @endcan
-                    @can('pos.view')
-                    <flux:sidebar.item icon="shopping-cart" :href="route('pos.index')" :current="request()->routeIs('pos.index')" wire:navigate>
-                        {{ __('Punto de Venta') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="credit-card" :href="route('pos.ventas-credito')" :current="request()->routeIs('pos.ventas-credito')" wire:navigate>
-                        {{ __('Ventas a crédito') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="document-text" :href="route('pos.cuentas-por-cobrar')" :current="request()->routeIs('pos.cuentas-por-cobrar')" wire:navigate>
-                        {{ __('Cuentas por cobrar') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('cupones.view')
@@ -178,11 +143,13 @@
                     </flux:sidebar.item>
                     @endcan
                 </flux:sidebar.group>
+                @endcanany
 
-                <flux:sidebar.group expandable heading="Productos" class="grid" :expanded="request()->routeIs('categorias-productos.*') || request()->routeIs('productos.*') || request()->routeIs('servicios.*')">
+                @canany(['categorias-productos.view', 'productos.view', 'servicios.view', 'rentals.view'])
+                <flux:sidebar.group expandable heading="Recursos" class="grid" :expanded="request()->routeIs('categorias-productos.*') || request()->routeIs('productos.*') || request()->routeIs('servicios.*') || request()->routeIs('rentals.*')">
                     @can('categorias-productos.view')
                     <flux:sidebar.item icon="tag" :href="route('categorias-productos.index')" :current="request()->routeIs('categorias-productos.*')" wire:navigate>
-                        {{ __('Categorías Productos') }}
+                        {{ __('Categorías de productos') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('productos.view')
@@ -195,46 +162,65 @@
                         {{ __('Servicios') }}
                     </flux:sidebar.item>
                     @endcan
+                    @can('rentals.view')
+                    <flux:sidebar.item icon="building-office-2" :href="route('rentals.spaces.index')" :current="request()->routeIs('rentals.spaces.*')" wire:navigate>
+                        {{ __('Espacios') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="calendar" :href="route('rentals.calendar.index')" :current="request()->routeIs('rentals.calendar.*')" wire:navigate>
+                        {{ __('Calendario de alquileres') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="document-chart-bar" :href="route('rentals.report')" :current="request()->routeIs('rentals.report')" wire:navigate>
+                        {{ __('Ingresos por alquiler') }}
+                    </flux:sidebar.item>
+                    @endcan
                 </flux:sidebar.group>
+                @endcanany
 
-                
-                
+                @can('reportes.view')
+                <flux:sidebar.group expandable heading="Analítica" class="grid" :expanded="request()->routeIs('reportes.*')">
+                    <flux:sidebar.item icon="document-chart-bar" :href="route('reportes.index')" :current="request()->routeIs('reportes.index')" wire:navigate>
+                        {{ __('Centro de reportes') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="users" :href="route('reportes.clientes')" :current="request()->routeIs('reportes.clientes')" wire:navigate>
+                        {{ __('Reporte de clientes') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="banknotes" :href="route('reportes.financiero')" :current="request()->routeIs('reportes.financiero')" wire:navigate>
+                        {{ __('Reporte financiero') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="document-text" :href="route('reportes.cuentas-por-cobrar')" :current="request()->routeIs('reportes.cuentas-por-cobrar')" wire:navigate>
+                        {{ __('Cuentas por cobrar') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="currency-dollar" :href="route('reportes.cuotas-vencidas')" :current="request()->routeIs('reportes.cuotas-vencidas')" wire:navigate>
+                        {{ __('Cuotas vencidas') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+                @endcan
 
-                @can('biotime.view')
-                <flux:sidebar.group expandable heading="Integración BioTime" class="grid" :expanded="request()->routeIs('biotime.*')">
+                @canany(['employees.view', 'payment-methods.view', 'biotime.view', 'usuarios.view', 'roles.view'])
+                <flux:sidebar.group expandable heading="Administración" class="grid" :expanded="request()->routeIs('employees.*') || request()->routeIs('payment-methods.*') || request()->routeIs('biotime.*') || request()->routeIs('usuarios.*') || request()->routeIs('roles.*')">
+                    @can('employees.view')
+                    <flux:sidebar.item icon="users" :href="route('employees.index')" :current="request()->routeIs('employees.index') || request()->routeIs('employees.show') || request()->routeIs('employees.edit') || request()->routeIs('employees.create')" wire:navigate>
+                        {{ __('Empleados') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="clipboard-document-check" :href="route('employees.attendances.index')" :current="request()->routeIs('employees.attendances.*')" wire:navigate>
+                        {{ __('Asistencia del personal') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('payment-methods.view')
+                    <flux:sidebar.item icon="credit-card" :href="route('payment-methods.index')" :current="request()->routeIs('payment-methods.*')" wire:navigate>
+                        {{ __('Métodos de pago') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('biotime.view')
                     <flux:sidebar.item icon="signal" :href="route('biotime.index')" :current="request()->routeIs('biotime.index')" wire:navigate>
-                        {{ __('BioTime Dashboard') }}
+                        {{ __('BioTime') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="cog-6-tooth" :href="route('biotime.config')" :current="request()->routeIs('biotime.config')" wire:navigate>
                         {{ __('Configuración BioTime') }}
                     </flux:sidebar.item>
-                    <flux:sidebar.item icon="arrow-path" :href="route('biotime.sync')" :current="request()->routeIs('biotime.sync')" wire:navigate>
-                        {{ __('Sincronizar BioTime') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="map-pin" :href="route('biotime.areas')" :current="request()->routeIs('biotime.areas')" wire:navigate>
-                        {{ __('Áreas BioTime') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="building-office-2" :href="route('biotime.departments')" :current="request()->routeIs('biotime.departments')" wire:navigate>
-                        {{ __('Departamentos BioTime') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="users" :href="route('biotime.employees')" :current="request()->routeIs('biotime.employees')" wire:navigate>
-                        {{ __('Empleados BioTime') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
-                @endcan
-
-                @can('payment-methods.view')
-                <flux:sidebar.group expandable heading="Configuración" class="grid" :expanded="request()->routeIs('payment-methods.*')">
-                    <flux:sidebar.item icon="credit-card" :href="route('payment-methods.index')" :current="request()->routeIs('payment-methods.*')" wire:navigate>
-                        {{ __('Métodos de pago') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
-                @endcan
-
-                @if(auth()->user()->can('usuarios.view') || auth()->user()->can('roles.view'))
-                <flux:sidebar.group expandable heading="Administración" class="grid" :expanded="request()->routeIs('usuarios.*') || request()->routeIs('roles.*')">
+                    @endcan
                     @can('usuarios.view')
-                    <flux:sidebar.item icon="users" :href="route('usuarios.index')" :current="request()->routeIs('usuarios.*')" wire:navigate>
+                    <flux:sidebar.item icon="user-group" :href="route('usuarios.index')" :current="request()->routeIs('usuarios.*')" wire:navigate>
                         {{ __('Usuarios') }}
                     </flux:sidebar.item>
                     @endcan
@@ -244,7 +230,7 @@
                     </flux:sidebar.item>
                     @endcan
                 </flux:sidebar.group>
-                @endif
+                @endcanany
             </flux:sidebar.nav>
 
             <flux:sidebar.spacer />
@@ -254,7 +240,7 @@
                     <livewire:personalization-modal />
                 </div>
                 <flux:sidebar.item icon="cog-6-tooth" :href="route('profile.edit')" :current="request()->routeIs('profile.*')" wire:navigate>
-                    {{ __('Settings') }}
+                    {{ __('Perfil y ajustes') }}
                 </flux:sidebar.item>
             </flux:sidebar.nav>
 
@@ -284,7 +270,7 @@
                     <flux:menu.separator />
 
                     <flux:menu.radio.group>
-                        <flux:menu.item :href="route('profile.edit')" icon="cog-6-tooth" wire:navigate>{{ __('Settings') }}</flux:menu.item>
+                        <flux:menu.item :href="route('profile.edit')" icon="cog-6-tooth" wire:navigate>{{ __('Perfil y ajustes') }}</flux:menu.item>
                     </flux:menu.radio.group>
 
                     <flux:menu.separator />
@@ -292,7 +278,7 @@
                     <form method="POST" action="{{ route('logout') }}" class="w-full">
                         @csrf
                         <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full" data-test="logout-button">
-                            {{ __('Log Out') }}
+                            {{ __('Cerrar sesión') }}
                         </flux:menu.item>
                     </form>
                 </flux:menu>
@@ -330,7 +316,7 @@
                         <flux:menu.separator />
 
                         <flux:menu.radio.group>
-                            <flux:menu.item :href="route('profile.edit')" icon="cog-6-tooth" wire:navigate>{{ __('Settings') }}</flux:menu.item>
+                            <flux:menu.item :href="route('profile.edit')" icon="cog-6-tooth" wire:navigate>{{ __('Perfil y ajustes') }}</flux:menu.item>
                         </flux:menu.radio.group>
 
                         <flux:menu.separator />
@@ -338,7 +324,7 @@
                         <form method="POST" action="{{ route('logout') }}" class="w-full">
                             @csrf
                             <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full" data-test="logout-button">
-                                {{ __('Log Out') }}
+                                {{ __('Cerrar sesión') }}
                             </flux:menu.item>
                         </form>
                     </flux:menu>
@@ -347,14 +333,23 @@
 
             <flux:navbar scrollable>
                 <flux:navbar.item :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>
-                    {{ __('Dashboard') }}
+                    {{ __('Inicio') }}
                 </flux:navbar.item>
+                @can('checking.view')
                 <flux:navbar.item :href="route('checking.index')" :current="request()->routeIs('checking.*')" wire:navigate>
                     {{ __('Checking') }}
                 </flux:navbar.item>
+                @endcan
+                @can('pos.view')
                 <flux:navbar.item :href="route('pos.index')" :current="request()->routeIs('pos.*')" wire:navigate>
-                    {{ __('Punto de Venta') }}
+                    {{ __('Punto de venta') }}
                 </flux:navbar.item>
+                @endcan
+                @can('reportes.view')
+                <flux:navbar.item :href="route('reportes.index')" :current="request()->routeIs('reportes.*')" wire:navigate>
+                    {{ __('Reportes') }}
+                </flux:navbar.item>
+                @endcan
             </flux:navbar>
         </flux:header>
 

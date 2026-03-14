@@ -4,6 +4,7 @@ use App\Models\Core\Caja;
 use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
+use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Membresia;
 use App\Models\User;
 use App\Services\ClienteMatriculaService;
@@ -66,5 +67,156 @@ it('registers a caja movement when a matricula payment is processed', function (
 
     expect($movimiento)->not->toBeNull();
     expect($movimiento->tipo)->toBe('entrada');
+    expect($movimiento->categoria)->toBe('membresia');
+    expect($movimiento->origen_modulo)->toBe('cliente_matriculas');
     expect((float) $movimiento->monto)->toBe(40.0);
 });
+
+it('records a traspaso when a matricula changes to another plan', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000003',
+        'nombres' => 'Marco',
+        'apellidos' => 'Ruiz',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    $planInicial = Membresia::create([
+        'nombre' => 'Mensual',
+        'duracion_dias' => 30,
+        'precio_base' => 90,
+        'estado' => 'activa',
+    ]);
+
+    $planNuevo = Membresia::create([
+        'nombre' => 'Premium',
+        'duracion_dias' => 60,
+        'precio_base' => 150,
+        'estado' => 'activa',
+    ]);
+
+    $matricula = ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $planInicial->id,
+        'fecha_matricula' => now()->subDays(5)->toDateString(),
+        'fecha_inicio' => now()->subDays(5)->toDateString(),
+        'fecha_fin' => now()->addDays(25)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 90,
+        'descuento_monto' => 0,
+        'precio_final' => 90,
+    ]);
+
+    $updated = app(ClienteMatriculaService::class)->update($matricula->id, [
+        'tipo' => 'membresia',
+        'membresia_id' => $planNuevo->id,
+        'fecha_matricula' => $matricula->fecha_matricula->toDateString(),
+        'fecha_inicio' => $matricula->fecha_inicio->toDateString(),
+        'fecha_fin' => now()->addDays(60)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 150,
+        'descuento_monto' => 0,
+    ]);
+
+    expect($updated->membresia_id)->toBe($planNuevo->id);
+
+    $traspaso = ClientePlanTraspaso::query()->where('cliente_id', $cliente->id)->first();
+
+    expect($traspaso)->not->toBeNull();
+    expect($traspaso->origen_tipo)->toBe(ClienteMatricula::class);
+    expect($traspaso->plan_anterior_tipo)->toBe('membresia');
+    expect((int) $traspaso->plan_anterior_id)->toBe($planInicial->id);
+    expect($traspaso->plan_nuevo_tipo)->toBe('membresia');
+    expect((int) $traspaso->plan_nuevo_id)->toBe($planNuevo->id);
+});
+
+it('creates installment plans automatically for financed memberships without duplicating debt', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000005',
+        'nombres' => 'Rosa',
+        'apellidos' => 'Salas',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    $membresia = Membresia::create([
+        'nombre' => 'Semestral Financiada',
+        'duracion_dias' => 180,
+        'precio_base' => 180,
+        'permite_cuotas' => true,
+        'numero_cuotas_default' => 3,
+        'frecuencia_cuotas_default' => 'mensual',
+        'cuota_inicial_monto' => 30,
+        'estado' => 'activa',
+    ]);
+
+    $matricula = app(ClienteMatriculaService::class)->create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 180,
+        'descuento_monto' => 0,
+        'modalidad_pago' => 'cuotas',
+    ])->fresh(['pagos', 'installmentPlan.installments']);
+
+    expect($matricula->modalidad_pago)->toBe('cuotas');
+    expect($matricula->requiere_plan_cuotas)->toBeTrue();
+    expect((float) $matricula->cuota_inicial_monto)->toBe(30.0);
+    expect($matricula->pagos)->toHaveCount(1);
+    expect((float) $matricula->pagos->first()->monto)->toBe(30.0);
+    expect((float) $matricula->pagos->first()->saldo_pendiente)->toBe(150.0);
+    expect($matricula->installmentPlan)->not->toBeNull();
+    expect($matricula->installmentPlan->numero_cuotas)->toBe(3);
+    expect((float) $matricula->installmentPlan->monto_total)->toBe(150.0);
+    expect($matricula->installmentPlan->installments)->toHaveCount(3);
+    expect((float) $matricula->installmentPlan->installments->sum('monto'))->toBe(150.0);
+    expect($cliente->fresh()->deuda_total)->toBe(150.0);
+});
+
+it('rejects financed memberships when the selected plan does not allow installments', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000006',
+        'nombres' => 'Pedro',
+        'apellidos' => 'Nina',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    $membresia = Membresia::create([
+        'nombre' => 'Mensual Contado',
+        'duracion_dias' => 30,
+        'precio_base' => 90,
+        'permite_cuotas' => false,
+        'estado' => 'activa',
+    ]);
+
+    app(ClienteMatriculaService::class)->create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 90,
+        'descuento_monto' => 0,
+        'modalidad_pago' => 'cuotas',
+        'numero_cuotas' => 3,
+        'frecuencia_cuotas' => 'mensual',
+    ]);
+})->throws(\Illuminate\Validation\ValidationException::class);

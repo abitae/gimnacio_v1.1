@@ -170,6 +170,9 @@
                                             {{ $activeTab === 'membresias' ? 'Membresía' : 'Clase' }}
                                         </th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                            Fecha Matrícula
+                                        </th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
                                             Fecha Inicio
                                         </th>
                                         @if ($activeTab === 'membresias')
@@ -204,6 +207,9 @@
                                                 </span>
                                             </td>
                                             <td class="px-4 py-2.5 text-xs text-zinc-600 dark:text-zinc-400">
+                                                {{ $matricula->fecha_matricula?->format('d/m/Y') ?? '-' }}
+                                            </td>
+                                            <td class="px-4 py-2.5 text-xs text-zinc-600 dark:text-zinc-400">
                                                 {{ $matricula->fecha_inicio->format('d/m/Y') }}
                                             </td>
                                             @if ($activeTab === 'membresias')
@@ -220,13 +226,16 @@
                                             </td>
                                             <td class="px-4 py-2.5 text-xs">
                                                 @php
-                                                    $ultimoPago = $matricula->pagos->sortByDesc('created_at')->first();
-                                                    $saldoPendiente = $ultimoPago ? (float) $ultimoPago->saldo_pendiente : (float) $matricula->precio_final;
+                                                    $saldoPendiente = (float) $matricula->saldo_pendiente_actual;
                                                 @endphp
                                                 <div class="space-y-0.5">
                                                     <div class="text-zinc-900 dark:text-zinc-100">
-                                                        <span class="text-zinc-500 dark:text-zinc-400 text-[10px]">Monto a Pagar:</span>
-                                                        <span class="font-medium"> S/ {{ number_format($matricula->precio_final, 2) }}</span>
+                                                        <span class="text-zinc-500 dark:text-zinc-400 text-[10px]">
+                                                            {{ $matricula->usaPlanCuotas() ? 'Monto Financiado:' : 'Monto a Pagar:' }}
+                                                        </span>
+                                                        <span class="font-medium">
+                                                            S/ {{ number_format($matricula->usaPlanCuotas() ? $matricula->monto_financiado : $matricula->precio_final, 2) }}
+                                                        </span>
                                                     </div>
                                                     <div class="text-zinc-900 dark:text-zinc-100">
                                                         <span class="text-zinc-500 dark:text-zinc-400 text-[10px]">Saldo Pendiente:</span>
@@ -234,6 +243,11 @@
                                                             S/ {{ number_format($saldoPendiente, 2) }}
                                                         </span>
                                                     </div>
+                                                    @if ($matricula->usaPlanCuotas())
+                                                        <div class="text-zinc-500 dark:text-zinc-400 text-[10px]">
+                                                            Cuota inicial: S/ {{ number_format($matricula->cuota_inicial_monto ?? 0, 2) }}
+                                                        </div>
+                                                    @endif
                                                 </div>
                                             </td>
                                             <td class="px-4 py-2.5 text-xs">
@@ -266,7 +280,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7"
+                                            <td colspan="8"
                                                 class="px-4 py-8 text-center text-xs text-zinc-500 dark:text-zinc-400">
                                                 No se encontraron {{ $activeTab === 'membresias' ? 'membresías' : 'clases' }} para este cliente
                                             </td>
@@ -421,7 +435,14 @@
                     </div>
                 @endif
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <flux:input size="xs" wire:model="formData.fecha_matricula" label="Fecha Matrícula" type="date"
+                            required />
+                        @error('formData.fecha_matricula')
+                            <p class="mt-0.5 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+                        @enderror
+                    </div>
                     <div>
                         <flux:input size="xs" wire:model="formData.fecha_inicio" label="Fecha Inicio" type="date"
                             required />
@@ -463,6 +484,82 @@
                         <flux:error name="formData.precio_final" />
                     </div>
                 </div>
+
+                @if ($formData['tipo'] === 'membresia' && $membresiaPermiteCuotas)
+                    @php
+                        $cuotaInicial = (float) ($formData['cuota_inicial_monto'] ?? 0);
+                        $saldoFinanciado = max(0, (float) ($formData['precio_final'] ?? 0) - $cuotaInicial);
+                        $numeroCuotas = max(1, (int) ($formData['numero_cuotas'] ?: 1));
+                        $montoEstimadoCuota = $numeroCuotas > 0 ? round($saldoFinanciado / $numeroCuotas, 2) : 0;
+                    @endphp
+                    <div class="rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-700">
+                        <div class="mb-2 flex items-center justify-between">
+                            <h3 class="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Pago de Membresía</h3>
+                            @if ($clienteMatriculaId && ($formData['modalidad_pago'] ?? 'contado') === 'cuotas')
+                                <span class="text-[11px] text-zinc-500 dark:text-zinc-400">El plan ya fue generado</span>
+                            @endif
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2">
+                            <div>
+                                <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                                    Modalidad de Pago
+                                </label>
+                                <select wire:model.live="formData.modalidad_pago"
+                                    @disabled($clienteMatriculaId && ($formData['modalidad_pago'] ?? 'contado') === 'cuotas')
+                                    class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 disabled:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:disabled:bg-zinc-700">
+                                    <option value="contado">Contado</option>
+                                    <option value="cuotas">Cuotas</option>
+                                </select>
+                                <flux:error name="formData.modalidad_pago" />
+                            </div>
+                            <div>
+                                <flux:input size="xs" wire:model.number="formData.cuota_inicial_monto" label="Cuota Inicial (S/)"
+                                    type="number" step="0.01" min="0"
+                                    @disabled(($formData['modalidad_pago'] ?? 'contado') !== 'cuotas' || ($clienteMatriculaId && ($formData['modalidad_pago'] ?? 'contado') === 'cuotas')) />
+                                <flux:error name="formData.cuota_inicial_monto" />
+                            </div>
+                        </div>
+
+                        @if (($formData['modalidad_pago'] ?? 'contado') === 'cuotas')
+                            <div class="mt-2 grid grid-cols-3 gap-2">
+                                <div>
+                                    <flux:input size="xs" wire:model.number="formData.numero_cuotas" label="Número de Cuotas"
+                                        type="number" min="2" max="60" @disabled($clienteMatriculaId) />
+                                    <flux:error name="formData.numero_cuotas" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                                        Frecuencia
+                                    </label>
+                                    <select wire:model="formData.frecuencia_cuotas"
+                                        @disabled($clienteMatriculaId)
+                                        class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 disabled:bg-zinc-100 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:disabled:bg-zinc-700">
+                                        <option value="semanal">Semanal</option>
+                                        <option value="quincenal">Quincenal</option>
+                                        <option value="mensual">Mensual</option>
+                                    </select>
+                                    <flux:error name="formData.frecuencia_cuotas" />
+                                </div>
+                                <div>
+                                    <flux:input size="xs" wire:model="formData.fecha_inicio_plan_cuotas"
+                                        label="Inicio del Plan" type="date" @disabled($clienteMatriculaId) />
+                                    <flux:error name="formData.fecha_inicio_plan_cuotas" />
+                                </div>
+                            </div>
+                            <div class="mt-2 grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-2 dark:bg-zinc-900/40">
+                                <div class="text-xs">
+                                    <span class="text-zinc-500 dark:text-zinc-400">Saldo financiado:</span>
+                                    <span class="font-medium text-zinc-900 dark:text-zinc-100"> S/ {{ number_format($saldoFinanciado, 2) }}</span>
+                                </div>
+                                <div class="text-xs">
+                                    <span class="text-zinc-500 dark:text-zinc-400">Cuota estimada:</span>
+                                    <span class="font-medium text-zinc-900 dark:text-zinc-100"> S/ {{ number_format($montoEstimadoCuota, 2) }}</span>
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+                @endif
 
                 <div class="grid grid-cols-2 gap-2">
                     <div>

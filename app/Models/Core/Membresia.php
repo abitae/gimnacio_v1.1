@@ -15,6 +15,11 @@ class Membresia extends Model
         'descripcion',
         'duracion_dias',
         'precio_base',
+        'permite_cuotas',
+        'numero_cuotas_default',
+        'frecuencia_cuotas_default',
+        'cuota_inicial_monto',
+        'cuota_inicial_porcentaje',
         'tipo_acceso',
         'max_visitas_dia',
         'permite_congelacion',
@@ -25,6 +30,10 @@ class Membresia extends Model
     protected function casts(): array
     {
         return [
+            'precio_base' => 'decimal:2',
+            'cuota_inicial_monto' => 'decimal:2',
+            'cuota_inicial_porcentaje' => 'decimal:2',
+            'permite_cuotas' => 'boolean',
             'permite_congelacion' => 'boolean',
         ];
     }

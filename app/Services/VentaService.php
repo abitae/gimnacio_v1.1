@@ -11,6 +11,7 @@ use App\Models\Core\ServicioExterno;
 use App\Models\Core\CouponUsage;
 use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
+use App\Models\Core\CajaMovimiento;
 use App\Models\System\ComprobanteConfig;
 use Illuminate\Support\Facades\DB;
 
@@ -362,14 +363,16 @@ class VentaService
         }
         $observaciones = "Método de pago: {$venta->metodo_pago}, Comprobante: " . strtoupper($venta->tipo_comprobante) . " {$venta->serie_comprobante}-{$venta->numero_comprobante}";
 
-        $this->cajaService->registrarMovimiento(
-            $caja->id,
-            'entrada',
-            $monto,
-            $concepto,
-            'App\Models\Core\Venta',
-            $venta->id,
-            $observaciones
+        $this->cajaService->registrarMovimientoClasificado(
+            cajaId: $caja->id,
+            tipo: 'entrada',
+            categoria: CajaMovimiento::CATEGORIA_POS,
+            origenModulo: CajaMovimiento::ORIGEN_VENTAS,
+            monto: $monto,
+            concepto: $concepto,
+            referenciaTipo: Venta::class,
+            referenciaId: $venta->id,
+            observaciones: $observaciones
         );
     }
 }

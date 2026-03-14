@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 
 class ClienteService
 {
@@ -95,7 +96,7 @@ class ClienteService
      */
     public function find(int $id): ?Cliente
     {
-        return Cliente::find($id);
+        return Cliente::with('healthRecord')->find($id);
     }
 
     /**
@@ -126,6 +127,7 @@ class ClienteService
 
         return DB::transaction(function () use ($cliente, $validated) {
             $validated['biotime_update'] = true;
+            $validated['updated_by'] = auth()->id();
             $cliente->update($validated);
             return $cliente->fresh();
         });
@@ -181,16 +183,31 @@ class ClienteService
             'nombres' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:100'],
             'apellidos' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:100'],
             'telefono' => ['nullable', 'string', 'max:20'],
-            'email' => ['nullable', 'email', 'max:255'],
+            'email' => ['nullable', 'email', 'max:255', Rule::unique('clientes', 'email')->ignore($id)],
             'direccion' => ['nullable', 'string'],
+            'ocupacion' => ['nullable', 'string', 'max:80'],
+            'fecha_nacimiento' => ['nullable', 'date'],
+            'lugar_nacimiento' => ['nullable', 'string', 'max:120'],
+            'estado_civil' => ['nullable', 'string', 'in:soltero,casado,conviviente,divorciado,viudo'],
+            'numero_hijos' => ['nullable', 'integer', 'min:0', 'max:20'],
+            'placa_carro' => ['nullable', 'string', 'max:20'],
+            'sexo' => ['nullable', 'string', 'in:masculino,femenino'],
             'estado_cliente' => [$isUpdate ? 'sometimes' : 'required', 'string', 'in:activo,inactivo,suspendido'],
             'biotime_state' => ['nullable', 'boolean'],
             'biotime_update' => ['nullable', 'boolean'],
             'foto' => ['nullable', 'string'],
             'datos_salud' => ['nullable', 'array'],
             'datos_emergencia' => ['nullable', 'array'],
+            'datos_emergencia.nombre_contacto' => ['nullable', 'string', 'max:100'],
+            'datos_emergencia.telefono_contacto' => ['nullable', 'string', 'max:20'],
+            'datos_emergencia.relacion' => ['nullable', 'string', 'max:60'],
             'consentimientos' => ['nullable', 'array'],
+            'consentimientos.uso_imagen' => ['nullable', 'boolean'],
+            'consentimientos.tratamiento_datos' => ['nullable', 'boolean'],
+            'consentimientos.fecha_consentimiento' => ['nullable', 'date'],
             'created_by' => ['nullable', 'exists:users,id'],
+            'updated_by' => ['nullable', 'exists:users,id'],
+            'trainer_user_id' => ['nullable', 'exists:users,id'],
         ];
 
         $validator = Validator::make($data, $rules);
@@ -208,11 +225,41 @@ class ClienteService
     protected function checkRelations(Cliente $cliente): void
     {
         $hasMembresias = $cliente->clienteMembresias()->exists();
+        $hasMatriculas = $cliente->clienteMatriculas()->exists();
         $hasPagos = $cliente->pagos()->exists();
         $hasAsistencias = $cliente->asistencias()->exists();
+        $hasHealthRecord = $cliente->healthRecord()->exists();
+        $hasCitas = $cliente->citas()->exists();
+        $hasSeguimientos = $cliente->seguimientosNutricion()->exists();
+        $hasEvaluacionesFisicas = $cliente->evaluacionesFisicas()->exists();
+        $hasEvaluacionesNutricion = $cliente->evaluacionesMedidasNutricion()->exists();
+        $hasRutinas = $cliente->clientRoutines()->exists();
+        $hasMetas = $cliente->nutritionGoals()->exists();
+        $hasEtiquetasCrm = $cliente->crmTags()->exists();
+        $hasTareasCrm = $cliente->crmTasks()->exists();
+        $hasActividadesCrm = $cliente->crmActivities()->exists();
+        $hasLeadsCrm = $cliente->crmLeads()->exists();
+        $hasAlquileres = $cliente->rentals()->exists();
 
-        if ($hasMembresias || $hasPagos || $hasAsistencias) {
-            throw new \Exception('No se puede eliminar el cliente porque tiene membresías, pagos o asistencias asociadas.');
+        if (
+            $hasMembresias
+            || $hasMatriculas
+            || $hasPagos
+            || $hasAsistencias
+            || $hasHealthRecord
+            || $hasCitas
+            || $hasSeguimientos
+            || $hasEvaluacionesFisicas
+            || $hasEvaluacionesNutricion
+            || $hasRutinas
+            || $hasMetas
+            || $hasEtiquetasCrm
+            || $hasTareasCrm
+            || $hasActividadesCrm
+            || $hasLeadsCrm
+            || $hasAlquileres
+        ) {
+            throw new \Exception('No se puede eliminar el cliente porque tiene historial u operaciones asociadas. Cambia su estado en lugar de eliminarlo.');
         }
     }
 }

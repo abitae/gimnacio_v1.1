@@ -240,6 +240,9 @@
                                             Membresía
                                         </th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                            Fecha Matrícula
+                                        </th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
                                             Fecha Inicio
                                         </th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
@@ -266,6 +269,9 @@
                                                 <span class="font-medium text-zinc-900 dark:text-zinc-100">
                                                     {{ $membresia->membresia->nombre ?? 'N/A' }}
                                                 </span>
+                                            </td>
+                                            <td class="px-4 py-2.5 text-xs text-zinc-600 dark:text-zinc-400">
+                                                {{ $membresia->fecha_matricula?->format('d/m/Y') ?? '-' }}
                                             </td>
                                             <td class="px-4 py-2.5 text-xs text-zinc-600 dark:text-zinc-400">
                                                 {{ $membresia->fecha_inicio->format('d/m/Y') }}
@@ -326,7 +332,7 @@
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="7"
+                                            <td colspan="8"
                                                 class="px-4 py-8 text-center text-xs text-zinc-500 dark:text-zinc-400">
                                                 No se encontraron membresías para este cliente
                                             </td>
@@ -385,7 +391,12 @@
                     <flux:error name="formData.membresia_id" />
                 </div>
 
-                <div class="grid grid-cols-2 gap-2">
+                <div class="grid grid-cols-3 gap-2">
+                    <div>
+                        <flux:input size="xs" wire:model="formData.fecha_matricula" label="Fecha Matrícula" type="date"
+                            required />
+                        <flux:error name="formData.fecha_matricula" />
+                    </div>
                     <div>
                         <flux:input size="xs" wire:model="formData.fecha_inicio" label="Fecha Inicio" type="date"
                             required />

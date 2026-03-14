@@ -27,6 +27,7 @@
             <th>#</th>
             <th>Cliente</th>
             <th>Membresía / Producto</th>
+            <th>Matrícula</th>
             <th>Inicio</th>
             <th>Fin</th>
             <th class="text-right">Precio</th>
@@ -38,6 +39,7 @@
                 <td>{{ $n }}</td>
                 <td>{{ $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '-' }}</td>
                 <td>{{ $m->membresia?->nombre ?? 'N/A' }}</td>
+                <td>{{ $m->fecha_matricula?->format('d/m/Y') ?? '-' }}</td>
                 <td>{{ $m->fecha_inicio?->format('d/m/Y') }}</td>
                 <td>{{ $m->fecha_fin?->format('d/m/Y') ?? '-' }}</td>
                 <td class="text-right">S/ {{ number_format($m->precio_final ?? 0, 2) }}</td>
@@ -49,13 +51,14 @@
                 <td>{{ $n }}</td>
                 <td>{{ $mat->cliente ? trim($mat->cliente->nombres . ' ' . $mat->cliente->apellidos) : '-' }}</td>
                 <td>{{ $mat->nombre }}</td>
+                <td>{{ $mat->fecha_matricula?->format('d/m/Y') ?? '-' }}</td>
                 <td>{{ $mat->fecha_inicio?->format('d/m/Y') }}</td>
                 <td>{{ $mat->fecha_fin?->format('d/m/Y') ?? '-' }}</td>
                 <td class="text-right">S/ {{ number_format($mat->precio_final ?? 0, 2) }}</td>
             </tr>
         @endforeach
         @if(($membresias_activas ?? collect())->isEmpty() && ($matriculas_membresia_activas ?? collect())->isEmpty())
-            <tr><td colspan="6" class="text-center">Sin membresías activas</td></tr>
+            <tr><td colspan="7" class="text-center">Sin membresías activas</td></tr>
         @endif
     </table>
 
@@ -65,6 +68,7 @@
             <th>#</th>
             <th>Cliente</th>
             <th>Clase</th>
+            <th>Matrícula</th>
             <th>Inicio</th>
             <th>Fin</th>
             <th class="text-right">Precio</th>
@@ -74,13 +78,14 @@
                 <td>{{ $loop->iteration }}</td>
                 <td>{{ $mat->cliente ? trim($mat->cliente->nombres . ' ' . $mat->cliente->apellidos) : '-' }}</td>
                 <td>{{ $mat->nombre }}</td>
+                <td>{{ $mat->fecha_matricula?->format('d/m/Y') ?? '-' }}</td>
                 <td>{{ $mat->fecha_inicio?->format('d/m/Y') }}</td>
                 <td>{{ $mat->fecha_fin?->format('d/m/Y') ?? '-' }}</td>
                 <td class="text-right">S/ {{ number_format($mat->precio_final ?? 0, 2) }}</td>
             </tr>
         @endforeach
         @if(($matriculas_clase_activas ?? collect())->isEmpty())
-            <tr><td colspan="6" class="text-center">Sin clases activas</td></tr>
+            <tr><td colspan="7" class="text-center">Sin clases activas</td></tr>
         @endif
     </table>
 
@@ -98,7 +103,7 @@
                 <td>{{ $loop->iteration }}</td>
                 <td>{{ $p->fecha_pago?->format('d/m/Y H:i') }}</td>
                 <td>{{ $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '-' }}</td>
-                <td>{{ $p->clienteMembresia?->membresia?->nombre ?? '-' }}</td>
+                <td>{{ $p->clienteMembresia?->membresia?->nombre ?? $p->clienteMatricula?->membresia?->nombre ?? '-' }}</td>
                 <td class="text-right">S/ {{ number_format($p->monto, 2) }}</td>
             </tr>
         @endforeach

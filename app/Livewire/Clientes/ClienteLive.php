@@ -183,6 +183,29 @@ class ClienteLive extends Component
         $this->saludClienteId = null;
     }
 
+    public function closeCreateModal(): void
+    {
+        $this->cleanupTemporaryCapturedPhoto();
+        $this->modalState['create'] = false;
+        $this->resetForm();
+    }
+
+    public function closeDeleteModal(): void
+    {
+        $this->modalState['delete'] = false;
+        $this->clienteId = null;
+    }
+
+    public function closePhotoModal(): void
+    {
+        $this->cleanupTemporaryCapturedPhoto();
+        $this->modalState['photo'] = false;
+        $this->photoClienteId = null;
+        $this->foto = null;
+        $this->currentPhoto = null;
+        $this->capturedPhotoUrl = null;
+    }
+
     public function closeModal()
     {
         if (isset($this->formData['foto_captured'])) {
@@ -201,6 +224,7 @@ class ClienteLive extends Component
         ];
         $this->saludClienteId = null;
         $this->photoClienteId = null;
+        $this->clienteId = null;
         $this->foto = null;
         $this->currentPhoto = null;
         $this->capturedPhotoUrl = null;
@@ -283,7 +307,7 @@ class ClienteLive extends Component
                 $this->formData['foto_temp'] = $path;
                 unset($this->formData['foto_captured']);
                 $this->flashToast('success', 'Foto guardada. Completa el formulario y guarda el cliente.');
-                $this->closeModal();
+                $this->closePhotoModal();
                 return;
             }
 
@@ -308,7 +332,7 @@ class ClienteLive extends Component
             }
 
             $this->flashToast('success', 'Foto guardada correctamente.');
-            $this->closeModal();
+            $this->closePhotoModal();
             $this->resetPage();
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->handleValidationErrors($e);
@@ -340,7 +364,7 @@ class ClienteLive extends Component
                 $this->flashToast('success', 'Cliente creado correctamente');
             }
 
-            $this->closeModal();
+            $this->closeCreateModal();
             $this->resetPage();
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->handleValidationErrors($e);
@@ -355,7 +379,7 @@ class ClienteLive extends Component
         try {
             $this->service->delete($this->clienteId);
             $this->flashToast('success', 'Cliente eliminado correctamente');
-            $this->closeModal();
+            $this->closeDeleteModal();
             $this->resetPage();
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());
@@ -403,6 +427,12 @@ class ClienteLive extends Component
             'telefono' => $this->formData['telefono'] ?: null,
             'email' => $this->formData['email'] ?: null,
             'direccion' => $this->formData['direccion'] ?: null,
+            'ocupacion' => $this->formData['ocupacion'] ?: null,
+            'fecha_nacimiento' => $this->formData['fecha_nacimiento'] ?: null,
+            'lugar_nacimiento' => $this->formData['lugar_nacimiento'] ?: null,
+            'estado_civil' => $this->formData['estado_civil'] ?: null,
+            'numero_hijos' => $this->formData['numero_hijos'] !== '' ? (int) $this->formData['numero_hijos'] : null,
+            'placa_carro' => $this->formData['placa_carro'] ?: null,
             'sexo' => $this->formData['sexo'] ?: null,
             'biotime_update' => (bool) ($this->formData['biotime_update'] ?? false),
             'datos_emergencia' => [
@@ -416,6 +446,17 @@ class ClienteLive extends Component
                 'fecha_consentimiento' => now()->toDateString(),
             ],
         ];
+    }
+
+    protected function cleanupTemporaryCapturedPhoto(): void
+    {
+        if (isset($this->formData['foto_captured'])) {
+            $tempPath = $this->formData['foto_captured'];
+            if (Storage::disk('public')->exists($tempPath)) {
+                Storage::disk('public')->delete($tempPath);
+            }
+            unset($this->formData['foto_captured']);
+        }
     }
 
     protected function resetForm(): void
@@ -551,6 +592,11 @@ class ClienteLive extends Component
     {
         $this->selectedClienteId = $id;
         $this->selectedCliente = $this->service->find($id);
+    }
+
+    public function verPerfil(int $id): void
+    {
+        $this->redirect(route('clientes.perfil', ['cliente' => $id]), navigate: true);
     }
 
     public function render()

@@ -35,6 +35,8 @@ Route::middleware(['auth'])->group(function () {
 
     // Clientes
     Route::get('clientes', \App\Livewire\Clientes\ClienteLive::class)->middleware('permission:clientes.view')->name('clientes.index');
+    Route::get('clientes/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:clientes.view')->name('clientes.perfil.index');
+    Route::get('clientes/{cliente}/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:clientes.view')->name('clientes.perfil');
     Route::get('clientes/rutinas/asignar', \App\Livewire\Clients\Routines\Assign::class)->middleware('permission:ejercicios-rutinas.view')->name('clientes.rutinas.asignar');
     Route::prefix('clientes/{cliente}')->name('clientes.rutinas.')->middleware('permission:ejercicios-rutinas.view')->group(function () {
         Route::get('rutinas', \App\Livewire\Clients\Routines\Index::class)->name('index');
@@ -144,7 +146,7 @@ Route::middleware(['auth'])->group(function () {
     });
 
     // Reportes (previsualización e impresión/descarga) - evaluaciones y cliente
-    Route::prefix('reportes')->name('reportes.')->group(function () {
+    Route::prefix('reportes')->name('reportes.')->middleware('permission:reportes.view')->group(function () {
         Route::get('evaluacion/{evaluacionId}/preview', [\App\Http\Controllers\ReporteController::class, 'previewEvaluacion'])->name('evaluacion.preview');
         Route::get('evaluacion/{evaluacionId}/descargar', [\App\Http\Controllers\ReporteController::class, 'descargarEvaluacion'])->name('evaluacion.descargar');
         Route::get('historial-cliente/{clienteId}/preview', [\App\Http\Controllers\ReporteController::class, 'previewHistorialCliente'])->name('historial-cliente.preview');

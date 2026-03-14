@@ -4,7 +4,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700 pb-2">
         <h3 class="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Perfil del Cliente</h3>
-        <flux:button icon="x-mark" variant="ghost" size="xs" wire:click="$set('selectedClienteId', null)" aria-label="Cerrar perfil">
+        <flux:button icon="x-mark" variant="ghost" size="xs" wire:click="clearClienteSelection" aria-label="Cerrar perfil">
         </flux:button>
     </div>
 
@@ -82,26 +82,32 @@
     </div>
 
     <!-- Datos de Salud (resumen legado; editar en Gestión Nutricional) -->
-    @if ($cliente->datos_salud)
+    @if (collect($cliente->health_summary ?? [])->filter()->isNotEmpty())
         <div class="border-t border-zinc-200 dark:border-zinc-700 pt-2">
             <p class="text-xs font-semibold text-zinc-700 dark:text-zinc-300 mb-1.5">Salud</p>
             <div class="space-y-1 text-xs">
-                @if ($cliente->datos_salud['alergias'] ?? null)
+                @if ($cliente->health_summary['enfermedades'] ?? null)
+                    <div>
+                        <span class="text-zinc-500 dark:text-zinc-400">Enfermedades: </span>
+                        <span class="text-zinc-900 dark:text-zinc-100">{{ $cliente->health_summary['enfermedades'] }}</span>
+                    </div>
+                @endif
+                @if ($cliente->health_summary['alergias'] ?? null)
                     <div>
                         <span class="text-zinc-500 dark:text-zinc-400">Alergias: </span>
-                        <span class="text-zinc-900 dark:text-zinc-100">{{ $cliente->datos_salud['alergias'] }}</span>
+                        <span class="text-zinc-900 dark:text-zinc-100">{{ $cliente->health_summary['alergias'] }}</span>
                     </div>
                 @endif
-                @if ($cliente->datos_salud['medicamentos'] ?? null)
+                @if ($cliente->health_summary['medicacion'] ?? null)
                     <div>
-                        <span class="text-zinc-500 dark:text-zinc-400">Medicamentos: </span>
-                        <span class="text-zinc-900 dark:text-zinc-100">{{ $cliente->datos_salud['medicamentos'] }}</span>
+                        <span class="text-zinc-500 dark:text-zinc-400">Medicación: </span>
+                        <span class="text-zinc-900 dark:text-zinc-100">{{ $cliente->health_summary['medicacion'] }}</span>
                     </div>
                 @endif
-                @if ($cliente->datos_salud['lesiones'] ?? null)
+                @if ($cliente->health_summary['lesiones'] ?? null)
                     <div>
                         <span class="text-zinc-500 dark:text-zinc-400">Lesiones: </span>
-                        <span class="text-zinc-900 dark:text-zinc-100">{{ $cliente->datos_salud['lesiones'] }}</span>
+                        <span class="text-zinc-900 dark:text-zinc-100">{{ $cliente->health_summary['lesiones'] }}</span>
                     </div>
                 @endif
             </div>

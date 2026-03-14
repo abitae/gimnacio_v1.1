@@ -125,6 +125,19 @@ class HealthRecordForm extends Component
                 $this->healthRecord = HealthRecord::where('cliente_id', $this->cliente->id)->first();
                 $this->flashToast('success', 'Datos de salud guardados.');
             }
+
+            $this->cliente->update([
+                'datos_salud' => [
+                    'enfermedades' => $this->form['enfermedades'] ?: null,
+                    'alergias' => $this->form['alergias'] ?: null,
+                    'medicacion' => $this->form['medicacion'] ?: null,
+                    'medicamentos' => $this->form['medicacion'] ?: null,
+                    'restricciones_medicas' => $this->form['restricciones_medicas'] ?: null,
+                    'lesiones' => $this->form['lesiones'] ?: null,
+                    'observaciones' => $this->form['observaciones'] ?: null,
+                ],
+            ]);
+
             $this->dispatch('close-salud-modal');
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());

@@ -26,19 +26,13 @@ class DatabaseSeeder extends Seeder
 
         // Seeders en orden de dependencias
         $this->call([
-            RoleSeeder::class,                // Roles y permisos (Spatie); asigna admin al usuario inicial
+            BaseCatalogSeeder::class,         // Catálogos y permisos base
             MembresiaSeeder::class,           // Sin dependencias
             ClienteSeeder::class,             // Sin dependencias
-            GymSettingSeeder::class,          // Sin dependencias
-            BiotimeSettingSeeder::class,       // Sin dependencias (config BioTime)
             // Seeders del sistema POS (antes de cajas para tener productos)
-            CategoriaProductoSeeder::class,   // Sin dependencias
             ProductoSeeder::class,            // Depende de CategoriaProducto
-            CategoriaServicioSeeder::class,   // Sin dependencias
             ServicioExternoSeeder::class,     // Depende de CategoriaServicio
             ClaseSeeder::class,               // Depende de User (instructores)
-            ComprobanteConfigSeeder::class,   // Sin dependencias
-            PaymentMethodSeeder::class,       // Métodos de pago (antes de caja/pagos)
             RentableSpaceSeeder::class,       // Espacios para alquiler (sin dependencias)
             DiscountCouponSeeder::class,      // Cupones de descuento (sin dependencias)
             // Seeders de caja (necesario para pagos)
@@ -54,8 +48,6 @@ class DatabaseSeeder extends Seeder
             HealthRecordSeeder::class,        // Datos de salud (depende de Cliente)
             NutritionGoalSeeder::class,       // Objetivos nutricionales (depende de Cliente, User)
             CrmMensajeSeeder::class,          // Depende de Cliente, User
-            CrmStageSeeder::class,             // Etapas CRM (antes de leads)
-            LossReasonSeeder::class,          // Motivos de pérdida CRM
             BiotimeAccessLogSeeder::class,   // Depende de Cliente
             IntegrationErrorLogSeeder::class, // Sin dependencias
             AuditLogSeeder::class,            // Depende de User
@@ -64,5 +56,17 @@ class DatabaseSeeder extends Seeder
             // Nota: CajaMovimientoSeeder se ejecuta después si hay ventas
             // Se puede ejecutar manualmente después de crear ventas en el POS
         ]);
+
+        if ((bool) env('DB_SEED_MASSIVE', false)) {
+            $this->call([MassiveRootSeeder::class]);
+        }
+
+        if ((bool) env('DB_SEED_SCENARIOS', false)) {
+            $this->call([ScenarioSeeder::class]);
+        }
+
+        if ((bool) env('DB_SEED_EDGE_CASES', false)) {
+            $this->call([EdgeCaseSeeder::class]);
+        }
     }
 }

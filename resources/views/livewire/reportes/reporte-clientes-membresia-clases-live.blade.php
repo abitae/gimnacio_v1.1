@@ -131,7 +131,7 @@
                                 <tr>
                                     <td class="px-3 py-1.5">{{ $p->fecha_pago?->format('d/m/Y H:i') }}</td>
                                     <td class="px-3 py-1.5">{{ $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '-' }}</td>
-                                    <td class="px-3 py-1.5">{{ $p->clienteMembresia?->membresia?->nombre ?? '-' }}</td>
+                                    <td class="px-3 py-1.5">{{ $p->clienteMembresia?->membresia?->nombre ?? $p->clienteMatricula?->membresia?->nombre ?? '-' }}</td>
                                     <td class="px-3 py-1.5 text-right">S/ {{ number_format($p->monto, 2) }}</td>
                                 </tr>
                             @endforeach

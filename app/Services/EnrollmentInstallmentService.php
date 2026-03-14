@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Core\ClienteMatricula;
+use App\Models\Core\CajaMovimiento;
 use App\Models\Core\EnrollmentInstallment;
 use App\Models\Core\EnrollmentInstallmentPlan;
 use App\Models\Core\Pago;
@@ -16,6 +17,10 @@ class EnrollmentInstallmentService
      */
     public function createPlan(ClienteMatricula $clienteMatricula, array $data): EnrollmentInstallmentPlan
     {
+        if ($clienteMatricula->installmentPlan()->exists()) {
+            throw new \InvalidArgumentException('La matrícula ya tiene un plan de cuotas registrado.');
+        }
+
         $validated = [
             'cliente_matricula_id' => $clienteMatricula->id,
             'monto_total' => (float) ($data['monto_total'] ?? $clienteMatricula->precio_final),
@@ -83,6 +88,14 @@ class EnrollmentInstallmentService
             $monto = (float) ($data['monto'] ?? $installment->monto);
             $cajaService = app(CajaService::class);
 
+            if ($matricula->estado === 'cancelada') {
+                throw new \InvalidArgumentException('No se pueden cobrar cuotas de una matrícula cancelada.');
+            }
+
+            if (round($monto, 2) !== round((float) $installment->monto, 2)) {
+                throw new \InvalidArgumentException('Por ahora solo se admite el pago completo de la cuota programada.');
+            }
+
             if (! $cajaService->validarCajaAbierta(auth()->id())) {
                 throw new \InvalidArgumentException('No hay una caja abierta. Abra una caja antes de registrar el pago de cuota.');
             }
@@ -111,13 +124,15 @@ class EnrollmentInstallmentService
             $cajaService->registrarIngresoPorPago(
                 $pago,
                 'Pago cuota ' . $installment->numero_cuota . ' - ' . $matricula->nombre,
+                CajaMovimiento::CATEGORIA_CUOTA,
+                CajaMovimiento::ORIGEN_ENROLLMENT_INSTALLMENTS,
                 EnrollmentInstallment::class,
                 $installment->id,
                 'Pago de cuota programada'
             );
 
             $installment->update([
-                'estado' => $monto >= (float) $installment->monto ? 'pagada' : 'parcial',
+                'estado' => 'pagada',
                 'payment_method_id' => $data['payment_method_id'] ?? null,
                 'numero_operacion' => $data['numero_operacion'] ?? null,
                 'pago_id' => $pago->id,

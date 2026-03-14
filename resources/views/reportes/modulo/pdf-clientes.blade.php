@@ -13,8 +13,13 @@
 
     <div class="resumen-box">
         <strong>Resumen:</strong> Total: {{ $resumen['total'] }} clientes ·
-        Con membresías: {{ $resumen['con_membresias'] ?? 0 }} ·
-        Con pagos: {{ $resumen['con_pagos'] ?? 0 }}
+        Activos: {{ $resumen['activos'] ?? 0 }} ·
+        Inactivos: {{ $resumen['inactivos'] ?? 0 }} ·
+        Por vencer: {{ $resumen['clientes_por_vencer'] ?? 0 }} ·
+        Por iniciar: {{ $resumen['membresias_por_iniciar'] ?? 0 }} ·
+        Traspasos: {{ $resumen['traspasos'] ?? 0 }} ·
+        Asistencias: {{ $resumen['asistencias'] ?? 0 }} ·
+        Inasistencias: {{ $resumen['inasistencias'] ?? 0 }}
         @foreach($resumen['por_estado'] ?? [] as $estado => $cant)
             · {{ $estado ?: 'Sin estado' }}: {{ $cant }}
         @endforeach
@@ -28,9 +33,16 @@
             <th>Nº Documento</th>
             <th>Nombres</th>
             <th>Apellidos</th>
+            <th>Plan actual</th>
+            <th>Fecha matrícula</th>
+            <th>Inicio</th>
+            <th>Fin</th>
             <th>Teléfono</th>
             <th>Email</th>
             <th>Estado</th>
+            <th>Asist.</th>
+            <th>Inasist.</th>
+            <th>Traspasos</th>
             <th>Membresías</th>
             <th>Pagos</th>
         </tr>
@@ -41,9 +53,16 @@
                 <td>{{ $c->numero_documento ?? '-' }}</td>
                 <td>{{ $c->nombres ?? '-' }}</td>
                 <td>{{ $c->apellidos ?? '-' }}</td>
+                <td>{{ $c->plan_actual ?? '-' }}</td>
+                <td>{{ $c->fecha_matricula_actual?->format('d/m/Y') ?? '-' }}</td>
+                <td>{{ $c->fecha_inicio_actual?->format('d/m/Y') ?? ($c->proxima_fecha_inicio?->format('d/m/Y') ?? '-') }}</td>
+                <td>{{ $c->proxima_fecha_fin?->format('d/m/Y') ?? '-' }}</td>
                 <td>{{ $c->telefono ?? '-' }}</td>
                 <td>{{ $c->email ?? '-' }}</td>
                 <td>{{ $c->estado_cliente ?? '-' }}</td>
+                <td class="text-center">{{ $c->asistencias_count ?? 0 }}</td>
+                <td class="text-center">{{ $c->inasistencias_count ?? 0 }}</td>
+                <td class="text-center">{{ $c->traspasos_count ?? 0 }}</td>
                 <td class="text-center">{{ $c->cliente_membresias_count ?? 0 }}</td>
                 <td class="text-center">{{ $c->pagos_count ?? 0 }}</td>
             </tr>

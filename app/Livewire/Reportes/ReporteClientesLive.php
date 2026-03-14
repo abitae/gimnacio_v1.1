@@ -20,6 +20,10 @@ class ReporteClientesLive extends Component
     /** ID del usuario entrenador asignado (trainer_user_id) */
     public $trainerUserId = '';
 
+    public $vigenciaFilter = '';
+
+    public $ventanaDias = 15;
+
     public function mount(): void
     {
         $this->authorize('reportes.view');
@@ -35,7 +39,9 @@ class ReporteClientesLive extends Component
             $this->fechaDesde ?: null,
             $this->fechaHasta ?: null,
             $this->createdById !== '' ? (int) $this->createdById : null,
-            $this->trainerUserId !== '' ? (int) $this->trainerUserId : null
+            $this->trainerUserId !== '' ? (int) $this->trainerUserId : null,
+            $this->vigenciaFilter ?: null,
+            (int) $this->ventanaDias
         );
 
         $usuarios = User::orderBy('name')->get(['id', 'name']);

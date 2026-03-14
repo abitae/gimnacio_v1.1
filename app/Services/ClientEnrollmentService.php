@@ -83,24 +83,24 @@ class ClientEnrollmentService
 
     public function resolveCommercialHistory(int $clienteId, int $membershipLimit = 10, int $classLimit = 10): array
     {
-        $memberships = ClienteMatricula::with(['membresia', 'pagos'])
+        $memberships = ClienteMatricula::with(['membresia', 'pagos', 'asesor'])
             ->where('cliente_id', $clienteId)
             ->where('tipo', 'membresia')
             ->orderBy('fecha_inicio', 'desc')
             ->limit($membershipLimit)
             ->get()
-            ->concat(
-                ClienteMembresia::with(['membresia', 'pagos'])
-                    ->where('cliente_id', $clienteId)
-                    ->orderBy('fecha_inicio', 'desc')
-                    ->limit($membershipLimit)
-                    ->get()
-            )
-            ->sortByDesc('fecha_inicio')
-            ->take($membershipLimit)
             ->values();
 
-        $classes = ClienteMatricula::with(['clase', 'pagos'])
+        if ($memberships->isEmpty()) {
+            $memberships = ClienteMembresia::with(['membresia', 'pagos', 'asesor'])
+                ->where('cliente_id', $clienteId)
+                ->orderBy('fecha_inicio', 'desc')
+                ->limit($membershipLimit)
+                ->get()
+                ->values();
+        }
+
+        $classes = ClienteMatricula::with(['clase', 'pagos', 'asesor'])
             ->where('cliente_id', $clienteId)
             ->where('tipo', 'clase')
             ->orderBy('fecha_inicio', 'desc')

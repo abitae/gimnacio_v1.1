@@ -38,6 +38,7 @@ class ClienteMembresiaLive extends Component
     // Form data
     public $formData = [
         'membresia_id' => '',
+        'fecha_matricula' => '',
         'fecha_inicio' => '',
         'fecha_fin' => '',
         'estado' => 'activa',
@@ -64,6 +65,7 @@ class ClienteMembresiaLive extends Component
     public function mount()
     {
         $this->formData['asesor_id'] = auth()->id();
+        $this->formData['fecha_matricula'] = now()->format('Y-m-d');
         $this->clientes = collect([]);
     }
 
@@ -241,6 +243,7 @@ class ClienteMembresiaLive extends Component
     {
         $this->formData = [
             'membresia_id' => $clienteMembresia->membresia_id,
+            'fecha_matricula' => $clienteMembresia->fecha_matricula?->format('Y-m-d') ?? '',
             'fecha_inicio' => $clienteMembresia->fecha_inicio->format('Y-m-d'),
             'fecha_fin' => $clienteMembresia->fecha_fin->format('Y-m-d'),
             'estado' => $clienteMembresia->estado,
@@ -258,6 +261,7 @@ class ClienteMembresiaLive extends Component
     {
         return [
             'membresia_id' => $this->formData['membresia_id'],
+            'fecha_matricula' => $this->formData['fecha_matricula'],
             'fecha_inicio' => $this->formData['fecha_inicio'],
             'fecha_fin' => $this->formData['fecha_fin'],
             'estado' => $this->formData['estado'],
@@ -276,6 +280,7 @@ class ClienteMembresiaLive extends Component
         $this->clienteMembresiaId = null;
         $this->formData = [
             'membresia_id' => '',
+            'fecha_matricula' => now()->format('Y-m-d'),
             'fecha_inicio' => '',
             'fecha_fin' => '',
             'estado' => 'activa',

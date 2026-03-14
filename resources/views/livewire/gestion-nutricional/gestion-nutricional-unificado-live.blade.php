@@ -3,7 +3,7 @@
         <div class="flex items-center justify-between">
             <div>
                 <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Gestión Nutricional</h1>
-                <p class="text-xs text-zinc-600 dark:text-zinc-400">Medidas, nutrición y citas por cliente</p>
+                <p class="text-xs text-zinc-600 dark:text-zinc-400">Medidas, nutrición, gestión operativa y citas por cliente</p>
             </div>
             @if ($selectedClienteId && $ultimaEvaluacion)
                 <flux:dropdown position="bottom" align="end">
@@ -59,6 +59,10 @@
                         <button type="button" wire:click="$set('mainTab', 'citas')"
                             class="px-4 py-2 text-xs font-medium transition-colors {{ $mainTab === 'citas' ? 'text-purple-600 border-b-2 border-purple-600 dark:text-purple-400 dark:border-purple-400' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300' }}">
                             Citas
+                        </button>
+                        <button type="button" wire:click="$set('mainTab', 'gestion')"
+                            class="px-4 py-2 text-xs font-medium transition-colors {{ $mainTab === 'gestion' ? 'text-purple-600 border-b-2 border-purple-600 dark:text-purple-400 dark:border-purple-400' : 'text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-300' }}">
+                            Gestión
                         </button>
                     </div>
 
@@ -623,6 +627,141 @@
                             @endif
                         </div>
                     @endif
+
+                    @if ($mainTab === 'gestion')
+                        <div class="space-y-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2">
+                                <div>
+                                    <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Ficha integral de gestión</h2>
+                                    <p class="text-xs text-zinc-500 dark:text-zinc-400">Rutinas, congelamientos, reservas y eventos recientes del cliente.</p>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    @can('ejercicios-rutinas.create')
+                                    <flux:button icon="clipboard-document-list" size="xs" variant="primary" wire:click="openCreateRutinaModal">Agregar rutina</flux:button>
+                                    @endcan
+                                    @can('gestion-nutricional.update')
+                                    <flux:button icon="pause-circle" size="xs" variant="ghost" wire:click="openCongelamientoModal">Congelar plan</flux:button>
+                                    @endcan
+                                    @can('rentals.create')
+                                    <flux:button icon="calendar-days" size="xs" variant="ghost" wire:click="openCreateReservaModal">Nueva reserva</flux:button>
+                                    @endcan
+                                    @can('gestion-nutricional.create')
+                                    <flux:button icon="chat-bubble-left-ellipsis" size="xs" variant="ghost" wire:click="openCreateNutricionModal">Nuevo seguimiento</flux:button>
+                                    @endcan
+                                </div>
+                            </div>
+
+                            <div class="grid gap-3 md:grid-cols-4">
+                                <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                                    <div class="text-xs text-zinc-500 dark:text-zinc-400">Planes activos/congelados</div>
+                                    <div class="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{{ $planesGestion->count() }}</div>
+                                </div>
+                                <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                                    <div class="text-xs text-zinc-500 dark:text-zinc-400">Rutinas registradas</div>
+                                    <div class="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{{ $rutinas->count() }}</div>
+                                </div>
+                                <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                                    <div class="text-xs text-zinc-500 dark:text-zinc-400">Reservas</div>
+                                    <div class="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{{ $reservas->count() }}</div>
+                                </div>
+                                <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                                    <div class="text-xs text-zinc-500 dark:text-zinc-400">Eventos recientes</div>
+                                    <div class="mt-1 text-2xl font-semibold text-zinc-900 dark:text-zinc-100">{{ $lineaTiempo->count() }}</div>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-4 xl:grid-cols-[1.2fr_0.8fr]">
+                                <div class="space-y-4">
+                                    <div class="rounded-xl border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
+                                        <div class="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
+                                            <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Planes del cliente</h3>
+                                        </div>
+                                        <div class="overflow-x-auto">
+                                            <table class="w-full text-sm">
+                                                <thead class="bg-zinc-50 text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300">
+                                                    <tr>
+                                                        <th class="px-4 py-2 text-left">Plan</th>
+                                                        <th class="px-4 py-2 text-left">Estado</th>
+                                                        <th class="px-4 py-2 text-left">Matrícula</th>
+                                                        <th class="px-4 py-2 text-left">Inicio</th>
+                                                        <th class="px-4 py-2 text-left">Fin</th>
+                                                        <th class="px-4 py-2 text-left">Congelamientos</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                                                    @forelse($planesGestion as $plan)
+                                                        <tr>
+                                                            <td class="px-4 py-2.5">
+                                                                <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $plan['nombre'] }}</div>
+                                                                <div class="text-xs text-zinc-500 dark:text-zinc-400 capitalize">{{ $plan['tipo'] }}</div>
+                                                            </td>
+                                                            <td class="px-4 py-2.5 capitalize">{{ $plan['estado'] }}</td>
+                                                            <td class="px-4 py-2.5">{{ $plan['fecha_matricula']?->format('d/m/Y') ?? '-' }}</td>
+                                                            <td class="px-4 py-2.5">{{ $plan['fecha_inicio']?->format('d/m/Y') ?? '-' }}</td>
+                                                            <td class="px-4 py-2.5">{{ $plan['fecha_fin']?->format('d/m/Y') ?? '-' }}</td>
+                                                            <td class="px-4 py-2.5">{{ count($plan['fechas_congelacion'] ?? []) }}</td>
+                                                        </tr>
+                                                    @empty
+                                                        <tr>
+                                                            <td colspan="6" class="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">No hay planes activos o congelados.</td>
+                                                        </tr>
+                                                    @endforelse
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+
+                                    <div class="grid gap-4 md:grid-cols-2">
+                                        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                                            <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Rutinas</h3>
+                                            <div class="mt-3 space-y-3">
+                                                @forelse($rutinas as $rutina)
+                                                    <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                                                        <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $rutina->routineTemplate?->nombre ?? 'Rutina' }}</div>
+                                                        <div class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Inicio: {{ $rutina->fecha_inicio?->format('d/m/Y') ?? '-' }} · Trainer: {{ $rutina->trainer?->name ?? '—' }}</div>
+                                                        <div class="mt-1 text-xs text-zinc-600 dark:text-zinc-300">{{ $rutina->observaciones ?: ($rutina->objetivo_personal ?: 'Sin observaciones') }}</div>
+                                                    </div>
+                                                @empty
+                                                    <p class="text-sm text-zinc-500 dark:text-zinc-400">No hay rutinas asignadas.</p>
+                                                @endforelse
+                                            </div>
+                                        </div>
+
+                                        <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                                            <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Reservas</h3>
+                                            <div class="mt-3 space-y-3">
+                                                @forelse($reservas as $reserva)
+                                                    <div class="rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                                                        <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $reserva->rentableSpace?->nombre ?? 'Espacio' }}</div>
+                                                        <div class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{{ $reserva->fecha?->format('d/m/Y') }} · {{ $reserva->hora_inicio?->format('H:i') }} - {{ $reserva->hora_fin?->format('H:i') }}</div>
+                                                        <div class="mt-1 text-xs text-zinc-600 dark:text-zinc-300">Estado: {{ \App\Models\Core\Rental::ESTADOS[$reserva->estado] ?? $reserva->estado }} · S/ {{ number_format((float) $reserva->precio, 2) }}</div>
+                                                    </div>
+                                                @empty
+                                                    <p class="text-sm text-zinc-500 dark:text-zinc-400">No hay reservas vinculadas.</p>
+                                                @endforelse
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
+                                    <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Línea de tiempo</h3>
+                                    <div class="mt-4 space-y-3">
+                                        @forelse($lineaTiempo as $evento)
+                                            <div class="relative rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                                                <div class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ $evento['tipo'] }}</div>
+                                                <div class="mt-1 font-medium text-zinc-900 dark:text-zinc-100">{{ $evento['titulo'] }}</div>
+                                                <div class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{{ $evento['fecha']?->format('d/m/Y H:i') ?? '-' }}</div>
+                                                <div class="mt-1 text-sm text-zinc-600 dark:text-zinc-300">{{ $evento['descripcion'] }}</div>
+                                            </div>
+                                        @empty
+                                            <p class="text-sm text-zinc-500 dark:text-zinc-400">No hay eventos recientes para este cliente.</p>
+                                        @endforelse
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    @endif
                 </div>
             </div>
         @else
@@ -789,6 +928,8 @@
                         <option value="plan_inicial">Plan inicial</option>
                         <option value="seguimiento">Seguimiento</option>
                         <option value="recomendacion">Recomendación</option>
+                        <option value="incidencia">Incidencia</option>
+                        <option value="experiencia">Experiencia</option>
                     </select>
                 </flux:field>
                 <flux:field>
@@ -944,6 +1085,153 @@
             <flux:button variant="ghost" wire:click="$set('modalState.delete_cita', false)">Cancelar</flux:button>
             <flux:button color="red" variant="primary" wire:click="deleteCita">Eliminar</flux:button>
         </div>
+    </flux:modal>
+
+    <flux:modal name="rutina-form" wire:model="modalState.rutina" focusable flyout variant="floating" class="md:w-lg">
+        <form wire:submit="saveRutina">
+            <div class="space-y-3 p-4">
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Asignar rutina</h2>
+                <flux:field>
+                    <flux:label>Rutina base</flux:label>
+                    <select wire:model="rutinaFormData.routine_template_id" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="">Selecciona una rutina</option>
+                        @foreach($routineTemplates as $template)
+                            <option value="{{ $template->id }}">{{ $template->nombre }}</option>
+                        @endforeach
+                    </select>
+                </flux:field>
+                <div class="grid grid-cols-2 gap-2">
+                    <flux:field>
+                        <flux:label>Fecha inicio</flux:label>
+                        <flux:input type="date" wire:model="rutinaFormData.fecha_inicio" />
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Fecha fin</flux:label>
+                        <flux:input type="date" wire:model="rutinaFormData.fecha_fin" />
+                    </flux:field>
+                </div>
+                <flux:field>
+                    <flux:label>Trainer</flux:label>
+                    <select wire:model="rutinaFormData.trainer_user_id" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="">Autoasignado</option>
+                        @foreach($trainers as $trainer)
+                            <option value="{{ $trainer->id }}">{{ $trainer->name }}</option>
+                        @endforeach
+                    </select>
+                </flux:field>
+                <flux:field>
+                    <flux:label>Objetivo</flux:label>
+                    <flux:input wire:model="rutinaFormData.objetivo_personal" />
+                </flux:field>
+                <flux:field>
+                    <flux:label>Restricciones</flux:label>
+                    <flux:textarea wire:model="rutinaFormData.restricciones" rows="2" />
+                </flux:field>
+                <flux:field>
+                    <flux:label>Observaciones</flux:label>
+                    <flux:textarea wire:model="rutinaFormData.observaciones" rows="2" />
+                </flux:field>
+                <div class="flex justify-end gap-2 pt-2">
+                    <flux:button type="button" variant="ghost" wire:click="$set('modalState.rutina', false)">Cancelar</flux:button>
+                    <flux:button type="submit" variant="primary">Guardar</flux:button>
+                </div>
+            </div>
+        </form>
+    </flux:modal>
+
+    <flux:modal name="congelamiento-form" wire:model="modalState.congelamiento" focusable flyout variant="floating" class="md:w-lg">
+        <form wire:submit="saveCongelamiento">
+            <div class="space-y-3 p-4">
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Registrar congelamiento</h2>
+                <flux:field>
+                    <flux:label>Plan</flux:label>
+                    <select wire:model="congelamientoFormData.registro_id" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="">Selecciona un plan</option>
+                        @foreach($planesGestion as $plan)
+                            <option value="{{ $plan['id'] }}" wire:key="{{ $plan['key'] }}">{{ ucfirst($plan['tipo']) }} · {{ $plan['nombre'] }} · {{ ucfirst($plan['estado']) }}</option>
+                        @endforeach
+                    </select>
+                </flux:field>
+                <flux:field>
+                    <flux:label>Origen</flux:label>
+                    <select wire:model="congelamientoFormData.origen_tipo" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="cliente_matricula">Matrícula</option>
+                        <option value="cliente_membresia">Membresía legacy</option>
+                    </select>
+                </flux:field>
+                <div class="grid grid-cols-2 gap-2">
+                    <flux:field>
+                        <flux:label>Desde</flux:label>
+                        <flux:input type="date" wire:model="congelamientoFormData.fecha_desde" />
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Hasta</flux:label>
+                        <flux:input type="date" wire:model="congelamientoFormData.fecha_hasta" />
+                    </flux:field>
+                </div>
+                <flux:field>
+                    <flux:label>Motivo</flux:label>
+                    <flux:textarea wire:model="congelamientoFormData.motivo" rows="3" />
+                </flux:field>
+                <div class="flex justify-end gap-2 pt-2">
+                    <flux:button type="button" variant="ghost" wire:click="$set('modalState.congelamiento', false)">Cancelar</flux:button>
+                    <flux:button type="submit" variant="primary">Guardar</flux:button>
+                </div>
+            </div>
+        </form>
+    </flux:modal>
+
+    <flux:modal name="reserva-form" wire:model="modalState.reserva" focusable flyout variant="floating" class="md:w-lg">
+        <form wire:submit="saveReserva">
+            <div class="space-y-3 p-4">
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Nueva reserva</h2>
+                <flux:field>
+                    <flux:label>Espacio</flux:label>
+                    <select wire:model="reservaFormData.rentable_space_id" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="">Selecciona un espacio</option>
+                        @foreach($rentableSpaces as $space)
+                            <option value="{{ $space->id }}">{{ $space->nombre }}</option>
+                        @endforeach
+                    </select>
+                </flux:field>
+                <div class="grid grid-cols-3 gap-2">
+                    <flux:field>
+                        <flux:label>Fecha</flux:label>
+                        <flux:input type="date" wire:model="reservaFormData.fecha" />
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Inicio</flux:label>
+                        <flux:input type="time" wire:model="reservaFormData.hora_inicio" />
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Fin</flux:label>
+                        <flux:input type="time" wire:model="reservaFormData.hora_fin" />
+                    </flux:field>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <flux:field>
+                        <flux:label>Precio</flux:label>
+                        <flux:input type="number" step="0.01" min="0" wire:model="reservaFormData.precio" />
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Estado</flux:label>
+                        <select wire:model="reservaFormData.estado" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                            @foreach(\App\Models\Core\Rental::ESTADOS as $key => $label)
+                                <option value="{{ $key }}">{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </flux:field>
+                </div>
+                <flux:field>
+                    <flux:label>Observaciones</flux:label>
+                    <flux:textarea wire:model="reservaFormData.observaciones" rows="2" />
+                </flux:field>
+                <div class="flex justify-end gap-2 pt-2">
+                    <flux:button type="button" variant="ghost" wire:click="$set('modalState.reserva', false)">Cancelar</flux:button>
+                    <flux:button type="submit" variant="primary">Guardar</flux:button>
+                </div>
+            </div>
+        </form>
     </flux:modal>
 
     {{-- Modal de previsualización del reporte (imprimir o descargar) --}}

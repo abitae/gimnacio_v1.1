@@ -63,4 +63,10 @@ class ClienteMembresia extends Model
     {
         return $this->hasMany(Asistencia::class);
     }
+
+    public function planTraspasos(): HasMany
+    {
+        return $this->hasMany(ClientePlanTraspaso::class, 'origen_id')
+            ->where('origen_tipo', self::class);
+    }
 }

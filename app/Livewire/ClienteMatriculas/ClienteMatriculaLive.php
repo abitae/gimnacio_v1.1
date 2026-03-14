@@ -47,12 +47,18 @@ class ClienteMatriculaLive extends Component
         'tipo' => 'membresia',
         'membresia_id' => '',
         'clase_id' => '',
+        'fecha_matricula' => '',
         'fecha_inicio' => '',
         'fecha_fin' => '',
         'estado' => 'activa',
         'precio_lista' => 0.00,
         'descuento_monto' => 0.00,
         'precio_final' => 0.00,
+        'modalidad_pago' => 'contado',
+        'cuota_inicial_monto' => 0.00,
+        'numero_cuotas' => null,
+        'frecuencia_cuotas' => 'mensual',
+        'fecha_inicio_plan_cuotas' => '',
         'asesor_id' => null,
         'canal_venta' => 'presencial',
         'fechas_congelacion' => [],
@@ -60,6 +66,8 @@ class ClienteMatriculaLive extends Component
         'sesiones_totales' => null,
         'sesiones_usadas' => 0,
     ];
+
+    public bool $membresiaPermiteCuotas = false;
 
     protected $paginationTheme = 'tailwind';
 
@@ -76,6 +84,7 @@ class ClienteMatriculaLive extends Component
     {
         $this->authorize('cliente-matriculas.view');
         $this->formData['asesor_id'] = auth()->id();
+        $this->formData['fecha_matricula'] = now()->format('Y-m-d');
         $this->clientes = collect([]);
     }
 
@@ -165,9 +174,12 @@ class ClienteMatriculaLive extends Component
         $this->resetForm();
         $this->formData['tipo'] = $this->activeTab === 'membresias' ? 'membresia' : 'clase';
         if ($this->formData['tipo'] === 'membresia') {
+            $this->formData['fecha_matricula'] = now()->format('Y-m-d');
             $this->formData['fecha_inicio'] = now()->format('Y-m-d');
+            $this->formData['fecha_inicio_plan_cuotas'] = now()->format('Y-m-d');
             $this->updatedFormDataFechaInicio();
         } else {
+            $this->formData['fecha_matricula'] = now()->format('Y-m-d');
             $this->formData['fecha_fin'] = '';
         }
         $this->modalState['create'] = true;
@@ -218,6 +230,7 @@ class ClienteMatriculaLive extends Component
         $this->renovandoMatriculaId = $matriculaId;
         $this->formData['tipo'] = 'membresia';
         $this->formData['membresia_id'] = (string) $matricula->membresia_id;
+        $this->formData['fecha_matricula'] = now()->format('Y-m-d');
         $this->formData['fecha_inicio'] = \Carbon\Carbon::parse($matricula->fecha_fin)->addDay()->format('Y-m-d');
         $this->updatedFormDataMembresiaId();
         // Congelada si la membresía actual sigue vigente (fecha_fin >= hoy); activa si ya venció
@@ -244,6 +257,8 @@ class ClienteMatriculaLive extends Component
         $this->formData['precio_lista'] = 0.00;
         $this->formData['precio_final'] = 0.00;
         $this->formData['sesiones_totales'] = null;
+        $this->membresiaPermiteCuotas = false;
+        $this->resetQuotaFormData();
         // Limpiar fecha_fin cuando se cambia a clase (las clases no tienen fecha fin obligatoria)
         if ($this->formData['tipo'] === 'clase') {
             $this->formData['fecha_fin'] = '';
@@ -252,16 +267,31 @@ class ClienteMatriculaLive extends Component
 
     public function updatedFormDataMembresiaId()
     {
+        $this->membresiaPermiteCuotas = false;
+
         if ($this->formData['membresia_id']) {
             $membresia = \App\Models\Core\Membresia::find($this->formData['membresia_id']);
             if ($membresia) {
                 $this->formData['precio_lista'] = $membresia->precio_base;
                 $this->calculatePrecioFinal();
+                $this->membresiaPermiteCuotas = (bool) $membresia->permite_cuotas;
+
+                if ($this->membresiaPermiteCuotas) {
+                    $this->formData['numero_cuotas'] = $membresia->numero_cuotas_default;
+                    $this->formData['frecuencia_cuotas'] = $membresia->frecuencia_cuotas_default ?: 'mensual';
+                    $this->formData['cuota_inicial_monto'] = $this->resolverCuotaInicialDefault($membresia, (float) $this->formData['precio_final']);
+                    $this->formData['fecha_inicio_plan_cuotas'] = $this->formData['fecha_inicio'] ?: now()->format('Y-m-d');
+                } else {
+                    $this->resetQuotaFormData();
+                }
+
                 if ($this->formData['fecha_inicio']) {
                     $fechaInicio = \Carbon\Carbon::parse($this->formData['fecha_inicio']);
                     $this->formData['fecha_fin'] = $fechaInicio->copy()->addDays($membresia->duracion_dias ?? 30)->format('Y-m-d');
                 }
             }
+        } else {
+            $this->resetQuotaFormData();
         }
     }
 
@@ -296,9 +326,20 @@ class ClienteMatriculaLive extends Component
         $this->formData['precio_final'] = max(0, $precioLista - $descuento);
     }
 
+    public function updatedFormDataModalidadPago(): void
+    {
+        if ($this->formData['modalidad_pago'] !== 'cuotas') {
+            $this->resetQuotaFormData(keepModalidad: true);
+        }
+    }
+
     public function updatedFormDataFechaInicio()
     {
         if ($this->formData['fecha_inicio']) {
+            if (! $this->formData['fecha_inicio_plan_cuotas']) {
+                $this->formData['fecha_inicio_plan_cuotas'] = $this->formData['fecha_inicio'];
+            }
+
             if ($this->formData['tipo'] === 'membresia' && $this->formData['membresia_id']) {
                 $membresia = \App\Models\Core\Membresia::find($this->formData['membresia_id']);
                 if ($membresia) {
@@ -390,12 +431,18 @@ class ClienteMatriculaLive extends Component
             'tipo' => $clienteMatricula->tipo,
             'membresia_id' => $clienteMatricula->membresia_id,
             'clase_id' => $clienteMatricula->clase_id,
+            'fecha_matricula' => $clienteMatricula->fecha_matricula?->format('Y-m-d') ?? '',
             'fecha_inicio' => $clienteMatricula->fecha_inicio->format('Y-m-d'),
             'fecha_fin' => $clienteMatricula->fecha_fin ? $clienteMatricula->fecha_fin->format('Y-m-d') : '',
             'estado' => $clienteMatricula->estado,
             'precio_lista' => $clienteMatricula->precio_lista,
             'descuento_monto' => $clienteMatricula->descuento_monto,
             'precio_final' => $clienteMatricula->precio_final,
+            'modalidad_pago' => $clienteMatricula->modalidad_pago ?? 'contado',
+            'cuota_inicial_monto' => (float) ($clienteMatricula->cuota_inicial_monto ?? 0),
+            'numero_cuotas' => $clienteMatricula->installmentPlan?->numero_cuotas,
+            'frecuencia_cuotas' => $clienteMatricula->installmentPlan?->frecuencia ?? 'mensual',
+            'fecha_inicio_plan_cuotas' => $clienteMatricula->installmentPlan?->fecha_inicio?->format('Y-m-d') ?? '',
             'asesor_id' => $clienteMatricula->asesor_id,
             'canal_venta' => $clienteMatricula->canal_venta ?? 'presencial',
             'fechas_congelacion' => $clienteMatricula->fechas_congelacion ?? [],
@@ -403,12 +450,15 @@ class ClienteMatriculaLive extends Component
             'sesiones_totales' => $clienteMatricula->sesiones_totales,
             'sesiones_usadas' => $clienteMatricula->sesiones_usadas ?? 0,
         ];
+
+        $this->membresiaPermiteCuotas = (bool) ($clienteMatricula->membresia?->permite_cuotas ?? false);
     }
 
     protected function mapFormToData(): array
     {
         $data = [
             'tipo' => $this->formData['tipo'],
+            'fecha_matricula' => $this->formData['fecha_matricula'],
             'fecha_inicio' => $this->formData['fecha_inicio'],
             'fecha_fin' => ($this->formData['tipo'] === 'clase') ? null : ($this->formData['fecha_fin'] ?: null),
             'estado' => $this->formData['estado'],
@@ -424,6 +474,17 @@ class ClienteMatriculaLive extends Component
         if ($this->formData['tipo'] === 'membresia') {
             $data['membresia_id'] = $this->formData['membresia_id'];
             $data['clase_id'] = null;
+
+            if (! $this->clienteMatriculaId) {
+                $data['modalidad_pago'] = $this->formData['modalidad_pago'] ?? 'contado';
+
+                if (($this->formData['modalidad_pago'] ?? 'contado') === 'cuotas') {
+                    $data['cuota_inicial_monto'] = (float) ($this->formData['cuota_inicial_monto'] ?? 0);
+                    $data['numero_cuotas'] = $this->formData['numero_cuotas'] ?: null;
+                    $data['frecuencia_cuotas'] = $this->formData['frecuencia_cuotas'] ?: null;
+                    $data['fecha_inicio_plan_cuotas'] = $this->formData['fecha_inicio_plan_cuotas'] ?: $this->formData['fecha_inicio'];
+                }
+            }
         } else {
             $data['clase_id'] = $this->formData['clase_id'];
             $data['membresia_id'] = null;
@@ -438,16 +499,23 @@ class ClienteMatriculaLive extends Component
     {
         $this->clienteMatriculaId = null;
         $this->renovandoMatriculaId = null;
+        $this->membresiaPermiteCuotas = false;
         $this->formData = [
             'tipo' => $this->activeTab === 'membresias' ? 'membresia' : 'clase',
             'membresia_id' => '',
             'clase_id' => '',
+            'fecha_matricula' => now()->format('Y-m-d'),
             'fecha_inicio' => '',
             'fecha_fin' => '',
             'estado' => 'activa',
             'precio_lista' => 0.00,
             'descuento_monto' => 0.00,
             'precio_final' => 0.00,
+            'modalidad_pago' => 'contado',
+            'cuota_inicial_monto' => 0.00,
+            'numero_cuotas' => null,
+            'frecuencia_cuotas' => 'mensual',
+            'fecha_inicio_plan_cuotas' => '',
             'asesor_id' => auth()->id(),
             'canal_venta' => 'presencial',
             'fechas_congelacion' => [],
@@ -455,6 +523,31 @@ class ClienteMatriculaLive extends Component
             'sesiones_totales' => null,
             'sesiones_usadas' => 0,
         ];
+    }
+
+    protected function resetQuotaFormData(bool $keepModalidad = false): void
+    {
+        if (! $keepModalidad) {
+            $this->formData['modalidad_pago'] = 'contado';
+        }
+
+        $this->formData['cuota_inicial_monto'] = 0.00;
+        $this->formData['numero_cuotas'] = null;
+        $this->formData['frecuencia_cuotas'] = 'mensual';
+        $this->formData['fecha_inicio_plan_cuotas'] = $this->formData['fecha_inicio'] ?: now()->format('Y-m-d');
+    }
+
+    protected function resolverCuotaInicialDefault(\App\Models\Core\Membresia $membresia, float $precioFinal): float
+    {
+        if ($membresia->cuota_inicial_monto !== null) {
+            return (float) $membresia->cuota_inicial_monto;
+        }
+
+        if ($membresia->cuota_inicial_porcentaje !== null) {
+            return round($precioFinal * ((float) $membresia->cuota_inicial_porcentaje / 100), 2);
+        }
+
+        return 0.0;
     }
 
     protected function handleValidationErrors(\Illuminate\Validation\ValidationException $e): void

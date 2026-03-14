@@ -2,11 +2,14 @@
 
 namespace App\Models\Crm;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CrmStage extends Model
 {
+    use HasFactory;
+
     protected $table = 'crm_stages';
 
     protected $fillable = [

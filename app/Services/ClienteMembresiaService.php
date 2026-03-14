@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Models\Core\ClienteMembresia;
+use App\Models\Core\CajaMovimiento;
+use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Membresia;
 use App\Models\Core\Pago;
 use Illuminate\Database\Eloquent\Collection;
@@ -159,6 +161,8 @@ class ClienteMembresiaService
             $cajaService->registrarIngresoPorPago(
                 $pago,
                 $concepto,
+                CajaMovimiento::CATEGORIA_MEMBRESIA,
+                CajaMovimiento::ORIGEN_CLIENTE_MEMBRESIAS,
                 ClienteMembresia::class,
                 $clienteMembresia->id,
                 trim($observaciones, ', ')
@@ -206,6 +210,8 @@ class ClienteMembresiaService
         $validated = $this->validate($data, $id);
 
         return DB::transaction(function () use ($clienteMembresia, $validated) {
+            $planAnteriorId = $clienteMembresia->membresia_id;
+
             // Recalcular precio_final si se actualizan precio_lista o descuento_monto
             if (isset($validated['precio_lista']) || isset($validated['descuento_monto'])) {
                 $precioLista = $validated['precio_lista'] ?? $clienteMembresia->precio_lista;
@@ -213,7 +219,26 @@ class ClienteMembresiaService
                 $validated['precio_final'] = $precioLista - $descuento;
             }
 
+            if (isset($validated['fecha_matricula'])) {
+                $validated['fecha_matricula'] = \Carbon\Carbon::parse($validated['fecha_matricula'])->toDateString();
+            }
+
             $clienteMembresia->update($validated);
+
+            if ((int) $planAnteriorId !== (int) $clienteMembresia->membresia_id) {
+                ClientePlanTraspaso::create([
+                    'cliente_id' => $clienteMembresia->cliente_id,
+                    'origen_tipo' => ClienteMembresia::class,
+                    'origen_id' => $clienteMembresia->id,
+                    'plan_anterior_tipo' => 'membresia',
+                    'plan_anterior_id' => $planAnteriorId,
+                    'plan_nuevo_tipo' => 'membresia',
+                    'plan_nuevo_id' => $clienteMembresia->membresia_id,
+                    'motivo' => $validated['motivo_cancelacion'] ?? null,
+                    'registrado_por' => Auth::id(),
+                ]);
+            }
+
             return $clienteMembresia->fresh();
         });
     }

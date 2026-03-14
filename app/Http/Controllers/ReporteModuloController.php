@@ -80,13 +80,17 @@ class ReporteModuloController extends Controller
         $estado = $request->query('estado');
         $createdBy = $request->query('created_by');
         $trainerUserId = $request->query('trainer_user_id');
+        $vigencia = $request->query('vigencia');
+        $ventanaDias = (int) ($request->query('ventana_dias', 15));
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
         $data = $this->reporteService->datosReporteClientes(
             $estado ?: null,
             $fechaDesde,
             $fechaHasta,
             $createdBy !== null && $createdBy !== '' ? (int) $createdBy : null,
-            $trainerUserId !== null && $trainerUserId !== '' ? (int) $trainerUserId : null
+            $trainerUserId !== null && $trainerUserId !== '' ? (int) $trainerUserId : null,
+            $vigencia ?: null,
+            $ventanaDias > 0 ? $ventanaDias : 15
         );
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
@@ -197,13 +201,17 @@ class ReporteModuloController extends Controller
         $estado = $request->query('estado');
         $createdBy = $request->query('created_by');
         $trainerUserId = $request->query('trainer_user_id');
+        $vigencia = $request->query('vigencia');
+        $ventanaDias = (int) ($request->query('ventana_dias', 15));
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
         $data = $this->reporteService->datosReporteClientes(
             $estado ?: null,
             $fechaDesde,
             $fechaHasta,
             $createdBy !== null && $createdBy !== '' ? (int) $createdBy : null,
-            $trainerUserId !== null && $trainerUserId !== '' ? (int) $trainerUserId : null
+            $trainerUserId !== null && $trainerUserId !== '' ? (int) $trainerUserId : null,
+            $vigencia ?: null,
+            $ventanaDias > 0 ? $ventanaDias : 15
         );
         return (new ReporteClientesExport($data))->download('reporte_clientes_' . now()->format('Y-m-d_His') . '.xlsx');
     }

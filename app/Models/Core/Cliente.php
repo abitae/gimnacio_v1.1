@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Support\Facades\Schema;
 
 class Cliente extends Model
 {
@@ -45,6 +47,7 @@ class Cliente extends Model
     {
         return [
             'fecha_nacimiento' => 'date',
+            'numero_hijos' => 'integer',
             'datos_salud' => 'array',
             'datos_emergencia' => 'array',
             'consentimientos' => 'array',
@@ -116,6 +119,11 @@ class Cliente extends Model
         return $this->hasMany(ClienteMembresia::class);
     }
 
+    public function clienteMatriculas(): HasMany
+    {
+        return $this->hasMany(ClienteMatricula::class, 'cliente_id');
+    }
+
     public function pagos(): HasMany
     {
         return $this->hasMany(Pago::class);
@@ -171,6 +179,11 @@ class Cliente extends Model
         return $this->hasMany(\App\Models\Crm\CrmActivity::class, 'cliente_id');
     }
 
+    public function planTraspasos(): HasMany
+    {
+        return $this->hasMany(ClientePlanTraspaso::class, 'cliente_id');
+    }
+
     public function crmTasks(): HasMany
     {
         return $this->hasMany(\App\Models\Crm\CrmTask::class, 'cliente_id');
@@ -202,9 +215,41 @@ class Cliente extends Model
         return $this->hasMany(NutritionGoal::class, 'cliente_id');
     }
 
-    public function healthRecord(): \Illuminate\Database\Eloquent\Relations\HasOne
+    public function healthRecord(): HasOne
     {
         return $this->hasOne(HealthRecord::class, 'cliente_id');
+    }
+
+    public function getHealthSummaryAttribute(): array
+    {
+        if ($this->relationLoaded('healthRecord') ? $this->healthRecord : $this->healthRecord()->exists()) {
+            $healthRecord = $this->relationLoaded('healthRecord')
+                ? $this->healthRecord
+                : $this->healthRecord()->first();
+
+            return [
+                'enfermedades' => $healthRecord->enfermedades,
+                'alergias' => $healthRecord->alergias,
+                'medicacion' => $healthRecord->medicacion,
+                'restricciones_medicas' => $healthRecord->restricciones_medicas,
+                'lesiones' => $healthRecord->lesiones,
+                'observaciones' => $healthRecord->observaciones,
+            ];
+        }
+
+        return [
+            'enfermedades' => $this->datos_salud['enfermedades'] ?? null,
+            'alergias' => $this->datos_salud['alergias'] ?? null,
+            'medicacion' => $this->datos_salud['medicacion'] ?? ($this->datos_salud['medicamentos'] ?? null),
+            'restricciones_medicas' => $this->datos_salud['restricciones_medicas'] ?? null,
+            'lesiones' => $this->datos_salud['lesiones'] ?? null,
+            'observaciones' => $this->datos_salud['observaciones'] ?? null,
+        ];
+    }
+
+    public function rentals(): HasMany
+    {
+        return $this->hasMany(Rental::class, 'cliente_id');
     }
 
     /**
@@ -222,8 +267,21 @@ class Cliente extends Model
             ->distinct()
             ->pluck('cliente_membresia_id');
 
+        $matriculasSinCuotasQuery = \App\Models\Core\ClienteMatricula::query()
+            ->where('cliente_id', $this->id);
+
+        if (Schema::hasColumn('cliente_matriculas', 'requiere_plan_cuotas')) {
+            $matriculasSinCuotasQuery->where(function ($q) {
+                $q->whereNull('requiere_plan_cuotas')
+                    ->orWhere('requiere_plan_cuotas', false);
+            });
+        }
+
+        $matriculasSinCuotasIds = $matriculasSinCuotasQuery->pluck('id');
+
         $matriculasIds = \App\Models\Core\Pago::where('cliente_id', $this->id)
             ->whereNotNull('cliente_matricula_id')
+            ->whereIn('cliente_matricula_id', $matriculasSinCuotasIds)
             ->where('saldo_pendiente', '>', 0)
             ->distinct()
             ->pluck('cliente_matricula_id');

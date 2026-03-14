@@ -185,6 +185,53 @@
                     </div>
                 </div>
 
+                <div class="rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-700">
+                    <h3 class="mb-2 text-xs font-semibold text-zinc-900 dark:text-zinc-100">Configuración de Cuotas</h3>
+                    <div class="space-y-2">
+                        <label class="flex items-center">
+                            <input type="checkbox" wire:model.live="formData.permite_cuotas"
+                                class="rounded border-zinc-300 text-zinc-600 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800">
+                            <span class="ml-2 text-xs text-zinc-700 dark:text-zinc-300">Permitir pago en cuotas</span>
+                        </label>
+                        @if ($formData['permite_cuotas'])
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <flux:input size="xs" wire:model.number="formData.numero_cuotas_default"
+                                        label="Número de Cuotas" type="number" min="2" max="60" />
+                                    <flux:error name="formData.numero_cuotas_default" />
+                                </div>
+                                <div>
+                                    <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                                        Frecuencia de Cuotas
+                                    </label>
+                                    <select wire:model="formData.frecuencia_cuotas_default"
+                                        class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                                        <option value="semanal">Semanal</option>
+                                        <option value="quincenal">Quincenal</option>
+                                        <option value="mensual">Mensual</option>
+                                    </select>
+                                    <flux:error name="formData.frecuencia_cuotas_default" />
+                                </div>
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <flux:input size="xs" wire:model.number="formData.cuota_inicial_monto"
+                                        label="Cuota Inicial (S/)" type="number" step="0.01" min="0" />
+                                    <flux:error name="formData.cuota_inicial_monto" />
+                                </div>
+                                <div>
+                                    <flux:input size="xs" wire:model.number="formData.cuota_inicial_porcentaje"
+                                        label="Cuota Inicial (%)" type="number" step="0.01" min="0" max="100" />
+                                    <flux:error name="formData.cuota_inicial_porcentaje" />
+                                </div>
+                            </div>
+                            <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                Define una cuota inicial por monto o por porcentaje, no ambas.
+                            </p>
+                        @endif
+                    </div>
+                </div>
+
                 <div>
                     <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                         Tipo de Acceso

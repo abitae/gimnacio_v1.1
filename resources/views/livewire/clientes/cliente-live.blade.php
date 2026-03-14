@@ -73,7 +73,9 @@
                                 <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
                                     BioTime
                                 </th>
-
+                                <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                    Perfil
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 bg-white dark:divide-zinc-700 dark:bg-zinc-800">
@@ -123,6 +125,11 @@
                                                 {{ $biotimeUpdate ? 'Necesita actualizar en BioTime' : 'Sin actualización pendiente' }}
                                             </span>
                                         </span>
+                                    </td>
+                                    <td class="px-4 py-2.5 text-xs" wire:click.stop>
+                                        <flux:button size="xs" variant="ghost" icon="user-circle"
+                                            wire:click="verPerfil({{ $cliente->id }})"
+                                            title="Ver perfil completo" />
                                     </td>
                                 </tr>
                             @empty
@@ -305,7 +312,7 @@
 
             <div class="flex justify-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-700">
                 <flux:modal.close>
-                    <flux:button variant="ghost" size="xs" wire:click="closeModal" type="button">
+                    <flux:button variant="ghost" size="xs" wire:click="closeCreateModal" type="button">
                         Cancelar
                     </flux:button>
                 </flux:modal.close>
@@ -336,7 +343,7 @@
                             Selecciona una imagen o captura desde la cámara web
                         </p>
                         <p class="mt-0.5 text-xs text-zinc-500 dark:text-zinc-500">
-                            Formatos: JPEG, PNG, WEBP • Tamaño máximo: 2MB
+                            Formatos: JPEG, PNG, WEBP • Tamaño máximo: 5MB
                         </p>
                     </div>
 
@@ -425,7 +432,7 @@
                                     <p class="pl-1">o arrastra y suelta</p>
                                 </div>
                                 <p class="text-xs leading-5 text-zinc-500 dark:text-zinc-500 mt-1">
-                                    PNG, JPG, WEBP hasta 2MB
+                                    PNG, JPG, WEBP hasta 5MB
                                 </p>
                             </div>
                         </div>
@@ -679,8 +686,8 @@
                 </div>
 
                 <div class="flex justify-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-700">
-                    <flux:modal.close>
-                        <flux:button variant="ghost" size="sm" wire:click="closeModal" type="button"
+                <flux:modal.close>
+                    <flux:button variant="ghost" size="sm" wire:click="closePhotoModal" type="button"
                             @click="resetAll()" wire:loading.attr="disabled">
                             Cancelar
                         </flux:button>
@@ -724,7 +731,7 @@
 
         <div class="flex justify-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-700">
             <flux:modal.close>
-                <flux:button variant="ghost" size="xs" wire:click="closeModal" type="button">
+                <flux:button variant="ghost" size="xs" wire:click="closeDeleteModal" type="button">
                     Cancelar
                 </flux:button>
             </flux:modal.close>
@@ -846,7 +853,7 @@
                 if (!file) return;
 
                 // Validaciones
-                const maxSize = 2 * 1024 * 1024; // 2MB
+                const maxSize = 5 * 1024 * 1024; // 5MB
                 const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
                 if (!allowedTypes.includes(file.type)) {
@@ -856,7 +863,7 @@
                 }
 
                 if (file.size > maxSize) {
-                    this.showError('El archivo es demasiado grande. El tamaño máximo es 2MB.');
+                    this.showError('El archivo es demasiado grande. El tamaño máximo es 5MB.');
                     return;
                 }
 

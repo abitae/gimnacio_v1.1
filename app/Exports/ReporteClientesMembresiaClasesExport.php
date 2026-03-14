@@ -36,6 +36,7 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
                     $rows = $this->membresias->map(fn ($m) => [
                         $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '-',
                         $m->membresia?->nombre ?? 'N/A',
+                        $m->fecha_matricula?->format('d/m/Y') ?? '-',
                         $m->fecha_inicio?->format('d/m/Y'),
                         $m->fecha_fin?->format('d/m/Y') ?? '-',
                         (float) ($m->precio_final ?? 0),
@@ -44,6 +45,7 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
                     return $rows->concat($this->matriculasMembresia->map(fn ($m) => [
                         $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '-',
                         $m->nombre,
+                        $m->fecha_matricula?->format('d/m/Y') ?? '-',
                         $m->fecha_inicio?->format('d/m/Y'),
                         $m->fecha_fin?->format('d/m/Y') ?? '-',
                         (float) ($m->precio_final ?? 0),
@@ -53,7 +55,7 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
 
                 public function headings(): array
                 {
-                    return ['Cliente', 'Membresía / Producto', 'Inicio', 'Fin', 'Precio final', 'Origen'];
+                    return ['Cliente', 'Membresía / Producto', 'Matrícula', 'Inicio', 'Fin', 'Precio final', 'Origen'];
                 }
 
                 public function title(): string
@@ -69,6 +71,7 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
                     return $this->matriculasClase->map(fn ($m) => [
                         $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '-',
                         $m->nombre,
+                        $m->fecha_matricula?->format('d/m/Y') ?? '-',
                         $m->fecha_inicio?->format('d/m/Y'),
                         $m->fecha_fin?->format('d/m/Y') ?? '-',
                         (float) ($m->precio_final ?? 0),
@@ -77,7 +80,7 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
 
                 public function headings(): array
                 {
-                    return ['Cliente', 'Clase', 'Inicio', 'Fin', 'Precio final'];
+                    return ['Cliente', 'Clase', 'Matrícula', 'Inicio', 'Fin', 'Precio final'];
                 }
 
                 public function title(): string

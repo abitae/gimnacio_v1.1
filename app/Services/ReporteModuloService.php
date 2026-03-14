@@ -4,15 +4,19 @@ namespace App\Services;
 
 use App\Models\Core\Caja;
 use App\Models\Core\CajaMovimiento;
+use App\Models\Core\Asistencia;
+use App\Models\Core\Cita;
 use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMembresia;
 use App\Models\Core\ClienteMatricula;
+use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Pago;
 use App\Models\Core\Producto;
 use App\Models\Core\ServicioExterno;
 use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class ReporteModuloService
@@ -128,9 +132,11 @@ class ReporteModuloService
         ?string $fechaDesde = null,
         ?string $fechaHasta = null,
         ?int $createdBy = null,
-        ?int $trainerUserId = null
+        ?int $trainerUserId = null,
+        ?string $vigencia = null,
+        int $ventanaDias = 15
     ): array {
-        $query = Cliente::withCount(['clienteMembresias', 'pagos']);
+        $query = Cliente::with(['registroPor', 'trainerUser'])->withCount(['clienteMembresias', 'pagos']);
         if ($estado) {
             $query->where('estado_cliente', $estado);
         }
@@ -147,17 +153,180 @@ class ReporteModuloService
             $query->where('trainer_user_id', $trainerUserId);
         }
         $clientes = $query->orderBy('nombres')->get();
+        $clienteIds = $clientes->pluck('id');
+
+        $hoy = Carbon::today();
+        $ventanaLimite = $hoy->copy()->addDays(max($ventanaDias, 1));
+        $rangoDesde = $fechaDesde ? Carbon::parse($fechaDesde)->startOfDay() : null;
+        $rangoHasta = $fechaHasta ? Carbon::parse($fechaHasta)->endOfDay() : null;
+
+        $membresiasLegacy = ClienteMembresia::query()
+            ->with('membresia')
+            ->whereIn('cliente_id', $clienteIds)
+            ->orderBy('fecha_inicio')
+            ->get()
+            ->groupBy('cliente_id');
+
+        $matriculas = ClienteMatricula::query()
+            ->with(['membresia', 'clase'])
+            ->whereIn('cliente_id', $clienteIds)
+            ->orderBy('fecha_inicio')
+            ->get()
+            ->groupBy('cliente_id');
+
+        $asistenciasPorCliente = Asistencia::query()
+            ->select('cliente_id', DB::raw('COUNT(*) as total'))
+            ->whereIn('cliente_id', $clienteIds)
+            ->when($rangoDesde, fn ($query) => $query->where('fecha_hora_ingreso', '>=', $rangoDesde))
+            ->when($rangoHasta, fn ($query) => $query->where('fecha_hora_ingreso', '<=', $rangoHasta))
+            ->groupBy('cliente_id')
+            ->pluck('total', 'cliente_id');
+
+        $inasistenciasPorCliente = Cita::query()
+            ->select('cliente_id', DB::raw('COUNT(*) as total'))
+            ->whereIn('cliente_id', $clienteIds)
+            ->where('estado', 'no_asistio')
+            ->when($rangoDesde, fn ($query) => $query->where('fecha_hora', '>=', $rangoDesde))
+            ->when($rangoHasta, fn ($query) => $query->where('fecha_hora', '<=', $rangoHasta))
+            ->groupBy('cliente_id')
+            ->pluck('total', 'cliente_id');
+
+        $traspasosPorCliente = ClientePlanTraspaso::query()
+            ->select('cliente_id', DB::raw('COUNT(*) as total'))
+            ->whereIn('cliente_id', $clienteIds)
+            ->when($rangoDesde, fn ($query) => $query->where('created_at', '>=', $rangoDesde))
+            ->when($rangoHasta, fn ($query) => $query->where('created_at', '<=', $rangoHasta))
+            ->groupBy('cliente_id')
+            ->pluck('total', 'cliente_id');
+
+        $membresiasPorIniciar = 0;
+
+        $clientes = $clientes->map(function (Cliente $cliente) use (
+            $membresiasLegacy,
+            $matriculas,
+            $hoy,
+            $ventanaLimite,
+            $asistenciasPorCliente,
+            $inasistenciasPorCliente,
+            $traspasosPorCliente,
+            &$membresiasPorIniciar
+        ) {
+            $matriculasCliente = $matriculas->get($cliente->id, collect());
+            $membresiasLegacyCliente = $membresiasLegacy->get($cliente->id, collect());
+
+            $enrollments = collect()
+                ->concat($matriculasCliente->map(function ($item) {
+                    return [
+                        'tipo_fuente' => 'cliente_matricula',
+                        'categoria' => $item->tipo,
+                        'nombre' => $item->nombre,
+                        'fecha_matricula' => $item->fecha_matricula,
+                        'fecha_inicio' => $item->fecha_inicio,
+                        'fecha_fin' => $item->fecha_fin,
+                        'estado' => $item->estado,
+                    ];
+                }))
+                ->concat(
+                    $matriculasCliente->where('tipo', 'membresia')->isEmpty()
+                        ? $membresiasLegacyCliente->map(function ($item) {
+                            return [
+                                'tipo_fuente' => 'cliente_membresia',
+                                'categoria' => 'membresia',
+                                'nombre' => $item->membresia?->nombre ?? 'Membresía',
+                                'fecha_matricula' => $item->fecha_matricula,
+                                'fecha_inicio' => $item->fecha_inicio,
+                                'fecha_fin' => $item->fecha_fin,
+                                'estado' => $item->estado,
+                            ];
+                        })
+                        : collect()
+                )
+                ->sortBy([
+                    ['fecha_inicio', 'desc'],
+                    ['fecha_matricula', 'desc'],
+                ])
+                ->values();
+
+            $activos = $enrollments->filter(function (array $item) use ($hoy) {
+                return $item['estado'] === 'activa'
+                    && $item['fecha_inicio']
+                    && $item['fecha_inicio']->lte($hoy)
+                    && ($item['fecha_fin'] === null || $item['fecha_fin']->gte($hoy));
+            });
+
+            $proximosVencer = $activos
+                ->filter(fn (array $item) => $item['fecha_fin'] !== null && $item['fecha_fin']->betweenIncluded($hoy, $ventanaLimite))
+                ->sortBy('fecha_fin')
+                ->values();
+
+            $porIniciar = $enrollments
+                ->filter(fn (array $item) => $item['categoria'] === 'membresia'
+                    && in_array($item['estado'], ['activa', 'congelada'], true)
+                    && $item['fecha_inicio'] !== null
+                    && $item['fecha_inicio']->gt($hoy))
+                ->sortBy('fecha_inicio')
+                ->values();
+
+            $membresiasPorIniciar += $porIniciar->count();
+
+            $planActual = $activos->first() ?? $enrollments->first();
+            $primerInicio = $porIniciar->first();
+            $primerVencimiento = $proximosVencer->first();
+
+            $cliente->setAttribute('plan_actual', $planActual['nombre'] ?? null);
+            $cliente->setAttribute('plan_actual_tipo', $planActual['categoria'] ?? null);
+            $cliente->setAttribute('plan_actual_estado', $planActual['estado'] ?? null);
+            $cliente->setAttribute('fecha_matricula_actual', $planActual['fecha_matricula'] ?? null);
+            $cliente->setAttribute('fecha_inicio_actual', $planActual['fecha_inicio'] ?? null);
+            $cliente->setAttribute('fecha_fin_actual', $planActual['fecha_fin'] ?? null);
+            $cliente->setAttribute('tiene_plan_activo', $activos->isNotEmpty());
+            $cliente->setAttribute('por_vencer', $proximosVencer->isNotEmpty());
+            $cliente->setAttribute('membresia_por_iniciar', $porIniciar->isNotEmpty());
+            $cliente->setAttribute('tiene_membresia', $enrollments->contains(fn (array $item) => $item['categoria'] === 'membresia'));
+            $cliente->setAttribute('proxima_fecha_inicio', $primerInicio['fecha_inicio'] ?? null);
+            $cliente->setAttribute('proxima_fecha_fin', $primerVencimiento['fecha_fin'] ?? null);
+            $cliente->setAttribute('asistencias_count', (int) ($asistenciasPorCliente[$cliente->id] ?? 0));
+            $cliente->setAttribute('inasistencias_count', (int) ($inasistenciasPorCliente[$cliente->id] ?? 0));
+            $cliente->setAttribute('traspasos_count', (int) ($traspasosPorCliente[$cliente->id] ?? 0));
+
+            return $cliente;
+        });
+
+        if ($vigencia === 'activos') {
+            $clientes = $clientes->where('tiene_plan_activo', true)->values();
+        } elseif ($vigencia === 'por_vencer') {
+            $clientes = $clientes->where('por_vencer', true)->values();
+        } elseif ($vigencia === 'por_iniciar') {
+            $clientes = $clientes->where('membresia_por_iniciar', true)->values();
+        } elseif ($vigencia === 'inactivos') {
+            $clientes = $clientes->where('estado_cliente', 'inactivo')->values();
+        }
 
         $porEstado = $clientes->groupBy('estado_cliente')->map(fn ($g) => $g->count());
 
         $conPagos = $clientes->filter(fn ($c) => ($c->pagos_count ?? 0) > 0)->count();
+        $clientesActivos = $clientes->where('estado_cliente', 'activo')->count();
+        $clientesInactivos = $clientes->where('estado_cliente', 'inactivo')->count();
+        $clientesPorVencer = $clientes->where('por_vencer', true)->count();
+        $totalAsistencias = $clientes->sum('asistencias_count');
+        $totalInasistencias = $clientes->sum('inasistencias_count');
+        $totalTraspasos = $clientes->sum('traspasos_count');
 
         return [
             'clientes' => $clientes,
             'resumen' => [
                 'total' => $clientes->count(),
+                'activos' => $clientesActivos,
+                'inactivos' => $clientesInactivos,
+                'clientes_por_vencer' => $clientesPorVencer,
+                'membresias_por_iniciar' => $membresiasPorIniciar,
+                'traspasos' => $totalTraspasos,
+                'asistencias' => $totalAsistencias,
+                'inasistencias' => $totalInasistencias,
+                'ventana_dias' => $ventanaDias,
+                'vigencia' => $vigencia ?: 'todos',
                 'por_estado' => $porEstado->toArray(),
-                'con_membresias' => $clientes->filter(fn ($c) => ($c->cliente_membresias_count ?? 0) > 0)->count(),
+                'con_membresias' => $clientes->filter(fn ($c) => (bool) ($c->tiene_membresia ?? false))->count(),
                 'con_pagos' => $conPagos,
             ],
         ];
@@ -200,15 +369,37 @@ class ReporteModuloService
             ->orderBy('fecha_fin', 'desc')
             ->get();
 
-        // Pagos de membresía (cliente_membresia_id)
-        $pagosMembresiaQuery = Pago::with(['cliente', 'clienteMembresia.membresia']);
+        // Pagos de membresía legacy (cliente_membresia_id)
+        $pagosMembresiaLegacyQuery = Pago::with(['cliente', 'clienteMembresia.membresia']);
         if ($fechaDesde) {
-            $pagosMembresiaQuery->whereDate('fecha_pago', '>=', $fechaDesde);
+            $pagosMembresiaLegacyQuery->whereDate('fecha_pago', '>=', $fechaDesde);
         }
         if ($fechaHasta) {
-            $pagosMembresiaQuery->whereDate('fecha_pago', '<=', $fechaHasta);
+            $pagosMembresiaLegacyQuery->whereDate('fecha_pago', '<=', $fechaHasta);
         }
-        $pagosMembresia = $pagosMembresiaQuery->whereNotNull('cliente_membresia_id')->orderBy('fecha_pago', 'desc')->get();
+        $pagosMembresiaLegacy = $pagosMembresiaLegacyQuery
+            ->whereNotNull('cliente_membresia_id')
+            ->orderBy('fecha_pago', 'desc')
+            ->get();
+
+        // Pagos nuevos de membresía y cuotas (cliente_matricula_id tipo membresía)
+        $pagosMembresiaMatriculaQuery = Pago::with(['cliente', 'clienteMatricula.membresia']);
+        if ($fechaDesde) {
+            $pagosMembresiaMatriculaQuery->whereDate('fecha_pago', '>=', $fechaDesde);
+        }
+        if ($fechaHasta) {
+            $pagosMembresiaMatriculaQuery->whereDate('fecha_pago', '<=', $fechaHasta);
+        }
+        $pagosMembresiaMatricula = $pagosMembresiaMatriculaQuery
+            ->whereNotNull('cliente_matricula_id')
+            ->whereHas('clienteMatricula', fn ($q) => $q->where('tipo', 'membresia'))
+            ->orderBy('fecha_pago', 'desc')
+            ->get();
+
+        $pagosMembresia = $pagosMembresiaLegacy
+            ->concat($pagosMembresiaMatricula)
+            ->sortByDesc(fn ($pago) => optional($pago->fecha_pago)?->timestamp ?? 0)
+            ->values();
 
         // Pagos de clases (cliente_matricula_id con tipo clase)
         $pagosClaseQuery = Pago::with(['cliente', 'clienteMatricula.clase']);
@@ -233,6 +424,8 @@ class ReporteModuloService
             'matriculas_membresia_activas' => $matriculasMembresiaActivas,
             'matriculas_clase_activas' => $matriculasClaseActivas,
             'pagos_membresia' => $pagosMembresia,
+            'pagos_membresia_legacy' => $pagosMembresiaLegacy,
+            'pagos_membresia_matricula' => $pagosMembresiaMatricula,
             'pagos_clase' => $pagosClase,
             'resumen' => [
                 'cantidad_membresias_activas' => $membresiasActivas->count() + $matriculasMembresiaActivas->count(),

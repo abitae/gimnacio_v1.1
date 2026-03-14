@@ -10,7 +10,7 @@ class StoreLeadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('crm.view') ?? false;
+        return $this->user()?->can('crm.create') ?? false;
     }
 
     public function rules(): array

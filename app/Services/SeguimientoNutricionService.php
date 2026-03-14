@@ -81,7 +81,7 @@ class SeguimientoNutricionService
             'cliente_id' => [$id ? 'sometimes' : 'required', 'exists:clientes,id'],
             'nutricionista_id' => ['nullable', 'exists:users,id'],
             'cita_id' => ['nullable', 'exists:citas,id'],
-            'tipo' => ['required', 'in:plan_inicial,seguimiento,recomendacion'],
+            'tipo' => ['required', 'in:plan_inicial,seguimiento,recomendacion,incidencia,experiencia'],
             'fecha' => ['required', 'date'],
             'objetivo' => ['nullable', 'string', 'max:255'],
             'calorias_objetivo' => ['nullable', 'integer', 'min:0'],

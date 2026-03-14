@@ -26,6 +26,9 @@ class ClienteMatricula extends Model
         'precio_lista',
         'descuento_monto',
         'precio_final',
+        'modalidad_pago',
+        'requiere_plan_cuotas',
+        'cuota_inicial_monto',
         'asesor_id',
         'canal_venta',
         'fechas_congelacion',
@@ -40,6 +43,11 @@ class ClienteMatricula extends Model
             'fecha_matricula' => 'date',
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
+            'precio_lista' => 'decimal:2',
+            'descuento_monto' => 'decimal:2',
+            'precio_final' => 'decimal:2',
+            'cuota_inicial_monto' => 'decimal:2',
+            'requiere_plan_cuotas' => 'boolean',
             'fechas_congelacion' => 'array',
         ];
     }
@@ -80,6 +88,12 @@ class ClienteMatricula extends Model
         return $this->hasOne(EnrollmentInstallmentPlan::class, 'cliente_matricula_id');
     }
 
+    public function planTraspasos(): HasMany
+    {
+        return $this->hasMany(ClientePlanTraspaso::class, 'origen_id')
+            ->where('origen_tipo', self::class);
+    }
+
     // Métodos de ayuda
     public function esMembresia(): bool
     {
@@ -89,6 +103,39 @@ class ClienteMatricula extends Model
     public function esClase(): bool
     {
         return $this->tipo === 'clase';
+    }
+
+    public function usaPlanCuotas(): bool
+    {
+        return $this->modalidad_pago === 'cuotas' && $this->requiere_plan_cuotas;
+    }
+
+    public function getMontoFinanciadoAttribute(): float
+    {
+        return max(0, (float) $this->precio_final - (float) ($this->cuota_inicial_monto ?? 0));
+    }
+
+    public function getSaldoPendienteActualAttribute(): float
+    {
+        if ($this->usaPlanCuotas()) {
+            $plan = $this->relationLoaded('installmentPlan')
+                ? $this->installmentPlan
+                : $this->installmentPlan()->with('installments')->first();
+
+            if ($plan) {
+                return round((float) $plan->installments()
+                    ->whereIn('estado', ['pendiente', 'vencida'])
+                    ->sum('monto'), 2);
+            }
+
+            return round($this->monto_financiado, 2);
+        }
+
+        $ultimoPago = $this->relationLoaded('pagos')
+            ? $this->pagos->sortByDesc('created_at')->first()
+            : $this->pagos()->latest('created_at')->first();
+
+        return $ultimoPago ? (float) $ultimoPago->saldo_pendiente : (float) $this->precio_final;
     }
 
     public function getNombreAttribute(): string

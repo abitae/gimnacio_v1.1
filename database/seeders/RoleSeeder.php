@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Database\Seeder;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
+use Spatie\Permission\PermissionRegistrar;
 
 class RoleSeeder extends Seeder
 {
@@ -15,8 +16,8 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         $guard = config('auth.defaults.guard');
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        // Roles del sistema
         $roles = [
             'super_administrador',
             'administrador',
@@ -31,18 +32,26 @@ class RoleSeeder extends Seeder
             Role::firstOrCreate(['name' => $roleName, 'guard_name' => $guard]);
         }
 
-        // Permisos legacy (se mantienen por compatibilidad)
-        Permission::firstOrCreate(['name' => 'manage-users', 'guard_name' => $guard]);
-        Permission::firstOrCreate(['name' => 'manage-roles', 'guard_name' => $guard]);
+        Permission::firstOrCreate(['name' => 'cajas.movimientos-manuales', 'guard_name' => $guard]);
 
-        // Permisos CRUD por módulo: {recurso}.view, .create, .update, .delete
+        Permission::query()
+            ->where('guard_name', $guard)
+            ->whereIn('name', [
+                'manage-users',
+                'manage-roles',
+                'cliente-membresias.view',
+                'cliente-membresias.create',
+                'cliente-membresias.update',
+                'cliente-membresias.delete',
+            ])
+            ->delete();
+
         $resources = [
             'clientes',
             'ejercicios-rutinas',
             'membresias',
             'cliente-matriculas',
             'clases',
-            'cliente-membresias',
             'cajas',
             'checking',
             'pos',
@@ -72,14 +81,14 @@ class RoleSeeder extends Seeder
             }
         }
 
-        // Super administrador y administrador tienen todos los permisos
+        $activePermissions = array_merge(['cajas.movimientos-manuales'], $allCrudPermissions);
+
         $superAdmin = Role::findByName('super_administrador', $guard);
-        $superAdmin->givePermissionTo(array_merge(['manage-users', 'manage-roles'], $allCrudPermissions));
+        $superAdmin->syncPermissions($activePermissions);
 
         $admin = Role::findByName('administrador', $guard);
-        $admin->givePermissionTo(array_merge(['manage-users', 'manage-roles'], $allCrudPermissions));
+        $admin->syncPermissions($activePermissions);
 
-        // Trainer: clientes (ver/editar), clases (ver), gestión nutricional (completo), cliente-matrículas (ver), ejercicios-rutinas (completo)
         $trainer = Role::findByName('trainer', $guard);
         $trainer->syncPermissions([
             'clientes.view', 'clientes.update',
@@ -90,37 +99,39 @@ class RoleSeeder extends Seeder
             'ejercicios-rutinas.view', 'ejercicios-rutinas.create', 'ejercicios-rutinas.update', 'ejercicios-rutinas.delete',
         ]);
 
-        // Caja / Recepción: cajas, POS, reportes, clientes (ver), matrículas (ver), cupones, alquileres, asistencia
         $caja = Role::findByName('caja', $guard);
         $caja->syncPermissions([
             'cajas.view', 'cajas.create', 'cajas.update',
+            'cajas.movimientos-manuales',
             'pos.view', 'pos.create',
             'reportes.view',
             'clientes.view', 'cliente-matriculas.view', 'cliente-matriculas.update',
-            'cupones.view', 'cupones.create', 'cupones.update',
             'payment-methods.view',
             'rentals.view', 'rentals.create', 'rentals.update',
             'employees.view', 'attendance.view', 'attendance.create',
         ]);
 
-        // Vendedor: POS, productos y categorías (ver/crear/actualizar), clientes (ver)
         $vendedor = Role::findByName('vendedor', $guard);
         $vendedor->syncPermissions([
             'pos.view', 'pos.create',
-            'productos.view', 'productos.create', 'productos.update',
-            'categorias-productos.view', 'categorias-productos.create', 'categorias-productos.update',
-            'clientes.view', 'membresias.view',
+            'clientes.view',
+            'membresias.view',
+            'clases.view',
+            'cliente-matriculas.view', 'cliente-matriculas.create', 'cliente-matriculas.update',
+            'crm.view', 'crm.create', 'crm.update',
+            'crm-mensajes.view', 'crm-mensajes.create',
+            'cupones.view',
+            'productos.view',
+            'categorias-productos.view',
         ]);
 
-        // Cafetín: productos, categorías, POS (ver/crear/actualizar)
         $cafetin = Role::findByName('cafetin', $guard);
         $cafetin->syncPermissions([
             'pos.view', 'pos.create',
-            'productos.view', 'productos.create', 'productos.update',
-            'categorias-productos.view', 'categorias-productos.update',
+            'productos.view',
+            'categorias-productos.view',
         ]);
 
-        // Nutricionista: gestión nutricional completo, clientes (ver), CRM mensajes (ver/crear)
         $nutricionista = Role::findByName('nutricionista', $guard);
         $nutricionista->syncPermissions([
             'gestion-nutricional.view', 'gestion-nutricional.create', 'gestion-nutricional.update', 'gestion-nutricional.delete',
@@ -133,5 +144,7 @@ class RoleSeeder extends Seeder
         if ($firstUser && ! $firstUser->hasRole('super_administrador')) {
             $firstUser->assignRole('super_administrador');
         }
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

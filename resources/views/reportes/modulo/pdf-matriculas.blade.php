@@ -21,6 +21,7 @@
     <table>
         <tr>
             <th>#</th>
+            <th>Fecha matrícula</th>
             <th>Fecha inicio</th>
             <th>Cliente</th>
             <th>Documento</th>
@@ -36,6 +37,7 @@
         @foreach($matriculas as $m)
             <tr>
                 <td>{{ $loop->iteration }}</td>
+                <td>{{ $m->fecha_matricula ? $m->fecha_matricula->format('d/m/Y') : '-' }}</td>
                 <td>{{ $m->fecha_inicio ? $m->fecha_inicio->format('d/m/Y') : '-' }}</td>
                 <td>{{ $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '-' }}</td>
                 <td>{{ $m->cliente ? ($m->cliente->tipo_documento ?? '') . ' ' . ($m->cliente->numero_documento ?? '') : '-' }}</td>

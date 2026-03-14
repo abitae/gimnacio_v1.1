@@ -3,7 +3,10 @@
 namespace App\Livewire\GestionNutricional;
 
 use App\Livewire\Concerns\FlashesToast;
-use App\Models\Core\EvaluacionMedidasNutricion;
+use App\Models\Core\RentableSpace;
+use App\Models\RoutineTemplate;
+use App\Services\ClientWellnessService;
+use App\Services\ClientRoutineService;
 use App\Services\CitaService;
 use App\Services\ClienteService;
 use App\Services\EvaluacionMedidasNutricionService;
@@ -24,7 +27,7 @@ class GestionNutricionalUnificadoLive extends Component
     public $selectedCliente = null;
     public $isSearching = false;
 
-    // Tab principal (ficha_salud, historial, nutricion, citas)
+    // Tab principal (ficha_salud, nutricion, citas, gestion)
     public $mainTab = 'ficha_salud';
 
     // Filtros
@@ -42,6 +45,9 @@ class GestionNutricionalUnificadoLive extends Component
         'delete_cita' => false,
         'reporte_preview' => false,
         'salud' => false,
+        'rutina' => false,
+        'congelamiento' => false,
+        'reserva' => false,
     ];
 
     /** ID del cliente para el modal de datos de salud. */
@@ -103,6 +109,34 @@ class GestionNutricionalUnificadoLive extends Component
         'observaciones' => '',
     ];
 
+    public $rutinaFormData = [
+        'routine_template_id' => '',
+        'trainer_user_id' => '',
+        'fecha_inicio' => '',
+        'fecha_fin' => '',
+        'objetivo_personal' => '',
+        'restricciones' => '',
+        'observaciones' => '',
+    ];
+
+    public $congelamientoFormData = [
+        'origen_tipo' => 'cliente_matricula',
+        'registro_id' => '',
+        'fecha_desde' => '',
+        'fecha_hasta' => '',
+        'motivo' => '',
+    ];
+
+    public $reservaFormData = [
+        'rentable_space_id' => '',
+        'fecha' => '',
+        'hora_inicio' => '',
+        'hora_fin' => '',
+        'precio' => '',
+        'estado' => 'reservado',
+        'observaciones' => '',
+    ];
+
     protected $paginationTheme = 'tailwind';
 
     protected EvaluacionMedidasNutricionService $evaluacionService;
@@ -110,19 +144,22 @@ class GestionNutricionalUnificadoLive extends Component
     protected CitaService $citaService;
     protected ClienteService $clienteService;
     protected ReporteService $reporteService;
+    protected ClientWellnessService $clientWellnessService;
 
     public function boot(
         EvaluacionMedidasNutricionService $evaluacionService,
         SeguimientoNutricionService $seguimientoService,
         CitaService $citaService,
         ClienteService $clienteService,
-        ReporteService $reporteService
+        ReporteService $reporteService,
+        ClientWellnessService $clientWellnessService
     ) {
         $this->evaluacionService = $evaluacionService;
         $this->seguimientoService = $seguimientoService;
         $this->citaService = $citaService;
         $this->clienteService = $clienteService;
         $this->reporteService = $reporteService;
+        $this->clientWellnessService = $clientWellnessService;
     }
 
     public function mount()
@@ -132,6 +169,13 @@ class GestionNutricionalUnificadoLive extends Component
         $this->evaluacionFormData['evaluado_por'] = auth()->id();
         $this->nutricionFormData['fecha'] = now()->format('Y-m-d');
         $this->citaFormData['fecha_hora'] = now()->addDay()->format('Y-m-d\TH:i');
+        $this->rutinaFormData['fecha_inicio'] = now()->format('Y-m-d');
+        $this->rutinaFormData['trainer_user_id'] = (string) auth()->id();
+        $this->congelamientoFormData['fecha_desde'] = now()->format('Y-m-d');
+        $this->congelamientoFormData['fecha_hasta'] = now()->addDays(7)->format('Y-m-d');
+        $this->reservaFormData['fecha'] = now()->addDay()->format('Y-m-d');
+        $this->reservaFormData['hora_inicio'] = '08:00';
+        $this->reservaFormData['hora_fin'] = '09:00';
         $saludId = request()->query('salud');
         if ($saludId && is_numeric($saludId)) {
             $this->saludClienteId = (int) $saludId;
@@ -587,6 +631,151 @@ class GestionNutricionalUnificadoLive extends Component
         }
     }
 
+    public function openCreateRutinaModal()
+    {
+        abort_unless(auth()->user()->can('ejercicios-rutinas.create'), 403);
+        if (! $this->selectedClienteId) {
+            $this->flashToast('error', 'Selecciona un cliente primero');
+            return;
+        }
+
+        $this->rutinaFormData = [
+            'routine_template_id' => '',
+            'trainer_user_id' => (string) auth()->id(),
+            'fecha_inicio' => now()->format('Y-m-d'),
+            'fecha_fin' => '',
+            'objetivo_personal' => '',
+            'restricciones' => '',
+            'observaciones' => '',
+        ];
+        $this->modalState['rutina'] = true;
+    }
+
+    public function saveRutina(ClientRoutineService $routineService)
+    {
+        abort_unless(auth()->user()->can('ejercicios-rutinas.create'), 403);
+
+        if (! $this->selectedCliente) {
+            $this->flashToast('error', 'Selecciona un cliente primero');
+            return;
+        }
+
+        $data = validator($this->rutinaFormData, [
+            'routine_template_id' => ['required', 'exists:routine_templates,id'],
+            'trainer_user_id' => ['nullable', 'exists:users,id'],
+            'fecha_inicio' => ['required', 'date'],
+            'fecha_fin' => ['nullable', 'date', 'after_or_equal:fecha_inicio'],
+            'objetivo_personal' => ['nullable', 'string'],
+            'restricciones' => ['nullable', 'string'],
+            'observaciones' => ['nullable', 'string'],
+        ])->validate();
+
+        $template = RoutineTemplate::findOrFail((int) $data['routine_template_id']);
+        $trainer = \App\Models\User::find($data['trainer_user_id'] ?: auth()->id()) ?? auth()->user();
+
+        $routineService->assignFromTemplate($this->selectedCliente, $template, $trainer, [
+            'fecha_inicio' => $data['fecha_inicio'],
+            'fecha_fin' => $data['fecha_fin'] ?: null,
+            'objetivo_personal' => $data['objetivo_personal'] ?: null,
+            'restricciones' => $data['restricciones'] ?: null,
+            'observaciones' => $data['observaciones'] ?: null,
+        ]);
+
+        $this->modalState['rutina'] = false;
+        $this->flashToast('success', 'Rutina asignada correctamente');
+    }
+
+    public function openCongelamientoModal()
+    {
+        $this->authorize('gestion-nutricional.update');
+        if (! $this->selectedClienteId) {
+            $this->flashToast('error', 'Selecciona un cliente primero');
+            return;
+        }
+
+        $this->congelamientoFormData = [
+            'origen_tipo' => 'cliente_matricula',
+            'registro_id' => '',
+            'fecha_desde' => now()->format('Y-m-d'),
+            'fecha_hasta' => now()->addDays(7)->format('Y-m-d'),
+            'motivo' => '',
+        ];
+        $this->modalState['congelamiento'] = true;
+    }
+
+    public function saveCongelamiento()
+    {
+        $this->authorize('gestion-nutricional.update');
+
+        if (! $this->selectedClienteId) {
+            $this->flashToast('error', 'Selecciona un cliente primero');
+            return;
+        }
+
+        $data = validator($this->congelamientoFormData, [
+            'origen_tipo' => ['required', 'in:cliente_matricula,cliente_membresia'],
+            'registro_id' => ['required', 'integer'],
+            'fecha_desde' => ['required', 'date'],
+            'fecha_hasta' => ['required', 'date', 'after_or_equal:fecha_desde'],
+            'motivo' => ['nullable', 'string'],
+        ])->validate();
+
+        try {
+            $this->clientWellnessService->freezePlan($this->selectedClienteId, $data, auth()->id());
+        } catch (\RuntimeException $e) {
+            $this->flashToast('error', $e->getMessage());
+            return;
+        }
+
+        $this->modalState['congelamiento'] = false;
+        $this->flashToast('success', 'Congelamiento registrado correctamente');
+    }
+
+    public function openCreateReservaModal()
+    {
+        abort_unless(auth()->user()->can('rentals.create'), 403);
+        if (! $this->selectedClienteId) {
+            $this->flashToast('error', 'Selecciona un cliente primero');
+            return;
+        }
+
+        $this->reservaFormData = [
+            'rentable_space_id' => '',
+            'fecha' => now()->addDay()->format('Y-m-d'),
+            'hora_inicio' => '08:00',
+            'hora_fin' => '09:00',
+            'precio' => '',
+            'estado' => 'reservado',
+            'observaciones' => '',
+        ];
+        $this->modalState['reserva'] = true;
+    }
+
+    public function saveReserva()
+    {
+        abort_unless(auth()->user()->can('rentals.create'), 403);
+
+        if (! $this->selectedClienteId) {
+            $this->flashToast('error', 'Selecciona un cliente primero');
+            return;
+        }
+
+        $data = validator($this->reservaFormData, [
+            'rentable_space_id' => ['required', 'exists:rentable_spaces,id'],
+            'fecha' => ['required', 'date'],
+            'hora_inicio' => ['required', 'date_format:H:i'],
+            'hora_fin' => ['required', 'date_format:H:i', 'after:hora_inicio'],
+            'precio' => ['required', 'numeric', 'min:0'],
+            'estado' => ['required', 'in:reservado,confirmado,pagado,cancelado,finalizado'],
+            'observaciones' => ['nullable', 'string'],
+        ])->validate();
+
+        $this->clientWellnessService->createReservation($this->selectedClienteId, $data, auth()->id());
+
+        $this->modalState['reserva'] = false;
+        $this->flashToast('success', 'Reserva creada correctamente');
+    }
+
     // ========== HELPERS ==========
     protected function mapEvaluacionToForm(EvaluacionMedidasNutricion $evaluacion): void
     {
@@ -681,6 +870,10 @@ class GestionNutricionalUnificadoLive extends Component
         $ultimaEvaluacion = null;
         $seguimientos = collect([]);
         $citas = collect([]);
+        $rutinas = collect([]);
+        $reservas = collect([]);
+        $planesGestion = collect([]);
+        $lineaTiempo = collect([]);
 
         if ($this->selectedClienteId) {
             // Evaluaciones (para ficha_salud)
@@ -707,6 +900,14 @@ class GestionNutricionalUnificadoLive extends Component
                 ]);
                 $citas = $this->citaService->getByCliente($this->selectedClienteId, $filtros, $this->perPage);
             }
+
+            if ($this->mainTab === 'gestion') {
+                $gestionOverview = $this->clientWellnessService->getGestionOverview($this->selectedClienteId);
+                $rutinas = $gestionOverview['rutinas'];
+                $reservas = $gestionOverview['reservas'];
+                $planesGestion = $gestionOverview['planesGestion'];
+                $lineaTiempo = $gestionOverview['lineaTiempo'];
+            }
         }
 
         $nutricionistas = \App\Models\User::role('nutricionista')->orderBy('name')->get();
@@ -715,6 +916,8 @@ class GestionNutricionalUnificadoLive extends Component
         }
 
         $trainers = \App\Models\User::role('trainer')->orderBy('name')->get();
+        $routineTemplates = RoutineTemplate::where('estado', 'activa')->orderBy('nombre')->get();
+        $rentableSpaces = RentableSpace::activos()->orderBy('nombre')->get();
         
         $citasCliente = $this->selectedClienteId
             ? \App\Models\Core\Cita::where('cliente_id', $this->selectedClienteId)->orderBy('fecha_hora', 'desc')->limit(50)->get()
@@ -725,8 +928,14 @@ class GestionNutricionalUnificadoLive extends Component
             'ultimaEvaluacion' => $ultimaEvaluacion,
             'seguimientos' => $seguimientos,
             'citas' => $citas,
+            'rutinas' => $rutinas,
+            'reservas' => $reservas,
+            'planesGestion' => $planesGestion,
+            'lineaTiempo' => $lineaTiempo,
             'nutricionistas' => $nutricionistas,
             'trainers' => $trainers,
+            'routineTemplates' => $routineTemplates,
+            'rentableSpaces' => $rentableSpaces,
             'citasCliente' => $citasCliente,
         ]);
     }
