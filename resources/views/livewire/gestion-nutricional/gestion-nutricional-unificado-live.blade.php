@@ -1159,16 +1159,30 @@
                         <option value="cliente_membresia">Membresía legacy</option>
                     </select>
                 </flux:field>
-                <div class="grid grid-cols-2 gap-2">
+                <flux:field>
+                    <flux:label>{{ __('Modo') }}</flux:label>
+                    <select wire:model.live="congelamientoFormData.modo" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="dias">{{ __('Por número de días (desde hoy)') }}</option>
+                        <option value="rango">{{ __('Por rango de fechas') }}</option>
+                    </select>
+                </flux:field>
+                @if (($congelamientoFormData['modo'] ?? 'dias') === 'dias')
                     <flux:field>
-                        <flux:label>Desde</flux:label>
-                        <flux:input type="date" wire:model="congelamientoFormData.fecha_desde" />
+                        <flux:label>{{ __('Días') }}</flux:label>
+                        <flux:input type="number" wire:model="congelamientoFormData.dias" min="1" max="366" />
                     </flux:field>
-                    <flux:field>
-                        <flux:label>Hasta</flux:label>
-                        <flux:input type="date" wire:model="congelamientoFormData.fecha_hasta" />
-                    </flux:field>
-                </div>
+                @else
+                    <div class="grid grid-cols-2 gap-2">
+                        <flux:field>
+                            <flux:label>Desde</flux:label>
+                            <flux:input type="date" wire:model="congelamientoFormData.fecha_desde" />
+                        </flux:field>
+                        <flux:field>
+                            <flux:label>Hasta</flux:label>
+                            <flux:input type="date" wire:model="congelamientoFormData.fecha_hasta" />
+                        </flux:field>
+                    </div>
+                @endif
                 <flux:field>
                     <flux:label>Motivo</flux:label>
                     <flux:textarea wire:model="congelamientoFormData.motivo" rows="3" />

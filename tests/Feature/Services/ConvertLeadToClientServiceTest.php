@@ -67,5 +67,7 @@ it('converts a lead and creates a cliente_matricula instead of a legacy membersh
     expect($matricula->tipo)->toBe('membresia');
     expect($matricula->membresia_id)->toBe($membresia->id);
     expect(ClienteMembresia::query()->where('cliente_id', $cliente->id)->count())->toBe(0);
-    expect($matricula->pagos()->count())->toBe(2);
+    expect($matricula->pagos()->count())->toBe(1);
+    expect((float) $matricula->pagos()->first()->monto)->toBe(50.0);
+    expect((float) $matricula->pagos()->first()->saldo_pendiente)->toBe(80.0);
 });

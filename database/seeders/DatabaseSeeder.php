@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\User;
+use App\Support\PermissionCatalog;
 // use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
@@ -13,7 +14,7 @@ class DatabaseSeeder extends Seeder
      */
     public function run(): void
     {
-        // Crear usuario de prueba primero (necesario para otros seeders)
+        // Usuario de prueba (super-admin se asigna tras RoleSeeder en BaseCatalog; el rol debe existir ya)
         User::firstOrCreate(
             ['email' => 'abel.arana@hotmail.com'],
             [
@@ -38,8 +39,9 @@ class DatabaseSeeder extends Seeder
             // Seeders de caja (necesario para pagos)
             CajaSeeder::class,                // Depende de User
             EmployeeSeeder::class,            // Empleados (depende de User)
-            // ClienteMembresiaSeeder::class, // Deshabilitado: clientes sin matrículas/membresías
-            // PagoSeeder::class,             // Depende de ClienteMembresia y Caja
+            ClienteMatriculaDemoSeeder::class, // Matrículas demo (cliente_matriculas + pagos vía servicio)
+            // ClienteMembresiaSeeder::class, // Legacy cliente_membresias
+            // PagoSeeder::class,             // Legacy: requiere ClienteMembresiaSeeder
             // AsistenciaSeeder::class,       // Depende de ClienteMembresia
             TrainerSeeder::class,             // Usuarios con rol trainer (después de RoleSeeder)
             EvaluacionMedidasNutricionSeeder::class,   // Depende de Cliente
@@ -57,16 +59,11 @@ class DatabaseSeeder extends Seeder
             // Se puede ejecutar manualmente después de crear ventas en el POS
         ]);
 
-        if ((bool) env('DB_SEED_MASSIVE', false)) {
-            $this->call([MassiveRootSeeder::class]);
+        $superAdminUser = User::query()->where('email', 'abel.arana@hotmail.com')->first();
+        if ($superAdminUser !== null) {
+            $superAdminUser->assignRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME);
         }
 
-        if ((bool) env('DB_SEED_SCENARIOS', false)) {
-            $this->call([ScenarioSeeder::class]);
-        }
-
-        if ((bool) env('DB_SEED_EDGE_CASES', false)) {
-            $this->call([EdgeCaseSeeder::class]);
-        }
+        // Datos masivos / escenarios / casos límite: php artisan db:seed --class=NombreSeeder
     }
 }

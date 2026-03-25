@@ -9,6 +9,7 @@ new class extends Component {
     public string $sidebar_bg = 'default';
     public string $header_bg = 'default';
     public string $body_bg = 'default';
+    public string $font_size = 'base';
 
     public function mount(): void
     {
@@ -18,6 +19,7 @@ new class extends Component {
         $this->sidebar_bg = $user->sidebar_bg ?? 'default';
         $this->header_bg = $user->header_bg ?? 'default';
         $this->body_bg = $user->body_bg ?? 'default';
+        $this->font_size = $user->font_size ?? 'base';
     }
 
     public function save(): void
@@ -28,11 +30,22 @@ new class extends Component {
             'sidebar_bg' => ['required', 'string', 'in:default,slate,blue,green,amber,red,violet,indigo'],
             'header_bg' => ['required', 'string', 'in:default,slate,blue,green,amber,red,violet,indigo'],
             'body_bg' => ['required', 'string', 'in:default,slate,blue,green,amber,red,violet,indigo'],
+            'font_size' => ['required', 'string', 'in:sm,base,lg'],
         ]);
 
         Auth::user()->update($validated);
 
-        $this->dispatch('appearance-updated', appearance: $this->appearance, accent: $this->accent, sidebar_bg: $this->sidebar_bg, header_bg: $this->header_bg, body_bg: $this->body_bg);
+        $user = Auth::user()->fresh();
+        $this->dispatch('appearance-updated',
+            appearance: $user->appearance ?? 'system',
+            appearance_sidebar: $user->appearance_sidebar ?? 'system',
+            appearance_header: $user->appearance_header ?? 'system',
+            accent: $user->accent ?? 'neutral',
+            sidebar_bg: $user->sidebar_bg ?? 'default',
+            header_bg: $user->header_bg ?? 'default',
+            body_bg: $user->body_bg ?? 'default',
+            font_size: $user->font_size ?? 'base',
+        );
     }
 }; ?>
 
@@ -47,6 +60,15 @@ new class extends Component {
                     <flux:radio value="light" icon="sun">{{ __('Light') }}</flux:radio>
                     <flux:radio value="dark" icon="moon">{{ __('Dark') }}</flux:radio>
                     <flux:radio value="system" icon="computer-desktop">{{ __('System') }}</flux:radio>
+                </flux:radio.group>
+            </div>
+
+            <div>
+                <flux:text class="mb-2 block font-medium">{{ __('Font size') }}</flux:text>
+                <flux:radio.group wire:model="font_size" variant="segmented">
+                    <flux:radio value="sm">{{ __('Small') }}</flux:radio>
+                    <flux:radio value="base">{{ __('Medium') }}</flux:radio>
+                    <flux:radio value="lg">{{ __('Large') }}</flux:radio>
                 </flux:radio.group>
             </div>
 

@@ -1,11 +1,13 @@
-@props(['cliente', 'hideActions' => false])
+@props(['cliente', 'hideActions' => false, 'saludLinkOnly' => false, 'dismissible' => true])
 
 <div class="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 p-3 space-y-2.5">
     <!-- Header -->
     <div class="flex items-center justify-between border-b border-zinc-200 dark:border-zinc-700 pb-2">
         <h3 class="text-xs font-semibold text-zinc-900 dark:text-zinc-100">Perfil del Cliente</h3>
-        <flux:button icon="x-mark" variant="ghost" size="xs" wire:click="clearClienteSelection" aria-label="Cerrar perfil">
-        </flux:button>
+        @if ($dismissible)
+            <flux:button icon="x-mark" variant="ghost" size="xs" wire:click="clearClienteSelection" aria-label="Cerrar perfil">
+            </flux:button>
+        @endif
     </div>
 
     <!-- Foto y Deuda -->
@@ -30,15 +32,11 @@
             $deudaTotal = $cliente->deuda_total;
         @endphp
         <div class="flex-1">
-            <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Deuda Total</p>
+            <p class="mb-1 text-xs text-zinc-500 dark:text-zinc-400">{{ __('Deuda total') }}</p>
             @if ($deudaTotal > 0)
-                <p class="text-lg font-bold text-red-600 dark:text-red-400">
-                    S/ {{ number_format($deudaTotal, 2) }}
-                </p>
+                <flux:badge color="red" class="text-sm font-bold tabular-nums">S/ {{ number_format($deudaTotal, 2) }}</flux:badge>
             @else
-                <p class="text-lg font-semibold text-green-600 dark:text-green-400">
-                    Sin deuda
-                </p>
+                <flux:badge color="green">{{ __('Sin deuda') }}</flux:badge>
             @endif
         </div>
     </div>
@@ -60,17 +58,15 @@
         </div>
 
         <div>
-            <p class="text-xs text-zinc-500 dark:text-zinc-400">Estado</p>
-            <span
-                class="inline-flex rounded-full px-1.5 py-0.5 text-xs font-medium
-                @if ($cliente->estado_cliente === 'activo') bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400
-                @elseif($cliente->estado_cliente === 'inactivo')
-                    bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400
-                @else
-                    bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 @endif
-            ">
-                {{ ucfirst($cliente->estado_cliente) }}
-            </span>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Estado') }}</p>
+            @php
+                $estadoClienteBadge = match ($cliente->estado_cliente) {
+                    'activo' => 'green',
+                    'inactivo' => 'zinc',
+                    default => 'red',
+                };
+            @endphp
+            <flux:badge :color="$estadoClienteBadge">{{ ucfirst($cliente->estado_cliente) }}</flux:badge>
         </div>
 
         <x-cliente.info-field label="Teléfono" :value="$cliente->telefono" />
@@ -112,17 +108,31 @@
                 @endif
             </div>
             @can('gestion-nutricional.update')
-            <flux:button variant="ghost" size="xs" wire:click="openSaludModal({{ $cliente->id }})" class="mt-1">
-                <flux:icon name="pencil" class="w-3.5 h-3.5" /> Ver/editar en Gestión Nutricional
-            </flux:button>
+                @if ($saludLinkOnly)
+                    <flux:button href="{{ route('gestion-nutricional.salud', $cliente) }}" wire:navigate variant="ghost" size="xs" icon="pencil"
+                        class="mt-1 h-auto min-h-0 px-0 py-0.5 text-xs text-violet-600 hover:underline dark:text-violet-400">
+                        Ver/editar en Gestión Nutricional
+                    </flux:button>
+                @else
+                    <flux:button variant="ghost" size="xs" wire:click="openSaludModal({{ $cliente->id }})" class="mt-1">
+                        <flux:icon name="pencil" class="w-3.5 h-3.5" /> Ver/editar en Gestión Nutricional
+                    </flux:button>
+                @endif
             @endcan
         </div>
     @else
         @can('gestion-nutricional.update')
         <div class="border-t border-zinc-200 dark:border-zinc-700 pt-2">
-            <flux:button variant="ghost" size="xs" wire:click="openSaludModal({{ $cliente->id }})">
-                <flux:icon name="heart" class="w-3.5 h-3.5" /> Salud / Nutrición
-            </flux:button>
+            @if ($saludLinkOnly)
+                <flux:button href="{{ route('gestion-nutricional.salud', $cliente) }}" wire:navigate variant="ghost" size="xs" icon="heart"
+                    class="h-auto min-h-0 px-0 py-0.5 text-xs text-violet-600 hover:underline dark:text-violet-400">
+                    Salud / Nutrición
+                </flux:button>
+            @else
+                <flux:button variant="ghost" size="xs" wire:click="openSaludModal({{ $cliente->id }})">
+                    <flux:icon name="heart" class="w-3.5 h-3.5" /> Salud / Nutrición
+                </flux:button>
+            @endif
         </div>
         @endcan
     @endif
@@ -130,9 +140,10 @@
     <!-- Objetivos nutricionales -->
     @can('gestion-nutricional.view')
     <div class="border-t border-zinc-200 dark:border-zinc-700 pt-2">
-        <a href="{{ route('gestion-nutricional.objetivos.index', ['cliente_id' => $cliente->id]) }}" wire:navigate class="inline-flex items-center gap-1 text-xs text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100">
-            <flux:icon name="flag" class="w-3.5 h-3.5" /> Objetivos nutricionales
-        </a>
+        <flux:button href="{{ route('gestion-nutricional.objetivos.index', ['cliente_id' => $cliente->id]) }}" wire:navigate variant="ghost" size="xs" icon="flag"
+            class="h-auto min-h-0 px-0 py-0.5 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
+            Objetivos nutricionales
+        </flux:button>
     </div>
     @endcan
 
@@ -192,18 +203,18 @@
             <div class="flex gap-1.5">
                 @can('clientes.update')
                 <flux:button icon="photo" color="purple" variant="primary" size="xs"
-                    wire:click="openPhotoModal({{ $cliente->id }})" class="flex-1" aria-label="Subir foto">
+                    wire:click="openClientePhotoModal({{ $cliente->id }})" class="flex-1" aria-label="Subir foto">
                     Foto
                 </flux:button>
                 <flux:button icon="pencil" color="blue" variant="primary" size="xs"
-                    wire:click="openEditModal({{ $cliente->id }})" class="flex-1" aria-label="Editar cliente">
+                    wire:click="openClienteEditModal({{ $cliente->id }})" class="flex-1" aria-label="Editar cliente">
                     Editar
                 </flux:button>
                 @endcan
             </div>
             @can('clientes.delete')
             <flux:button icon="trash" color="red" variant="primary" size="xs"
-                wire:click="openDeleteModal({{ $cliente->id }})" class="w-full" aria-label="Eliminar cliente">
+                wire:click="openClienteDeleteModal({{ $cliente->id }})" class="w-full" aria-label="Eliminar cliente">
                 Eliminar
             </flux:button>
             @endcan

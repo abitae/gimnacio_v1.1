@@ -2,9 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\User;
+use App\Support\PermissionCatalog;
 use Illuminate\Database\Seeder;
-use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\PermissionRegistrar;
 
@@ -19,7 +18,7 @@ class RoleSeeder extends Seeder
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         $roles = [
-            'super_administrador',
+            PermissionCatalog::SUPER_ADMIN_ROLE_NAME,
             'administrador',
             'trainer',
             'caja',
@@ -32,59 +31,11 @@ class RoleSeeder extends Seeder
             Role::firstOrCreate(['name' => $roleName, 'guard_name' => $guard]);
         }
 
-        Permission::firstOrCreate(['name' => 'cajas.movimientos-manuales', 'guard_name' => $guard]);
+        $activePermissions = PermissionCatalog::sync($guard);
+        PermissionCatalog::migrateLegacySuperAdminRole($guard);
 
-        Permission::query()
-            ->where('guard_name', $guard)
-            ->whereIn('name', [
-                'manage-users',
-                'manage-roles',
-                'cliente-membresias.view',
-                'cliente-membresias.create',
-                'cliente-membresias.update',
-                'cliente-membresias.delete',
-            ])
-            ->delete();
-
-        $resources = [
-            'clientes',
-            'ejercicios-rutinas',
-            'membresias',
-            'cliente-matriculas',
-            'clases',
-            'cajas',
-            'checking',
-            'pos',
-            'cupones',
-            'payment-methods',
-            'categorias-productos',
-            'productos',
-            'servicios',
-            'gestion-nutricional',
-            'crm-mensajes',
-            'crm',
-            'usuarios',
-            'roles',
-            'biotime',
-            'reportes',
-            'rentals',
-            'employees',
-            'attendance',
-        ];
-        $actions = ['view', 'create', 'update', 'delete'];
-        $allCrudPermissions = [];
-        foreach ($resources as $resource) {
-            foreach ($actions as $action) {
-                $name = "{$resource}.{$action}";
-                Permission::firstOrCreate(['name' => $name, 'guard_name' => $guard]);
-                $allCrudPermissions[] = $name;
-            }
-        }
-
-        $activePermissions = array_merge(['cajas.movimientos-manuales'], $allCrudPermissions);
-
-        $superAdmin = Role::findByName('super_administrador', $guard);
-        $superAdmin->syncPermissions($activePermissions);
+        $superAdmin = Role::findByName(PermissionCatalog::SUPER_ADMIN_ROLE_NAME, $guard);
+        $superAdmin->syncPermissions([]);
 
         $admin = Role::findByName('administrador', $guard);
         $admin->syncPermissions($activePermissions);
@@ -138,12 +89,6 @@ class RoleSeeder extends Seeder
             'clientes.view',
             'crm-mensajes.view', 'crm-mensajes.create',
         ]);
-
-        // Usuario inicial como super administrador
-        $firstUser = User::where('email', 'abel.arana@hotmail.com')->first();
-        if ($firstUser && ! $firstUser->hasRole('super_administrador')) {
-            $firstUser->assignRole('super_administrador');
-        }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
     }

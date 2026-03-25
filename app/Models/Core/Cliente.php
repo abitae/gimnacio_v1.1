@@ -81,13 +81,14 @@ class Cliente extends Model
         $digits = preg_replace('/\D/', '', $tel);
         $digits = ltrim($digits, '0');
         if (str_starts_with($digits, '51') && strlen($digits) >= 11) {
-            $base = 'https://wa.me/' . $digits;
+            $base = 'https://wa.me/'.$digits;
         } else {
-            $base = 'https://wa.me/51' . $digits;
+            $base = 'https://wa.me/51'.$digits;
         }
         if ($text !== null && trim($text) !== '') {
-            return $base . '/?text=' . rawurlencode(trim($text));
+            return $base.'/?text='.rawurlencode(trim($text));
         }
+
         return $base;
     }
 
@@ -99,6 +100,7 @@ class Cliente extends Model
         $v = array_key_exists('biotime_state', $this->attributes)
             ? $this->getRawOriginal('biotime_state')
             : ($this->biotime_state ?? false);
+
         return $v === true || $v === 1 || $v === '1';
     }
 
@@ -110,6 +112,7 @@ class Cliente extends Model
         $v = array_key_exists('biotime_update', $this->attributes)
             ? $this->getRawOriginal('biotime_update')
             : ($this->biotime_update ?? false);
+
         return $v === true || $v === 1 || $v === '1';
     }
 
@@ -164,6 +167,11 @@ class Cliente extends Model
         return $this->hasMany(CrmMensaje::class);
     }
 
+    public function fidelizacionMensajes(): HasMany
+    {
+        return $this->hasMany(ClienteFidelizacionMensaje::class, 'cliente_id');
+    }
+
     public function crmLeads(): HasMany
     {
         return $this->hasMany(\App\Models\Crm\Lead::class, 'cliente_id');
@@ -208,6 +216,11 @@ class Cliente extends Model
     public function clientDebts(): HasMany
     {
         return $this->hasMany(ClientDebt::class, 'cliente_id');
+    }
+
+    public function enrollmentInstallmentPlan(): HasOne
+    {
+        return $this->hasOne(EnrollmentInstallmentPlan::class, 'cliente_id');
     }
 
     public function nutritionGoals(): HasMany
@@ -313,14 +326,9 @@ class Cliente extends Model
         // Deudas por ventas a crédito y otros orígenes (client_debts)
         $deudaTotal += (float) $this->clientDebts()->pendientes()->sum('saldo_pendiente');
 
-        // Cuotas de matrícula pendientes o vencidas (enrollment_installments)
+        // Cuotas del plan único del cliente (pendientes / vencidas)
         $cuotasPendientes = \App\Models\Core\EnrollmentInstallment::query()
-            ->whereIn('enrollment_installment_plan_id', function ($q) {
-                $q->select('id')->from('enrollment_installment_plans')
-                    ->whereIn('cliente_matricula_id', function ($q2) {
-                        $q2->select('id')->from('cliente_matriculas')->where('cliente_id', $this->id);
-                    });
-            })
+            ->whereHas('plan', fn ($q) => $q->where('cliente_id', $this->id))
             ->whereIn('estado', ['pendiente', 'vencida'])
             ->sum('monto');
         $deudaTotal += (float) $cuotasPendientes;

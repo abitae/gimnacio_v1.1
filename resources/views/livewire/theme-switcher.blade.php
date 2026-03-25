@@ -28,9 +28,13 @@ new class extends Component {
         $user = Auth::user();
         $this->dispatch('appearance-updated',
             appearance: $value,
+            appearance_sidebar: $user->appearance_sidebar ?? 'system',
+            appearance_header: $user->appearance_header ?? 'system',
             accent: $user->accent ?? 'neutral',
             sidebar_bg: $user->sidebar_bg ?? 'default',
-            header_bg: $user->header_bg ?? 'default'
+            header_bg: $user->header_bg ?? 'default',
+            body_bg: $user->body_bg ?? 'default',
+            font_size: $user->font_size ?? 'base',
         );
     }
 }; ?>

@@ -2,12 +2,16 @@
 
 namespace App\Livewire\Reportes;
 
+use App\Livewire\Concerns\FlashesToast;
+use App\Livewire\Concerns\ManagesCuotaPagoModal;
 use App\Models\Core\EnrollmentInstallment;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ReporteCuotasVencidasLive extends Component
 {
+    use FlashesToast;
+    use ManagesCuotaPagoModal;
     use WithPagination;
 
     public string $estadoFilter = '';
@@ -21,10 +25,20 @@ class ReporteCuotasVencidasLive extends Component
         $this->authorize('reportes.view');
     }
 
+    protected function cuotaPagoClienteIdScope(): ?int
+    {
+        return null;
+    }
+
+    protected function afterCuotaPagoRegistrado(): void
+    {
+        $this->resetPage();
+    }
+
     public function render()
     {
         $query = EnrollmentInstallment::query()
-            ->with(['plan.clienteMatricula.cliente', 'plan.clienteMatricula.membresia', 'plan.clienteMatricula.clase'])
+            ->with(['plan.cliente', 'clienteMatricula.membresia', 'clienteMatricula.clase'])
             ->whereIn('estado', ['pendiente', 'vencida'])
             ->where('fecha_vencimiento', '<=', now()->toDateString())
             ->orderBy('fecha_vencimiento');
@@ -35,12 +49,17 @@ class ReporteCuotasVencidasLive extends Component
             $query->where('estado', 'pendiente');
         }
 
-        $cuotas = $query->paginate($this->perPage);
         $totalMonto = (clone $query)->get()->sum(fn ($c) => (float) $c->monto);
+        $cuotas = $query->paginate($this->perPage);
+
+        $paymentMethods = $this->cuotaPagoModalAbierto
+            ? $this->paymentMethodsForCuotaModal()
+            : collect();
 
         return view('livewire.reportes.reporte-cuotas-vencidas-live', [
             'cuotas' => $cuotas,
             'totalMonto' => $totalMonto,
+            'paymentMethods' => $paymentMethods,
         ])->layout('layouts.app', ['title' => 'Cuotas vencidas']);
     }
 }

@@ -4,6 +4,7 @@ namespace App\Livewire\Nutrition\Goals;
 
 use App\Models\Core\Cliente;
 use App\Models\Core\NutritionGoal;
+use App\Support\PermissionCatalog;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -35,7 +36,7 @@ class Index extends Component
 
         $goals = $query->paginate($this->perPage);
         $clientes = Cliente::where('estado_cliente', 'activo')->orderBy('nombres')->get(['id', 'nombres', 'apellidos']);
-        $trainers = \App\Models\User::role(['trainer', 'nutricionista', 'administrador', 'super_administrador'])->orderBy('name')->get(['id', 'name']);
+        $trainers = \App\Models\User::role(['trainer', 'nutricionista', 'administrador', PermissionCatalog::SUPER_ADMIN_ROLE_NAME])->orderBy('name')->get(['id', 'name']);
 
         return view('livewire.nutrition.goals.index', [
             'goals' => $goals,

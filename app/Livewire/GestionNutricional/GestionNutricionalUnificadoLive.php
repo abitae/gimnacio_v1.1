@@ -5,10 +5,10 @@ namespace App\Livewire\GestionNutricional;
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Core\RentableSpace;
 use App\Models\RoutineTemplate;
-use App\Services\ClientWellnessService;
-use App\Services\ClientRoutineService;
 use App\Services\CitaService;
 use App\Services\ClienteService;
+use App\Services\ClientRoutineService;
+use App\Services\ClientWellnessService;
 use App\Services\EvaluacionMedidasNutricionService;
 use App\Services\ReporteService;
 use App\Services\SeguimientoNutricionService;
@@ -22,9 +22,13 @@ class GestionNutricionalUnificadoLive extends Component
 
     // Cliente search
     public $clienteSearch = '';
+
     public $clientes;
+
     public $selectedClienteId = null;
+
     public $selectedCliente = null;
+
     public $isSearching = false;
 
     // Tab principal (ficha_salud, nutricion, citas, gestion)
@@ -32,7 +36,9 @@ class GestionNutricionalUnificadoLive extends Component
 
     // Filtros
     public $estadoFilter = '';
+
     public $tipoFilter = '';
+
     public $perPage = 15;
 
     // Modal states
@@ -58,7 +64,9 @@ class GestionNutricionalUnificadoLive extends Component
 
     // IDs
     public $evaluacionId = null;
+
     public $seguimientoId = null;
+
     public $citaId = null;
 
     // Form data - Evaluación
@@ -120,6 +128,8 @@ class GestionNutricionalUnificadoLive extends Component
     ];
 
     public $congelamientoFormData = [
+        'modo' => 'dias',
+        'dias' => 7,
         'origen_tipo' => 'cliente_matricula',
         'registro_id' => '',
         'fecha_desde' => '',
@@ -140,10 +150,15 @@ class GestionNutricionalUnificadoLive extends Component
     protected $paginationTheme = 'tailwind';
 
     protected EvaluacionMedidasNutricionService $evaluacionService;
+
     protected SeguimientoNutricionService $seguimientoService;
+
     protected CitaService $citaService;
+
     protected ClienteService $clienteService;
+
     protected ReporteService $reporteService;
+
     protected ClientWellnessService $clientWellnessService;
 
     public function boot(
@@ -201,7 +216,7 @@ class GestionNutricionalUnificadoLive extends Component
     {
         $this->isSearching = true;
         if ($this->selectedCliente) {
-            $nombreCompleto = $this->selectedCliente->nombres . ' ' . $this->selectedCliente->apellidos;
+            $nombreCompleto = $this->selectedCliente->nombres.' '.$this->selectedCliente->apellidos;
             $valorTrim = trim($value);
             if ($valorTrim !== $nombreCompleto && $valorTrim !== '') {
                 $this->selectedClienteId = null;
@@ -226,7 +241,7 @@ class GestionNutricionalUnificadoLive extends Component
         $this->selectedClienteId = $clienteId;
         $this->selectedCliente = $this->clienteService->find($clienteId);
         if ($this->selectedCliente) {
-            $this->clienteSearch = $this->selectedCliente->nombres . ' ' . $this->selectedCliente->apellidos;
+            $this->clienteSearch = $this->selectedCliente->nombres.' '.$this->selectedCliente->apellidos;
         }
         $this->clientes = collect([]);
         $this->resetPage();
@@ -248,6 +263,7 @@ class GestionNutricionalUnificadoLive extends Component
         $this->authorize('gestion-nutricional.create');
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Debes seleccionar un cliente primero');
+
             return;
         }
         $this->resetEvaluacionForm();
@@ -261,6 +277,7 @@ class GestionNutricionalUnificadoLive extends Component
         $evaluacion = $this->evaluacionService->find($id);
         if (! $evaluacion) {
             $this->flashToast('error', 'Evaluación no encontrada');
+
             return;
         }
         $this->evaluacionId = $evaluacion->id;
@@ -282,6 +299,7 @@ class GestionNutricionalUnificadoLive extends Component
         try {
             if (! $this->selectedClienteId) {
                 $this->flashToast('error', 'Debes seleccionar un cliente primero');
+
                 return;
             }
             $data = $this->mapEvaluacionFormToData();
@@ -370,17 +388,19 @@ class GestionNutricionalUnificadoLive extends Component
         try {
             if (! $this->selectedCliente) {
                 $this->flashToast('error', 'Selecciona un cliente primero.');
+
                 return;
             }
             $urlChat = $this->selectedCliente->whatsapp_url;
             if (! $urlChat) {
                 $this->flashToast('error', 'El cliente no tiene teléfono registrado. Añade un número en la ficha del cliente para poder enviar por WhatsApp.');
+
                 return;
             }
             $urlDescarga = $this->reporteService->getUrlDescargaEvaluacionFirmada((int) $evaluacionId);
-            $mensaje = 'Aqui tienes el link: ' . $urlDescarga;
+            $mensaje = 'Aqui tienes el link: '.$urlDescarga;
             $urlConMensaje = $this->selectedCliente->getWhatsAppUrlWithMessage($mensaje);
-            $this->js('window.open(' . json_encode($urlConMensaje) . ', "whatsapp_chat")');
+            $this->js('window.open('.json_encode($urlConMensaje).', "whatsapp_chat")');
 
             $result = $this->reporteService->enviarReportePorWhatsApp((int) $evaluacionId);
             if ($result['success']) {
@@ -389,7 +409,7 @@ class GestionNutricionalUnificadoLive extends Component
                 $this->flashToast('error', $result['message']);
             }
         } catch (\Throwable $e) {
-            $this->flashToast('error', 'No se pudo enviar el reporte. ' . ($e->getMessage()));
+            $this->flashToast('error', 'No se pudo enviar el reporte. '.($e->getMessage()));
         }
     }
 
@@ -410,6 +430,7 @@ class GestionNutricionalUnificadoLive extends Component
     {
         if (! $this->selectedCliente) {
             $this->flashToast('error', 'Selecciona un cliente primero.');
+
             return;
         }
         $texto = $mensaje !== null && trim($mensaje) !== ''
@@ -418,9 +439,10 @@ class GestionNutricionalUnificadoLive extends Component
         $url = $this->selectedCliente->getWhatsAppUrlWithMessage($texto);
         if (! $url) {
             $this->flashToast('error', 'El cliente no tiene teléfono registrado. Añade un número en la ficha del cliente.');
+
             return;
         }
-        $this->js('window.open(' . json_encode($url) . ', "whatsapp_chat")');
+        $this->js('window.open('.json_encode($url).', "whatsapp_chat")');
     }
 
     // ========== NUTRICIÓN ==========
@@ -429,6 +451,7 @@ class GestionNutricionalUnificadoLive extends Component
         $this->authorize('gestion-nutricional.create');
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Selecciona un cliente primero');
+
             return;
         }
         $this->seguimientoId = null;
@@ -451,6 +474,7 @@ class GestionNutricionalUnificadoLive extends Component
         $seg = $this->seguimientoService->find($id);
         if (! $seg) {
             $this->flashToast('error', 'Seguimiento no encontrado');
+
             return;
         }
         $this->seguimientoId = $seg->id;
@@ -480,6 +504,7 @@ class GestionNutricionalUnificadoLive extends Component
         try {
             if (! $this->selectedClienteId) {
                 $this->flashToast('error', 'Selecciona un cliente');
+
                 return;
             }
             $data = [
@@ -528,6 +553,7 @@ class GestionNutricionalUnificadoLive extends Component
         $this->authorize('gestion-nutricional.create');
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Selecciona un cliente primero');
+
             return;
         }
         $this->citaId = null;
@@ -549,6 +575,7 @@ class GestionNutricionalUnificadoLive extends Component
         $cita = $this->citaService->find($id);
         if (! $cita) {
             $this->flashToast('error', 'Cita no encontrada');
+
             return;
         }
         $this->citaId = $cita->id;
@@ -577,6 +604,7 @@ class GestionNutricionalUnificadoLive extends Component
         try {
             if (! $this->selectedClienteId) {
                 $this->flashToast('error', 'Selecciona un cliente');
+
                 return;
             }
             $data = [
@@ -636,6 +664,7 @@ class GestionNutricionalUnificadoLive extends Component
         abort_unless(auth()->user()->can('ejercicios-rutinas.create'), 403);
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Selecciona un cliente primero');
+
             return;
         }
 
@@ -657,6 +686,7 @@ class GestionNutricionalUnificadoLive extends Component
 
         if (! $this->selectedCliente) {
             $this->flashToast('error', 'Selecciona un cliente primero');
+
             return;
         }
 
@@ -690,10 +720,13 @@ class GestionNutricionalUnificadoLive extends Component
         $this->authorize('gestion-nutricional.update');
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Selecciona un cliente primero');
+
             return;
         }
 
         $this->congelamientoFormData = [
+            'modo' => 'dias',
+            'dias' => 7,
             'origen_tipo' => 'cliente_matricula',
             'registro_id' => '',
             'fecha_desde' => now()->format('Y-m-d'),
@@ -709,21 +742,41 @@ class GestionNutricionalUnificadoLive extends Component
 
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Selecciona un cliente primero');
+
             return;
         }
 
-        $data = validator($this->congelamientoFormData, [
+        $rules = [
+            'modo' => ['required', 'in:dias,rango'],
             'origen_tipo' => ['required', 'in:cliente_matricula,cliente_membresia'],
             'registro_id' => ['required', 'integer'],
-            'fecha_desde' => ['required', 'date'],
-            'fecha_hasta' => ['required', 'date', 'after_or_equal:fecha_desde'],
             'motivo' => ['nullable', 'string'],
-        ])->validate();
+        ];
+        if (($this->congelamientoFormData['modo'] ?? 'dias') === 'dias') {
+            $rules['dias'] = ['required', 'integer', 'min:1', 'max:366'];
+        } else {
+            $rules['fecha_desde'] = ['required', 'date'];
+            $rules['fecha_hasta'] = ['required', 'date', 'after_or_equal:fecha_desde'];
+        }
+
+        $data = validator($this->congelamientoFormData, $rules)->validate();
 
         try {
-            $this->clientWellnessService->freezePlan($this->selectedClienteId, $data, auth()->id());
-        } catch (\RuntimeException $e) {
+            if (($data['modo'] ?? 'dias') === 'dias') {
+                $this->clientWellnessService->freezePlanByDays(
+                    (int) $this->selectedClienteId,
+                    (string) $data['origen_tipo'],
+                    (int) $data['registro_id'],
+                    (int) $data['dias'],
+                    $data['motivo'] ?? null,
+                    (int) auth()->id()
+                );
+            } else {
+                $this->clientWellnessService->freezePlan($this->selectedClienteId, $data, auth()->id());
+            }
+        } catch (\RuntimeException|\InvalidArgumentException $e) {
             $this->flashToast('error', $e->getMessage());
+
             return;
         }
 
@@ -736,6 +789,7 @@ class GestionNutricionalUnificadoLive extends Component
         abort_unless(auth()->user()->can('rentals.create'), 403);
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Selecciona un cliente primero');
+
             return;
         }
 
@@ -757,6 +811,7 @@ class GestionNutricionalUnificadoLive extends Component
 
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Selecciona un cliente primero');
+
             return;
         }
 
@@ -882,7 +937,7 @@ class GestionNutricionalUnificadoLive extends Component
                 $evaluaciones = $this->evaluacionService->getByCliente($this->selectedClienteId, $filtros, $this->perPage);
                 $ultimaEvaluacion = $this->evaluacionService->getUltimaEvaluacion($this->selectedClienteId);
             }
-            
+
             // Seguimientos nutricionales
             if ($this->mainTab === 'nutricion') {
                 $filtros = array_filter([
@@ -891,7 +946,7 @@ class GestionNutricionalUnificadoLive extends Component
                 ]);
                 $seguimientos = $this->seguimientoService->getByCliente($this->selectedClienteId, $filtros, $this->perPage);
             }
-            
+
             // Citas
             if ($this->mainTab === 'citas') {
                 $filtros = array_filter([
@@ -918,7 +973,7 @@ class GestionNutricionalUnificadoLive extends Component
         $trainers = \App\Models\User::role('trainer')->orderBy('name')->get();
         $routineTemplates = RoutineTemplate::where('estado', 'activa')->orderBy('nombre')->get();
         $rentableSpaces = RentableSpace::activos()->orderBy('nombre')->get();
-        
+
         $citasCliente = $this->selectedClienteId
             ? \App\Models\Core\Cita::where('cliente_id', $this->selectedClienteId)->orderBy('fecha_hora', 'desc')->limit(50)->get()
             : collect([]);

@@ -40,9 +40,13 @@ new class extends Component {
         $user = Auth::user();
         $this->dispatch('appearance-updated',
             appearance: $user->appearance ?? 'system',
+            appearance_sidebar: $user->appearance_sidebar ?? 'system',
+            appearance_header: $user->appearance_header ?? 'system',
             accent: $user->accent ?? 'neutral',
             sidebar_bg: $this->sidebar_bg,
-            header_bg: $this->header_bg
+            header_bg: $this->header_bg,
+            body_bg: $user->body_bg ?? 'default',
+            font_size: $user->font_size ?? 'base',
         );
     }
 }; ?>

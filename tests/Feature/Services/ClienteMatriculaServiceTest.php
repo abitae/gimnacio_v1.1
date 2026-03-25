@@ -169,6 +169,9 @@ it('creates installment plans automatically for financed memberships without dup
         'precio_lista' => 180,
         'descuento_monto' => 0,
         'modalidad_pago' => 'cuotas',
+        'numero_cuotas' => 3,
+        'frecuencia_cuotas' => 'mensual',
+        'cuota_inicial_monto' => 30,
     ])->fresh(['pagos', 'installmentPlan.installments']);
 
     expect($matricula->modalidad_pago)->toBe('cuotas');
@@ -178,14 +181,16 @@ it('creates installment plans automatically for financed memberships without dup
     expect((float) $matricula->pagos->first()->monto)->toBe(30.0);
     expect((float) $matricula->pagos->first()->saldo_pendiente)->toBe(150.0);
     expect($matricula->installmentPlan)->not->toBeNull();
+    expect((int) $matricula->installmentPlan->cliente_id)->toBe((int) $cliente->id);
     expect($matricula->installmentPlan->numero_cuotas)->toBe(3);
     expect((float) $matricula->installmentPlan->monto_total)->toBe(150.0);
     expect($matricula->installmentPlan->installments)->toHaveCount(3);
     expect((float) $matricula->installmentPlan->installments->sum('monto'))->toBe(150.0);
+    expect((int) $matricula->installmentPlan->installments->first()->cliente_matricula_id)->toBe((int) $matricula->id);
     expect($cliente->fresh()->deuda_total)->toBe(150.0);
 });
 
-it('rejects financed memberships when the selected plan does not allow installments', function () {
+it('rejects financed memberships when quota fields are missing', function () {
     $user = User::factory()->create();
     $this->actingAs($user);
 
@@ -202,7 +207,6 @@ it('rejects financed memberships when the selected plan does not allow installme
         'nombre' => 'Mensual Contado',
         'duracion_dias' => 30,
         'precio_base' => 90,
-        'permite_cuotas' => false,
         'estado' => 'activa',
     ]);
 
@@ -216,7 +220,94 @@ it('rejects financed memberships when the selected plan does not allow installme
         'precio_lista' => 90,
         'descuento_monto' => 0,
         'modalidad_pago' => 'cuotas',
-        'numero_cuotas' => 3,
         'frecuencia_cuotas' => 'mensual',
     ]);
 })->throws(\Illuminate\Validation\ValidationException::class);
+
+it('registra pago a cuenta en membresía al contado con saldo pendiente', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000007',
+        'nombres' => 'Nora',
+        'apellidos' => 'Díaz',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    $membresia = Membresia::create([
+        'nombre' => 'Mensual demo contado',
+        'duracion_dias' => 30,
+        'precio_base' => 200,
+        'estado' => 'activa',
+    ]);
+
+    $matricula = app(ClienteMatriculaService::class)->create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 200,
+        'descuento_monto' => 0,
+        'modalidad_pago' => 'contado',
+        'monto_pago_inicial' => 50,
+    ])->fresh('pagos');
+
+    expect($matricula->pagos)->toHaveCount(1);
+    expect((float) $matricula->pagos->first()->monto)->toBe(50.0);
+    expect((float) $matricula->pagos->first()->saldo_pendiente)->toBe(150.0);
+    expect($matricula->pagos->first()->metodo_pago)->toBe('pago_a_cuenta');
+});
+
+it('sincroniza el único pago al contado cuando cambia precio_final en update', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000008',
+        'nombres' => 'Omar',
+        'apellidos' => 'León',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    $membresia = Membresia::create([
+        'nombre' => 'Mensual sync',
+        'duracion_dias' => 30,
+        'precio_base' => 100,
+        'estado' => 'activa',
+    ]);
+
+    $matricula = app(ClienteMatriculaService::class)->create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 100,
+        'descuento_monto' => 0,
+        'modalidad_pago' => 'contado',
+        'monto_pago_inicial' => 25,
+    ]);
+
+    app(ClienteMatriculaService::class)->update($matricula->id, [
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => $matricula->fecha_matricula->toDateString(),
+        'fecha_inicio' => $matricula->fecha_inicio->toDateString(),
+        'fecha_fin' => $matricula->fecha_fin->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 120,
+        'descuento_monto' => 0,
+    ]);
+
+    $pago = $matricula->fresh()->pagos()->orderBy('id')->first();
+    expect((float) $pago->monto)->toBe(25.0);
+    expect((float) $pago->saldo_pendiente)->toBe(95.0);
+});

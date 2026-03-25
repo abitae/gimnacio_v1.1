@@ -26,7 +26,7 @@ class PaymentForm extends Component
     public function mount(EnrollmentInstallment $installment): void
     {
         $this->authorize('cliente-matriculas.update');
-        $this->installment = $installment->load(['plan.clienteMatricula.cliente']);
+        $this->installment = $installment->load(['plan.cliente', 'clienteMatricula.cliente']);
         $this->form['monto'] = (string) $installment->monto;
         $this->form['fecha_pago'] = now()->format('Y-m-d');
         $cajaAbierta = \App\Models\Core\Caja::where('estado', 'abierta')->first();
@@ -51,7 +51,10 @@ class PaymentForm extends Component
                 'caja_id' => $this->form['caja_id'],
             ]);
             $this->flashToast('success', 'Cuota registrada.');
-            $this->redirectRoute('cliente-matriculas.cuotas', ['clienteMatricula' => $this->installment->plan->clienteMatricula], navigate: true);
+            $this->redirectRoute('clientes.cuotas', [
+                'cliente' => $this->installment->plan->cliente_id,
+                'matricula' => $this->installment->cliente_matricula_id,
+            ], navigate: true);
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());
         }

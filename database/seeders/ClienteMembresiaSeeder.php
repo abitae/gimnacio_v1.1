@@ -21,6 +21,7 @@ class ClienteMembresiaSeeder extends Seeder
 
         if ($clientes->isEmpty() || $membresias->isEmpty()) {
             $this->command->warn('No hay clientes o membresías. Ejecuta ClienteSeeder y MembresiaSeeder primero.');
+
             return;
         }
 
@@ -86,9 +87,11 @@ class ClienteMembresiaSeeder extends Seeder
             'canal_venta' => 'presencial',
             'fechas_congelacion' => [
                 [
-                    'fecha_inicio' => now()->subDays(20)->toDateString(),
-                    'fecha_fin' => now()->subDays(10)->toDateString(),
+                    'desde' => now()->subDays(20)->toDateString(),
+                    'hasta' => now()->subDays(10)->toDateString(),
                     'motivo' => 'Viaje de trabajo',
+                    'registrado_por' => $user?->id,
+                    'registrado_en' => now()->toDateTimeString(),
                 ],
             ],
             'motivo_cancelacion' => null,

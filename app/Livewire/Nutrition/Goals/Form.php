@@ -4,6 +4,7 @@ namespace App\Livewire\Nutrition\Goals;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Core\NutritionGoal;
+use App\Support\PermissionCatalog;
 use Livewire\Component;
 
 class Form extends Component
@@ -52,7 +53,7 @@ class Form extends Component
         $this->validate([
             'form.cliente_id' => 'required|exists:clientes,id',
             'form.trainer_user_id' => 'required|exists:users,id',
-            'form.objetivo' => 'required|string|in:' . implode(',', array_keys(NutritionGoal::OBJETIVOS)),
+            'form.objetivo' => 'required|string|in:'.implode(',', array_keys(NutritionGoal::OBJETIVOS)),
             'form.fecha_inicio' => 'required|date',
             'form.fecha_objetivo' => 'nullable|date|after_or_equal:form.fecha_inicio',
             'form.estado' => 'required|in:activo,cumplido,cancelado',
@@ -75,7 +76,7 @@ class Form extends Component
     public function render()
     {
         $clientes = \App\Models\Core\Cliente::where('estado_cliente', 'activo')->orderBy('nombres')->get(['id', 'nombres', 'apellidos']);
-        $trainers = \App\Models\User::role(['trainer', 'nutricionista', 'administrador', 'super_administrador'])->orderBy('name')->get(['id', 'name']);
+        $trainers = \App\Models\User::role(['trainer', 'nutricionista', 'administrador', PermissionCatalog::SUPER_ADMIN_ROLE_NAME])->orderBy('name')->get(['id', 'name']);
 
         return view('livewire.nutrition.goals.form', [
             'clientes' => $clientes,

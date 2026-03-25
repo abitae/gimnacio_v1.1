@@ -33,10 +33,10 @@ Route::middleware(['auth'])->group(function () {
         Route::get('cumplimiento', \App\Livewire\Reports\Compliance::class)->name('cumplimiento');
     });
 
-    // Clientes
-    Route::get('clientes', \App\Livewire\Clientes\ClienteLive::class)->middleware('permission:clientes.view')->name('clientes.index');
+    // Clientes: punto principal = perfil (ficha + acciones); /clientes = listado secundario
     Route::get('clientes/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:clientes.view')->name('clientes.perfil.index');
     Route::get('clientes/{cliente}/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:clientes.view')->name('clientes.perfil');
+    Route::get('clientes', \App\Livewire\Clientes\ClienteLive::class)->middleware('permission:clientes.view')->name('clientes.index');
     Route::get('clientes/rutinas/asignar', \App\Livewire\Clients\Routines\Assign::class)->middleware('permission:ejercicios-rutinas.view')->name('clientes.rutinas.asignar');
     Route::prefix('clientes/{cliente}')->name('clientes.rutinas.')->middleware('permission:ejercicios-rutinas.view')->group(function () {
         Route::get('rutinas', \App\Livewire\Clients\Routines\Index::class)->name('index');
@@ -51,8 +51,20 @@ Route::middleware(['auth'])->group(function () {
 
     // Matrículas de Clientes (Membresías y Clases)
     Route::get('cliente-matriculas', \App\Livewire\ClienteMatriculas\ClienteMatriculaLive::class)->middleware('permission:cliente-matriculas.view')->name('cliente-matriculas.index');
-    Route::get('cliente-matriculas/{clienteMatricula}/cuotas', \App\Livewire\Enrollments\Installments\Schedule::class)->middleware('permission:cliente-matriculas.view')->name('cliente-matriculas.cuotas');
-    Route::get('cliente-matriculas/{clienteMatricula}/cuotas/crear', \App\Livewire\Enrollments\Installments\PlanForm::class)->middleware('permission:cliente-matriculas.create')->name('cliente-matriculas.cuotas.crear');
+    Route::get('clientes/{cliente}/cuotas', \App\Livewire\Enrollments\Installments\Schedule::class)->middleware('permission:cliente-matriculas.view')->name('clientes.cuotas');
+    Route::get('clientes/{cliente}/cuotas/crear', \App\Livewire\Enrollments\Installments\PlanForm::class)->middleware('permission:cliente-matriculas.create')->name('clientes.cuotas.crear');
+    Route::get('cliente-matriculas/{clienteMatricula}/cuotas', function (\App\Models\Core\ClienteMatricula $clienteMatricula) {
+        return redirect()->route('clientes.cuotas', [
+            'cliente' => $clienteMatricula->cliente_id,
+            'matricula' => $clienteMatricula->id,
+        ]);
+    })->middleware('permission:cliente-matriculas.view')->name('cliente-matriculas.cuotas');
+    Route::get('cliente-matriculas/{clienteMatricula}/cuotas/crear', function (\App\Models\Core\ClienteMatricula $clienteMatricula) {
+        return redirect()->route('clientes.cuotas.crear', [
+            'cliente' => $clienteMatricula->cliente_id,
+            'matricula' => $clienteMatricula->id,
+        ]);
+    })->middleware('permission:cliente-matriculas.create')->name('cliente-matriculas.cuotas.crear');
     Route::get('cuotas/{installment}/pagar', \App\Livewire\Enrollments\Installments\PaymentForm::class)->middleware('permission:cliente-matriculas.update')->name('cuotas.pagar');
 
     // Cajas
@@ -106,7 +118,9 @@ Route::middleware(['auth'])->group(function () {
         Route::get('{employee}', \App\Livewire\Employees\Show::class)->name('show');
         Route::get('asistencia/listado', \App\Livewire\Employees\Attendances\Index::class)->name('attendances.index');
         Route::get('asistencia/registrar', \App\Livewire\Employees\Attendances\Form::class)->name('attendances.create')->middleware('permission:attendance.create');
-        Route::get('asistencia/reporte', \App\Livewire\Employees\Attendances\Report::class)->name('attendances.report');
+        Route::get('asistencia/reporte', \App\Livewire\Employees\Attendances\Report::class)
+            ->name('attendances.report')
+            ->middleware('permission:attendance.view');
     });
 
     // Módulo de Reportes (índice, reportes por tipo y exportación PDF/Excel)
@@ -163,6 +177,7 @@ Route::middleware(['auth'])->group(function () {
             $start = $request->get('start', now()->startOfMonth()->toIso8601String());
             $end = $request->get('end', now()->endOfMonth()->toIso8601String());
             $service = app(\App\Services\CitaService::class);
+
             return response()->json($service->getEventosParaCalendario($start, $end)->values());
         })->name('gestion-nutricional.calendario.eventos');
         Route::redirect('gestion-nutricional/medidas', 'gestion-nutricional', 301);

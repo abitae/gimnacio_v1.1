@@ -49,11 +49,11 @@
                 @canany(['clientes.view', 'membresias.view', 'cliente-matriculas.view', 'clases.view'])
                 <flux:sidebar.group expandable heading="Clientes" class="grid" :expanded="request()->routeIs('clientes.*') || request()->routeIs('membresias.*') || request()->routeIs('cliente-matriculas.*') || request()->routeIs('clases.*')">
                     @can('clientes.view')
-                    <flux:sidebar.item icon="users" :href="route('clientes.index')" :current="request()->routeIs('clientes.index')" wire:navigate>
-                        {{ __('Clientes') }}
-                    </flux:sidebar.item>
                     <flux:sidebar.item icon="user-circle" :href="route('clientes.perfil.index')" :current="request()->routeIs('clientes.perfil*')" wire:navigate>
                         {{ __('Perfil de cliente') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="users" :href="route('clientes.index')" :current="request()->routeIs('clientes.index')" wire:navigate>
+                        {{ __('Listado de clientes') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('membresias.view')
@@ -404,8 +404,39 @@
                     } catch (e) {}
                     return null;
                 }
+                /** Livewire puede pasar el objeto o un CustomEvent con detail; a veces claves en camelCase. */
+                function normalizeAppearancePayload(x) {
+                    if (x == null || typeof x !== 'object') return {};
+                    var o = x;
+                    if (typeof CustomEvent !== 'undefined' && x instanceof CustomEvent && x.detail != null) {
+                        var d = x.detail;
+                        if (Array.isArray(d) && d.length && typeof d[0] === 'object') o = d[0];
+                        else if (typeof d === 'object') o = d;
+                    }
+                    if (o.fontSize != null && o.font_size == null) o.font_size = o.fontSize;
+                    if (o.appearanceSidebar != null && o.appearance_sidebar == null) o.appearance_sidebar = o.appearanceSidebar;
+                    if (o.appearanceHeader != null && o.appearance_header == null) o.appearance_header = o.appearanceHeader;
+                    if (o.sidebarBg != null && o.sidebar_bg == null) o.sidebar_bg = o.sidebarBg;
+                    if (o.headerBg != null && o.header_bg == null) o.header_bg = o.headerBg;
+                    if (o.bodyBg != null && o.body_bg == null) o.body_bg = o.bodyBg;
+                    return o;
+                }
                 var fontSizeClasses = { sm: 'text-sm', base: 'text-base', lg: 'text-lg' };
-                function applyAppearance(params) {
+                var appearanceKeys = ['appearance', 'appearance_sidebar', 'appearance_header', 'accent', 'sidebar_bg', 'header_bg', 'body_bg', 'font_size'];
+                function mergeAppearanceParams(raw) {
+                    raw = normalizeAppearancePayload(raw) || {};
+                    var doc = getParamsFromDocument();
+                    var out = {};
+                    for (var i = 0; i < appearanceKeys.length; i++) {
+                        var k = appearanceKeys[i];
+                        out[k] = Object.prototype.hasOwnProperty.call(raw, k) && raw[k] != null && raw[k] !== ''
+                            ? raw[k]
+                            : doc[k];
+                    }
+                    return out;
+                }
+                function applyAppearance(rawParams) {
+                    var params = mergeAppearanceParams(rawParams);
                     var appearance = params.appearance || 'system';
                     var appearanceSidebar = params.appearance_sidebar || 'system';
                     var appearanceHeader = params.appearance_header || 'system';
@@ -471,14 +502,15 @@
                         font_size: document.documentElement.getAttribute('data-font-size') || 'base'
                     };
                 }
+                /** localStorage primero, luego data-* del servidor (gana el HTML para font_size y prefs en BD). */
+                function mergedStoredAndDocument() {
+                    return Object.assign({}, getStoredAppearance() || {}, getParamsFromDocument());
+                }
                 function restoreAppearanceFromStorage() {
-                    var stored = getStoredAppearance();
-                    if (stored) applyAppearance(stored);
+                    applyAppearance(mergedStoredAndDocument());
                 }
                 document.addEventListener('livewire:init', function() {
-                    var stored = getStoredAppearance();
-                    var params = stored || getParamsFromDocument();
-                    applyAppearance(params);
+                    applyAppearance(mergedStoredAndDocument());
                     Livewire.on('appearance-updated', applyAppearance);
                     document.addEventListener('livewire:navigated', restoreAppearanceFromStorage);
                 });

@@ -11,6 +11,7 @@ class EnrollmentInstallmentPlan extends Model
     protected $table = 'enrollment_installment_plans';
 
     protected $fillable = [
+        'cliente_id',
         'cliente_matricula_id',
         'monto_total',
         'numero_cuotas',
@@ -30,11 +31,17 @@ class EnrollmentInstallmentPlan extends Model
     }
 
     public const FRECUENCIAS = [
-        'semanal' => 'Semanal',
-        'quincenal' => 'Quincenal',
-        'mensual' => 'Mensual',
-        'personalizado' => 'Personalizado',
+        'semanal' => 'Semanal (7 días)',
+        'quincenal' => 'Quincenal (15 días)',
+        'mensual' => 'Mensual (30 días)',
+        'anual' => 'Anual (360 días)',
+        'personalizado' => 'Personalizado (30 días entre cuotas)',
     ];
+
+    public function cliente(): BelongsTo
+    {
+        return $this->belongsTo(Cliente::class);
+    }
 
     public function clienteMatricula(): BelongsTo
     {

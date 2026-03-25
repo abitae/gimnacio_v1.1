@@ -11,8 +11,8 @@ use App\Models\Core\PaymentMethod;
 use App\Models\Crm\CrmStage;
 use App\Models\Crm\Lead;
 use App\Models\User;
-use App\Services\ClientWellnessService;
 use App\Services\ClienteMatriculaService;
+use App\Services\ClientWellnessService;
 use App\Services\Crm\ConvertLeadToClientService;
 use App\Services\EnrollmentInstallmentService;
 use Illuminate\Database\Seeder;
@@ -38,7 +38,7 @@ class ScenarioSeeder extends Seeder
         );
 
         $membresiaContado = Membresia::query()->first() ?? Membresia::factory()->create();
-        $membresiaCuotas = Membresia::query()->where('permite_cuotas', true)->first() ?? Membresia::factory()->conCuotas()->create();
+        $membresiaCuotas = Membresia::query()->first() ?? Membresia::factory()->create();
         $clase = Clase::query()->first() ?? Clase::factory()->create();
 
         $clienteContado = Cliente::factory()->create(['created_by' => $user->id]);
@@ -53,7 +53,7 @@ class ScenarioSeeder extends Seeder
         $matriculaService = app(ClienteMatriculaService::class);
         $installmentService = app(EnrollmentInstallmentService::class);
 
-        $matriculaContado = $matriculaService->create([
+        $matriculaService->create([
             'cliente_id' => $clienteContado->id,
             'tipo' => 'membresia',
             'membresia_id' => $membresiaContado->id,
@@ -66,13 +66,6 @@ class ScenarioSeeder extends Seeder
             'asesor_id' => $user->id,
             'canal_venta' => 'mostrador',
             'modalidad_pago' => 'contado',
-        ]);
-
-        $matriculaService->procesarPago($matriculaContado->id, [
-            'monto_pago' => round((float) $membresiaContado->precio_base / 2, 2),
-            'metodo_pago' => 'efectivo',
-            'payment_method_id' => $cashMethod->id,
-            'fecha_pago' => now(),
         ]);
 
         $matriculaCuotas = $matriculaService->create([
@@ -128,7 +121,7 @@ class ScenarioSeeder extends Seeder
             'numero_documento' => fake()->unique()->numerify('########'),
             'nombres' => 'Lead',
             'apellidos' => 'Convertido Demo',
-            'telefono' => '9' . fake()->numerify('########'),
+            'telefono' => '9'.fake()->numerify('########'),
             'email' => fake()->unique()->safeEmail(),
             'activar_membresia' => false,
         ]);

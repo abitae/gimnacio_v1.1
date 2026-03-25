@@ -91,7 +91,7 @@ class EdgeCaseSeeder extends Seeder
             'created_by' => $user->id,
         ]);
 
-        $membresia = Membresia::query()->where('permite_cuotas', true)->first() ?? Membresia::factory()->conCuotas()->create();
+        $membresia = Membresia::query()->first() ?? Membresia::factory()->create();
         $matriculaService = app(ClienteMatriculaService::class);
 
         $clienteActivo = Cliente::factory()->create(['created_by' => $user->id]);

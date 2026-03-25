@@ -1,6 +1,6 @@
 <div class="space-y-3 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4 max-w-xl">
     <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Crear plan de cuotas</h1>
-    <p class="text-sm text-zinc-500">{{ $clienteMatricula->cliente->nombres }} {{ $clienteMatricula->cliente->apellidos }} — {{ $clienteMatricula->nombre }}</p>
+    <p class="text-sm text-zinc-500">{{ $cliente->nombres }} {{ $cliente->apellidos }} — {{ $clienteMatricula->nombre }}</p>
     <form wire:submit.prevent="save" class="space-y-4">
         <flux:field>
             <flux:label>Monto total (S/)</flux:label>
@@ -27,7 +27,7 @@
             <flux:textarea wire:model="form.observaciones" rows="2" />
         </flux:field>
         <div class="flex gap-2 pt-2">
-            <flux:button variant="ghost" type="button" href="{{ route('cliente-matriculas.cuotas', $clienteMatricula) }}" wire:navigate>Cancelar</flux:button>
+            <flux:button variant="ghost" type="button" href="{{ route('clientes.cuotas', ['cliente' => $cliente->id, 'matricula' => $clienteMatricula->id]) }}" wire:navigate>Cancelar</flux:button>
             <flux:button type="submit">Crear plan</flux:button>
         </div>
     </form>

@@ -3,12 +3,15 @@
 namespace Database\Seeders;
 
 use App\Models\Core\Caja;
-use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMembresia;
 use App\Models\Core\Pago;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
+/**
+ * Pagos de demostración ligados a cliente_membresias (modelo legacy).
+ * Las matrículas modernas (cliente_matriculas) generan pagos vía ClienteMatriculaService o ClienteMatriculaDemoSeeder.
+ */
 class PagoSeeder extends Seeder
 {
     /**
@@ -20,7 +23,8 @@ class PagoSeeder extends Seeder
         $clienteMembresias = ClienteMembresia::all();
 
         if ($clienteMembresias->isEmpty()) {
-            $this->command->warn('No hay cliente_membresias. Ejecuta ClienteMembresiaSeeder primero.');
+            $this->command->warn('No hay cliente_membresias. Ejecuta ClienteMembresiaSeeder o usa ClienteMatriculaDemoSeeder para el flujo con cliente_matriculas.');
+
             return;
         }
 

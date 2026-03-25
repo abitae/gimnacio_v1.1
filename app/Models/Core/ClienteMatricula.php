@@ -83,9 +83,17 @@ class ClienteMatricula extends Model
         return $this->hasMany(Asistencia::class, 'cliente_matricula_id');
     }
 
+    /**
+     * Plan único de cuotas del cliente (mismo cliente_id).
+     */
     public function installmentPlan(): \Illuminate\Database\Eloquent\Relations\HasOne
     {
-        return $this->hasOne(EnrollmentInstallmentPlan::class, 'cliente_matricula_id');
+        return $this->hasOne(EnrollmentInstallmentPlan::class, 'cliente_id', 'cliente_id');
+    }
+
+    public function enrollmentInstallments(): HasMany
+    {
+        return $this->hasMany(EnrollmentInstallment::class, 'cliente_matricula_id');
     }
 
     public function planTraspasos(): HasMany
@@ -118,14 +126,12 @@ class ClienteMatricula extends Model
     public function getSaldoPendienteActualAttribute(): float
     {
         if ($this->usaPlanCuotas()) {
-            $plan = $this->relationLoaded('installmentPlan')
-                ? $this->installmentPlan
-                : $this->installmentPlan()->with('installments')->first();
+            $sum = $this->relationLoaded('enrollmentInstallments')
+                ? (float) $this->enrollmentInstallments->whereIn('estado', ['pendiente', 'vencida'])->sum('monto')
+                : (float) $this->enrollmentInstallments()->whereIn('estado', ['pendiente', 'vencida'])->sum('monto');
 
-            if ($plan) {
-                return round((float) $plan->installments()
-                    ->whereIn('estado', ['pendiente', 'vencida'])
-                    ->sum('monto'), 2);
+            if ($sum > 0) {
+                return round($sum, 2);
             }
 
             return round($this->monto_financiado, 2);
@@ -146,6 +152,7 @@ class ClienteMatricula extends Model
         if ($this->esClase() && $this->clase) {
             return $this->clase->nombre;
         }
+
         return 'N/A';
     }
 }

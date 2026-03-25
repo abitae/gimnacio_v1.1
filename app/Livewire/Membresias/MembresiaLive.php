@@ -14,7 +14,9 @@ class MembresiaLive extends Component
 
     // Filters and pagination
     public $search = '';
+
     public $estadoFilter = '';
+
     public $perPage = 15;
 
     // Modal state
@@ -25,7 +27,9 @@ class MembresiaLive extends Component
 
     // Selected items
     public $membresiaId = null;
+
     public $selectedMembresiaId = null;
+
     public $selectedMembresia = null; // Cached selected membresia
 
     // Form data
@@ -34,11 +38,6 @@ class MembresiaLive extends Component
         'descripcion' => '',
         'duracion_dias' => 30,
         'precio_base' => 0.00,
-        'permite_cuotas' => false,
-        'numero_cuotas_default' => null,
-        'frecuencia_cuotas_default' => 'mensual',
-        'cuota_inicial_monto' => null,
-        'cuota_inicial_porcentaje' => null,
         'tipo_acceso' => 'ilimitado',
         'max_visitas_dia' => null,
         'permite_congelacion' => false,
@@ -92,8 +91,9 @@ class MembresiaLive extends Component
         $this->authorize('membresias.update');
         $membresia = $this->service->find($id);
 
-        if (!$membresia) {
+        if (! $membresia) {
             $this->flashToast('error', 'Membresía no encontrada');
+
             return;
         }
 
@@ -141,16 +141,6 @@ class MembresiaLive extends Component
         }
     }
 
-    public function updatedFormDataPermiteCuotas($value): void
-    {
-        if (! $value) {
-            $this->formData['numero_cuotas_default'] = null;
-            $this->formData['frecuencia_cuotas_default'] = 'mensual';
-            $this->formData['cuota_inicial_monto'] = null;
-            $this->formData['cuota_inicial_porcentaje'] = null;
-        }
-    }
-
     public function delete()
     {
         $this->authorize('membresias.delete');
@@ -171,11 +161,6 @@ class MembresiaLive extends Component
             'descripcion' => $membresia->descripcion ?? '',
             'duracion_dias' => $membresia->duracion_dias,
             'precio_base' => $membresia->precio_base,
-            'permite_cuotas' => $membresia->permite_cuotas ?? false,
-            'numero_cuotas_default' => $membresia->numero_cuotas_default,
-            'frecuencia_cuotas_default' => $membresia->frecuencia_cuotas_default ?? 'mensual',
-            'cuota_inicial_monto' => $membresia->cuota_inicial_monto,
-            'cuota_inicial_porcentaje' => $membresia->cuota_inicial_porcentaje,
             'tipo_acceso' => $membresia->tipo_acceso ?? 'ilimitado',
             'max_visitas_dia' => $membresia->max_visitas_dia,
             'permite_congelacion' => $membresia->permite_congelacion ?? false,
@@ -191,11 +176,6 @@ class MembresiaLive extends Component
             'descripcion' => $this->formData['descripcion'] ?: null,
             'duracion_dias' => $this->formData['duracion_dias'],
             'precio_base' => $this->formData['precio_base'],
-            'permite_cuotas' => $this->formData['permite_cuotas'] ?? false,
-            'numero_cuotas_default' => $this->formData['numero_cuotas_default'] ?: null,
-            'frecuencia_cuotas_default' => ($this->formData['permite_cuotas'] ?? false) ? ($this->formData['frecuencia_cuotas_default'] ?: null) : null,
-            'cuota_inicial_monto' => $this->formData['cuota_inicial_monto'] !== '' ? $this->formData['cuota_inicial_monto'] : null,
-            'cuota_inicial_porcentaje' => $this->formData['cuota_inicial_porcentaje'] !== '' ? $this->formData['cuota_inicial_porcentaje'] : null,
             'tipo_acceso' => $this->formData['tipo_acceso'] ?: null,
             'max_visitas_dia' => $this->formData['max_visitas_dia'] ?: null,
             'permite_congelacion' => $this->formData['permite_congelacion'] ?? false,
@@ -212,11 +192,6 @@ class MembresiaLive extends Component
             'descripcion' => '',
             'duracion_dias' => 30,
             'precio_base' => 0.00,
-            'permite_cuotas' => false,
-            'numero_cuotas_default' => null,
-            'frecuencia_cuotas_default' => 'mensual',
-            'cuota_inicial_monto' => null,
-            'cuota_inicial_porcentaje' => null,
             'tipo_acceso' => 'ilimitado',
             'max_visitas_dia' => null,
             'permite_congelacion' => false,

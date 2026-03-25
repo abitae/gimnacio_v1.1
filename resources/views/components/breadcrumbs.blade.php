@@ -4,13 +4,15 @@
         $segments = [['label' => __('Inicio'), 'url' => route('dashboard')]];
     } else {
         $labels = [
-            'clientes.index' => __('Clientes'),
+            'clientes.index' => __('Listado de clientes'),
             'clientes.perfil.index' => __('Perfil de cliente'),
             'clientes.perfil' => __('Perfil de cliente'),
             'membresias.index' => __('Membresías'),
             'cliente-matriculas.index' => __('Matrículas'),
             'cliente-matriculas.cuotas' => __('Cronograma de cuotas'),
             'cliente-matriculas.cuotas.crear' => __('Crear plan de cuotas'),
+            'clientes.cuotas' => __('Cronograma de cuotas'),
+            'clientes.cuotas.crear' => __('Crear plan de cuotas'),
             'cuotas.pagar' => __('Pagar cuota'),
             'clases.index' => __('Clases'),
             'checking.index' => __('Checking'),
@@ -111,9 +113,16 @@
             ];
             $parentLabel = null;
             $parentRoute = null;
-            if (str_starts_with($routeName, 'clientes.') || str_starts_with($routeName, 'membresias.') || str_starts_with($routeName, 'cliente-matriculas.') || $routeName === 'cuotas.pagar' || str_starts_with($routeName, 'clases.')) {
+            // Solo en /clientes/perfil (sin cliente): Inicio / Perfil de cliente (sin cruzar «Clientes» dos veces).
+            $clientesPerfilIndexSolo = $routeName === 'clientes.perfil.index';
+            if ($clientesPerfilIndexSolo) {
+                $segments[] = ['label' => $labels[$routeName], 'url' => $urls[$routeName] ?? null];
+            } elseif (str_starts_with($routeName, 'clientes.') && ! $clientesPerfilIndexSolo) {
                 $parentLabel = __('Clientes');
-                $parentRoute = 'clientes.index';
+                $parentRoute = 'clientes.perfil.index';
+            } elseif (str_starts_with($routeName, 'membresias.') || str_starts_with($routeName, 'cliente-matriculas.') || $routeName === 'cuotas.pagar' || str_starts_with($routeName, 'clases.')) {
+                $parentLabel = __('Clientes');
+                $parentRoute = 'clientes.perfil.index';
             }
             if (str_starts_with($routeName, 'checking.') || str_starts_with($routeName, 'cajas.') || str_starts_with($routeName, 'pos.')) {
                 $parentLabel = __('Operación diaria');
@@ -147,10 +156,12 @@
                 $parentLabel = __('Bienestar');
                 $parentRoute = 'ejercicios.index';
             }
-            if ($parentLabel) {
-                $segments[] = ['label' => $parentLabel, 'url' => route($parentRoute)];
+            if (! $clientesPerfilIndexSolo) {
+                if ($parentLabel) {
+                    $segments[] = ['label' => $parentLabel, 'url' => route($parentRoute)];
+                }
+                $segments[] = ['label' => $labels[$routeName], 'url' => $urls[$routeName] ?? null];
             }
-            $segments[] = ['label' => $labels[$routeName], 'url' => $urls[$routeName] ?? null];
         }
     }
 @endphp

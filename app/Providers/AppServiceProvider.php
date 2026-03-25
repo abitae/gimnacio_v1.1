@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Services\WhatsApp\MockWhatsAppService;
 use App\Services\WhatsApp\WhatsAppServiceInterface;
+use App\Support\PermissionCatalog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Schedule;
@@ -25,6 +26,17 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Opción B (Spatie): super-admin pasa cualquier comprobación de autorización sin listar todos los permisos en BD.
+        Gate::before(function ($user, $ability) {
+            if ($user === null || ! is_string($ability)) {
+                return null;
+            }
+
+            return method_exists($user, 'hasRole') && $user->hasRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME)
+                ? true
+                : null;
+        });
+
         Gate::policy(\App\Models\Crm\Lead::class, \App\Policies\Crm\LeadPolicy::class);
 
         $this->app->booted(function () {
@@ -90,7 +102,7 @@ class AppServiceProvider extends ServiceProvider
                 $appearanceHeaderValue = $user->appearance_header ?? 'system';
                 $headerAppearanceClass = $appearanceHeaderValue === 'system' ? 'dark' : $appearanceHeaderValue;
                 $accentValue = $user->accent ?? 'neutral';
-                $accentClass = 'accent-' . $accentValue;
+                $accentClass = 'accent-'.$accentValue;
                 $sidebarBgValue = $user->sidebar_bg ?? 'default';
                 $headerBgValue = $user->header_bg ?? 'default';
                 $bodyBgValue = $user->body_bg ?? 'default';

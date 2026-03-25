@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Models\Core\Membresia;
-use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
@@ -104,7 +103,7 @@ class MembresiaService
     {
         $membresia = $this->find($id);
 
-        if (!$membresia) {
+        if (! $membresia) {
             throw new \Exception('Membresía no encontrada');
         }
 
@@ -112,6 +111,7 @@ class MembresiaService
 
         return DB::transaction(function () use ($membresia, $validated) {
             $membresia->update($validated);
+
             return $membresia->fresh();
         });
     }
@@ -123,7 +123,7 @@ class MembresiaService
     {
         $membresia = $this->find($id);
 
-        if (!$membresia) {
+        if (! $membresia) {
             throw new \Exception('Membresía no encontrada');
         }
 
@@ -142,7 +142,7 @@ class MembresiaService
     {
         // En actualizaciones, solo validar campos que están presentes
         $isUpdate = $id !== null;
-        
+
         $rules = [
             'nombre' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:100'],
             'descripcion' => ['nullable', 'string'],
@@ -150,7 +150,7 @@ class MembresiaService
             'precio_base' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'],
             'permite_cuotas' => ['nullable', 'boolean'],
             'numero_cuotas_default' => ['nullable', 'integer', 'min:2', 'max:60'],
-            'frecuencia_cuotas_default' => ['nullable', 'string', 'in:semanal,quincenal,mensual'],
+            'frecuencia_cuotas_default' => ['nullable', 'string', 'in:semanal,quincenal,mensual,anual'],
             'cuota_inicial_monto' => ['nullable', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'],
             'cuota_inicial_porcentaje' => ['nullable', 'numeric', 'min:0', 'max:100', 'regex:/^\d+(\.\d{1,2})?$/'],
             'tipo_acceso' => ['nullable', 'string', 'in:ilimitado,limitado'],
@@ -179,27 +179,10 @@ class MembresiaService
         ];
 
         $validator = Validator::make($data, $rules);
-        $validator->after(function ($validator) use ($data, $isUpdate) {
-            $permiteCuotas = (bool) ($data['permite_cuotas'] ?? false);
-            $numeroCuotas = $data['numero_cuotas_default'] ?? null;
-            $frecuencia = $data['frecuencia_cuotas_default'] ?? null;
+        $validator->after(function ($validator) use ($data) {
             $cuotaInicialMonto = $data['cuota_inicial_monto'] ?? null;
             $cuotaInicialPorcentaje = $data['cuota_inicial_porcentaje'] ?? null;
             $precioBase = (float) ($data['precio_base'] ?? 0);
-
-            if ($permiteCuotas) {
-                if ($numeroCuotas === null) {
-                    $validator->errors()->add('numero_cuotas_default', 'El número de cuotas es requerido cuando la membresía permite cuotas.');
-                }
-
-                if ($frecuencia === null) {
-                    $validator->errors()->add('frecuencia_cuotas_default', 'La frecuencia de cuotas es requerida cuando la membresía permite cuotas.');
-                }
-            }
-
-            if (! $permiteCuotas && ! $isUpdate && ($numeroCuotas !== null || $frecuencia !== null || $cuotaInicialMonto !== null || $cuotaInicialPorcentaje !== null)) {
-                $validator->errors()->add('permite_cuotas', 'Activa la opción de cuotas para registrar su configuración.');
-            }
 
             if ($cuotaInicialMonto !== null && $cuotaInicialPorcentaje !== null) {
                 $validator->errors()->add('cuota_inicial_monto', 'Solo puedes definir una cuota inicial por monto o por porcentaje.');
@@ -218,16 +201,7 @@ class MembresiaService
             throw new \Illuminate\Validation\ValidationException($validator);
         }
 
-        $validated = $validator->validated();
-
-        if (! (bool) ($validated['permite_cuotas'] ?? false)) {
-            $validated['numero_cuotas_default'] = null;
-            $validated['frecuencia_cuotas_default'] = null;
-            $validated['cuota_inicial_monto'] = null;
-            $validated['cuota_inicial_porcentaje'] = null;
-        }
-
-        return $validated;
+        return $validator->validated();
     }
 
     /**

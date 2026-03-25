@@ -62,7 +62,7 @@ class ConvertLeadToClientService
                 $created = true;
             }
 
-            if (!empty($data['activar_membresia']) && !empty($data['membresia_id'])) {
+            if (! empty($data['activar_membresia']) && ! empty($data['membresia_id'])) {
                 $this->activateMembresia($cliente, $data);
             }
 
@@ -77,10 +77,13 @@ class ConvertLeadToClientService
     protected function activateMembresia(Cliente $cliente, array $data): void
     {
         $membresia = \App\Models\Core\Membresia::find($data['membresia_id']);
-        if (!$membresia) {
+        if (! $membresia) {
             return;
         }
-        $matricula = $this->clienteMatriculaService->create([
+        $precioFinal = (float) $membresia->precio_base - (float) ($data['pago']['descuento'] ?? 0);
+        $montoInicial = (float) ($data['pago']['monto'] ?? 0);
+
+        $this->clienteMatriculaService->create([
             'cliente_id' => $cliente->id,
             'tipo' => 'membresia',
             'membresia_id' => $membresia->id,
@@ -89,21 +92,11 @@ class ConvertLeadToClientService
             'estado' => 'activa',
             'precio_lista' => $membresia->precio_base,
             'descuento_monto' => $data['pago']['descuento'] ?? 0,
-            'precio_final' => $membresia->precio_base - ($data['pago']['descuento'] ?? 0),
+            'precio_final' => max(0, $precioFinal),
             'asesor_id' => auth()->id(),
             'canal_venta' => 'crm',
             'modalidad_pago' => 'contado',
+            'monto_pago_inicial' => $montoInicial > 0 && $montoInicial < max(0.01, $precioFinal) ? $montoInicial : null,
         ]);
-
-        if (! empty($data['pago']['monto']) && $data['pago']['monto'] > 0) {
-            $cajaAbierta = \App\Models\Core\Caja::where('estado', 'abierta')->first();
-            if ($cajaAbierta) {
-                $this->clienteMatriculaService->procesarPago($matricula->id, [
-                    'monto_pago' => $data['pago']['monto'],
-                    'metodo_pago' => $data['pago']['metodo_pago'] ?? 'efectivo',
-                    'fecha_pago' => now(),
-                ]);
-            }
-        }
     }
 }

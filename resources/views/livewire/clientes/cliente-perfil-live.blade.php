@@ -1,52 +1,79 @@
-@php
-    use Illuminate\Support\Facades\Storage;
-@endphp
-
 <div class="space-y-6">
     <div class="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 p-6 shadow-lg">
-        <div class="flex items-center justify-between gap-4">
-            <div class="flex items-center gap-4">
-                <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-white/15">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div class="flex items-start gap-4">
+                <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/15">
                     <flux:icon name="user-circle" class="h-7 w-7 text-white" />
                 </div>
-                <div>
-                    <h1 class="text-2xl font-bold text-white">Perfil de Cliente</h1>
-                    <p class="text-sm text-white/90">Busca un cliente y visualiza toda su información comercial.</p>
+                <div class="min-w-0">
+                    <h1 class="text-2xl font-bold text-white">{{ __('Perfil de cliente') }}</h1>
+                    <p class="flex flex-wrap items-center gap-x-1 text-sm text-white/90">
+                        <span>{{ __('Busca un cliente y gestiona ficha, matrículas y reservas.') }}</span>
+                        <flux:button href="{{ route('clientes.index') }}" wire:navigate variant="ghost" size="sm"
+                            class="h-auto min-h-0 border-0 bg-transparent p-0 text-sm font-medium text-white underline decoration-white/40 underline-offset-2 shadow-none hover:bg-white/10 hover:decoration-white">
+                            {{ __('Listado de clientes') }}
+                        </flux:button>
+                    </p>
                 </div>
             </div>
-            <div class="hidden rounded-lg bg-white/10 px-4 py-2 text-sm font-medium text-white md:block">
-                {{ now()->format('d/m/Y H:i') }}
+            <div class="flex flex-wrap items-center justify-end gap-2">
+                @can('clientes.create')
+                    <flux:button size="sm" icon="plus" variant="ghost" class="border border-white/30 text-white hover:bg-white/15" wire:click="openClienteCreateModal" type="button">
+                        {{ __('Nuevo cliente') }}
+                    </flux:button>
+                @endcan
+                @if ($selectedCliente)
+                    @can('clientes.update')
+                        <flux:button size="sm" icon="pencil" variant="ghost" class="border border-white/30 text-white hover:bg-white/15" wire:click="openClienteEditModal({{ $selectedCliente->id }})" type="button">
+                            {{ __('Editar') }}
+                        </flux:button>
+                        <flux:button size="sm" icon="photo" variant="ghost" class="border border-white/30 text-white hover:bg-white/15" wire:click="openClientePhotoModal({{ $selectedCliente->id }})" type="button">
+                            {{ __('Foto') }}
+                        </flux:button>
+                    @endcan
+                    @can('clientes.delete')
+                        <flux:button size="sm" icon="trash" variant="ghost" color="red" class="border border-red-300/60 bg-red-500/25 text-white hover:bg-red-500/40" wire:click="openClienteDeleteModal({{ $selectedCliente->id }})" type="button">
+                            {{ __('Eliminar') }}
+                        </flux:button>
+                    @endcan
+                @endif
+                <div class="hidden rounded-lg bg-white/10 px-3 py-2 text-xs font-medium text-white md:block">
+                    {{ now()->format('d/m/Y H:i') }}
+                </div>
             </div>
         </div>
     </div>
 
     <div class="rounded-xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
-        <x-cliente.search-input
-            :clienteSearch="$clienteSearch"
-            :clientes="$clientes"
-            :selectedCliente="$selectedCliente"
-            :isSearching="$isSearching" />
+        <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div class="min-w-[min(100%,22rem)] flex-1">
+                <x-cliente.search-input
+                    :clienteSearch="$clienteSearch"
+                    :clientes="$clientes"
+                    :selectedCliente="$selectedCliente"
+                    :isSearching="$isSearching" />
+            </div>
+            <div class="flex flex-wrap items-center gap-2">
+                <flux:button href="{{ route('clientes.index') }}" wire:navigate variant="ghost" size="xs"
+                    class="h-auto min-h-0 px-2 py-1 text-xs font-medium text-zinc-600 hover:text-violet-600 dark:text-zinc-400 dark:hover:text-violet-400">
+                    {{ __('Listado de clientes') }}
+                </flux:button>
+            </div>
+        </div>
     </div>
 
     @if ($selectedCliente)
         @php
-            $estadoClienteClass = match ($selectedCliente->estado_cliente) {
-                'activo' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300',
-                'inactivo' => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
-                'suspendido' => 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-300',
-                default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
-            };
             $estadoComercial = strtolower((string) ($membresiaActiva->estado ?? ''));
-            $estadoComercialClass = match ($estadoComercial) {
-                'activa', 'activo' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300',
-                'vencida', 'vencido' => 'bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-300',
-                'congelada', 'congelado' => 'bg-sky-100 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300',
-                'completada' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300',
-                default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+            $estadoComercialBadgeColor = match ($estadoComercial) {
+                'activa', 'activo' => 'green',
+                'vencida', 'vencido' => 'red',
+                'congelada', 'congelado' => 'zinc',
+                'completada' => 'amber',
+                default => 'zinc',
             };
             $nombrePlanActivo = $membresiaActiva->membresia->nombre ?? $membresiaActiva->nombre ?? $membresiaActiva->clase->nombre ?? 'Sin plan';
-            $sinDeudaProducto = true;
-            $deudaMembresia = $saldoPendiente > 0 ? $saldoPendiente : $selectedCliente->deuda_total;
+            $deudaMembresiaResumen = max(0, round((float) $selectedCliente->deuda_total - $deudaProductoPendiente, 2));
             $stats = $estadisticasAsistencia;
             $efectividad = (float) ($stats['porcentaje_efectividad'] ?? 0);
             $totalSesiones = (int) ($stats['total_sesiones'] ?? 0);
@@ -54,62 +81,24 @@
             $pendientes = (int) ($stats['asistencias_pendientes'] ?? 0);
         @endphp
 
-        <div class="grid gap-4 xl:grid-cols-[260px_1fr_290px]">
+        <div class="grid gap-4 xl:grid-cols-[minmax(240px,280px)_1fr_290px]">
             <div class="space-y-4">
-                <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-                    <div class="mb-3 flex items-center justify-between">
-                        <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Cliente</p>
-                        <flux:button variant="ghost" size="xs" wire:click="clearClienteSelection">
-                            <flux:icon name="x-mark" class="h-4 w-4" />
+                <div class="rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                    <x-cliente.profile-card :cliente="$selectedCliente" :hide-actions="true" />
+                </div>
+                <div class="space-y-2 px-1">
+                    @if ($selectedCliente->getWhatsAppUrlWithMessage())
+                        <flux:button href="{{ $selectedCliente->getWhatsAppUrlWithMessage() }}" target="_blank" rel="noopener noreferrer"
+                            variant="outline" size="xs" icon="chat-bubble-left-right" class="w-full border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
+                            {{ __('WhatsApp') }}
                         </flux:button>
-                    </div>
-
-                    <div class="flex flex-col items-center text-center">
-                        @if ($selectedCliente->foto)
-                            <img src="{{ Storage::url($selectedCliente->foto) }}" alt="Foto del cliente" class="h-28 w-28 rounded-2xl object-cover shadow-md">
-                        @else
-                            <div class="flex h-28 w-28 items-center justify-center rounded-2xl bg-zinc-200 text-zinc-400 dark:bg-zinc-800">
-                                <flux:icon name="user" class="size-14" />
-                            </div>
-                        @endif
-
-                        <p class="mt-4 text-base font-bold uppercase leading-tight text-zinc-900 dark:text-zinc-100">
-                            {{ $selectedCliente->nombres }} {{ $selectedCliente->apellidos }}
-                        </p>
-                        @if ($selectedCliente->fecha_nacimiento)
-                            <p class="text-sm text-zinc-500">({{ $selectedCliente->fecha_nacimiento->age }})</p>
-                        @endif
-
-                        <div class="mt-2 space-y-1 text-xs text-zinc-600 dark:text-zinc-400">
-                            <p>{{ $selectedCliente->tipo_documento }} {{ $selectedCliente->numero_documento }}</p>
-                            @if ($selectedCliente->telefono)
-                                <p>{{ $selectedCliente->telefono }}</p>
-                            @endif
-                            @if ($selectedCliente->biotime_state_bool)
-                                <p>Huella verificada</p>
-                            @endif
-                        </div>
-
-                        <span class="mt-3 rounded-full px-2.5 py-1 text-[11px] font-medium {{ $estadoClienteClass }}">
-                            {{ ucfirst($selectedCliente->estado_cliente) }}
-                        </span>
-                    </div>
-
-                    <div class="mt-4 space-y-2">
-                        <a href="{{ route('clientes.index') }}" wire:navigate class="flex w-full items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                            <flux:icon name="information-circle" class="size-4" /> Ver información
-                        </a>
-
-                        @if ($selectedCliente->getWhatsAppUrlWithMessage())
-                            <a href="{{ $selectedCliente->getWhatsAppUrlWithMessage() }}" target="_blank" class="flex w-full items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
-                                <flux:icon name="chat-bubble-left-right" class="size-4" /> Escribir a Whatsapp
-                            </a>
-                        @endif
-
-                        <a href="{{ route('cliente-matriculas.index') }}" wire:navigate class="flex w-full items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-medium text-violet-700 transition hover:bg-violet-100 dark:border-violet-900 dark:bg-violet-950/30 dark:text-violet-300">
-                            <flux:icon name="identification" class="size-4" /> Gestionar membresías
-                        </a>
-                    </div>
+                    @endif
+                    @can('cliente-matriculas.view')
+                        <flux:button href="{{ route('cliente-matriculas.index') }}" wire:navigate variant="outline" size="xs"
+                            icon="arrow-top-right-on-square" class="w-full">
+                            {{ __('Módulo matrículas') }}
+                        </flux:button>
+                    @endcan
                 </div>
             </div>
 
@@ -117,100 +106,263 @@
                 <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                     <div class="mb-3 flex items-center justify-between">
                         <h2 class="text-base font-bold text-zinc-900 dark:text-zinc-50">Gestión</h2>
-                        <a href="{{ route('clientes.index') }}" wire:navigate class="text-[11px] text-violet-600 hover:underline dark:text-violet-400">
-                            Volver al listado
-                        </a>
+                        <flux:button href="{{ route('clientes.index') }}" wire:navigate variant="ghost" size="xs"
+                            class="h-auto min-h-0 px-2 py-0.5 text-[11px] font-medium text-violet-600 hover:underline dark:text-violet-400">
+                            {{ __('Volver al listado') }}
+                        </flux:button>
                     </div>
 
-                    <div class="mb-3 flex items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
+                    <div class="mb-3 flex flex-wrap items-center gap-2 rounded-xl bg-zinc-50 px-3 py-2 dark:bg-zinc-800">
                         <span class="text-sm font-bold tracking-wide text-zinc-900 dark:text-zinc-50">{{ strtoupper($nombrePlanActivo) }}</span>
                         @if ($membresiaActiva)
-                            <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $estadoComercialClass }}">
-                                {{ strtoupper($estadoComercial ?: 'SIN ESTADO') }}
-                            </span>
+                            <flux:badge :color="$estadoComercialBadgeColor" class="uppercase">
+                                {{ strtoupper($estadoComercial ?: __('Sin estado')) }}
+                            </flux:badge>
                         @endif
                     </div>
 
                     @if (in_array($estadoComercial, ['vencida', 'vencido'], true))
-                        <div class="mb-3 flex items-center justify-center gap-2 rounded-xl bg-red-600 px-3 py-2 text-sm font-semibold text-white">
-                            <flux:icon name="exclamation-circle" class="size-5" />
-                            Se terminó su contrato.
-                            <flux:icon name="exclamation-circle" class="size-5" />
+                        <div class="mb-3">
+                            <flux:callout variant="danger" icon="exclamation-circle" :heading="__('Se terminó su contrato.')" />
                         </div>
                     @endif
 
-                    <div class="mb-3 grid gap-2 md:grid-cols-2">
-                        <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-800">
-                            <p class="text-xs font-semibold text-zinc-700 dark:text-zinc-300">
-                                {{ $sinDeudaProducto ? 'SIN DEUDA EN PRODUCTO' : 'DEBE EN PRODUCTO' }}
-                            </p>
-                        </div>
-                        <div class="flex items-center justify-between gap-2 rounded-xl border {{ $deudaMembresia > 0 ? 'border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950/30' : 'border-zinc-200 bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800' }} px-3 py-2">
-                            <p class="text-xs font-semibold {{ $deudaMembresia > 0 ? 'text-red-700 dark:text-red-300' : 'text-zinc-700 dark:text-zinc-300' }}">
-                                {{ $deudaMembresia > 0 ? 'DEBE S/ ' . number_format($deudaMembresia, 2) . ' EN MEMBRESÍA' : 'SIN DEUDA EN MEMBRESÍA' }}
-                            </p>
+                    <div class="mb-3">
+                        <flux:subheading size="sm" class="mb-2 font-semibold text-zinc-800 dark:text-zinc-200">{{ __('Resumen de deudas') }}</flux:subheading>
+                        <div class="grid gap-2 md:grid-cols-2">
+                            <flux:card class="flex flex-col gap-2 p-3 {{ $deudaProductoPendiente > 0 ? 'ring-1 ring-amber-200/80 dark:ring-amber-900/60' : 'ring-1 ring-zinc-200/80 dark:ring-zinc-700' }}">
+                                <flux:text class="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Producto') }}</flux:text>
+                                @if ($deudaProductoPendiente > 0)
+                                    <flux:badge color="amber" class="w-fit uppercase">{{ __('Debe S/ :monto', ['monto' => number_format($deudaProductoPendiente, 2)]) }}</flux:badge>
+                                @else
+                                    <flux:badge color="zinc" class="w-fit uppercase">{{ __('Sin deuda en producto') }}</flux:badge>
+                                @endif
+                            </flux:card>
+                            <flux:card class="flex flex-col gap-2 p-3 {{ $deudaMembresiaResumen > 0 ? 'ring-1 ring-red-200/80 dark:ring-red-900/60' : 'ring-1 ring-zinc-200/80 dark:ring-zinc-700' }}">
+                                <flux:text class="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Membresía y planes') }}</flux:text>
+                                @if ($deudaMembresiaResumen > 0)
+                                    <flux:badge color="red" class="w-fit uppercase">{{ __('Debe S/ :monto en membresía', ['monto' => number_format($deudaMembresiaResumen, 2)]) }}</flux:badge>
+                                @else
+                                    <flux:badge color="zinc" class="w-fit uppercase">{{ __('Sin deuda en membresía') }}</flux:badge>
+                                @endif
+                            </flux:card>
                         </div>
                     </div>
 
-                    <div class="mb-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
-                        <a href="{{ route('cliente-matriculas.index') }}" wire:navigate class="flex items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-medium text-zinc-700 transition hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
-                            <flux:icon name="identification" class="size-4" /> Matrículas
-                        </a>
-                        @can('gestion-nutricional.view')
-                        <a href="{{ route('gestion-nutricional.salud', $selectedCliente->id) }}" wire:navigate class="flex items-center justify-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-medium text-rose-700 transition hover:bg-rose-100 dark:border-rose-900 dark:bg-rose-950/30 dark:text-rose-300">
-                            <flux:icon name="heart" class="size-4" /> Salud
-                        </a>
+                    <div class="mb-4 flex flex-wrap gap-2">
+                        @can('cliente-matriculas.create')
+                            <flux:button size="xs" icon="plus" variant="primary" type="button" wire:click="openMatriculaCreateModal">
+                                {{ __('Matricular') }}
+                            </flux:button>
+                        @endcan
+                        @can('cliente-matriculas.update')
+                            <flux:button size="xs" icon="banknotes" variant="outline" type="button" wire:click="openCobroMatriculaModal">
+                                {{ __('Cobrar') }}
+                            </flux:button>
+                        @endcan
+                        @can('cliente-matriculas.view')
+                            <flux:button size="xs" icon="calendar-days" variant="outline" type="button" wire:click="openPrimeraCuotasConPlan">
+                                {{ __('Ver cuotas') }}
+                            </flux:button>
+                        @endcan
+                        @can('cliente-matriculas.create')
+                            @if ($matriculasSinCronogramaCuotas->isNotEmpty())
+                                <flux:button size="xs" icon="document-text" variant="outline" type="button" wire:click="openCrearPlanCuotasModal">
+                                    {{ __('Crear plan de cuotas') }}
+                                </flux:button>
+                            @endif
+                        @endcan
+                        @can('rentals.create')
+                            <flux:button size="xs" icon="building-office-2" variant="outline" type="button" wire:click="openReservaModal">
+                                {{ __('Nueva reserva') }}
+                            </flux:button>
+                        @endcan
+                        @can('gestion-nutricional.update')
+                            <flux:button size="xs" icon="heart" variant="outline" type="button" wire:click="openSaludModal({{ $selectedCliente->id }})">
+                                {{ __('Salud') }}
+                            </flux:button>
+                        @else
+                            @can('gestion-nutricional.view')
+                                <flux:button href="{{ route('gestion-nutricional.salud', $selectedCliente->id) }}" wire:navigate variant="outline" size="xs"
+                                    icon="arrow-top-right-on-square">
+                                    {{ __('Salud') }}
+                                </flux:button>
+                            @endcan
                         @endcan
                         @can('crm.view')
-                        <a href="{{ route('crm.clientes.etiquetas', $selectedCliente->id) }}" wire:navigate class="flex items-center justify-center gap-1.5 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2 text-xs font-medium text-sky-700 transition hover:bg-sky-100 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300">
-                            <flux:icon name="tag" class="size-4" /> Etiquetas CRM
-                        </a>
+                            <flux:button href="{{ route('crm.clientes.etiquetas', $selectedCliente->id) }}" wire:navigate variant="outline" size="xs"
+                                icon="tag" class="border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300">
+                                {{ __('Etiquetas CRM') }}
+                            </flux:button>
                         @endcan
-                        @if ($selectedCliente->getWhatsAppUrlWithMessage())
-                        <a href="{{ $selectedCliente->getWhatsAppUrlWithMessage() }}" target="_blank" class="flex items-center justify-center gap-1.5 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-900 dark:bg-emerald-950/30 dark:text-emerald-300">
-                            <flux:icon name="chat-bubble-left-right" class="size-4" /> WhatsApp
-                        </a>
-                        @endif
                     </div>
 
-                    <div class="mb-3">
-                        <p class="mb-1.5 text-xs font-semibold text-zinc-700 dark:text-zinc-300">Pagos</p>
-                        <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                    <div class="mb-4 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                        @can('cliente-matriculas.view')
+                        <div class="flex flex-wrap border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/80">
+                            <flux:button type="button" wire:click="$set('perfilFinanzasTab', 'cuotas_pendientes')" variant="ghost" size="xs"
+                                class="!rounded-none border-b-2 border-transparent px-4 py-2.5 text-xs font-semibold {{ $perfilFinanzasTab === 'cuotas_pendientes' ? '!border-violet-600 text-violet-700 dark:text-violet-300' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' }}">
+                                {{ __('Cuotas pendientes') }}
+                            </flux:button>
+                            <flux:button type="button" wire:click="$set('perfilFinanzasTab', 'pagos')" variant="ghost" size="xs"
+                                class="!rounded-none border-b-2 border-transparent px-4 py-2.5 text-xs font-semibold {{ $perfilFinanzasTab === 'pagos' ? '!border-violet-600 text-violet-700 dark:text-violet-300' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' }}">
+                                {{ __('Pagos') }}
+                            </flux:button>
+                        </div>
+                        @else
+                        <p class="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">{{ __('Pagos') }}</p>
+                        @endcan
+
+                        @can('cliente-matriculas.view')
+                            @if ($perfilFinanzasTab === 'cuotas_pendientes')
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full text-xs">
+                                        <thead class="bg-zinc-50 dark:bg-zinc-950">
+                                            <tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500">
+                                                <th class="px-3 py-2">{{ __('Matrícula') }}</th>
+                                                <th class="px-3 py-2">{{ __('Vence') }}</th>
+                                                <th class="px-3 py-2 text-right">{{ __('Monto') }}</th>
+                                                <th class="px-3 py-2 text-right">{{ __('Enlaces') }}</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                            @forelse ($pendienteCuotaPorMatricula as $matriculaId => $cuotaInst)
+                                                <tr class="bg-white dark:bg-zinc-900">
+                                                    <td class="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">#{{ $matriculaId }}</td>
+                                                    <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($cuotaInst->fecha_vencimiento)->format('d/m/Y') ?? '—' }}</td>
+                                                    <td class="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">S/ {{ number_format((float) $cuotaInst->monto, 2) }}</td>
+                                                    <td class="px-3 py-2 text-right">
+                                                        <div class="flex flex-wrap justify-end gap-1">
+                                                            <flux:button href="{{ route('clientes.cuotas', ['cliente' => $selectedClienteId, 'matricula' => $matriculaId]) }}" wire:navigate size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400">
+                                                                {{ __('Ver cuotas') }}
+                                                            </flux:button>
+                                                            @can('cliente-matriculas.update')
+                                                                <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $cuotaInst->id }})" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400">
+                                                                    {{ __('Pagar cuota') }}
+                                                                </flux:button>
+                                                            @endcan
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="4" class="px-3 py-8 text-center text-zinc-500">{{ __('Sin cuotas pendientes.') }}</td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            @endif
+                        @endcan
+
+                        @if (! auth()->user()->can('cliente-matriculas.view') || $perfilFinanzasTab === 'pagos')
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full text-xs">
+                                    <thead class="bg-zinc-50 dark:bg-zinc-950">
+                                        <tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500">
+                                            <th class="px-3 py-2">{{ __('Estado') }}</th>
+                                            <th class="px-3 py-2">{{ __('Fecha') }}</th>
+                                            <th class="px-3 py-2 text-right">{{ __('Monto') }}</th>
+                                            <th class="px-3 py-2">{{ __('Comprobante') }}</th>
+                                            <th class="px-3 py-2">{{ __('F. pago') }}</th>
+                                            <th class="px-3 py-2">{{ __('Creador') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                        @forelse ($pagosRecientes as $pago)
+                                            <tr class="bg-white dark:bg-zinc-900">
+                                                <td class="px-3 py-2">
+                                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {{ $pago->saldo_pendiente > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700' }}">
+                                                        {{ $pago->saldo_pendiente > 0 ? 'Parcial' : 'Activo' }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($pago->fecha_pago)->format('d/m/Y g:i A') ?? '—' }}</td>
+                                                <td class="px-3 py-2 text-right font-medium text-zinc-900 dark:text-zinc-100">{{ number_format((float) $pago->monto, 0) }}</td>
+                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $pago->comprobante_numero ?? '—' }}</td>
+                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ ucfirst((string) ($pago->metodo_pago ?? '—')) }}</td>
+                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $pago->registradoPor?->name ?? '—' }}</td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="6" class="px-3 py-6 text-center text-zinc-500">{{ __('Sin pagos registrados.') }}</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
+                </div>
+
+                @canany(['rentals.view', 'rentals.create', 'rentals.update'])
+                    <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                        <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-zinc-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/50">
+                            <div>
+                                <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-50">{{ __('Reservas de espacios') }}</h3>
+                                <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">{{ __('Próximas y recientes en un solo listado.') }}</p>
+                            </div>
+                            @can('rentals.create')
+                                <flux:button size="xs" icon="plus" variant="primary" type="button" wire:click="openReservaModal">{{ __('Nueva reserva') }}</flux:button>
+                            @endcan
+                        </div>
+                        <div class="overflow-x-auto">
                             <table class="min-w-full text-xs">
-                                <thead class="bg-zinc-50 dark:bg-zinc-950">
-                                    <tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500">
-                                        <th class="px-3 py-2">Estado</th>
-                                        <th class="px-3 py-2">Fecha</th>
-                                        <th class="px-3 py-2 text-right">Monto</th>
-                                        <th class="px-3 py-2">Comprobante</th>
-                                        <th class="px-3 py-2">F. pago</th>
-                                        <th class="px-3 py-2">Creador</th>
+                                <thead>
+                                    <tr class="border-b border-zinc-200 bg-zinc-50 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+                                        <th class="whitespace-nowrap px-4 py-2.5">{{ __('Espacio') }}</th>
+                                        <th class="whitespace-nowrap px-4 py-2.5">{{ __('Fecha') }}</th>
+                                        <th class="whitespace-nowrap px-4 py-2.5">{{ __('Horario') }}</th>
+                                        <th class="whitespace-nowrap px-4 py-2.5 text-right">{{ __('Precio') }}</th>
+                                        <th class="whitespace-nowrap px-4 py-2.5">{{ __('Estado') }}</th>
+                                        <th class="whitespace-nowrap px-4 py-2.5 text-right">{{ __('Acciones') }}</th>
                                     </tr>
                                 </thead>
-                                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                    @forelse ($pagosRecientes as $pago)
-                                        <tr class="bg-white dark:bg-zinc-900">
-                                            <td class="px-3 py-2">
-                                                <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {{ $pago->saldo_pendiente > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700' }}">
-                                                    {{ $pago->saldo_pendiente > 0 ? 'Parcial' : 'Activo' }}
+                                <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                                    @forelse ($reservasEspacios as $r)
+                                        @php
+                                            $estadoKey = (string) $r->estado;
+                                            $estadoBadgeClass = match ($estadoKey) {
+                                                'reservado' => 'bg-sky-100 text-sky-800 ring-1 ring-inset ring-sky-200/70 dark:bg-sky-950/40 dark:text-sky-200 dark:ring-sky-800',
+                                                'confirmado' => 'bg-violet-100 text-violet-800 ring-1 ring-inset ring-violet-200/70 dark:bg-violet-950/40 dark:text-violet-200 dark:ring-violet-800',
+                                                'pagado' => 'bg-emerald-100 text-emerald-800 ring-1 ring-inset ring-emerald-200/70 dark:bg-emerald-950/40 dark:text-emerald-200 dark:ring-emerald-800',
+                                                'cancelado' => 'bg-red-100 text-red-800 ring-1 ring-inset ring-red-200/70 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900',
+                                                'finalizado' => 'bg-zinc-200 text-zinc-800 ring-1 ring-inset ring-zinc-300/80 dark:bg-zinc-700 dark:text-zinc-100 dark:ring-zinc-600',
+                                                default => 'bg-zinc-100 text-zinc-700 ring-1 ring-inset ring-zinc-200/80 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-zinc-700',
+                                            };
+                                            $estadoEtiqueta = \App\Models\Core\Rental::ESTADOS[$estadoKey] ?? ucfirst($estadoKey);
+                                        @endphp
+                                        <tr class="bg-white transition-colors hover:bg-zinc-50/80 dark:bg-zinc-900 dark:hover:bg-zinc-800/60">
+                                            <td class="max-w-[10rem] truncate px-4 py-2.5 font-medium text-zinc-900 dark:text-zinc-100" title="{{ $r->rentableSpace?->nombre ?? '' }}">{{ $r->rentableSpace?->nombre ?? '—' }}</td>
+                                            <td class="whitespace-nowrap px-4 py-2.5 tabular-nums text-zinc-600 dark:text-zinc-400">{{ $r->fecha?->format('d/m/Y') ?? '—' }}</td>
+                                            <td class="whitespace-nowrap px-4 py-2.5 tabular-nums text-zinc-600 dark:text-zinc-400">{{ substr((string) $r->hora_inicio, 0, 5) }} – {{ substr((string) $r->hora_fin, 0, 5) }}</td>
+                                            <td class="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-zinc-700 dark:text-zinc-300">
+                                                @if ($r->precio !== null && (float) $r->precio != 0.0)
+                                                    S/ {{ number_format((float) $r->precio, 2) }}
+                                                @else
+                                                    <span class="text-zinc-400">—</span>
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-2.5">
+                                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold {{ $estadoBadgeClass }}">
+                                                    {{ __($estadoEtiqueta) }}
                                                 </span>
                                             </td>
-                                            <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($pago->fecha_pago)->format('d/m/Y g:i A') ?? '—' }}</td>
-                                            <td class="px-3 py-2 text-right font-medium text-zinc-900 dark:text-zinc-100">{{ number_format((float) $pago->monto, 0) }}</td>
-                                            <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $pago->comprobante_numero ?? '—' }}</td>
-                                            <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ ucfirst((string) ($pago->metodo_pago ?? '—')) }}</td>
-                                            <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $pago->registradoPor?->name ?? '—' }}</td>
+                                            <td class="whitespace-nowrap px-4 py-2.5 text-right">
+                                                @can('rentals.update')
+                                                    <flux:button size="xs" variant="ghost" type="button" wire:click="openReservaModal({{ $r->id }})">{{ __('Editar') }}</flux:button>
+                                                @endcan
+                                            </td>
                                         </tr>
                                     @empty
                                         <tr>
-                                            <td colspan="6" class="px-3 py-6 text-center text-zinc-500">Sin pagos registrados.</td>
+                                            <td colspan="6" class="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">{{ __('Sin reservas registradas.') }}</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
                             </table>
                         </div>
                     </div>
-                </div>
+                @endcanany
             </div>
 
             <div class="space-y-4">
@@ -270,6 +422,41 @@
                     </div>
                 </div>
 
+                <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                    <div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 pb-2 dark:border-zinc-700">
+                        <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-50">{{ __('Fidelización') }}</h3>
+                        <div class="flex flex-wrap items-center gap-1">
+                            <flux:button type="button" icon="eye" variant="ghost" size="xs" wire:click="openFidelizacionHistorialModal" class="text-violet-600 dark:text-violet-400">
+                                {{ __('Ver') }}
+                            </flux:button>
+                            @can('clientes.update')
+                                <flux:button type="button" icon="plus" variant="ghost" size="xs" wire:click="openFidelizacionNuevoModal" class="text-violet-600 dark:text-violet-400">
+                                    {{ __('Agregar nuevo') }}
+                                </flux:button>
+                            @endcan
+                        </div>
+                    </div>
+                    <div class="max-h-52 overflow-y-auto rounded-xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
+                        <div class="divide-y divide-zinc-200 p-2 dark:divide-zinc-800">
+                            @forelse (array_slice($fidelizacionMensajes, 0, 5) as $msg)
+                                <div class="py-2.5 first:pt-0 last:pb-0">
+                                    <p class="text-xs font-bold text-zinc-900 dark:text-zinc-100">
+                                        {{ __('Incidencia:') }}
+                                        <span class="font-semibold text-zinc-700 dark:text-zinc-300">{{ $msg->prioridad_label }}</span>
+                                    </p>
+                                    <p class="mt-1 text-xs text-zinc-700 dark:text-zinc-300">{{ $msg->mensaje }}</p>
+                                    <div class="mt-2 flex items-center justify-between border-t border-zinc-100 pt-2 text-[11px] text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                                        <span>{{ $msg->autor?->name ?? '—' }}</span>
+                                        <span class="tabular-nums">{{ $msg->created_at->locale('es')->format('d/m/Y') }} · {{ $msg->created_at->format('g:i A') }}</span>
+                                    </div>
+                                </div>
+                            @empty
+                                <p class="py-6 text-center text-xs text-zinc-500 dark:text-zinc-400">{{ __('Sin mensajes de fidelización.') }}</p>
+                            @endforelse
+                        </div>
+                    </div>
+                </div>
+
                 @if (collect($selectedCliente->health_summary ?? [])->filter()->isNotEmpty())
                     <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                         <h3 class="mb-3 text-sm font-bold text-zinc-900 dark:text-zinc-50">Salud</h3>
@@ -295,13 +482,15 @@
         <div class="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
             <div class="flex border-b border-zinc-200 dark:border-zinc-800">
                 @foreach (['membresias' => 'Membresías', 'matriculas' => 'Clases'] as $tabKey => $tabLabel)
-                    <button
+                    <flux:button
                         type="button"
                         wire:click="setTab('{{ $tabKey }}')"
-                        class="px-5 py-3 text-sm font-medium transition {{ $tabActiva === $tabKey ? 'border-b-2 border-violet-600 text-violet-700 dark:text-violet-300' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100' }}"
+                        variant="ghost"
+                        size="sm"
+                        class="!rounded-none border-b-2 border-transparent px-5 py-3 text-sm font-medium {{ $tabActiva === $tabKey ? '!border-violet-600 text-violet-700 dark:text-violet-300' : 'text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100' }}"
                     >
                         {{ $tabLabel }}
-                    </button>
+                    </flux:button>
                 @endforeach
             </div>
 
@@ -325,6 +514,7 @@
                                 <th class="px-3 py-2 text-center"># Actual</th>
                                 <th class="px-3 py-2">Responsable</th>
                                 <th class="px-3 py-2">Sede</th>
+                                <th class="px-3 py-2 text-right">{{ __('Acciones') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -357,10 +547,48 @@
                                     <td class="px-3 py-2 text-center text-zinc-600 dark:text-zinc-400">{{ $mem->membresia->id ?? '—' }}</td>
                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ strtoupper($mem->asesor->name ?? '—') }}</td>
                                     <td class="px-3 py-2 text-center text-zinc-600 dark:text-zinc-400">1</td>
+                                    <td class="px-3 py-2 text-right">
+                                        @if ($mem instanceof \App\Models\Core\ClienteMatricula)
+                                            <div class="flex flex-wrap justify-end gap-1">
+                                                @can('cliente-matriculas.update')
+                                                    @if ($saldo > 0)
+                                                        <flux:button size="xs" variant="primary" type="button" wire:click="openCobroMatriculaModal({{ $mem->id }})">{{ __('Cobrar') }}</flux:button>
+                                                    @endif
+                                                @endcan
+                                                @can('cliente-matriculas.view')
+                                                    @if ($mem->usaPlanCuotas())
+                                                        <flux:button size="xs" variant="outline" type="button" wire:click="openCuotasModal({{ $mem->id }})">{{ __('Cuotas') }}</flux:button>
+                                                        <flux:button href="{{ route('clientes.cuotas', ['cliente' => $mem->cliente_id, 'matricula' => $mem->id]) }}" wire:navigate size="xs" variant="outline" class="min-h-0 px-2 py-1 text-[10px] text-violet-600 dark:text-violet-400">
+                                                            {{ __('Ver cuotas') }}
+                                                        </flux:button>
+                                                        @isset($pendienteCuotaPorMatricula[$mem->id])
+                                                            @can('cliente-matriculas.update')
+                                                                <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $pendienteCuotaPorMatricula[$mem->id]->id }})" size="xs" variant="outline" class="min-h-0 border-violet-200 bg-violet-50 px-2 py-1 text-[10px] text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">
+                                                                    {{ __('Pagar cuota') }}
+                                                                </flux:button>
+                                                            @endcan
+                                                        @endisset
+                                                    @endif
+                                                @endcan
+                                                @can('cliente-matriculas.update')
+                                                    @if (strtolower((string) ($mem->estado ?? '')) === 'activa' && ($mem->membresia?->permite_congelacion ?? false))
+                                                        <flux:button size="xs" variant="outline" type="button" icon="pause-circle"
+                                                            wire:click="openCongelarMatriculaModal({{ $mem->id }})">{{ __('Congelar') }}</flux:button>
+                                                    @endif
+                                                    <flux:button size="xs" variant="ghost" type="button" wire:click="openMatriculaEditModal({{ $mem->id }})">{{ __('Editar') }}</flux:button>
+                                                @endcan
+                                                @can('cliente-matriculas.delete')
+                                                    <flux:button size="xs" variant="ghost" type="button" wire:click="openMatriculaDeleteModal({{ $mem->id }})">{{ __('Eliminar') }}</flux:button>
+                                                @endcan
+                                            </div>
+                                        @else
+                                            <span class="text-[10px] text-zinc-400">—</span>
+                                        @endif
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="15" class="px-3 py-10 text-center text-zinc-500">Sin membresías registradas.</td>
+                                    <td colspan="16" class="px-3 py-10 text-center text-zinc-500">Sin membresías registradas.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -381,6 +609,7 @@
                                 <th class="px-3 py-2 text-right">A Cuenta</th>
                                 <th class="px-3 py-2 text-right">Saldo</th>
                                 <th class="px-3 py-2">Responsable</th>
+                                <th class="px-3 py-2 text-right">{{ __('Acciones') }}</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -407,10 +636,40 @@
                                     <td class="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">{{ number_format((float) $pagadosMat, 0) }}</td>
                                     <td class="px-3 py-2 text-right {{ $saldoMat > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">{{ number_format($saldoMat, 0) }}</td>
                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ strtoupper($mat->asesor->name ?? '—') }}</td>
+                                    <td class="px-3 py-2 text-right">
+                                        <div class="flex flex-wrap justify-end gap-1">
+                                            @can('cliente-matriculas.update')
+                                                @if ($saldoMat > 0)
+                                                    <flux:button size="xs" variant="primary" type="button" wire:click="openCobroMatriculaModal({{ $mat->id }})">{{ __('Cobrar') }}</flux:button>
+                                                @endif
+                                            @endcan
+                                            @can('cliente-matriculas.view')
+                                                @if ($mat->usaPlanCuotas())
+                                                    <flux:button size="xs" variant="outline" type="button" wire:click="openCuotasModal({{ $mat->id }})">{{ __('Cuotas') }}</flux:button>
+                                                    <flux:button href="{{ route('clientes.cuotas', ['cliente' => $mat->cliente_id, 'matricula' => $mat->id]) }}" wire:navigate size="xs" variant="outline" class="min-h-0 px-2 py-1 text-[10px] text-violet-600 dark:text-violet-400">
+                                                        {{ __('Ver cuotas') }}
+                                                    </flux:button>
+                                                    @isset($pendienteCuotaPorMatricula[$mat->id])
+                                                        @can('cliente-matriculas.update')
+                                                            <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $pendienteCuotaPorMatricula[$mat->id]->id }})" size="xs" variant="outline" class="min-h-0 border-violet-200 bg-violet-50 px-2 py-1 text-[10px] text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">
+                                                                {{ __('Pagar cuota') }}
+                                                            </flux:button>
+                                                        @endcan
+                                                    @endisset
+                                                @endif
+                                            @endcan
+                                            @can('cliente-matriculas.update')
+                                                <flux:button size="xs" variant="ghost" type="button" wire:click="openMatriculaEditModal({{ $mat->id }})">{{ __('Editar') }}</flux:button>
+                                            @endcan
+                                            @can('cliente-matriculas.delete')
+                                                <flux:button size="xs" variant="ghost" type="button" wire:click="openMatriculaDeleteModal({{ $mat->id }})">{{ __('Eliminar') }}</flux:button>
+                                            @endcan
+                                        </div>
+                                    </td>
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="10" class="px-3 py-10 text-center text-zinc-500">Sin matrículas registradas.</td>
+                                    <td colspan="11" class="px-3 py-10 text-center text-zinc-500">Sin matrículas registradas.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -427,4 +686,7 @@
             </p>
         </div>
     @endif
+
+    @include('livewire.clientes.partials.perfil-modals')
+    @include('livewire.cliente-matriculas.partials.matricula-modals')
 </div>
