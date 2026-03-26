@@ -86,6 +86,9 @@ Route::middleware(['auth'])->group(function () {
         ->middleware('permission:pos.view')
         ->name('ventas.comprobante.pdf');
 
+    Route::get('pagos/{pago}/ticket.pdf', [\App\Http\Controllers\ComprobantePagoController::class, 'pdf'])
+        ->name('pagos.ticket.pdf');
+
     // Cupones de descuento
     Route::prefix('cupones')->name('cupones.')->middleware('permission:cupones.view')->group(function () {
         Route::get('/', \App\Livewire\Coupons\Index::class)->name('index');

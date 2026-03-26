@@ -266,6 +266,7 @@
                                             <th class="px-3 py-2">{{ __('Comprobante') }}</th>
                                             <th class="px-3 py-2">{{ __('F. pago') }}</th>
                                             <th class="px-3 py-2">{{ __('Creador') }}</th>
+                                            <th class="px-3 py-2 text-right">{{ __('Acciones') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -281,10 +282,15 @@
                                                 <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $pago->comprobante_numero ?? '—' }}</td>
                                                 <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ ucfirst((string) ($pago->metodo_pago ?? '—')) }}</td>
                                                 <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $pago->registradoPor?->name ?? '—' }}</td>
+                                                <td class="px-3 py-2 text-right">
+                                                    <flux:button type="button" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-sky-600 hover:underline dark:text-sky-400" wire:click="abrirModalTicketPago({{ $pago->id }})">
+                                                        {{ __('Reimprimir') }}
+                                                    </flux:button>
+                                                </td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="6" class="px-3 py-6 text-center text-zinc-500">{{ __('Sin pagos registrados.') }}</td>
+                                                <td colspan="7" class="px-3 py-6 text-center text-zinc-500">{{ __('Sin pagos registrados.') }}</td>
                                             </tr>
                                         @endforelse
                                     </tbody>

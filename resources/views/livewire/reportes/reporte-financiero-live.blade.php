@@ -40,6 +40,7 @@
                             <th class="px-3 py-1.5 text-left font-medium">Fecha</th>
                             <th class="px-3 py-1.5 text-left font-medium">Cliente</th>
                             <th class="px-3 py-1.5 text-right font-medium">Monto</th>
+                            <th class="px-3 py-1.5 text-right font-medium">Ticket</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -48,9 +49,12 @@
                                 <td class="px-3 py-1.5">{{ $p->fecha_pago?->format('d/m/Y H:i') }}</td>
                                 <td class="px-3 py-1.5">{{ $p->cliente ? $p->cliente->nombres . ' ' . $p->cliente->apellidos : '-' }}</td>
                                 <td class="px-3 py-1.5 text-right">S/ {{ number_format($p->monto, 2) }}</td>
+                                <td class="px-3 py-1.5 text-right">
+                                    <button type="button" class="text-xs text-sky-600 underline-offset-2 hover:underline dark:text-sky-400" wire:click="abrirTicketPago({{ $p->id }})">Reimprimir</button>
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="3" class="px-3 py-2 text-center text-zinc-500">Sin pagos</td></tr>
+                            <tr><td colspan="4" class="px-3 py-2 text-center text-zinc-500">Sin pagos</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -83,4 +87,29 @@
         </div>
     </div>
     </div>
+
+    <flux:modal wire:model="mostrarModalTicketPago" focusable class="md:max-w-4xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Ticket de cobro</h2>
+                <div class="flex gap-2">
+                    @if ($pagoIdTicket)
+                        <a href="{{ route('pagos.ticket.pdf', ['pago' => $pagoIdTicket]) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestaña
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarModalTicketPago">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($pagoIdTicket)
+                <iframe
+                    src="{{ route('pagos.ticket.pdf', ['pago' => $pagoIdTicket]) }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Ticket PDF">
+                </iframe>
+            @endif
+        </div>
+    </flux:modal>
 </div>

@@ -455,21 +455,7 @@
                 @if($cobroPaymentMethod?->requiere_entidad)
                 <flux:input size="xs" wire:model="cobroFormData.entidad_financiera" label="Entidad financiera" placeholder="Obligatorio" />
                 @endif
-                <div class="grid grid-cols-2 gap-2">
-                    <div>
-                        <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">Comprobante</label>
-                        <select wire:model="cobroFormData.comprobante_tipo"
-                            class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
-                            <option value="">Sin comprobante</option>
-                            <option value="boleta">Boleta</option>
-                            <option value="factura">Factura</option>
-                            <option value="recibo">Recibo</option>
-                        </select>
-                    </div>
-                    <div>
-                        <flux:input size="xs" wire:model="cobroFormData.comprobante_numero" label="Número" placeholder="Opcional" />
-                    </div>
-                </div>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">Tras registrar el cobro se generará un <strong class="text-zinc-700 dark:text-zinc-300">ticket único</strong> de pago (previsualización en pantalla).</p>
             </div>
             <div class="flex justify-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-700">
                 <flux:button variant="ghost" size="xs" type="button" wire:click="cerrarModalCobro">Cancelar</flux:button>
@@ -590,16 +576,11 @@
                 @endif
             </div>
 
-            <!-- Tipo comprobante y método de pago -->
-            <div class="grid grid-cols-2 gap-3">
+            <!-- Comprobante (solo ticket) y método de pago -->
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div>
-                    <label class="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Tipo comprobante</label>
-                    <select wire:model="tipoComprobante"
-                        class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
-                        <option value="ticket">Ticket</option>
-                        <option value="boleta">Boleta</option>
-                        <option value="factura">Factura</option>
-                    </select>
+                    <label class="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Comprobante</label>
+                    <p class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm text-zinc-800 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-200">Ticket (único para POS)</p>
                 </div>
                 <div>
                     <label class="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Método de pago</label>
@@ -664,7 +645,7 @@
                 </div>
                 <div class="flex justify-between">
                     <span class="text-zinc-600 dark:text-zinc-400">Comprobante:</span>
-                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ ucfirst($tipoComprobante) }}</span>
+                    <span class="font-medium text-zinc-900 dark:text-zinc-100">Ticket</span>
                 </div>
                 <div class="flex justify-between">
                     <span class="text-zinc-600 dark:text-zinc-400">Método de pago:</span>
@@ -688,6 +669,31 @@
                     <span wire:loading wire:target="confirmarYProcesarVenta">Procesando...</span>
                 </flux:button>
             </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal name="ticket-pago-cobro-modal" wire:model="mostrarModalTicketPagoCobro" focusable class="md:max-w-4xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Ticket de cobro</h2>
+                <div class="flex gap-2">
+                    @if ($pagoIdTicketCobro)
+                        <a href="{{ route('pagos.ticket.pdf', ['pago' => $pagoIdTicketCobro]) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestaña
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarModalTicketPagoCobro">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($pagoIdTicketCobro)
+                <iframe
+                    src="{{ route('pagos.ticket.pdf', ['pago' => $pagoIdTicketCobro]) }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Ticket PDF">
+                </iframe>
+            @endif
         </div>
     </flux:modal>
 

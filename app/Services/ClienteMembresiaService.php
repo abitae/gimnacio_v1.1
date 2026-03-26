@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Core\ClienteMembresia;
 use App\Models\Core\CajaMovimiento;
+use App\Models\Core\ClienteMembresia;
 use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Membresia;
 use App\Models\Core\Pago;
@@ -53,7 +53,7 @@ class ClienteMembresiaService
                 : now()->toDateString();
 
             // Calcular precio_final si no está presente
-            if (!isset($validated['precio_final'])) {
+            if (! isset($validated['precio_final'])) {
                 $precioLista = $validated['precio_lista'] ?? 0;
                 $descuento = $validated['descuento_monto'] ?? 0;
                 $validated['precio_final'] = $precioLista - $descuento;
@@ -73,6 +73,8 @@ class ClienteMembresiaService
      */
     protected function crearDeudaInicial(ClienteMembresia $clienteMembresia): Pago
     {
+        $cobro = app(CobroTicketService::class)->resolverComprobantePago([]);
+
         return Pago::create([
             'cliente_id' => $clienteMembresia->cliente_id,
             'cliente_membresia_id' => $clienteMembresia->id,
@@ -82,8 +84,8 @@ class ClienteMembresiaService
             'fecha_pago' => $clienteMembresia->fecha_inicio,
             'es_pago_parcial' => true,
             'saldo_pendiente' => $clienteMembresia->precio_final,
-            'comprobante_tipo' => null,
-            'comprobante_numero' => null,
+            'comprobante_tipo' => $cobro['tipo'],
+            'comprobante_numero' => $cobro['numero'],
             'registrado_por' => Auth::user()->id,
         ]);
     }
@@ -95,13 +97,13 @@ class ClienteMembresiaService
     {
         $clienteMembresia = $this->find($clienteMembresiaId);
 
-        if (!$clienteMembresia) {
+        if (! $clienteMembresia) {
             throw new \Exception('Membresía de cliente no encontrada');
         }
 
         // Validar que exista una caja abierta
         $cajaService = app(CajaService::class);
-        if (!$cajaService->validarCajaAbierta(Auth::user()->id)) {
+        if (! $cajaService->validarCajaAbierta(Auth::user()->id)) {
             throw new \Exception('No hay una caja abierta. Por favor, abra una caja antes de registrar pagos.');
         }
 
@@ -133,6 +135,11 @@ class ClienteMembresiaService
                 }
             }
 
+            $cobro = app(CobroTicketService::class)->resolverComprobantePago([
+                'comprobante_tipo' => $data['comprobante_tipo'] ?? null,
+                'comprobante_numero' => $data['comprobante_numero'] ?? null,
+            ]);
+
             // Crear nuevo registro de pago asociado a la caja
             $pago = Pago::create([
                 'cliente_id' => $clienteMembresia->cliente_id,
@@ -146,25 +153,25 @@ class ClienteMembresiaService
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
                 'es_pago_parcial' => $esPagoParcial,
                 'saldo_pendiente' => $nuevoSaldoPendiente,
-                'comprobante_tipo' => $data['comprobante_tipo'] ?? null,
-                'comprobante_numero' => $data['comprobante_numero'] ?? null,
+                'comprobante_tipo' => $cobro['tipo'],
+                'comprobante_numero' => $cobro['numero'],
                 'registrado_por' => Auth::user()->id,
                 'caja_id' => $caja->id,
             ]);
 
             $cajaService = app(CajaService::class);
-            $concepto = 'Cobro de membresia legacy - ' . ($clienteMembresia->membresia->nombre ?? 'N/A');
-            $observaciones = 'Metodo de pago: ' . $metodoPago;
-            if (! empty($data['comprobante_tipo']) || ! empty($data['comprobante_numero'])) {
-                $observaciones .= ', Comprobante: ' . strtoupper((string) ($data['comprobante_tipo'] ?? '')) . ' ' . ($data['comprobante_numero'] ?? '');
+            $concepto = 'Cobro de membresia legacy - '.($clienteMembresia->membresia->nombre ?? 'N/A');
+            $observaciones = 'Metodo de pago: '.$metodoPago;
+            if ($pago->comprobante_tipo || $pago->comprobante_numero) {
+                $observaciones .= ', Comprobante: '.strtoupper((string) $pago->comprobante_tipo).' '.$pago->comprobante_numero;
             }
             $cajaService->registrarIngresoPorPago(
                 $pago,
                 $concepto,
                 CajaMovimiento::CATEGORIA_MEMBRESIA,
                 CajaMovimiento::ORIGEN_CLIENTE_MEMBRESIAS,
-                ClienteMembresia::class,
-                $clienteMembresia->id,
+                null,
+                null,
                 trim($observaciones, ', ')
             );
 
@@ -179,7 +186,7 @@ class ClienteMembresiaService
     {
         $clienteMembresia = $this->find($clienteMembresiaId);
 
-        if (!$clienteMembresia) {
+        if (! $clienteMembresia) {
             return 0;
         }
 
@@ -203,7 +210,7 @@ class ClienteMembresiaService
     {
         $clienteMembresia = $this->find($id);
 
-        if (!$clienteMembresia) {
+        if (! $clienteMembresia) {
             throw new \Exception('Membresía de cliente no encontrada');
         }
 
@@ -250,7 +257,7 @@ class ClienteMembresiaService
     {
         $clienteMembresia = $this->find($id);
 
-        if (!$clienteMembresia) {
+        if (! $clienteMembresia) {
             throw new \Exception('Membresía de cliente no encontrada');
         }
 
@@ -268,7 +275,7 @@ class ClienteMembresiaService
     protected function validate(array $data, ?int $id = null): array
     {
         $isUpdate = $id !== null;
-        
+
         $rules = [
             'cliente_id' => [$isUpdate ? 'sometimes' : 'required', 'exists:clientes,id'],
             'membresia_id' => [$isUpdate ? 'sometimes' : 'required', 'exists:membresias,id'],

@@ -195,29 +195,51 @@ class EnrollmentInstallmentService
             $saldoPendienteActual = app(ClienteMatriculaService::class)->obtenerSaldoPendiente($matricula->id);
             $saldoPendienteNuevo = max(0, $saldoPendienteActual - $monto);
 
+            $metodoPago = $data['metodo_pago'] ?? ('Cuota '.$installment->numero_cuota);
+            $paymentMethodId = $data['payment_method_id'] ?? null;
+            if ($paymentMethodId) {
+                $pm = \App\Models\Core\PaymentMethod::find($paymentMethodId);
+                if ($pm) {
+                    $metodoPago = $pm->nombre;
+                }
+            }
+
+            $cobro = app(CobroTicketService::class)->resolverComprobantePago([
+                'comprobante_tipo' => $data['comprobante_tipo'] ?? null,
+                'comprobante_numero' => $data['comprobante_numero'] ?? null,
+            ]);
+
             $pago = Pago::create([
                 'cliente_id' => $matricula->cliente_id,
                 'cliente_matricula_id' => $matricula->id,
                 'monto' => $monto,
-                'metodo_pago' => $data['metodo_pago'] ?? ('Cuota '.$installment->numero_cuota),
+                'moneda' => $data['moneda'] ?? 'PEN',
+                'metodo_pago' => $metodoPago,
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
-                'payment_method_id' => $data['payment_method_id'] ?? null,
+                'payment_method_id' => $paymentMethodId,
                 'numero_operacion' => $data['numero_operacion'] ?? null,
                 'entidad_financiera' => $data['entidad_financiera'] ?? null,
                 'es_pago_parcial' => $saldoPendienteNuevo > 0,
                 'saldo_pendiente' => $saldoPendienteNuevo,
+                'comprobante_tipo' => $cobro['tipo'],
+                'comprobante_numero' => $cobro['numero'],
                 'caja_id' => $caja->id,
                 'registrado_por' => auth()->id(),
             ]);
+
+            $obsCaja = 'Método de pago: '.$metodoPago;
+            if ($pago->comprobante_tipo || $pago->comprobante_numero) {
+                $obsCaja .= ', Comprobante: '.strtoupper((string) $pago->comprobante_tipo).' '.$pago->comprobante_numero;
+            }
 
             $cajaService->registrarIngresoPorPago(
                 $pago,
                 'Pago cuota '.$installment->numero_cuota.' - '.$matricula->nombre,
                 CajaMovimiento::CATEGORIA_CUOTA,
                 CajaMovimiento::ORIGEN_ENROLLMENT_INSTALLMENTS,
-                EnrollmentInstallment::class,
-                $installment->id,
-                'Pago de cuota programada'
+                null,
+                null,
+                trim($obsCaja, ', ')
             );
 
             $installment->update([

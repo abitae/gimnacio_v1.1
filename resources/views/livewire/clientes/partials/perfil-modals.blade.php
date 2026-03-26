@@ -354,3 +354,28 @@
     </form>
 </flux:modal>
 @endcan
+
+<flux:modal name="ticket-pago-perfil-modal" wire:model="mostrarModalTicketPago" focusable class="md:max-w-4xl">
+    <div class="flex flex-col p-4">
+        <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Ticket de cobro') }}</h2>
+            <div class="flex gap-2">
+                @if ($pagoTicketPreviewId)
+                    <a href="{{ route('pagos.ticket.pdf', ['pago' => $pagoTicketPreviewId]) }}" target="_blank" rel="noopener"
+                        class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                        {{ __('Abrir en nueva pestaña') }}
+                    </a>
+                @endif
+                <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarModalTicketPago">{{ __('Cerrar') }}</flux:button>
+            </div>
+        </div>
+        @if ($pagoTicketPreviewId)
+            <iframe
+                src="{{ route('pagos.ticket.pdf', ['pago' => $pagoTicketPreviewId]) }}"
+                class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                style="height: 75vh; min-height: 400px;"
+                title="{{ __('Ticket PDF') }}">
+            </iframe>
+        @endif
+    </div>
+</flux:modal>

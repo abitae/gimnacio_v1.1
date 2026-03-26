@@ -42,6 +42,10 @@ class CajaLive extends Component
 
     public $mostrarModalDetalleVenta = false;
 
+    public bool $mostrarModalTicketPago = false;
+
+    public ?int $pagoIdTicketCaja = null;
+
     public $cajaSeleccionada = null;
 
     public $reporteCierre = null;
@@ -299,6 +303,18 @@ class CajaLive extends Component
     {
         $this->mostrarModalDetalleVenta = false;
         $this->ventaDetalle = null;
+    }
+
+    public function abrirTicketPagoCaja(int $pagoId): void
+    {
+        $this->pagoIdTicketCaja = $pagoId;
+        $this->mostrarModalTicketPago = true;
+    }
+
+    public function cerrarModalTicketPagoCaja(): void
+    {
+        $this->mostrarModalTicketPago = false;
+        $this->pagoIdTicketCaja = null;
     }
 
     public function setTabEntrada(string $categoria): void

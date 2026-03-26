@@ -181,6 +181,7 @@ class ClienteMatriculaService
     protected function registrarMatriculaContadoSinSaldoPendiente(ClienteMatricula $clienteMatricula): Pago
     {
         $precio = (float) $clienteMatricula->precio_final;
+        $cobro = app(CobroTicketService::class)->resolverComprobantePago([]);
 
         return Pago::create([
             'cliente_id' => $clienteMatricula->cliente_id,
@@ -191,8 +192,8 @@ class ClienteMatriculaService
             'fecha_pago' => $clienteMatricula->fecha_inicio,
             'es_pago_parcial' => false,
             'saldo_pendiente' => 0,
-            'comprobante_tipo' => null,
-            'comprobante_numero' => null,
+            'comprobante_tipo' => $cobro['tipo'],
+            'comprobante_numero' => $cobro['numero'],
             'registrado_por' => Auth::id(),
         ]);
     }
@@ -205,6 +206,7 @@ class ClienteMatriculaService
         $precio = (float) $clienteMatricula->precio_final;
         $monto = round(min(max($montoPagoInicial, 0), $precio), 2);
         $saldo = round($precio - $monto, 2);
+        $cobro = app(CobroTicketService::class)->resolverComprobantePago([]);
 
         return Pago::create([
             'cliente_id' => $clienteMatricula->cliente_id,
@@ -215,8 +217,8 @@ class ClienteMatriculaService
             'fecha_pago' => $clienteMatricula->fecha_matricula ?? $clienteMatricula->fecha_inicio,
             'es_pago_parcial' => $saldo > 0,
             'saldo_pendiente' => $saldo,
-            'comprobante_tipo' => null,
-            'comprobante_numero' => null,
+            'comprobante_tipo' => $cobro['tipo'],
+            'comprobante_numero' => $cobro['numero'],
             'registrado_por' => Auth::id(),
         ]);
     }
@@ -230,6 +232,8 @@ class ClienteMatriculaService
             return null;
         }
 
+        $cobro = app(CobroTicketService::class)->resolverComprobantePago([]);
+
         return Pago::create([
             'cliente_id' => $clienteMatricula->cliente_id,
             'cliente_matricula_id' => $clienteMatricula->id,
@@ -239,8 +243,8 @@ class ClienteMatriculaService
             'fecha_pago' => $clienteMatricula->fecha_matricula ?? $clienteMatricula->fecha_inicio,
             'es_pago_parcial' => $saldoFinanciado > 0,
             'saldo_pendiente' => $saldoFinanciado,
-            'comprobante_tipo' => null,
-            'comprobante_numero' => null,
+            'comprobante_tipo' => $cobro['tipo'],
+            'comprobante_numero' => $cobro['numero'],
             'registrado_por' => Auth::id(),
         ]);
     }
@@ -333,6 +337,11 @@ class ClienteMatriculaService
                 }
             }
 
+            $cobro = app(CobroTicketService::class)->resolverComprobantePago([
+                'comprobante_tipo' => $data['comprobante_tipo'] ?? null,
+                'comprobante_numero' => $data['comprobante_numero'] ?? null,
+            ]);
+
             // Crear nuevo registro de pago asociado a la caja
             $pago = Pago::create([
                 'cliente_id' => $clienteMatricula->cliente_id,
@@ -346,8 +355,8 @@ class ClienteMatriculaService
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
                 'es_pago_parcial' => $esPagoParcial,
                 'saldo_pendiente' => $nuevoSaldoPendiente,
-                'comprobante_tipo' => $data['comprobante_tipo'] ?? null,
-                'comprobante_numero' => $data['comprobante_numero'] ?? null,
+                'comprobante_tipo' => $cobro['tipo'],
+                'comprobante_numero' => $cobro['numero'],
                 'registrado_por' => Auth::user()->id,
                 'caja_id' => $caja->id,
             ]);
@@ -355,16 +364,16 @@ class ClienteMatriculaService
             $cajaService = app(CajaService::class);
             $concepto = 'Cobro de '.strtolower($clienteMatricula->tipo).' - '.$clienteMatricula->nombre;
             $observaciones = 'Metodo de pago: '.$metodoPago;
-            if (! empty($data['comprobante_tipo']) || ! empty($data['comprobante_numero'])) {
-                $observaciones .= ', Comprobante: '.strtoupper((string) ($data['comprobante_tipo'] ?? '')).' '.($data['comprobante_numero'] ?? '');
+            if ($pago->comprobante_tipo || $pago->comprobante_numero) {
+                $observaciones .= ', Comprobante: '.strtoupper((string) $pago->comprobante_tipo).' '.$pago->comprobante_numero;
             }
             $cajaService->registrarIngresoPorPago(
                 $pago,
                 $concepto,
                 $clienteMatricula->esClase() ? CajaMovimiento::CATEGORIA_CLASE : CajaMovimiento::CATEGORIA_MEMBRESIA,
                 CajaMovimiento::ORIGEN_CLIENTE_MATRICULAS,
-                ClienteMatricula::class,
-                $clienteMatricula->id,
+                null,
+                null,
                 trim($observaciones, ', ')
             );
 

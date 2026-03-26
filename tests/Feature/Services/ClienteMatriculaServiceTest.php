@@ -6,6 +6,7 @@ use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Membresia;
+use App\Models\Core\Pago;
 use App\Models\User;
 use App\Services\ClienteMatriculaService;
 
@@ -57,11 +58,13 @@ it('registers a caja movement when a matricula payment is processed', function (
 
     expect($pago->caja_id)->toBe($caja->id);
     expect((float) $pago->saldo_pendiente)->toBe(140.0);
+    expect($pago->comprobante_tipo)->toBe('ticket');
+    expect($pago->comprobante_numero)->toStartWith('C');
 
     $movimiento = CajaMovimiento::query()
         ->where('caja_id', $caja->id)
-        ->where('referencia_tipo', ClienteMatricula::class)
-        ->where('referencia_id', $matricula->id)
+        ->where('referencia_tipo', Pago::class)
+        ->where('referencia_id', $pago->id)
         ->latest('id')
         ->first();
 

@@ -7,95 +7,144 @@ use App\Models\Core\PaymentMethod;
 use App\Models\Core\Producto;
 use App\Models\Core\ServicioExterno;
 use App\Services\CajaService;
-use App\Services\ClienteMembresiaService;
 use App\Services\ClienteMatriculaService;
+use App\Services\ClienteMembresiaService;
 use App\Services\ClienteService;
 use App\Services\ProductoService;
 use App\Services\ServicioExternoService;
 use App\Services\VentaService;
-use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Storage;
 use Livewire\Component;
 
 class POSLive extends Component
 {
     use FlashesToast;
+
     // Búsqueda
     public $busqueda = '';
+
     public $resultadosBusqueda = [];
+
     public $categoriaFiltro = '';
+
     public $tipoItem = 'producto'; // 'producto' o 'servicio'
 
     // Carrito
     public $carrito = [];
+
     public $descuento = 0;
+
     public $observaciones = '';
 
     // Modal Procesar venta (paso 2): tipo comprador, cupón, comprobante, pago
     /** @var string 'cliente'|'empleado'|'cliente_solo_venta' */
     public $tipoComprador = 'cliente';
+
     public $clienteId = null;
+
     public $clienteSeleccionado = null;
+
     public $employeeId = null;
+
     public $employeeSeleccionado = null;
+
     public $clienteSoloVentaNombre = '';
+
     public $clienteSoloVentaDocumento = '';
+
     public $clienteSoloVentaTelefono = '';
+
     /** Búsqueda en modal Procesar venta (por nombre o documento) */
     public $clienteSearchProcesar = '';
+
     public $employeeSearchProcesar = '';
+
     /** @var \Illuminate\Support\Collection */
     public $clientesProcesar;
+
     /** @var \Illuminate\Support\Collection */
     public $employeesProcesar;
+
     public $tipoComprobante = 'ticket';
+
     /** @var int|null ID del método de pago (PaymentMethod) */
     public $paymentMethodId = null;
+
     public $numeroOperacion = '';
+
     public $entidadFinanciera = '';
+
     public $codigoCupon = '';
+
     public $cuponAplicado = null;
+
     public $montoDescuentoCupon = 0.0;
+
     public $esCredito = false;
+
     public $montoInicial = 0.0;
+
     public $fechaVencimientoDeuda = '';
 
     // Estado modales
     public $mostrarModalCliente = false;
+
     public $mostrarModalProcesarVenta = false;
+
     public $mostrarModalConfirmacionVenta = false; // resumen antes de confirmar
+
     public $mostrarModalConfirmacion = false; // post-venta (legacy)
+
     public $ventaProcesada = null;
+
     /** ID de la venta para mostrar el PDF del comprobante en modal */
     public $ventaIdComprobante = null;
+
     public $mostrarModalComprobante = false;
+
+    public bool $mostrarModalTicketPagoCobro = false;
+
+    public ?int $pagoIdTicketCobro = null;
 
     // Modo Cobrar membresía/clase
     public $modoCobroMembresiaClase = false;
+
     public $clienteSearchCobro = '';
+
     public $clientesCobro;
+
     public $selectedClienteCobro = null;
+
     public $isSearchingCobro = false;
+
     public $itemsConSaldo = [];
+
     public $mostrarModalCobro = false;
+
     public $cobroItemTipo = null; // 'matricula' | 'membresia'
+
     public $cobroItemId = null;
+
     public $saldoPendienteCobro = 0.00;
+
     public $cobroFormData = [
         'monto_pago' => 0.00,
         'payment_method_id' => null,
         'numero_operacion' => '',
         'entidad_financiera' => '',
-        'comprobante_tipo' => '',
-        'comprobante_numero' => '',
     ];
 
     protected CajaService $cajaService;
+
     protected ProductoService $productoService;
+
     protected ServicioExternoService $servicioExternoService;
+
     protected VentaService $ventaService;
+
     protected ClienteService $clienteService;
+
     protected ClienteMatriculaService $clienteMatriculaService;
+
     protected ClienteMembresiaService $clienteMembresiaService;
 
     public function boot(
@@ -125,7 +174,7 @@ class POSLive extends Component
         $efectivo = PaymentMethod::activos()->where('nombre', 'Efectivo')->first();
         $this->paymentMethodId = $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id;
         // Validar que haya caja abierta
-        if (!$this->cajaService->validarCajaAbierta(auth()->id())) {
+        if (! $this->cajaService->validarCajaAbierta(auth()->id())) {
             $this->flashToast('error', 'No hay una caja abierta. Por favor, abra una caja antes de usar el punto de venta.');
         }
     }
@@ -167,6 +216,7 @@ class POSLive extends Component
     {
         if (empty($this->busqueda)) {
             $this->resultadosBusqueda = [];
+
             return;
         }
 
@@ -174,7 +224,7 @@ class POSLive extends Component
 
         if ($this->tipoItem === 'producto') {
             $productos = $this->productoService->buscarParaPOS($this->busqueda);
-            
+
             foreach ($productos as $producto) {
                 $this->resultadosBusqueda[] = [
                     'tipo' => 'producto',
@@ -188,7 +238,7 @@ class POSLive extends Component
             }
         } else {
             $servicios = $this->servicioExternoService->buscarParaPOS($this->busqueda);
-            
+
             foreach ($servicios as $servicio) {
                 $this->resultadosBusqueda[] = [
                     'tipo' => 'servicio',
@@ -246,8 +296,8 @@ class POSLive extends Component
      */
     public function agregarAlCarrito($item)
     {
-        $key = $item['tipo'] . '-' . $item['id'];
-        
+        $key = $item['tipo'].'-'.$item['id'];
+
         if (isset($this->carrito[$key])) {
             $this->carrito[$key]['cantidad']++;
         } else {
@@ -274,6 +324,7 @@ class POSLive extends Component
     {
         if ($cantidad <= 0) {
             $this->eliminarDelCarrito($key);
+
             return;
         }
 
@@ -281,8 +332,9 @@ class POSLive extends Component
             // Validar stock solo para productos
             if ($this->carrito[$key]['tipo'] === 'producto') {
                 $producto = Producto::find($this->carrito[$key]['id']);
-                if ($producto && !$producto->tieneStockSuficiente($cantidad)) {
+                if ($producto && ! $producto->tieneStockSuficiente($cantidad)) {
                     $this->flashToast('error', "Stock insuficiente. Disponible: {$producto->stock_actual}");
+
                     return;
                 }
             }
@@ -319,6 +371,7 @@ class POSLive extends Component
             $precioItem = ($item['precio'] * $item['cantidad']) - ($item['descuento'] ?? 0);
             $subtotal += $precioItem;
         }
+
         return $subtotal;
     }
 
@@ -336,6 +389,7 @@ class POSLive extends Component
     public function getIgvProperty(): float
     {
         $base = max(0, $this->baseParaTotal);
+
         return round($base * 18 / 118, 2);
     }
 
@@ -345,6 +399,7 @@ class POSLive extends Component
     public function getSubtotalSinIgvProperty(): float
     {
         $base = max(0, $this->baseParaTotal);
+
         return round($base - $this->igv, 2);
     }
 
@@ -363,6 +418,7 @@ class POSLive extends Component
     {
         if (empty($this->carrito)) {
             $this->flashToast('error', 'El carrito está vacío.');
+
             return;
         }
         $this->mostrarModalProcesarVenta = true;
@@ -381,12 +437,14 @@ class POSLive extends Component
      */
     public function abrirModalConfirmacionVenta()
     {
-        if ($this->tipoComprador === 'cliente' && !$this->clienteId) {
+        if ($this->tipoComprador === 'cliente' && ! $this->clienteId) {
             $this->flashToast('error', 'Seleccione un cliente del gimnasio.');
+
             return;
         }
-        if ($this->tipoComprador === 'empleado' && !$this->employeeId) {
+        if ($this->tipoComprador === 'empleado' && ! $this->employeeId) {
             $this->flashToast('error', 'Seleccione un empleado.');
+
             return;
         }
         if ($this->tipoComprador === 'cliente_solo_venta') {
@@ -394,25 +452,30 @@ class POSLive extends Component
             $doc = trim((string) $this->clienteSoloVentaDocumento);
             if ($nombre === '' || $doc === '') {
                 $this->flashToast('error', 'Ingrese nombre y documento del cliente solo venta.');
+
                 return;
             }
         }
-        if (!$this->paymentMethodId) {
+        if (! $this->paymentMethodId) {
             $this->flashToast('error', 'Seleccione un método de pago.');
+
             return;
         }
         $paymentMethod = PaymentMethod::find($this->paymentMethodId);
         if ($paymentMethod && $paymentMethod->requiere_numero_operacion && empty(trim((string) $this->numeroOperacion))) {
             $this->flashToast('error', 'Este método de pago requiere número de operación.');
+
             return;
         }
         if ($paymentMethod && $paymentMethod->requiere_entidad && empty(trim((string) $this->entidadFinanciera))) {
             $this->flashToast('error', 'Este método de pago requiere entidad financiera.');
+
             return;
         }
         if ($this->esCredito && ($this->tipoComprador === 'cliente' || $this->tipoComprador === 'empleado')) {
             if (empty($this->fechaVencimientoDeuda)) {
                 $this->flashToast('error', 'Indique la fecha de vencimiento de la deuda.');
+
                 return;
             }
         }
@@ -435,6 +498,7 @@ class POSLive extends Component
         $term = trim((string) $value);
         if (strlen($term) < 2) {
             $this->clientesProcesar = collect([]);
+
             return;
         }
         $this->clientesProcesar = $this->clienteService->quickSearch($term, 15);
@@ -448,6 +512,7 @@ class POSLive extends Component
         $term = trim((string) $value);
         if (strlen($term) < 2) {
             $this->employeesProcesar = collect([]);
+
             return;
         }
         $this->employeesProcesar = \App\Models\Core\Employee::activos()
@@ -514,6 +579,7 @@ class POSLive extends Component
     {
         if (empty($this->carrito)) {
             $this->flashToast('error', 'El carrito está vacío.');
+
             return;
         }
 
@@ -535,7 +601,7 @@ class POSLive extends Component
                 'cliente_venta_nombre' => $this->tipoComprador === 'cliente_solo_venta' ? trim((string) $this->clienteSoloVentaNombre) : null,
                 'cliente_venta_documento' => $this->tipoComprador === 'cliente_solo_venta' ? trim((string) $this->clienteSoloVentaDocumento) : null,
                 'cliente_venta_telefono' => $this->tipoComprador === 'cliente_solo_venta' ? trim((string) $this->clienteSoloVentaTelefono) : null,
-                'tipo_comprobante' => $this->tipoComprobante,
+                'tipo_comprobante' => 'ticket',
                 'payment_method_id' => $this->paymentMethodId,
                 'numero_operacion' => trim((string) $this->numeroOperacion) ?: null,
                 'entidad_financiera' => trim((string) $this->entidadFinanciera) ?: null,
@@ -586,6 +652,7 @@ class POSLive extends Component
         $this->montoDescuentoCupon = 0.0;
         $this->numeroOperacion = '';
         $this->entidadFinanciera = '';
+        $this->tipoComprobante = 'ticket';
     }
 
     /**
@@ -605,19 +672,23 @@ class POSLive extends Component
         $codigo = strtoupper(trim((string) $this->codigoCupon));
         if (! $codigo) {
             $this->flashToast('error', 'Ingresa el código del cupón.');
+
             return;
         }
         $coupon = \App\Models\Core\DiscountCoupon::where('codigo', $codigo)->first();
         if (! $coupon) {
             $this->flashToast('error', 'Cupón no encontrado.');
+
             return;
         }
         if (! $coupon->puedeUsarse()) {
             $this->flashToast('error', 'El cupón no está vigente o ya alcanzó el límite de usos.');
+
             return;
         }
         if (! $coupon->aplicaA('pos')) {
             $this->flashToast('error', 'Este cupón no aplica para ventas en POS.');
+
             return;
         }
         $subtotalCarrito = collect($this->carrito)->sum(fn ($i) => ($i['precio'] * $i['cantidad']) - ($i['descuento'] ?? 0));
@@ -625,7 +696,7 @@ class POSLive extends Component
         $monto = $coupon->calcularDescuento($base);
         $this->cuponAplicado = $coupon->id;
         $this->montoDescuentoCupon = $monto;
-        $this->flashToast('success', 'Cupón aplicado: -S/ ' . number_format($monto, 2));
+        $this->flashToast('success', 'Cupón aplicado: -S/ '.number_format($monto, 2));
     }
 
     public function quitarCupon(): void
@@ -651,6 +722,12 @@ class POSLive extends Component
     {
         $this->mostrarModalComprobante = false;
         $this->ventaIdComprobante = null;
+    }
+
+    public function cerrarModalTicketPagoCobro(): void
+    {
+        $this->mostrarModalTicketPagoCobro = false;
+        $this->pagoIdTicketCobro = null;
     }
 
     // --- Cobrar membresía/clase ---
@@ -693,10 +770,10 @@ class POSLive extends Component
     public function selectClienteCobro($clienteId)
     {
         $this->selectedClienteCobro = $this->clienteService->find((int) $clienteId);
-        if (!$this->selectedClienteCobro) {
+        if (! $this->selectedClienteCobro) {
             return;
         }
-        $this->clienteSearchCobro = $this->selectedClienteCobro->nombres . ' ' . $this->selectedClienteCobro->apellidos;
+        $this->clienteSearchCobro = $this->selectedClienteCobro->nombres.' '.$this->selectedClienteCobro->apellidos;
         $this->clientesCobro = collect([]);
         $this->cargarItemsConSaldo();
     }
@@ -712,7 +789,7 @@ class POSLive extends Component
     public function cargarItemsConSaldo()
     {
         $this->itemsConSaldo = [];
-        if (!$this->selectedClienteCobro) {
+        if (! $this->selectedClienteCobro) {
             return;
         }
         $clienteId = $this->selectedClienteCobro->id;
@@ -758,8 +835,6 @@ class POSLive extends Component
         $this->cobroFormData['payment_method_id'] = $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id;
         $this->cobroFormData['numero_operacion'] = '';
         $this->cobroFormData['entidad_financiera'] = '';
-        $this->cobroFormData['comprobante_tipo'] = '';
-        $this->cobroFormData['comprobante_numero'] = '';
         $this->mostrarModalCobro = true;
     }
 
@@ -774,8 +849,6 @@ class POSLive extends Component
             'payment_method_id' => null,
             'numero_operacion' => '',
             'entidad_financiera' => '',
-            'comprobante_tipo' => '',
-            'comprobante_numero' => '',
         ];
         $this->cargarItemsConSaldo();
     }
@@ -783,35 +856,37 @@ class POSLive extends Component
     public function procesarCobro()
     {
         try {
-            if (!$this->cobroItemId || !$this->cobroItemTipo) {
+            if (! $this->cobroItemId || ! $this->cobroItemTipo) {
                 $this->flashToast('error', 'No se ha seleccionado un ítem para cobrar.');
+
                 return;
             }
             $pmId = $this->cobroFormData['payment_method_id'] ?? null;
             $paymentMethod = $pmId ? PaymentMethod::find($pmId) : null;
             if ($paymentMethod && $paymentMethod->requiere_numero_operacion && empty(trim((string) ($this->cobroFormData['numero_operacion'] ?? '')))) {
                 $this->flashToast('error', 'Este método de pago requiere número de operación.');
+
                 return;
             }
             if ($paymentMethod && $paymentMethod->requiere_entidad && empty(trim((string) ($this->cobroFormData['entidad_financiera'] ?? '')))) {
                 $this->flashToast('error', 'Este método de pago requiere entidad financiera.');
+
                 return;
             }
             $data = [
                 'monto_pago' => (float) $this->cobroFormData['monto_pago'],
+                'fecha_pago' => now(),
                 'payment_method_id' => $pmId,
                 'numero_operacion' => trim((string) ($this->cobroFormData['numero_operacion'] ?? '')) ?: null,
                 'entidad_financiera' => trim((string) ($this->cobroFormData['entidad_financiera'] ?? '')) ?: null,
-                'comprobante_tipo' => $this->cobroFormData['comprobante_tipo'] ?? '',
-                'comprobante_numero' => $this->cobroFormData['comprobante_numero'] ?? '',
             ];
-            if ($this->cobroItemTipo === 'matricula') {
-                $this->clienteMatriculaService->procesarPago($this->cobroItemId, $data);
-            } else {
-                $this->clienteMembresiaService->procesarPago($this->cobroItemId, $data);
-            }
+            $pago = $this->cobroItemTipo === 'matricula'
+                ? $this->clienteMatriculaService->procesarPago($this->cobroItemId, $data)
+                : $this->clienteMembresiaService->procesarPago($this->cobroItemId, $data);
             $this->flashToast('success', 'Cobro registrado correctamente. El pago se ha reportado a la caja abierta.');
             $this->cerrarModalCobro();
+            $this->pagoIdTicketCobro = $pago->id;
+            $this->mostrarModalTicketPagoCobro = true;
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());
         }

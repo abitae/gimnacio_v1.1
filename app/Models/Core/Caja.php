@@ -152,7 +152,15 @@ class Caja extends Model
                 $metodoPago = $referencia->metodo_pago;
             } elseif ($referencia instanceof RentalPayment) {
                 $metodoPago = $referencia->paymentMethod?->nombre;
+            } elseif ($referencia instanceof EnrollmentInstallment) {
+                $metodoPago = $referencia->pago?->metodo_pago;
             }
+
+            $ticketPagoId = match (true) {
+                $referencia instanceof Pago => $referencia->id,
+                $referencia instanceof EnrollmentInstallment => $referencia->pago_id,
+                default => null,
+            };
 
             return [
                 'id' => $movimiento->id,
@@ -167,10 +175,14 @@ class Caja extends Model
                 'usuario' => $movimiento->usuario?->name,
                 'referencia_tipo' => $movimiento->referencia_tipo,
                 'referencia_id' => $movimiento->referencia_id,
+                'ticket_pago_id' => $ticketPagoId ? (int) $ticketPagoId : null,
                 'referencia_label' => match (true) {
                     $referencia instanceof Venta => $referencia->numero_venta,
-                    $referencia instanceof Pago => 'Pago #' . $referencia->id,
-                    $referencia instanceof RentalPayment => 'Alquiler #' . $referencia->rental_id,
+                    $referencia instanceof Pago => 'Pago #'.$referencia->id,
+                    $referencia instanceof RentalPayment => 'Alquiler #'.$referencia->rental_id,
+                    $referencia instanceof EnrollmentInstallment => $referencia->pago_id
+                        ? 'Pago #'.$referencia->pago_id
+                        : ('Cuota '.$referencia->numero_cuota),
                     default => null,
                 },
             ];

@@ -87,6 +87,7 @@
                                 <th class="px-3 py-2">Método</th>
                                 <th class="px-3 py-2 text-right">Monto</th>
                                 <th class="px-3 py-2">Ref.</th>
+                                <th class="px-3 py-2 text-right">Ticket</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -101,6 +102,13 @@
                                             <button type="button" class="text-sky-600 underline-offset-2 hover:underline dark:text-sky-400" wire:click="verDetalleVenta({{ $movimiento['referencia_id'] }})">{{ $movimiento['referencia_label'] }}</button>
                                         @else
                                             <span class="text-zinc-500">{{ $movimiento['referencia_label'] ?: '—' }}</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 text-right">
+                                        @if (! empty($movimiento['ticket_pago_id']))
+                                            <button type="button" class="text-xs text-sky-600 underline-offset-2 hover:underline dark:text-sky-400" wire:click="abrirTicketPagoCaja({{ $movimiento['ticket_pago_id'] }})">Reimprimir</button>
+                                        @else
+                                            <span class="text-zinc-400">—</span>
                                         @endif
                                     </td>
                                 </tr>
@@ -310,5 +318,30 @@
                 </div>
             </div>
         @endif
+    </flux:modal>
+
+    <flux:modal wire:model="mostrarModalTicketPago" focusable class="md:max-w-4xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Ticket de cobro</h2>
+                <div class="flex gap-2">
+                    @if ($pagoIdTicketCaja)
+                        <a href="{{ route('pagos.ticket.pdf', ['pago' => $pagoIdTicketCaja]) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestaña
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarModalTicketPagoCaja">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($pagoIdTicketCaja)
+                <iframe
+                    src="{{ route('pagos.ticket.pdf', ['pago' => $pagoIdTicketCaja]) }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Ticket PDF">
+                </iframe>
+            @endif
+        </div>
     </flux:modal>
 </div>

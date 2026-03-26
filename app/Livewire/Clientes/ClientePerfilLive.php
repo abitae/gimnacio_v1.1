@@ -66,6 +66,10 @@ class ClientePerfilLive extends Component
 
     public bool $cobroModalAbierto = false;
 
+    public bool $mostrarModalTicketPago = false;
+
+    public ?int $pagoTicketPreviewId = null;
+
     public array $cobroForm = [
         'cliente_matricula_id' => null,
         'monto_pago' => '',
@@ -499,12 +503,27 @@ class ClientePerfilLive extends Component
         return $this->selectedClienteId;
     }
 
-    protected function afterCuotaPagoRegistrado(): void
+    protected function afterCuotaPagoRegistrado(?Pago $pago = null): void
     {
         $this->closeCuotasModal();
         if ($this->selectedClienteId) {
             $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
         }
+        if ($pago) {
+            $this->abrirModalTicketPago($pago->id);
+        }
+    }
+
+    public function abrirModalTicketPago(int $pagoId): void
+    {
+        $this->pagoTicketPreviewId = $pagoId;
+        $this->mostrarModalTicketPago = true;
+    }
+
+    public function cerrarModalTicketPago(): void
+    {
+        $this->mostrarModalTicketPago = false;
+        $this->pagoTicketPreviewId = null;
     }
 
     public function closeCobroMatriculaModal(): void
@@ -537,7 +556,7 @@ class ClientePerfilLive extends Component
                 return;
             }
 
-            $this->matriculaService->procesarPago($mid, [
+            $pago = $this->matriculaService->procesarPago($mid, [
                 'monto_pago' => (float) $this->cobroForm['monto_pago'],
                 'fecha_pago' => $this->cobroForm['fecha_pago'],
                 'payment_method_id' => $this->cobroForm['payment_method_id'] ?: null,
@@ -548,6 +567,7 @@ class ClientePerfilLive extends Component
             $this->flashToast('success', 'Cobro registrado correctamente.');
             $this->closeCobroMatriculaModal();
             $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+            $this->abrirModalTicketPago($pago->id);
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());
         }

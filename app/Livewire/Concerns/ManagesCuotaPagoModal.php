@@ -3,6 +3,7 @@
 namespace App\Livewire\Concerns;
 
 use App\Models\Core\EnrollmentInstallment;
+use App\Models\Core\Pago;
 use App\Models\Core\PaymentMethod;
 use App\Services\EnrollmentInstallmentService;
 
@@ -28,7 +29,7 @@ trait ManagesCuotaPagoModal
      */
     abstract protected function cuotaPagoClienteIdScope(): ?int;
 
-    abstract protected function afterCuotaPagoRegistrado(): void;
+    abstract protected function afterCuotaPagoRegistrado(?Pago $pago = null): void;
 
     public function openRegistrarPagoCuota(int $installmentId): void
     {
@@ -96,7 +97,7 @@ trait ManagesCuotaPagoModal
         }
 
         try {
-            app(EnrollmentInstallmentService::class)->pagarCuota($inst, [
+            $pago = app(EnrollmentInstallmentService::class)->pagarCuota($inst, [
                 'monto' => (float) $this->pagoCuotaForm['monto'],
                 'fecha_pago' => $this->pagoCuotaForm['fecha_pago'],
                 'payment_method_id' => $this->pagoCuotaForm['payment_method_id'] ?: null,
@@ -105,7 +106,7 @@ trait ManagesCuotaPagoModal
             ]);
             $this->flashToast('success', __('Pago de cuota registrado.'));
             $this->closeCuotaPagoModal();
-            $this->afterCuotaPagoRegistrado();
+            $this->afterCuotaPagoRegistrado($pago);
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());
         }

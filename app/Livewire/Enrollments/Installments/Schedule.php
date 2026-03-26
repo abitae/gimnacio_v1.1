@@ -33,7 +33,7 @@ class Schedule extends Component
         return (int) $this->cliente->id;
     }
 
-    protected function afterCuotaPagoRegistrado(): void
+    protected function afterCuotaPagoRegistrado(?\App\Models\Core\Pago $pago = null): void
     {
         $this->cliente->refresh();
         $this->cliente->load([

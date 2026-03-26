@@ -30,7 +30,7 @@ class ReporteCuotasVencidasLive extends Component
         return null;
     }
 
-    protected function afterCuotaPagoRegistrado(): void
+    protected function afterCuotaPagoRegistrado(?\App\Models\Core\Pago $pago = null): void
     {
         $this->resetPage();
     }
