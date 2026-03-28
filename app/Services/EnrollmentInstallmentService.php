@@ -23,11 +23,15 @@ class EnrollmentInstallmentService
      */
     public function addFinancing(Cliente $cliente, ClienteMatricula $origen, array $data): EnrollmentInstallmentPlan
     {
-        $montoFinanciado = (float) ($data['monto_total'] ?? 0);
+        $montoFinanciado = round((float) ($data['monto_total'] ?? 0), 2);
         $numeroCuotas = (int) ($data['numero_cuotas'] ?? 0);
+        $cuotaInicialMonto = round((float) ($data['cuota_inicial_monto'] ?? 0), 2);
 
         if ($montoFinanciado <= 0 || $numeroCuotas < 2) {
             throw new \InvalidArgumentException('Monto financiado y número de cuotas no son válidos.');
+        }
+        if ($cuotaInicialMonto < 0 || $cuotaInicialMonto >= $montoFinanciado) {
+            throw new \InvalidArgumentException('La cuota inicial debe ser mayor o igual a 0 y menor al monto total.');
         }
 
         if ((int) $origen->cliente_id !== (int) $cliente->id) {
@@ -40,9 +44,10 @@ class EnrollmentInstallmentService
             'observaciones' => $data['observaciones'] ?? null,
         ];
 
-        $montoCuota = round($montoFinanciado / $numeroCuotas, 2);
+        $saldoProgramado = round($montoFinanciado - $cuotaInicialMonto, 2);
+        $montosCuotas = $this->distribuirMontosExactos($saldoProgramado, $numeroCuotas);
 
-        return DB::transaction(function () use ($cliente, $origen, $numeroCuotas, $montoCuota, $validated) {
+        return DB::transaction(function () use ($cliente, $origen, $numeroCuotas, $cuotaInicialMonto, $montosCuotas, $validated) {
             $plan = EnrollmentInstallmentPlan::query()
                 ->where('cliente_id', $cliente->id)
                 ->lockForUpdate()
@@ -64,15 +69,27 @@ class EnrollmentInstallmentService
             $fechas = $this->generarFechasVencimiento(
                 $validated['fecha_inicio'],
                 $numeroCuotas,
-                $validated['frecuencia']
+                $validated['frecuencia'],
+                $cuotaInicialMonto > 0
             );
+
+            if ($cuotaInicialMonto > 0) {
+                EnrollmentInstallment::create([
+                    'enrollment_installment_plan_id' => $plan->id,
+                    'cliente_matricula_id' => $origen->id,
+                    'numero_cuota' => 0,
+                    'monto' => $cuotaInicialMonto,
+                    'fecha_vencimiento' => $validated['fecha_inicio'],
+                    'estado' => 'pendiente',
+                ]);
+            }
 
             foreach ($fechas as $i => $fecha) {
                 EnrollmentInstallment::create([
                     'enrollment_installment_plan_id' => $plan->id,
                     'cliente_matricula_id' => $origen->id,
                     'numero_cuota' => 0,
-                    'monto' => $montoCuota,
+                    'monto' => $montosCuotas[$i],
                     'fecha_vencimiento' => $fecha,
                     'estado' => 'pendiente',
                 ]);
@@ -133,10 +150,13 @@ class EnrollmentInstallmentService
      *
      * @return array<int, Carbon>
      */
-    private function generarFechasVencimiento(Carbon $fechaInicio, int $numeroCuotas, string $frecuencia): array
+    private function generarFechasVencimiento(Carbon $fechaInicio, int $numeroCuotas, string $frecuencia, bool $desdeSiguienteIntervalo = false): array
     {
         $fechas = [];
         $current = $fechaInicio->copy()->startOfDay();
+        if ($desdeSiguienteIntervalo) {
+            $current = $this->sumarIntervaloSegunFrecuencia($current, $frecuencia);
+        }
         $dias = match ($frecuencia) {
             'semanal' => 7,
             'quincenal' => 15,
@@ -154,6 +174,44 @@ class EnrollmentInstallmentService
         }
 
         return $fechas;
+    }
+
+    /**
+     * Distribuye un monto en n cuotas con precisión de centavos y suma exacta.
+     *
+     * @return array<int, float>
+     */
+    private function distribuirMontosExactos(float $montoTotal, int $numeroCuotas): array
+    {
+        if ($numeroCuotas <= 0) {
+            return [];
+        }
+
+        $totalCentavos = (int) round($montoTotal * 100);
+        $baseCentavos = intdiv($totalCentavos, $numeroCuotas);
+        $residuo = $totalCentavos % $numeroCuotas;
+        $montos = [];
+
+        for ($i = 0; $i < $numeroCuotas; $i++) {
+            $extra = $i < $residuo ? 1 : 0;
+            $montos[] = ($baseCentavos + $extra) / 100;
+        }
+
+        return $montos;
+    }
+
+    private function sumarIntervaloSegunFrecuencia(Carbon $fecha, string $frecuencia): Carbon
+    {
+        $dias = match ($frecuencia) {
+            'semanal' => 7,
+            'quincenal' => 15,
+            'mensual' => 30,
+            'anual' => 360,
+            'personalizado' => 30,
+            default => 30,
+        };
+
+        return $fecha->addDays($dias);
     }
 
     public function pagarCuota(EnrollmentInstallment $installment, array $data): Pago

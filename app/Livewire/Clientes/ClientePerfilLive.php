@@ -96,7 +96,7 @@ class ClientePerfilLive extends Component
     ];
 
     /** @var 'cuotas_pendientes'|'pagos' */
-    public string $perfilFinanzasTab = 'cuotas_pendientes';
+    public string $perfilFinanzasTab = 'pagos';
 
     public bool $reservaModalAbierto = false;
 
@@ -251,7 +251,7 @@ class ClientePerfilLive extends Component
         $this->crearPlanCuotasMatriculaId = null;
         $this->cuotaPagoModalAbierto = false;
         $this->pagoCuotaInstallmentId = null;
-        $this->perfilFinanzasTab = 'cuotas_pendientes';
+        $this->perfilFinanzasTab = 'pagos';
         $this->reservaModalAbierto = false;
         $this->editingRentalId = null;
         $this->fidelizacionHistorialModalAbierto = false;
@@ -871,11 +871,14 @@ class ClientePerfilLive extends Component
     {
         $matriculaOpcionesCobro = collect([]);
         $pendienteCuotaPorMatricula = [];
+        $cuotasCliente = collect([]);
         $paymentMethods = collect([]);
         $matriculasSinCronogramaCuotas = collect([]);
 
         if ($this->selectedClienteId) {
-            if ($this->enrollmentInstallmentService->installmentsForCliente((int) $this->selectedClienteId)->isEmpty()) {
+            $cuotasCliente = $this->enrollmentInstallmentService->installmentsForCliente((int) $this->selectedClienteId);
+
+            if ($cuotasCliente->isEmpty()) {
                 $matriculasSinCronogramaCuotas = ClienteMatricula::query()
                     ->where('cliente_id', $this->selectedClienteId)
                     ->where('estado', '!=', 'cancelada')
@@ -933,6 +936,7 @@ class ClientePerfilLive extends Component
         return view('livewire.clientes.cliente-perfil-live', [
             'matriculaOpcionesCobro' => $matriculaOpcionesCobro,
             'pendienteCuotaPorMatricula' => $pendienteCuotaPorMatricula,
+            'cuotasCliente' => $cuotasCliente,
             'paymentMethods' => $paymentMethods,
             'matriculasSinCronogramaCuotas' => $matriculasSinCronogramaCuotas,
             'cuotasModalInstallments' => $cuotasModalInstallments,

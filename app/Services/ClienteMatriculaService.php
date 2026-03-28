@@ -138,115 +138,19 @@ class ClienteMatriculaService
             }
 
             if ($clienteMatricula->usaPlanCuotas() && $installmentConfig) {
-                $this->registrarPagoInicialCuotas(
-                    $clienteMatricula,
-                    $installmentConfig['cuota_inicial_monto'],
-                    $installmentConfig['saldo_financiado']
-                );
-
                 $cliente = $clienteMatricula->cliente ?? Cliente::findOrFail($clienteMatricula->cliente_id);
                 app(EnrollmentInstallmentService::class)->addFinancing($cliente, $clienteMatricula, [
-                    'monto_total' => $installmentConfig['saldo_financiado'],
+                    'monto_total' => (float) $clienteMatricula->precio_final,
+                    'cuota_inicial_monto' => $installmentConfig['cuota_inicial_monto'],
                     'numero_cuotas' => $installmentConfig['numero_cuotas'],
                     'frecuencia' => $installmentConfig['frecuencia'],
                     'fecha_inicio' => $validated['fecha_inicio_plan_cuotas'] ?? $validated['fecha_matricula'],
-                    'observaciones' => 'Plan generado automáticamente al registrar la membresía.',
+                    'observaciones' => 'Plan generado automáticamente al registrar la membresía (sin cobro en alta).',
                 ]);
-            } else {
-                $montoPagoInicial = isset($validated['monto_pago_inicial'])
-                    ? round((float) $validated['monto_pago_inicial'], 2)
-                    : 0.0;
-                $precio = (float) $clienteMatricula->precio_final;
-
-                if (
-                    $clienteMatricula->tipo === 'membresia'
-                    && ($validated['modalidad_pago'] ?? 'contado') === 'contado'
-                    && $montoPagoInicial > 0
-                    && $montoPagoInicial < $precio
-                ) {
-                    $this->registrarMatriculaContadoConPagoParcial($clienteMatricula, $montoPagoInicial);
-                } else {
-                    $this->registrarMatriculaContadoSinSaldoPendiente($clienteMatricula);
-                }
             }
 
             return $clienteMatricula->fresh(['pagos', 'installmentPlan.installments']);
         });
-    }
-
-    /**
-     * Matrícula al contado: sin saldo pendiente (pago registrado como contado íntegro).
-     * No asigna caja_id (mismo criterio que cuota inicial al crear matrícula).
-     */
-    protected function registrarMatriculaContadoSinSaldoPendiente(ClienteMatricula $clienteMatricula): Pago
-    {
-        $precio = (float) $clienteMatricula->precio_final;
-        $cobro = app(CobroTicketService::class)->resolverComprobantePago([]);
-
-        return Pago::create([
-            'cliente_id' => $clienteMatricula->cliente_id,
-            'cliente_matricula_id' => $clienteMatricula->id,
-            'monto' => $precio,
-            'moneda' => 'PEN',
-            'metodo_pago' => 'contado',
-            'fecha_pago' => $clienteMatricula->fecha_inicio,
-            'es_pago_parcial' => false,
-            'saldo_pendiente' => 0,
-            'comprobante_tipo' => $cobro['tipo'],
-            'comprobante_numero' => $cobro['numero'],
-            'registrado_por' => Auth::id(),
-        ]);
-    }
-
-    /**
-     * Contado con pago a cuenta: primer movimiento deja saldo pendiente (cobrar después con caja).
-     */
-    protected function registrarMatriculaContadoConPagoParcial(ClienteMatricula $clienteMatricula, float $montoPagoInicial): Pago
-    {
-        $precio = (float) $clienteMatricula->precio_final;
-        $monto = round(min(max($montoPagoInicial, 0), $precio), 2);
-        $saldo = round($precio - $monto, 2);
-        $cobro = app(CobroTicketService::class)->resolverComprobantePago([]);
-
-        return Pago::create([
-            'cliente_id' => $clienteMatricula->cliente_id,
-            'cliente_matricula_id' => $clienteMatricula->id,
-            'monto' => $monto,
-            'moneda' => 'PEN',
-            'metodo_pago' => 'pago_a_cuenta',
-            'fecha_pago' => $clienteMatricula->fecha_matricula ?? $clienteMatricula->fecha_inicio,
-            'es_pago_parcial' => $saldo > 0,
-            'saldo_pendiente' => $saldo,
-            'comprobante_tipo' => $cobro['tipo'],
-            'comprobante_numero' => $cobro['numero'],
-            'registrado_por' => Auth::id(),
-        ]);
-    }
-
-    protected function registrarPagoInicialCuotas(
-        ClienteMatricula $clienteMatricula,
-        float $montoPagoInicial,
-        float $saldoFinanciado
-    ): ?Pago {
-        if ($montoPagoInicial <= 0) {
-            return null;
-        }
-
-        $cobro = app(CobroTicketService::class)->resolverComprobantePago([]);
-
-        return Pago::create([
-            'cliente_id' => $clienteMatricula->cliente_id,
-            'cliente_matricula_id' => $clienteMatricula->id,
-            'monto' => $montoPagoInicial,
-            'moneda' => 'PEN',
-            'metodo_pago' => 'cuota_inicial',
-            'fecha_pago' => $clienteMatricula->fecha_matricula ?? $clienteMatricula->fecha_inicio,
-            'es_pago_parcial' => $saldoFinanciado > 0,
-            'saldo_pendiente' => $saldoFinanciado,
-            'comprobante_tipo' => $cobro['tipo'],
-            'comprobante_numero' => $cobro['numero'],
-            'registrado_por' => Auth::id(),
-        ]);
     }
 
     protected function resolverConfiguracionCuotas(?Membresia $membresia, array $validated): array
@@ -558,8 +462,6 @@ class ClienteMatriculaService
             ->get();
 
         if ($pagos->isEmpty()) {
-            $this->registrarMatriculaContadoSinSaldoPendiente($clienteMatricula);
-
             return;
         }
 

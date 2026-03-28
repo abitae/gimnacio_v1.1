@@ -148,23 +148,17 @@
                             <flux:error name="matriculaForm.modalidad_pago" />
                         </div>
                         <div>
-                            <flux:input size="xs" wire:model.number="matriculaForm.cuota_inicial_monto" label="{{ __('Cuota inicial (S/)') }}"
+                            <flux:input size="xs" wire:model.live.number="matriculaForm.cuota_inicial_monto" label="{{ __('Cuota inicial (S/)') }}"
                                 type="number" step="0.01" min="0"
                                 @disabled(($matriculaForm['modalidad_pago'] ?? 'contado') !== 'cuotas' || ($clienteMatriculaId && ($matriculaForm['modalidad_pago'] ?? 'contado') === 'cuotas')) />
+                            @if (($matriculaForm['modalidad_pago'] ?? 'contado') === 'cuotas')
+                                <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                    {{ __('No se cobra al matricular: la cuota inicial se registra como deuda pendiente en el plan de cuotas.') }}
+                                </p>
+                            @endif
                             <flux:error name="matriculaForm.cuota_inicial_monto" />
                         </div>
                     </div>
-
-                    @if (! $matriculaFormSinPagoInicialEnAlta && ! $clienteMatriculaId && ($matriculaForm['modalidad_pago'] ?? 'contado') === 'contado')
-                        <div class="mt-2">
-                            <flux:input size="xs" wire:model.number="matriculaForm.monto_pago_inicial" label="{{ __('Pago a cuenta (S/)') }}"
-                                type="number" step="0.01" min="0" />
-                            <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-                                {{ __('Opcional. Deja saldo pendiente para cobrar después (sin caja en el alta).') }}
-                            </p>
-                            <flux:error name="matriculaForm.monto_pago_inicial" />
-                        </div>
-                    @endif
 
                     @if (($matriculaForm['modalidad_pago'] ?? 'contado') === 'cuotas')
                         @if ($esFrecPersonalizada && ! $matriculaBloqueaNumeroCuotas)
@@ -194,7 +188,7 @@
                                         </p>
                                     @endif
                                 @else
-                                    <flux:input size="xs" wire:model.number="matriculaForm.numero_cuotas" label="{{ __('Número de cuotas') }}"
+                                    <flux:input size="xs" wire:model.live.number="matriculaForm.numero_cuotas" label="{{ __('Número de cuotas') }}"
                                         type="number" min="2" max="60" @disabled($matriculaBloqueaNumeroCuotas) />
                                     <flux:error name="matriculaForm.numero_cuotas" />
                                 @endif

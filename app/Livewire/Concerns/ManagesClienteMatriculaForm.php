@@ -439,13 +439,6 @@ trait ManagesClienteMatriculaForm
                     $data['monto_cuota_personalizado'] = $this->matriculaForm['monto_cuota_personalizado'] !== ''
                         ? $this->matriculaForm['monto_cuota_personalizado']
                         : null;
-                } else {
-                    if (! $this->matriculaFormSinPagoInicialEnAlta) {
-                        $m = (float) ($this->matriculaForm['monto_pago_inicial'] ?? 0);
-                        if ($m > 0) {
-                            $data['monto_pago_inicial'] = $m;
-                        }
-                    }
                 }
             }
         } else {
