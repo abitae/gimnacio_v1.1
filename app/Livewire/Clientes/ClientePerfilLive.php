@@ -21,6 +21,7 @@ use App\Services\ClienteService;
 use App\Services\ClientWellnessService;
 use App\Services\EnrollmentInstallmentService;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Str;
 use Livewire\Component;
 
 class ClientePerfilLive extends Component
@@ -41,6 +42,8 @@ class ClientePerfilLive extends Component
     public bool $isSearching = false;
 
     public string $tabActiva = 'membresias';
+
+    public bool $perfilClienteMinimizado = false;
 
     public $membresiaActiva = null;
 
@@ -160,7 +163,7 @@ class ClientePerfilLive extends Component
         $this->matriculaForm['asesor_id'] = auth()->id();
         $this->matriculaForm['fecha_matricula'] = now()->format('Y-m-d');
 
-        if ($cliente) {
+        if ($cliente?->exists) {
             $this->selectCliente($cliente->id);
 
             return;
@@ -231,6 +234,7 @@ class ClientePerfilLive extends Component
         $this->clienteSearch = trim($cliente->nombres.' '.$cliente->apellidos);
         $this->clientes = collect([]);
         $this->isSearching = false;
+        $this->perfilClienteMinimizado = false;
 
         $this->refreshSelectedClienteContext($clienteId);
     }
@@ -242,6 +246,7 @@ class ClientePerfilLive extends Component
         $this->clienteSearch = '';
         $this->clientes = collect([]);
         $this->isSearching = false;
+        $this->perfilClienteMinimizado = false;
         $this->tabActiva = 'membresias';
         $this->resetearSeleccion();
         $this->cobroModalAbierto = false;
@@ -259,6 +264,15 @@ class ClientePerfilLive extends Component
         $this->resetFidelizacionForm();
     }
 
+    public function togglePerfilClienteMinimizado(): void
+    {
+        if (! $this->selectedCliente) {
+            return;
+        }
+
+        $this->perfilClienteMinimizado = ! $this->perfilClienteMinimizado;
+    }
+
     public function setTab(string $tab): void
     {
         $this->tabActiva = in_array($tab, ['membresias', 'matriculas'], true) ? $tab : 'membresias';
@@ -273,9 +287,24 @@ class ClientePerfilLive extends Component
             return;
         }
 
+        if ($clienteMatriculaId === null) {
+            $clienteMatriculaId = $this->resolvePrimerMatriculaCobrableId((int) $this->selectedClienteId);
+            if (! $clienteMatriculaId) {
+                $this->flashToast('info', 'No hay matrículas pendientes de cobro para este cliente.');
+
+                return;
+            }
+        }
+
         if ($clienteMatriculaId) {
             $m = $this->matriculaService->find($clienteMatriculaId);
-            if ($m && (int) $m->cliente_id === (int) $this->selectedClienteId && $m->usaPlanCuotas()) {
+            if (! $m || (int) $m->cliente_id !== (int) $this->selectedClienteId) {
+                $this->flashToast('error', 'Matrícula no válida para este cliente.');
+
+                return;
+            }
+
+            if ($m->usaPlanCuotas()) {
                 $inst = $this->enrollmentInstallmentService->firstPayableInstallmentForMatricula($clienteMatriculaId);
                 if ($inst) {
                     $this->openRegistrarPagoCuota($inst->id);
@@ -283,6 +312,13 @@ class ClientePerfilLive extends Component
                     return;
                 }
                 $this->flashToast('info', 'No hay cuotas pendientes para cobrar en esta matrícula.');
+
+                return;
+            }
+
+            $saldo = $this->matriculaService->obtenerSaldoPendiente($clienteMatriculaId);
+            if ($saldo <= 0) {
+                $this->flashToast('info', 'Esta matrícula ya no tiene saldo pendiente.');
 
                 return;
             }
@@ -306,19 +342,6 @@ class ClientePerfilLive extends Component
         }
 
         $this->cobroModalAbierto = true;
-    }
-
-    public function updatedCobroFormClienteMatriculaId($value): void
-    {
-        if (! $value || ! $this->cobroModalAbierto) {
-            return;
-        }
-        $mid = (int) $value;
-        $m = $this->matriculaService->find($mid);
-        if ($m && (int) $m->cliente_id === (int) $this->selectedClienteId) {
-            $saldo = $this->matriculaService->obtenerSaldoPendiente($mid);
-            $this->cobroForm['monto_pago'] = $saldo > 0 ? (string) $saldo : '';
-        }
     }
 
     public function openPrimeraCuotasConPlan(): void
@@ -872,6 +895,9 @@ class ClientePerfilLive extends Component
         $matriculaOpcionesCobro = collect([]);
         $pendienteCuotaPorMatricula = [];
         $cuotasCliente = collect([]);
+        $matriculasFinancieras = collect([]);
+        $matriculasConCuotas = collect([]);
+        $deudaPlanesPendiente = 0.0;
         $paymentMethods = collect([]);
         $matriculasSinCronogramaCuotas = collect([]);
 
@@ -891,6 +917,7 @@ class ClientePerfilLive extends Component
             $todasMatriculasCliente = ClienteMatricula::query()
                 ->where('cliente_id', $this->selectedClienteId)
                 ->where('estado', '!=', 'cancelada')
+                ->with(['membresia', 'clase', 'asesor', 'pagos', 'enrollmentInstallments'])
                 ->orderByDesc('fecha_inicio')
                 ->get();
 
@@ -907,6 +934,17 @@ class ClientePerfilLive extends Component
                 ->filter(fn (ClienteMatricula $row) => ! $row->usaPlanCuotas())
                 ->values();
 
+            $matriculasFinancieras = $todasMatriculasCliente
+                ->map(fn (ClienteMatricula $matricula) => $this->buildFinancialMatriculaRow($matricula))
+                ->values();
+
+            $deudaPlanesPendiente = round((float) $matriculasFinancieras->sum('saldo_total'), 2);
+
+            $matriculasConCuotas = $todasMatriculasCliente
+                ->filter(fn (ClienteMatricula $matricula) => $matricula->usaPlanCuotas())
+                ->map(fn (ClienteMatricula $matricula) => $this->buildInstallmentMatriculaRow($matricula))
+                ->values();
+
             if ($this->cobroModalAbierto || $this->cuotaPagoModalAbierto) {
                 $paymentMethods = PaymentMethod::activos()->orderBy('nombre')->get();
             }
@@ -916,6 +954,13 @@ class ClientePerfilLive extends Component
         if ($this->cuotasModalAbierto && $this->cuotasModalMatriculaId) {
             $cuotasModalInstallments = $this->enrollmentInstallmentService
                 ->installmentsForMatricula($this->cuotasModalMatriculaId);
+        }
+
+        $matriculaCobroSeleccionada = null;
+        if ($this->cobroModalAbierto && $this->cobroForm['cliente_matricula_id']) {
+            $matriculaCobroSeleccionada = ClienteMatricula::query()
+                ->with(['membresia', 'clase'])
+                ->find((int) $this->cobroForm['cliente_matricula_id']);
         }
 
         $rentableSpaces = collect([]);
@@ -937,12 +982,86 @@ class ClientePerfilLive extends Component
             'matriculaOpcionesCobro' => $matriculaOpcionesCobro,
             'pendienteCuotaPorMatricula' => $pendienteCuotaPorMatricula,
             'cuotasCliente' => $cuotasCliente,
+            'matriculasFinancieras' => $matriculasFinancieras,
+            'matriculasConCuotas' => $matriculasConCuotas,
+            'deudaPlanesPendiente' => $deudaPlanesPendiente,
             'paymentMethods' => $paymentMethods,
             'matriculasSinCronogramaCuotas' => $matriculasSinCronogramaCuotas,
             'cuotasModalInstallments' => $cuotasModalInstallments,
+            'matriculaCobroSeleccionada' => $matriculaCobroSeleccionada,
             'rentableSpaces' => $rentableSpaces,
             'membresiasActivas' => $membresiasActivas,
             'clasesActivas' => $clasesActivas,
         ]);
+    }
+
+    protected function resolvePrimerMatriculaCobrableId(int $clienteId): ?int
+    {
+        $matricula = ClienteMatricula::query()
+            ->where('cliente_id', $clienteId)
+            ->where('estado', '!=', 'cancelada')
+            ->with(['pagos'])
+            ->orderByDesc('fecha_inicio')
+            ->get()
+            ->first(function (ClienteMatricula $matricula) {
+                return ! $matricula->usaPlanCuotas() && $matricula->saldo_pendiente_actual > 0;
+            });
+
+        return $matricula?->id;
+    }
+
+    protected function buildFinancialMatriculaRow(ClienteMatricula $matricula): array
+    {
+        $pagadoTotal = round((float) $matricula->pagos->sum('monto'), 2);
+        $saldoTotal = round((float) $matricula->saldo_pendiente_actual, 2);
+        $precioTotal = round((float) $matricula->precio_final, 2);
+
+        return [
+            'id' => $matricula->id,
+            'tipo_label' => $matricula->esMembresia() ? 'Membresía' : 'Clase',
+            'estado_matricula' => (string) ($matricula->estado ?? '—'),
+            'plan_nombre' => $matricula->nombre,
+            'fecha_matricula' => $matricula->fecha_matricula,
+            'precio_total' => $precioTotal,
+            'pagado_total' => $pagadoTotal,
+            'saldo_total' => $saldoTotal,
+            'modalidad_pago' => $matricula->usaPlanCuotas() ? 'Cuotas' : 'Contado',
+            'usa_plan_cuotas' => $matricula->usaPlanCuotas(),
+            'accion_cobrar_habilitada' => ! $matricula->usaPlanCuotas() && $saldoTotal > 0,
+        ];
+    }
+
+    protected function buildInstallmentMatriculaRow(ClienteMatricula $matricula): array
+    {
+        $installments = $matricula->enrollmentInstallments
+            ->sortBy([
+                ['fecha_vencimiento', 'asc'],
+                ['numero_cuota', 'asc'],
+            ])
+            ->values()
+            ->map(function ($installment) {
+                $estado = (string) ($installment->estado ?? 'pendiente');
+
+                return [
+                    'id' => $installment->id,
+                    'numero_cuota' => (int) $installment->numero_cuota,
+                    'fecha_vencimiento' => $installment->fecha_vencimiento,
+                    'monto' => round((float) $installment->monto, 2),
+                    'estado' => $estado,
+                    'estado_label' => Str::ucfirst($estado),
+                    'puede_pagar' => in_array($estado, ['pendiente', 'vencida', 'parcial'], true),
+                ];
+            });
+
+        return [
+            'id' => $matricula->id,
+            'tipo_label' => $matricula->esMembresia() ? 'Membresía' : 'Clase',
+            'estado_matricula' => (string) ($matricula->estado ?? '—'),
+            'plan_nombre' => $matricula->nombre,
+            'precio_total' => round((float) $matricula->precio_final, 2),
+            'saldo_total' => round((float) $matricula->saldo_pendiente_actual, 2),
+            'tiene_cronograma' => $installments->isNotEmpty(),
+            'cuotas' => $installments->all(),
+        ];
     }
 }

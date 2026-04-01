@@ -101,15 +101,23 @@
 <flux:modal name="cobro-matricula-modal" wire:model="cobroModalAbierto" focusable class="md:w-lg">
     <form wire:submit.prevent="guardarCobroMatricula" class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago (contado / sin plan de cuotas)') }}</h2>
-        <div>
+        <input type="hidden" wire:model="cobroForm.cliente_matricula_id" />
+        <div class="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/60">
             <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ __('Matrícula') }}</label>
-            <select wire:model.live="cobroForm.cliente_matricula_id"
-                class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800" required>
-                <option value="">{{ __('Selecciona…') }}</option>
-                @foreach ($matriculaOpcionesCobro as $op)
-                    <option value="{{ $op->id }}">{{ $op->nombre }} · {{ ucfirst($op->estado) }}</option>
-                @endforeach
-            </select>
+            @if ($matriculaCobroSeleccionada)
+                <div class="space-y-1 text-xs">
+                    <p class="font-semibold text-zinc-900 dark:text-zinc-100">{{ $matriculaCobroSeleccionada->nombre }}</p>
+                    <p class="text-zinc-600 dark:text-zinc-400">
+                        {{ __('Tipo: :tipo · Estado: :estado · Saldo: S/ :saldo', [
+                            'tipo' => $matriculaCobroSeleccionada->esMembresia() ? __('Membresía') : __('Clase'),
+                            'estado' => ucfirst((string) $matriculaCobroSeleccionada->estado),
+                            'saldo' => number_format((float) $matriculaCobroSeleccionada->saldo_pendiente_actual, 2),
+                        ]) }}
+                    </p>
+                </div>
+            @else
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('No hay matrícula seleccionada para cobrar.') }}</p>
+            @endif
         </div>
         <flux:input size="xs" type="number" step="0.01" wire:model="cobroForm.monto_pago" label="{{ __('Monto') }}" required />
         <flux:input size="xs" type="date" wire:model="cobroForm.fecha_pago" label="{{ __('Fecha pago') }}" required />

@@ -196,9 +196,8 @@ trait ManagesClienteMatriculaForm
                 $this->matriculaForm['precio_lista'] = $membresia->precio_base;
                 $this->calculateMatriculaPrecioFinal();
                 $this->membresiaPermiteCuotas = true;
-                $defCuotas = (int) ($membresia->numero_cuotas_default ?? 12);
-                $this->matriculaForm['numero_cuotas'] = max(2, $defCuotas);
                 $this->matriculaForm['frecuencia_cuotas'] = $membresia->frecuencia_cuotas_default ?: 'mensual';
+                $this->syncMatriculaNumeroCuotasFromFrequency($membresia);
                 $this->matriculaForm['personalizado_por'] = 'numero_cuotas';
                 $this->matriculaForm['monto_cuota_personalizado'] = '';
                 if (($this->matriculaForm['modalidad_pago'] ?? 'contado') === 'cuotas') {
@@ -260,9 +259,8 @@ trait ManagesClienteMatriculaForm
         if ($this->matriculaForm['tipo'] === 'membresia' && filled($this->matriculaForm['membresia_id'] ?? null)) {
             $membresia = \App\Models\Core\Membresia::find($this->matriculaForm['membresia_id']);
             if ($membresia) {
-                $defCuotas = (int) ($membresia->numero_cuotas_default ?? 12);
-                $this->matriculaForm['numero_cuotas'] = max(2, $defCuotas);
                 $this->matriculaForm['frecuencia_cuotas'] = $membresia->frecuencia_cuotas_default ?: 'mensual';
+                $this->syncMatriculaNumeroCuotasFromFrequency($membresia);
                 $this->matriculaForm['cuota_inicial_monto'] = $this->resolverCuotaInicialDefaultForMatricula($membresia, (float) $this->matriculaForm['precio_final']);
                 $this->matriculaForm['fecha_inicio_plan_cuotas'] = $this->matriculaForm['fecha_inicio'] ?: now()->format('Y-m-d');
             }
@@ -274,6 +272,20 @@ trait ManagesClienteMatriculaForm
         if (($this->matriculaForm['frecuencia_cuotas'] ?? '') !== 'personalizado') {
             $this->matriculaForm['personalizado_por'] = 'numero_cuotas';
             $this->matriculaForm['monto_cuota_personalizado'] = '';
+        }
+
+        if (
+            $this->matriculaBloqueaNumeroCuotas
+            || ($this->matriculaForm['modalidad_pago'] ?? 'contado') !== 'cuotas'
+            || ($this->matriculaForm['personalizado_por'] ?? 'numero_cuotas') === 'monto_cuota'
+            || ! filled($this->matriculaForm['membresia_id'] ?? null)
+        ) {
+            return;
+        }
+
+        $membresia = \App\Models\Core\Membresia::find($this->matriculaForm['membresia_id']);
+        if ($membresia) {
+            $this->syncMatriculaNumeroCuotasFromFrequency($membresia);
         }
     }
 
@@ -511,6 +523,60 @@ trait ManagesClienteMatriculaForm
         }
 
         return 0.0;
+    }
+
+    protected function syncMatriculaNumeroCuotasFromFrequency(\App\Models\Core\Membresia $membresia): void
+    {
+        if ($this->matriculaBloqueaNumeroCuotas) {
+            return;
+        }
+
+        $frecuencia = $this->matriculaForm['frecuencia_cuotas'] ?? 'mensual';
+        if ($frecuencia === 'personalizado' && ($this->matriculaForm['personalizado_por'] ?? 'numero_cuotas') === 'monto_cuota') {
+            return;
+        }
+
+        $duracionDias = max(1, (int) ($membresia->duracion_dias ?? 30));
+        $numeroCuotas = match ($frecuencia) {
+            'semanal' => (int) ceil($duracionDias / 7),
+            'quincenal' => (int) ceil($duracionDias / 15),
+            'mensual' => (int) ceil($duracionDias / 30),
+            'anual' => (int) ceil($duracionDias / 360),
+            default => (int) ($membresia->numero_cuotas_default ?? 12),
+        };
+
+        $this->matriculaForm['numero_cuotas'] = max(2, min(60, $numeroCuotas));
+    }
+
+    public function getMatriculaSaldoFinanciadoProperty(): float
+    {
+        $cuotaInicial = (float) ($this->matriculaForm['cuota_inicial_monto'] ?? 0);
+
+        return max(0, round((float) ($this->matriculaForm['precio_final'] ?? 0) - $cuotaInicial, 2));
+    }
+
+    public function getMatriculaNumeroCuotasEstimadoProperty(): int
+    {
+        $saldoFinanciado = $this->matriculaSaldoFinanciado;
+        $esFrecPersonalizada = ($this->matriculaForm['frecuencia_cuotas'] ?? '') === 'personalizado';
+        $porMontoCuota = ($this->matriculaForm['personalizado_por'] ?? 'numero_cuotas') === 'monto_cuota';
+        $montoObjPer = (float) ($this->matriculaForm['monto_cuota_personalizado'] ?? 0);
+        $numeroCuotasCalc = max(1, (int) ($this->matriculaForm['numero_cuotas'] ?: 1));
+
+        if ($esFrecPersonalizada && $porMontoCuota && $montoObjPer > 0 && $saldoFinanciado > 0) {
+            $numeroCuotasCalc = max(2, min(60, (int) ceil($saldoFinanciado / $montoObjPer)));
+        }
+
+        return $numeroCuotasCalc;
+    }
+
+    public function getMatriculaCuotaEstimadaProperty(): float
+    {
+        $numeroCuotasCalc = $this->matriculaNumeroCuotasEstimado;
+
+        return $numeroCuotasCalc > 0
+            ? round($this->matriculaSaldoFinanciado / $numeroCuotasCalc, 2)
+            : 0.0;
     }
 
     protected function handleMatriculaValidationErrors(\Illuminate\Validation\ValidationException $e): void

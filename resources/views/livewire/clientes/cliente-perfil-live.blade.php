@@ -16,23 +16,52 @@
                     </p>
                 </div>
             </div>
-            <div class="flex flex-wrap items-center justify-end gap-2">
+            <div class="flex flex-wrap items-center justify-end gap-2.5">
                 @can('clientes.create')
-                    <flux:button size="sm" icon="plus" variant="ghost" class="border border-white/30 text-white hover:bg-white/15" wire:click="openClienteCreateModal" type="button">
+                    <flux:button
+                        size="sm"
+                        icon="plus"
+                        variant="ghost"
+                        class="min-w-[8.5rem] rounded-xl border border-violet-200 bg-white px-4 font-semibold text-violet-700 shadow-sm hover:bg-violet-50"
+                        wire:click="openClienteCreateModal"
+                        type="button"
+                    >
                         {{ __('Nuevo cliente') }}
                     </flux:button>
                 @endcan
                 @if ($selectedCliente)
                     @can('clientes.update')
-                        <flux:button size="sm" icon="pencil" variant="ghost" class="border border-white/30 text-white hover:bg-white/15" wire:click="openClienteEditModal({{ $selectedCliente->id }})" type="button">
+                        <flux:button
+                            size="sm"
+                            icon="pencil"
+                            variant="ghost"
+                            class="min-w-[7rem] rounded-xl border border-slate-200 bg-slate-50 px-4 font-medium text-slate-700 shadow-sm hover:bg-slate-100"
+                            wire:click="openClienteEditModal({{ $selectedCliente->id }})"
+                            type="button"
+                        >
                             {{ __('Editar') }}
                         </flux:button>
-                        <flux:button size="sm" icon="photo" variant="ghost" class="border border-white/30 text-white hover:bg-white/15" wire:click="openClientePhotoModal({{ $selectedCliente->id }})" type="button">
+                        <flux:button
+                            size="sm"
+                            icon="photo"
+                            variant="ghost"
+                            class="min-w-[6.5rem] rounded-xl border border-sky-200 bg-sky-50 px-4 font-medium text-sky-700 shadow-sm hover:bg-sky-100"
+                            wire:click="openClientePhotoModal({{ $selectedCliente->id }})"
+                            type="button"
+                        >
                             {{ __('Foto') }}
                         </flux:button>
                     @endcan
                     @can('clientes.delete')
-                        <flux:button size="sm" icon="trash" variant="ghost" color="red" class="border border-red-300/60 bg-red-500/25 text-white hover:bg-red-500/40" wire:click="openClienteDeleteModal({{ $selectedCliente->id }})" type="button">
+                        <flux:button
+                            size="sm"
+                            icon="trash"
+                            variant="ghost"
+                            color="red"
+                            class="min-w-[7rem] rounded-xl border border-rose-200 bg-rose-50 px-4 font-semibold text-rose-700 shadow-sm hover:bg-rose-100"
+                            wire:click="openClienteDeleteModal({{ $selectedCliente->id }})"
+                            type="button"
+                        >
                             {{ __('Eliminar') }}
                         </flux:button>
                     @endcan
@@ -73,7 +102,7 @@
                 default => 'zinc',
             };
             $nombrePlanActivo = $membresiaActiva->membresia->nombre ?? $membresiaActiva->nombre ?? $membresiaActiva->clase->nombre ?? 'Sin plan';
-            $deudaMembresiaResumen = max(0, round((float) $selectedCliente->deuda_total - $deudaProductoPendiente, 2));
+            $deudaMembresiaResumen = max(0, round((float) ($deudaPlanesPendiente ?? 0), 2));
             $stats = $estadisticasAsistencia;
             $efectividad = (float) ($stats['porcentaje_efectividad'] ?? 0);
             $totalSesiones = (int) ($stats['total_sesiones'] ?? 0);
@@ -84,7 +113,12 @@
         <div class="grid gap-4 xl:grid-cols-[minmax(240px,280px)_1fr_290px]">
             <div class="space-y-4">
                 <div class="rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-                    <x-cliente.profile-card :cliente="$selectedCliente" :hide-actions="true" />
+                    <x-cliente.profile-card
+                        :cliente="$selectedCliente"
+                        :hide-actions="true"
+                        :minimized="$perfilClienteMinimizado"
+                        :deuda-total="$deudaProductoPendiente + $deudaMembresiaResumen"
+                    />
                 </div>
                 <div class="space-y-2 px-1">
                     @if ($selectedCliente->getWhatsAppUrlWithMessage())
@@ -155,11 +189,7 @@
                                 {{ __('Matricular') }}
                             </flux:button>
                         @endcan
-                        @can('cliente-matriculas.update')
-                            <flux:button size="xs" icon="banknotes" variant="outline" type="button" wire:click="openCobroMatriculaModal">
-                                {{ __('Cobrar') }}
-                            </flux:button>
-                        @endcan
+                        
                         @can('cliente-matriculas.view')
                             <flux:button size="xs" icon="calendar-days" variant="outline" type="button" wire:click="openPrimeraCuotasConPlan">
                                 {{ __('Ver cuotas') }}
@@ -216,61 +246,126 @@
                         @can('cliente-matriculas.view')
                             @if ($perfilFinanzasTab === 'cuotas_pendientes')
                                 <div class="overflow-x-auto">
-                                    <table class="min-w-full text-xs">
-                                        <thead class="bg-zinc-50 dark:bg-zinc-950">
-                                            <tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500">
-                                                <th class="px-3 py-2">{{ __('Matrícula') }}</th>
-                                                <th class="px-3 py-2">{{ __('Cuota') }}</th>
-                                                <th class="px-3 py-2">{{ __('Vence') }}</th>
-                                                <th class="px-3 py-2">{{ __('Estado') }}</th>
-                                                <th class="px-3 py-2 text-right">{{ __('Monto') }}</th>
-                                                <th class="px-3 py-2 text-right">{{ __('Enlaces') }}</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                            @forelse ($cuotasCliente as $cuotaInst)
-                                                @php
-                                                    $estadoCuota = (string) ($cuotaInst->estado ?? 'pendiente');
-                                                    $estadoCuotaBadge = match ($estadoCuota) {
-                                                        'pagada' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
-                                                        'vencida' => 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
-                                                        'parcial' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
-                                                        default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
-                                                    };
-                                                    $matriculaId = (int) ($cuotaInst->cliente_matricula_id ?? 0);
-                                                @endphp
-                                                <tr class="bg-white dark:bg-zinc-900">
-                                                    <td class="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">#{{ $matriculaId }}</td>
-                                                    <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">#{{ (int) ($cuotaInst->numero_cuota ?? 0) }}</td>
-                                                    <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($cuotaInst->fecha_vencimiento)->format('d/m/Y') ?? '—' }}</td>
-                                                    <td class="px-3 py-2">
-                                                        <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $estadoCuotaBadge }}">
-                                                            {{ ucfirst($estadoCuota) }}
-                                                        </span>
-                                                    </td>
-                                                    <td class="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">S/ {{ number_format((float) $cuotaInst->monto, 2) }}</td>
-                                                    <td class="px-3 py-2 text-right">
-                                                        <div class="flex flex-wrap justify-end gap-1">
-                                                            <flux:button href="{{ route('clientes.cuotas', ['cliente' => $selectedClienteId, 'matricula' => $matriculaId]) }}" wire:navigate size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400">
-                                                                {{ __('Ver cuotas') }}
-                                                            </flux:button>
-                                                            @if (in_array($estadoCuota, ['pendiente', 'vencida', 'parcial'], true))
-                                                                @can('cliente-matriculas.update')
-                                                                    <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $cuotaInst->id }})" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400">
-                                                                        {{ __('Pagar cuota') }}
-                                                                    </flux:button>
-                                                                @endcan
-                                                            @endif
+                                    <div class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                        @forelse ($matriculasConCuotas as $matriculaCuotas)
+                                            @php
+                                                $estadoMatricula = strtolower((string) ($matriculaCuotas['estado_matricula'] ?? ''));
+                                                $estadoMatriculaClass = match ($estadoMatricula) {
+                                                    'activa', 'activo' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                                                    'vencida', 'vencido' => 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                                                    'congelada', 'congelado' => 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
+                                                    default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+                                                };
+                                            @endphp
+                                            <div class="bg-white p-4 dark:bg-zinc-900">
+                                                <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+                                                    <div class="space-y-1">
+                                                        <div class="flex flex-wrap items-center gap-2">
+                                                            <span class="inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-semibold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+                                                                {{ $matriculaCuotas['tipo_label'] }}
+                                                            </span>
+                                                            <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $estadoMatriculaClass }}">
+                                                                {{ ucfirst($matriculaCuotas['estado_matricula']) }}
+                                                            </span>
                                                         </div>
-                                                    </td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="6" class="px-3 py-8 text-center text-zinc-500">{{ __('Sin cuotas registradas.') }}</td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
+                                                        <p class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ $matriculaCuotas['plan_nombre'] }}</p>
+                                                        <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                                            {{ __('Matrícula #:id · Total S/ :total · Saldo S/ :saldo', ['id' => $matriculaCuotas['id'], 'total' => number_format((float) $matriculaCuotas['precio_total'], 2), 'saldo' => number_format((float) $matriculaCuotas['saldo_total'], 2)]) }}
+                                                        </p>
+                                                    </div>
+                                                    <flux:button href="{{ route('clientes.cuotas', ['cliente' => $selectedClienteId, 'matricula' => $matriculaCuotas['id']]) }}" wire:navigate size="xs" variant="ghost" class="min-h-0 px-2 py-1 text-violet-600 hover:underline dark:text-violet-400">
+                                                        {{ __('Ver cuotas') }}
+                                                    </flux:button>
+                                                </div>
+
+                                                @if ($matriculaCuotas['tiene_cronograma'])
+                                                    <table class="min-w-full text-xs">
+                                                        <thead class="bg-zinc-50 dark:bg-zinc-950">
+                                                            <tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500">
+                                                                <th class="px-3 py-2">{{ __('Cuota') }}</th>
+                                                                <th class="px-3 py-2">{{ __('Vencimiento') }}</th>
+                                                                <th class="px-3 py-2 text-right">{{ __('Monto') }}</th>
+                                                                <th class="px-3 py-2">{{ __('Estado') }}</th>
+                                                                <th class="px-3 py-2 text-right">{{ __('Acciones') }}</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                                            @foreach ($matriculaCuotas['cuotas'] as $cuota)
+                                                                @php
+                                                                    $estadoCuota = (string) ($cuota['estado'] ?? 'pendiente');
+                                                                    $estadoCuotaBadge = match ($estadoCuota) {
+                                                                        'pagada' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                                                                        'vencida' => 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                                                                        'parcial' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                                                                        default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+                                                                    };
+                                                                @endphp
+                                                                <tr>
+                                                                    <td class="px-3 py-2 text-zinc-900 dark:text-zinc-100">#{{ $cuota['numero_cuota'] }}</td>
+                                                                    <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($cuota['fecha_vencimiento'])->format('d/m/Y') ?? '—' }}</td>
+                                                                    <td class="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">S/ {{ number_format((float) $cuota['monto'], 2) }}</td>
+                                                                    <td class="px-3 py-2">
+                                                                        <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $estadoCuotaBadge }}">
+                                                                            {{ $cuota['estado_label'] }}
+                                                                        </span>
+                                                                    </td>
+                                                                    <td class="px-3 py-2 text-right">
+                                                                        @if ($cuota['puede_pagar'])
+                                                                            @can('cliente-matriculas.update')
+                                                                                <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $cuota['id'] }})" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400">
+                                                                                    {{ __('Pagar') }}
+                                                                                </flux:button>
+                                                                            @endcan
+                                                                        @else
+                                                                            <span class="text-[11px] text-zinc-400">—</span>
+                                                                        @endif
+                                                                    </td>
+                                                                </tr>
+                                                            @endforeach
+                                                        </tbody>
+                                                    </table>
+                                                @else
+                                                    <div class="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
+                                                        {{ __('Esta matrícula está en cuotas pero aún no tiene cronograma.') }}
+                                                        @if ($matriculasSinCronogramaCuotas->contains('id', $matriculaCuotas['id']))
+                                                            @can('cliente-matriculas.create')
+                                                                <flux:button type="button" wire:click="openCrearPlanCuotasModal" size="xs" variant="ghost" class="ml-2 min-h-0 px-2 py-0.5 text-amber-700 hover:underline dark:text-amber-300">
+                                                                    {{ __('Crear plan de cuotas') }}
+                                                                </flux:button>
+                                                            @endcan
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @empty
+                                            <div class="px-3 py-8 text-center text-zinc-500">
+                                                {{ __('Este cliente no tiene membresías o clases matriculadas en cuotas.') }}
+                                            </div>
+                                        @endforelse
+
+                                        @if ($matriculasSinCronogramaCuotas->isNotEmpty())
+                                            <div class="border-t border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-950/40">
+                                                <p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Matrículas en cuotas sin cronograma') }}</p>
+                                                <div class="space-y-2">
+                                                    @foreach ($matriculasSinCronogramaCuotas as $matriculaSinCronograma)
+                                                        <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+                                                            <div>
+                                                                <p class="font-medium text-zinc-900 dark:text-zinc-100">{{ $matriculaSinCronograma->nombre }}</p>
+                                                                <p class="text-zinc-500 dark:text-zinc-400">
+                                                                    {{ __('Matrícula #:id · Total S/ :total', ['id' => $matriculaSinCronograma->id, 'total' => number_format((float) $matriculaSinCronograma->precio_final, 2)]) }}
+                                                                </p>
+                                                            </div>
+                                                            @can('cliente-matriculas.create')
+                                                                <flux:button type="button" wire:click="openCrearPlanCuotasModal" size="xs" variant="outline">
+                                                                    {{ __('Crear plan de cuotas') }}
+                                                                </flux:button>
+                                                            @endcan
+                                                        </div>
+                                                    @endforeach
+                                                </div>
+                                            </div>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
                         @endcan
@@ -280,37 +375,69 @@
                                 <table class="min-w-full text-xs">
                                     <thead class="bg-zinc-50 dark:bg-zinc-950">
                                         <tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500">
+                                            <th class="px-3 py-2">{{ __('Tipo') }}</th>
                                             <th class="px-3 py-2">{{ __('Estado') }}</th>
-                                            <th class="px-3 py-2">{{ __('Fecha') }}</th>
-                                            <th class="px-3 py-2 text-right">{{ __('Monto') }}</th>
-                                            <th class="px-3 py-2">{{ __('Comprobante') }}</th>
-                                            <th class="px-3 py-2">{{ __('F. pago') }}</th>
-                                            <th class="px-3 py-2">{{ __('Creador') }}</th>
+                                            <th class="px-3 py-2">{{ __('Plan') }}</th>
+                                            <th class="px-3 py-2">{{ __('Inscripción') }}</th>
+                                            <th class="px-3 py-2 text-right">{{ __('Total matrícula') }}</th>
+                                            <th class="px-3 py-2 text-right">{{ __('Pagado') }}</th>
+                                            <th class="px-3 py-2 text-right">{{ __('Saldo') }}</th>
+                                            <th class="px-3 py-2">{{ __('Modalidad') }}</th>
                                             <th class="px-3 py-2 text-right">{{ __('Acciones') }}</th>
                                         </tr>
                                     </thead>
                                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
-                                        @forelse ($pagosRecientes as $pago)
+                                        @forelse ($matriculasFinancieras as $matriculaFinanciera)
+                                            @php
+                                                $estadoFinanciero = strtolower((string) ($matriculaFinanciera['estado_matricula'] ?? ''));
+                                                $estadoFinancieroClass = match ($estadoFinanciero) {
+                                                    'activa', 'activo' => 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300',
+                                                    'vencida', 'vencido' => 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300',
+                                                    'congelada', 'congelado' => 'bg-sky-100 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300',
+                                                    'completada' => 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300',
+                                                    default => 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300',
+                                                };
+                                            @endphp
                                             <tr class="bg-white dark:bg-zinc-900">
                                                 <td class="px-3 py-2">
-                                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {{ $pago->saldo_pendiente > 0 ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700' }}">
-                                                        {{ $pago->saldo_pendiente > 0 ? 'Parcial' : 'Activo' }}
+                                                    <span class="rounded-full bg-violet-100 px-2 py-0.5 text-[11px] font-medium text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
+                                                        {{ $matriculaFinanciera['tipo_label'] }}
                                                     </span>
                                                 </td>
-                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($pago->fecha_pago)->format('d/m/Y g:i A') ?? '—' }}</td>
-                                                <td class="px-3 py-2 text-right font-medium text-zinc-900 dark:text-zinc-100">{{ number_format((float) $pago->monto, 0) }}</td>
-                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $pago->comprobante_numero ?? '—' }}</td>
-                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ ucfirst((string) ($pago->metodo_pago ?? '—')) }}</td>
-                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $pago->registradoPor?->name ?? '—' }}</td>
+                                                <td class="px-3 py-2">
+                                                    <span class="rounded-full px-2 py-0.5 text-[11px] font-medium {{ $estadoFinancieroClass }}">
+                                                        {{ ucfirst($matriculaFinanciera['estado_matricula']) }}
+                                                    </span>
+                                                </td>
+                                                <td class="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">{{ $matriculaFinanciera['plan_nombre'] }}</td>
+                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($matriculaFinanciera['fecha_matricula'])->format('d/m/Y') ?? '—' }}</td>
+                                                <td class="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">S/ {{ number_format((float) $matriculaFinanciera['precio_total'], 2) }}</td>
+                                                <td class="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) $matriculaFinanciera['pagado_total'], 2) }}</td>
+                                                <td class="px-3 py-2 text-right {{ (float) $matriculaFinanciera['saldo_total'] > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">S/ {{ number_format((float) $matriculaFinanciera['saldo_total'], 2) }}</td>
+                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $matriculaFinanciera['modalidad_pago'] }}</td>
                                                 <td class="px-3 py-2 text-right">
-                                                    <flux:button type="button" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-sky-600 hover:underline dark:text-sky-400" wire:click="abrirModalTicketPago({{ $pago->id }})">
-                                                        {{ __('Reimprimir') }}
-                                                    </flux:button>
+                                                    <div class="flex flex-wrap justify-end gap-1">
+                                                        @if ($matriculaFinanciera['usa_plan_cuotas'])
+                                                            @can('cliente-matriculas.view')
+                                                                <flux:button type="button" wire:click="$set('perfilFinanzasTab', 'cuotas_pendientes')" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400">
+                                                                    {{ __('Cuotas') }}
+                                                                </flux:button>
+                                                            @endcan
+                                                        @elseif ($matriculaFinanciera['accion_cobrar_habilitada'])
+                                                            @can('cliente-matriculas.update')
+                                                                <flux:button type="button" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400" wire:click="openCobroMatriculaModal({{ $matriculaFinanciera['id'] }})">
+                                                                    {{ __('Cobrar') }}
+                                                                </flux:button>
+                                                            @endcan
+                                                        @else
+                                                            <span class="text-[11px] text-zinc-400">—</span>
+                                                        @endif
+                                                    </div>
                                                 </td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="7" class="px-3 py-6 text-center text-zinc-500">{{ __('Sin pagos registrados.') }}</td>
+                                                <td colspan="9" class="px-3 py-6 text-center text-zinc-500">{{ __('Sin matrículas registradas.') }}</td>
                                             </tr>
                                         @endforelse
                                     </tbody>

@@ -111,16 +111,9 @@
 
             @if ($matriculaForm['tipo'] === 'membresia')
                 @php
-                    $cuotaInicial = (float) ($matriculaForm['cuota_inicial_monto'] ?? 0);
-                    $saldoFinanciado = max(0, (float) ($matriculaForm['precio_final'] ?? 0) - $cuotaInicial);
                     $esFrecPersonalizada = ($matriculaForm['frecuencia_cuotas'] ?? '') === 'personalizado';
                     $porMontoCuota = ($matriculaForm['personalizado_por'] ?? 'numero_cuotas') === 'monto_cuota';
                     $montoObjPer = (float) ($matriculaForm['monto_cuota_personalizado'] ?? 0);
-                    $numeroCuotasCalc = max(1, (int) ($matriculaForm['numero_cuotas'] ?: 1));
-                    if ($esFrecPersonalizada && $porMontoCuota && $montoObjPer > 0 && $saldoFinanciado > 0) {
-                        $numeroCuotasCalc = max(2, min(60, (int) ceil($saldoFinanciado / $montoObjPer)));
-                    }
-                    $montoEstimadoCuota = $numeroCuotasCalc > 0 ? round($saldoFinanciado / $numeroCuotasCalc, 2) : 0;
                     $membresiaSeleccionada = filled($matriculaForm['membresia_id'] ?? null);
                 @endphp
                 <div class="rounded-lg border border-zinc-200 p-2.5 dark:border-zinc-700">
@@ -182,9 +175,9 @@
                                     <flux:input size="xs" wire:model.live.number="matriculaForm.monto_cuota_personalizado" label="{{ __('Monto por cuota (S/)') }}"
                                         type="number" step="0.01" min="0.01" @disabled($matriculaBloqueaNumeroCuotas) />
                                     <flux:error name="matriculaForm.monto_cuota_personalizado" />
-                                    @if ($montoObjPer > 0 && $saldoFinanciado > 0)
+                                    @if ($montoObjPer > 0 && $this->matriculaSaldoFinanciado > 0)
                                         <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
-                                            {{ __('Se generarán :n cuotas (máx. 60).', ['n' => $numeroCuotasCalc]) }}
+                                            {{ __('Se generarán :n cuotas (máx. 60).', ['n' => $this->matriculaNumeroCuotasEstimado]) }}
                                         </p>
                                     @endif
                                 @else
@@ -215,11 +208,11 @@
                         <div class="mt-2 grid grid-cols-2 gap-2 rounded-lg bg-zinc-50 p-2 dark:bg-zinc-900/40">
                             <div class="text-xs">
                                 <span class="text-zinc-500 dark:text-zinc-400">Saldo financiado:</span>
-                                <span class="font-medium text-zinc-900 dark:text-zinc-100"> S/ {{ number_format($saldoFinanciado, 2) }}</span>
+                                <span class="font-medium text-zinc-900 dark:text-zinc-100"> S/ {{ number_format($this->matriculaSaldoFinanciado, 2) }}</span>
                             </div>
                             <div class="text-xs">
                                 <span class="text-zinc-500 dark:text-zinc-400">Cuota estimada:</span>
-                                <span class="font-medium text-zinc-900 dark:text-zinc-100"> S/ {{ number_format($montoEstimadoCuota, 2) }}</span>
+                                <span class="font-medium text-zinc-900 dark:text-zinc-100"> S/ {{ number_format($this->matriculaCuotaEstimada, 2) }}</span>
                             </div>
                         </div>
                     @endif
