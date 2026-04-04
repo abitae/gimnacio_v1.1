@@ -21,6 +21,8 @@ class DatabaseBackupLive extends Component
     public ?string $restoreJobId = null;
     public ?array $restoreStatus = null;
     public string $restoreLog = '';
+    public array $restoreEvents = [];
+    public int $restoreEventOffset = 0;
     public bool $showRestoreMonitorModal = false;
 
     public function mount(DatabaseBackupService $backupService, DatabaseRestoreService $restoreService): void
@@ -34,6 +36,7 @@ class DatabaseBackupLive extends Component
         $this->restoreStatus = $restoreService->latestStatus();
         $this->restoreJobId = $this->restoreStatus['id'] ?? null;
         $this->restoreLog = $restoreService->readLog($this->restoreJobId);
+        $this->syncRestoreEvents($restoreService, true);
     }
 
     public function exportBackup(DatabaseBackupService $backupService)
@@ -72,6 +75,9 @@ class DatabaseBackupLive extends Component
         $this->restoreJobId = $restoreService->queueRestoreFromUploadedFile($this->restoreFile);
         $this->restoreStatus = $restoreService->readStatus($this->restoreJobId);
         $this->restoreLog = $restoreService->readLog($this->restoreJobId);
+        $this->restoreEvents = [];
+        $this->restoreEventOffset = 0;
+        $this->syncRestoreEvents($restoreService, true);
         $this->showRestoreMonitorModal = true;
 
         $this->reset(['restoreFile', 'restoreConfirmation']);
@@ -80,9 +86,16 @@ class DatabaseBackupLive extends Component
 
     public function refreshRestoreStatus(DatabaseRestoreService $restoreService): void
     {
+        $previousRestoreId = $this->restoreJobId;
+
+        if ($this->restoreJobId) {
+            $restoreService->flagQueuedDelayWarning($this->restoreJobId);
+        }
+
         $this->restoreStatus = $restoreService->readStatus($this->restoreJobId) ?? $restoreService->latestStatus();
         $this->restoreJobId = $this->restoreStatus['id'] ?? null;
         $this->restoreLog = $restoreService->readLog($this->restoreJobId);
+        $this->syncRestoreEvents($restoreService, $previousRestoreId !== $this->restoreJobId);
     }
 
     public function openRestoreMonitorModal(DatabaseRestoreService $restoreService): void
@@ -121,5 +134,29 @@ class DatabaseBackupLive extends Component
     private function refreshBackups(DatabaseBackupService $backupService): void
     {
         $this->backups = $backupService->listBackups();
+    }
+
+    private function syncRestoreEvents(DatabaseRestoreService $restoreService, bool $reset = false): void
+    {
+        if (! $this->restoreJobId) {
+            if ($reset) {
+                $this->restoreEvents = [];
+                $this->restoreEventOffset = 0;
+            }
+
+            return;
+        }
+
+        $afterOffset = $reset ? 0 : $this->restoreEventOffset;
+        $payload = $restoreService->readEvents($this->restoreJobId, $afterOffset);
+        $events = $payload['events'] ?? [];
+
+        if ($reset) {
+            $this->restoreEvents = $events;
+        } elseif ($events !== []) {
+            $this->restoreEvents = array_slice(array_merge($this->restoreEvents, $events), -300);
+        }
+
+        $this->restoreEventOffset = (int) ($payload['next_offset'] ?? $this->restoreEventOffset);
     }
 }

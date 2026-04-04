@@ -121,7 +121,8 @@ class DatabaseBackupService
             int $executed,
             ?string $command = null,
             ?string $log = null,
-            ?int $currentPart = null
+            ?int $currentPart = null,
+            ?string $stage = null
         ) use ($progressCallback, $totalStatements, $totalParts, $isLargeRestore, $fileSize): void {
             if (! $progressCallback) {
                 return;
@@ -138,15 +139,17 @@ class DatabaseBackupService
                 'total_parts' => $totalParts,
                 'is_large_restore' => $isLargeRestore,
                 'file_size_bytes' => $fileSize,
+                'stage' => $stage ?? 'executing_sql',
+                'statement_index' => $executed,
             ]);
         };
 
         if ($driver === 'mysql') {
             $connection->unprepared('SET FOREIGN_KEY_CHECKS=0');
-            $notify('Deshabilitando llaves foraneas', 0, 'SET FOREIGN_KEY_CHECKS=0;', 'SET FOREIGN_KEY_CHECKS=0;', 1);
+            $notify('Deshabilitando llaves foraneas', 0, 'SET FOREIGN_KEY_CHECKS=0;', 'SET FOREIGN_KEY_CHECKS=0;', 1, 'disabling_foreign_keys');
         } elseif ($driver === 'sqlite') {
             $connection->unprepared('PRAGMA foreign_keys = OFF');
-            $notify('Deshabilitando llaves foraneas', 0, 'PRAGMA foreign_keys = OFF;', 'PRAGMA foreign_keys = OFF;', 1);
+            $notify('Deshabilitando llaves foraneas', 0, 'PRAGMA foreign_keys = OFF;', 'PRAGMA foreign_keys = OFF;', 1, 'disabling_foreign_keys');
         }
 
         try {
@@ -163,7 +166,8 @@ class DatabaseBackupService
                     $index,
                     $this->truncateCommand($trimmed),
                     $this->truncateCommand($trimmed),
-                    $currentPart
+                    $currentPart,
+                    'executing_sql'
                 );
                 $connection->unprepared($trimmed);
                 $notify(
@@ -171,16 +175,17 @@ class DatabaseBackupService
                     $executed,
                     $this->truncateCommand($trimmed),
                     null,
-                    $currentPart
+                    $currentPart,
+                    'executing_sql'
                 );
             }
         } finally {
             if ($driver === 'mysql') {
                 $connection->unprepared('SET FOREIGN_KEY_CHECKS=1');
-                $notify('Rehabilitando llaves foraneas', $totalStatements, 'SET FOREIGN_KEY_CHECKS=1;', 'SET FOREIGN_KEY_CHECKS=1;', $totalParts);
+                $notify('Rehabilitando llaves foraneas', $totalStatements, 'SET FOREIGN_KEY_CHECKS=1;', 'SET FOREIGN_KEY_CHECKS=1;', $totalParts, 'enabling_foreign_keys');
             } elseif ($driver === 'sqlite') {
                 $connection->unprepared('PRAGMA foreign_keys = ON');
-                $notify('Rehabilitando llaves foraneas', $totalStatements, 'PRAGMA foreign_keys = ON;', 'PRAGMA foreign_keys = ON;', $totalParts);
+                $notify('Rehabilitando llaves foraneas', $totalStatements, 'PRAGMA foreign_keys = ON;', 'PRAGMA foreign_keys = ON;', $totalParts, 'enabling_foreign_keys');
             }
         }
     }
