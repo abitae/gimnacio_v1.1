@@ -9,6 +9,9 @@ use Livewire\Livewire;
 
 beforeEach(function () {
     $this->seed(BaseCatalogSeeder::class);
+
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
 });
 
 it('allows super admin to access database backups screen', function () {

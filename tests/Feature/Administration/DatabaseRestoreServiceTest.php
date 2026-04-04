@@ -110,7 +110,7 @@ it('restores super admin credentials after a successful restore', function () {
     expect($status['current_step'])->toBe('Restauracion completada');
     expect($status['stage'])->toBe('completed');
 
-    $eventsPayload = $service->readEvents($restoreId);
+    $eventsPayload = $service->readEvents($restoreId, 0, 10000);
     $stages = collect($eventsPayload['events'])->pluck('stage')->filter()->values()->all();
 
     expect($stages)->toContain('running');
@@ -214,7 +214,7 @@ it('builds platform specific launcher scripts', function () {
     expect(File::get($windowsPath))->toContain('backup:restore-run --id="restore_test_windows"');
     expect($unixPath)->toEndWith('.sh');
     expect(File::get($unixPath))->toContain("/usr/bin/php");
-    expect(File::get($unixPath))->toContain("backup:restore-run --id='restore_test_unix'");
+    expect(File::get($unixPath))->toContain('backup:restore-run --id="restore_test_unix"');
 
     File::delete([$windowsPath, $unixPath]);
 });
