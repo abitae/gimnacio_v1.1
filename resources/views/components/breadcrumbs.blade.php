@@ -57,6 +57,7 @@
             'employees.attendances.report' => __('Reporte de asistencia'),
             'usuarios.index' => __('Usuarios'),
             'roles.index' => __('Roles'),
+            'administracion.backups.index' => __('Backups de base de datos'),
             'payment-methods.index' => __('Métodos de pago'),
             'biotime.index' => __('BioTime'),
             'biotime.config' => __('Configuración BioTime'),
@@ -148,7 +149,7 @@
                 $parentLabel = __('Analítica');
                 $parentRoute = 'reportes.index';
             }
-            if (str_starts_with($routeName, 'biotime.') || str_starts_with($routeName, 'payment-methods.') || str_starts_with($routeName, 'usuarios.') || str_starts_with($routeName, 'roles.') || str_starts_with($routeName, 'employees.')) {
+            if (str_starts_with($routeName, 'biotime.') || str_starts_with($routeName, 'payment-methods.') || str_starts_with($routeName, 'usuarios.') || str_starts_with($routeName, 'roles.') || str_starts_with($routeName, 'employees.') || str_starts_with($routeName, 'administracion.backups.')) {
                 $parentLabel = __('Administración');
                 $parentRoute = str_starts_with($routeName, 'employees.') ? 'employees.index' : (str_starts_with($routeName, 'biotime.') ? 'biotime.index' : (str_starts_with($routeName, 'payment-methods.') ? 'payment-methods.index' : 'usuarios.index'));
             }

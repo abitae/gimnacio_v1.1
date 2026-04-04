@@ -231,6 +231,14 @@
                     @endcan
                 </flux:sidebar.group>
                 @endcanany
+
+                @if (auth()->user()?->hasRole(\App\Support\PermissionCatalog::SUPER_ADMIN_ROLE_NAME))
+                <flux:sidebar.group expandable heading="Base de datos" class="grid" :expanded="request()->routeIs('administracion.backups.*')">
+                    <flux:sidebar.item icon="archive-box-arrow-down" :href="route('administracion.backups.index')" :current="request()->routeIs('administracion.backups.*')" wire:navigate>
+                        {{ __('Backups BD') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+                @endif
             </flux:sidebar.nav>
 
             <flux:sidebar.spacer />

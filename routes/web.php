@@ -217,6 +217,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('configuracion/metodos-pago', \App\Livewire\Settings\PaymentMethods\Index::class)->middleware('permission:payment-methods.view')->name('payment-methods.index');
 
     // Administración (por permiso)
+    Route::get('administracion/backups', \App\Livewire\Administracion\DatabaseBackupLive::class)->name('administracion.backups.index');
     Route::get('usuarios', \App\Livewire\Usuarios\UsuarioLive::class)->middleware('permission:usuarios.view')->name('usuarios.index');
     Route::get('roles', \App\Livewire\Roles\RolLive::class)->middleware('permission:roles.view')->name('roles.index');
 
