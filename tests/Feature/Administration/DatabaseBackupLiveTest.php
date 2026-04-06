@@ -11,17 +11,17 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->seed(BaseCatalogSeeder::class);
 
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
 });
 
 afterEach(function () {
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
 });
 
 it('allows super admin to access database backups screen', function () {
@@ -49,7 +49,7 @@ it('loads terminal events for the latest restore and can reopen the monitor', fu
     $this->actingAs($user);
 
     $restoreId = 'restore_livewire_latest';
-    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
+    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
     File::ensureDirectoryExists($restoreDirectory);
 
     File::put($restoreDirectory.DIRECTORY_SEPARATOR.$restoreId.'.json', json_encode([

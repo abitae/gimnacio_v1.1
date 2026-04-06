@@ -3,19 +3,19 @@
 use App\Models\User;
 use App\Services\System\DatabaseBackupService;
 use App\Support\PermissionCatalog;
-use Illuminate\Support\Facades\DB;
 use Database\Seeders\BaseCatalogSeeder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
     $this->seed(BaseCatalogSeeder::class);
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
 });
 
 afterEach(function () {
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
 });
 
 it('creates a zip backup with a single internal sql file and data', function () {
@@ -41,7 +41,7 @@ it('creates a zip backup with a single internal sql file and data', function () 
     expect($backup['storage_type'])->toBe('zip_bundle');
 
     $manifest = $service->readManifest($backup['filename']);
-    $targetPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'zip_backup_extract_test.sql');
+    $targetPath = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'zip_backup_extract_test.sql');
     $service->materializeArchiveToSql($backup['path'], $targetPath);
     $contents = file_get_contents($targetPath);
     File::delete($targetPath);
@@ -118,10 +118,10 @@ it('fails cleanly when the internal sql file is missing during restore assembly'
     $service = app(DatabaseBackupService::class);
     $backup = $service->createBackup();
     $manifest = $service->readManifest($backup['filename']);
-    $targetPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'missing_manifest_restore.sql');
+    $targetPath = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'missing_manifest_restore.sql');
 
-    $brokenZip = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'broken_missing_part.zip');
-    $zip = new ZipArchive();
+    $brokenZip = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'broken_missing_part.zip');
+    $zip = new ZipArchive;
     $zip->open($brokenZip, ZipArchive::CREATE | ZipArchive::OVERWRITE);
     $zip->addFromString('manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
     $zip->close();
@@ -136,7 +136,7 @@ it('fails cleanly when the internal sql file is missing during restore assembly'
 it('restores large sql files in parts and reports chunked progress', function () {
     $service = app(DatabaseBackupService::class);
 
-    $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'large_restore_test.sql');
+    $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'large_restore_test.sql');
     File::ensureDirectoryExists(dirname($tempPath));
 
     $payload = str_repeat('A', 20000);

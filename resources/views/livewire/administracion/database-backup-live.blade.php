@@ -72,7 +72,7 @@
         <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
             <div class="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
                 <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Backups generados</h2>
-                <p class="text-xs text-zinc-500 dark:text-zinc-400">Se guardan en <span class="font-mono">storage/app/backups</span> y solo se generan manualmente desde este modulo.</p>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">Se guardan en <span class="font-mono">storage/app/public/backups</span> y solo se generan manualmente desde este modulo.</p>
             </div>
 
             <div class="overflow-x-auto">

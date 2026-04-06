@@ -9,29 +9,29 @@ use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
     $this->seed(BaseCatalogSeeder::class);
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'));
 });
 
 afterEach(function () {
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
-    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
-    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'));
 });
 
 it('cancels a queued restore before execution starts', function () {
     $service = app(DatabaseRestoreService::class);
 
     $restoreId = 'restore_test_cancelled';
-    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
-    $uploadsDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads');
+    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
+    $uploadsDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads');
     File::ensureDirectoryExists($restoreDirectory);
     File::ensureDirectoryExists($uploadsDirectory);
 
@@ -83,8 +83,8 @@ it('restores super admin credentials after a successful restore', function () {
     User::query()->where('email', 'abel.arana@hotmail.com')->delete();
 
     $restoreId = 'restore_test_super_admin';
-    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
-    $uploadsDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads');
+    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
+    $uploadsDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads');
     File::ensureDirectoryExists($restoreDirectory);
     File::ensureDirectoryExists($uploadsDirectory);
 
@@ -151,8 +151,8 @@ it('repairs an existing incomplete super admin during restore', function () {
     $backup = $backupService->createBackup();
 
     $restoreId = 'restore_test_super_admin_repair';
-    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
-    $uploadsDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads');
+    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
+    $uploadsDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads');
     File::ensureDirectoryExists($restoreDirectory);
     File::ensureDirectoryExists($uploadsDirectory);
 
@@ -197,7 +197,7 @@ it('reads restore events incrementally', function () {
     $service = app(DatabaseRestoreService::class);
 
     $restoreId = 'restore_test_events';
-    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
+    $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
     File::ensureDirectoryExists($restoreDirectory);
 
     File::put($restoreDirectory.DIRECTORY_SEPARATOR.$restoreId.'.jsonl', implode(PHP_EOL, [
@@ -231,7 +231,7 @@ it('builds platform specific launcher scripts', function () {
     expect($windowsPath)->toEndWith('.cmd');
     expect(File::get($windowsPath))->toContain('backup:restore-run --id="restore_test_windows"');
     expect($unixPath)->toEndWith('.sh');
-    expect(File::get($unixPath))->toContain("/usr/bin/php");
+    expect(File::get($unixPath))->toContain('/usr/bin/php');
     expect(File::get($unixPath))->toContain('backup:restore-run --id="restore_test_unix"');
 
     File::delete([$windowsPath, $unixPath]);
@@ -249,7 +249,8 @@ it('resolves the cli php binary when running from php cgi on windows', function 
         $this->markTestSkipped('No hay binario php.exe disponible para validar el reemplazo de php-cgi.exe.');
     }
 
-    $service = new class(app(\App\Services\System\DatabaseBackupService::class)) extends DatabaseRestoreService {
+    $service = new class(app(\App\Services\System\DatabaseBackupService::class)) extends DatabaseRestoreService
+    {
         private string $forcedBinary = '';
 
         public function __construct($backupService)

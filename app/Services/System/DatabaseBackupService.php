@@ -132,7 +132,7 @@ class DatabaseBackupService
         $originalName = $file->getClientOriginalName();
 
         if ($this->isBackupArchiveFilename($originalName)) {
-            $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_zip_', true).'.sql');
+            $tempPath = $this->backupDirectory().DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_zip_', true).'.sql';
             File::ensureDirectoryExists(dirname($tempPath));
 
             try {
@@ -150,8 +150,9 @@ class DatabaseBackupService
             throw new RuntimeException('Solo se permiten archivos .zip, .sql o .txt.');
         }
 
-        $tempPath = $file->storeAs('backups/uploads', uniqid('restore_', true).'.sql');
-        $absolutePath = storage_path('app'.DIRECTORY_SEPARATOR.$tempPath);
+        $absolutePath = $this->backupDirectory().DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_', true).'.sql';
+        File::ensureDirectoryExists(dirname($absolutePath));
+        File::copy($file->getRealPath(), $absolutePath);
 
         try {
             $this->restoreFromPath($absolutePath);
@@ -162,7 +163,7 @@ class DatabaseBackupService
 
     public function restoreFromArchivePath(string $archivePath, ?callable $progressCallback = null): void
     {
-        $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_zip_', true).'.sql');
+        $tempPath = $this->backupDirectory().DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_zip_', true).'.sql';
         File::ensureDirectoryExists(dirname($tempPath));
 
         try {
@@ -414,7 +415,7 @@ class DatabaseBackupService
 
     private function backupDirectory(): string
     {
-        return storage_path('app'.DIRECTORY_SEPARATOR.'backups');
+        return storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups');
     }
 
     private function dumpHeader(): string
@@ -649,21 +650,25 @@ class DatabaseBackupService
 
                     if ($escape) {
                         $escape = false;
+
                         continue;
                     }
 
                     if ($char === '\\') {
                         $escape = true;
+
                         continue;
                     }
 
                     if ($char === "'" && ! $inDouble) {
                         $inSingle = ! $inSingle;
+
                         continue;
                     }
 
                     if ($char === '"' && ! $inSingle) {
                         $inDouble = ! $inDouble;
+
                         continue;
                     }
 
@@ -828,7 +833,7 @@ class DatabaseBackupService
     private function createBackupArchive(string $backupId, string $manifestPath, array $partPaths): string
     {
         $zipPath = $this->backupDirectory().DIRECTORY_SEPARATOR.$backupId.'.zip';
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
 
         $result = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
         if ($result !== true) {
@@ -854,7 +859,7 @@ class DatabaseBackupService
 
     private function openArchive(string $path): ZipArchive
     {
-        $zip = new ZipArchive();
+        $zip = new ZipArchive;
         $result = $zip->open($path);
 
         if ($result !== true) {

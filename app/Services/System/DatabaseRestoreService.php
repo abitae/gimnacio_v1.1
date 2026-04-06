@@ -2,7 +2,6 @@
 
 namespace App\Services\System;
 
-use App\Models\User;
 use App\Support\PermissionCatalog;
 use Database\Seeders\AdminUserSeeder;
 use Database\Seeders\BaseCatalogSeeder;
@@ -13,8 +12,11 @@ use RuntimeException;
 class DatabaseRestoreService
 {
     private const QUEUE_WARNING_SECONDS = 8;
+
     private const EVENT_READ_LIMIT = 250;
+
     private const FILE_READ_RETRIES = 3;
+
     private const FILE_READ_RETRY_US = 120000;
 
     public function __construct(
@@ -421,7 +423,7 @@ class DatabaseRestoreService
         if ($content === null) {
             return '';
         }
-        $lines = preg_split("/\\r\\n|\\n|\\r/", $content) ?: [];
+        $lines = preg_split('/\\r\\n|\\n|\\r/', $content) ?: [];
         $lines = array_values(array_filter($lines, fn (string $line) => $line !== ''));
 
         return implode(PHP_EOL, array_slice($lines, -1 * $maxLines));
@@ -627,12 +629,12 @@ class DatabaseRestoreService
 
     private function restoreDirectory(): string
     {
-        return storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
+        return storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
     }
 
     private function uploadsDirectory(): string
     {
-        return storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads');
+        return storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads');
     }
 
     private function statusPath(string $restoreId): string
