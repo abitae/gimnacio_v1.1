@@ -41,7 +41,7 @@ class DatabaseBackupLive extends Component
         $this->refreshBackups($backupService);
         $this->flashToast(
             'success',
-            'Backup generado correctamente en '.$backup['part_count'].' parte(s). Descargalo desde la tabla de backups generados.'
+            'Backup generado correctamente en un archivo ZIP. Descargalo desde la tabla de backups generados.'
         );
     }
 

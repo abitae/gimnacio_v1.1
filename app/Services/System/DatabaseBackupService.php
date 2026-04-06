@@ -18,8 +18,6 @@ class DatabaseBackupService
 
     private const LARGE_RESTORE_THRESHOLD_BYTES = 5 * 1024 * 1024;
 
-    private const BACKUP_PART_MAX_BYTES = 1572864;
-
     private const MANIFEST_FORMAT_VERSION = 1;
 
     private ?array $excludedSuperAdminContext = null;
@@ -32,7 +30,7 @@ class DatabaseBackupService
         $backupId = 'backup_'.now()->format('Ymd_His');
         $stagingDirectory = $this->stagingDirectory($backupId);
         File::ensureDirectoryExists($stagingDirectory);
-        $writer = new BackupPartWriter($stagingDirectory, $backupId, self::BACKUP_PART_MAX_BYTES);
+        $writer = new BackupPartWriter($stagingDirectory, $backupId);
 
         try {
             $writer->writeBlock($this->dumpHeader(), 'cabecera SQL');
@@ -54,7 +52,7 @@ class DatabaseBackupService
                 'driver' => DB::connection()->getDriverName(),
                 'database' => DB::connection()->getDatabaseName(),
                 'format_version' => self::MANIFEST_FORMAT_VERSION,
-                'max_part_size_bytes' => self::BACKUP_PART_MAX_BYTES,
+                'max_part_size_bytes' => null,
             ]);
 
             $zipPath = $this->createBackupArchive($backupId, $manifestPath, $writer->partPaths());
@@ -869,11 +867,7 @@ class DatabaseBackupService
 
 class BackupPartWriter
 {
-    private int $currentPart = 0;
-
     private $handle = null;
-
-    private int $currentBytes = 0;
 
     /** @var list<string> */
     private array $partPaths = [];
@@ -881,7 +875,6 @@ class BackupPartWriter
     public function __construct(
         private readonly string $directory,
         private readonly string $backupId,
-        private readonly int $maxPartBytes,
     ) {}
 
     public function writeBlock(string $block, string $description = 'bloque SQL'): void
@@ -890,26 +883,14 @@ class BackupPartWriter
             return;
         }
 
-        $size = strlen($block);
-
-        if ($size > $this->maxPartBytes) {
-            throw new RuntimeException('No se pudo generar el backup: '.$description.' excede el tamano maximo de 1.5 MB por parte.');
-        }
-
         if ($this->handle === null) {
-            $this->rotatePart();
-        }
-
-        if (($this->currentBytes + $size) > $this->maxPartBytes && $this->currentBytes > 0) {
-            $this->rotatePart();
+            $this->openSinglePart();
         }
 
         $written = fwrite($this->handle, $block);
-        if ($written === false || $written !== $size) {
-            throw new RuntimeException('No se pudo escribir una parte del backup.');
+        if ($written === false || $written !== strlen($block)) {
+            throw new RuntimeException('No se pudo escribir el contenido SQL del backup.');
         }
-
-        $this->currentBytes += $written;
     }
 
     /**
@@ -972,20 +953,18 @@ class BackupPartWriter
         return $this->partPaths;
     }
 
-    private function rotatePart(): void
+    private function openSinglePart(): void
     {
         $this->closeHandle();
-        $this->currentPart++;
-        $this->currentBytes = 0;
 
-        $partPath = $this->directory.DIRECTORY_SEPARATOR.$this->backupId.'.part'.str_pad((string) $this->currentPart, 3, '0', STR_PAD_LEFT).'.sql';
+        $partPath = $this->directory.DIRECTORY_SEPARATOR.$this->backupId.'.sql';
         $handle = fopen($partPath, 'wb');
         if ($handle === false) {
-            throw new RuntimeException('No se pudo crear una parte del backup.');
+            throw new RuntimeException('No se pudo crear el archivo SQL del backup.');
         }
 
         $this->handle = $handle;
-        $this->partPaths[] = $partPath;
+        $this->partPaths = [$partPath];
     }
 
     private function closeHandle(): void

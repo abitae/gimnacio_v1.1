@@ -22,7 +22,7 @@
     <div class="flex items-start justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Backups de base de datos</h1>
-            <p class="text-xs text-zinc-600 dark:text-zinc-400">Exporta backups manuales en ZIP y restaura toda la base desde un ZIP del sistema o un SQL legado.</p>
+            <p class="text-xs text-zinc-600 dark:text-zinc-400">Exporta backups manuales en ZIP con un solo SQL interno y restaura toda la base desde un ZIP del sistema o un SQL legado.</p>
         </div>
 
         <div class="flex items-center gap-2">

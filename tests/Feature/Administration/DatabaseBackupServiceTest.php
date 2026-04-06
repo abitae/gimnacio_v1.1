@@ -18,7 +18,7 @@ afterEach(function () {
     File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
 });
 
-it('creates a zip backup with internal parts and data', function () {
+it('creates a zip backup with a single internal sql file and data', function () {
     $superAdmin = User::factory()->create([
         'name' => 'Super Admin',
         'email' => 'super-admin@example.test',
@@ -37,7 +37,7 @@ it('creates a zip backup with internal parts and data', function () {
 
     expect($backup['filename'])->toEndWith('.zip');
     expect(file_exists($backup['path']))->toBeTrue();
-    expect($backup['part_count'])->toBeGreaterThanOrEqual(1);
+    expect($backup['part_count'])->toBe(1);
     expect($backup['storage_type'])->toBe('zip_bundle');
 
     $manifest = $service->readManifest($backup['filename']);
@@ -98,7 +98,7 @@ it('lists zip backups as a single lot entry', function () {
     expect($listed[0]['storage_type'])->toBe('zip_bundle');
 });
 
-it('splits large backups into multiple parts below the configured limit', function () {
+it('keeps large backups as a single internal sql file inside the zip', function () {
     DB::statement('CREATE TABLE chunked_backup_payloads (id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT)');
 
     $payload = str_repeat('X', 14000);
@@ -109,13 +109,12 @@ it('splits large backups into multiple parts below the configured limit', functi
     $service = app(DatabaseBackupService::class);
     $backup = $service->createBackup();
 
-    expect($backup['part_count'])->toBeGreaterThan(1);
-    foreach ($backup['parts'] as $part) {
-        expect($part['size_bytes'])->toBeLessThanOrEqual(1572864);
-    }
+    expect($backup['part_count'])->toBe(1);
+    expect($backup['parts'])->toHaveCount(1);
+    expect($backup['parts'][0]['filename'])->toEndWith('.sql');
 });
 
-it('fails cleanly when a manifest part is missing during restore assembly', function () {
+it('fails cleanly when the internal sql file is missing during restore assembly', function () {
     $service = app(DatabaseBackupService::class);
     $backup = $service->createBackup();
     $manifest = $service->readManifest($backup['filename']);
@@ -125,9 +124,6 @@ it('fails cleanly when a manifest part is missing during restore assembly', func
     $zip = new ZipArchive();
     $zip->open($brokenZip, ZipArchive::CREATE | ZipArchive::OVERWRITE);
     $zip->addFromString('manifest.json', json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-    foreach (array_slice($manifest['parts'], 1) as $part) {
-        $zip->addFromString('parts/'.$part['filename'], '-- missing first part on purpose');
-    }
     $zip->close();
 
     expect(fn () => $service->materializeArchiveToSql($brokenZip, $targetPath))
