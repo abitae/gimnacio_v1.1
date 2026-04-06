@@ -305,6 +305,8 @@ class DatabaseRestoreService
 
     public function latestStatus(): ?array
     {
+        File::ensureDirectoryExists($this->restoreDirectory());
+
         $files = collect(File::files($this->restoreDirectory()))
             ->filter(fn (\SplFileInfo $file) => $file->getExtension() === 'json')
             ->sortByDesc(fn (\SplFileInfo $file) => $file->getMTime())
@@ -325,6 +327,7 @@ class DatabaseRestoreService
             return null;
         }
 
+        File::ensureDirectoryExists($this->restoreDirectory());
         $path = $this->statusPath($restoreId);
         if (! File::exists($path)) {
             return null;
@@ -344,6 +347,7 @@ class DatabaseRestoreService
             return '';
         }
 
+        File::ensureDirectoryExists($this->restoreDirectory());
         $path = $this->logPath($restoreId);
         if (! File::exists($path)) {
             return '';
@@ -368,6 +372,7 @@ class DatabaseRestoreService
             return ['events' => [], 'next_offset' => 0];
         }
 
+        File::ensureDirectoryExists($this->restoreDirectory());
         $path = $this->eventsPath($restoreId);
         if (! File::exists($path)) {
             return ['events' => [], 'next_offset' => 0];

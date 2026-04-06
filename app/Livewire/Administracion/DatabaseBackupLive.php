@@ -32,9 +32,7 @@ class DatabaseBackupLive extends Component
         );
 
         $this->refreshBackups($backupService);
-        $this->restoreStatus = $restoreService->latestStatus();
-        $this->restoreJobId = $this->restoreStatus['id'] ?? null;
-        $this->syncRestoreEvents($restoreService, true);
+        $this->safeRefreshRestoreState($restoreService, true);
     }
 
     public function exportBackup(DatabaseBackupService $backupService)
@@ -95,21 +93,35 @@ class DatabaseBackupLive extends Component
 
     public function refreshRestoreStatus(DatabaseRestoreService $restoreService): void
     {
-        $previousRestoreId = $this->restoreJobId;
-
-        if ($this->restoreJobId) {
-            $restoreService->flagQueuedDelayWarning($this->restoreJobId);
-        }
-
-        $this->restoreStatus = $restoreService->readStatus($this->restoreJobId) ?? $restoreService->latestStatus();
-        $this->restoreJobId = $this->restoreStatus['id'] ?? null;
-        $this->syncRestoreEvents($restoreService, $previousRestoreId !== $this->restoreJobId);
+        $this->safeRefreshRestoreState($restoreService);
     }
 
     public function openRestoreMonitorModal(DatabaseRestoreService $restoreService): void
     {
-        $this->refreshRestoreStatus($restoreService);
+        $this->safeRefreshRestoreState($restoreService);
         $this->showRestoreMonitorModal = true;
+    }
+
+    private function safeRefreshRestoreState(DatabaseRestoreService $restoreService, bool $resetEvents = false): void
+    {
+        $previousRestoreId = $this->restoreJobId;
+
+        try {
+            if ($this->restoreJobId) {
+                $restoreService->flagQueuedDelayWarning($this->restoreJobId);
+            }
+
+            $this->restoreStatus = $restoreService->readStatus($this->restoreJobId) ?? $restoreService->latestStatus();
+            $this->restoreJobId = $this->restoreStatus['id'] ?? null;
+            $this->syncRestoreEvents($restoreService, $resetEvents || $previousRestoreId !== $this->restoreJobId);
+        } catch (\Throwable) {
+            if ($resetEvents) {
+                $this->restoreStatus = null;
+                $this->restoreJobId = null;
+                $this->restoreEvents = [];
+                $this->restoreEventOffset = 0;
+            }
+        }
     }
 
     public function cancelRestore(DatabaseRestoreService $restoreService): void
