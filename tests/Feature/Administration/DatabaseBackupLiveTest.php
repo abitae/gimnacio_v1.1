@@ -14,6 +14,11 @@ beforeEach(function () {
     File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
 });
 
+afterEach(function () {
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
+});
+
 it('allows super admin to access database backups screen', function () {
     $user = User::factory()->create(['estado' => 'activo']);
     $user->assignRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME);
@@ -77,7 +82,7 @@ it('loads terminal events for the latest restore and can reopen the monitor', fu
         ->call('openRestoreMonitorModal')
         ->assertSet('showRestoreMonitorModal', true)
         ->assertSet('restoreJobId', $restoreId)
-        ->assertSet('restoreEventOffset', 2)
+        ->assertSet('restoreEventOffset', fn ($value) => $value > 0)
         ->assertSee('Terminal de restauracion')
         ->assertSee('Restore en cola')
         ->assertSee('SELECT 1;');

@@ -13,6 +13,7 @@ use RuntimeException;
 class DatabaseRestoreService
 {
     private const QUEUE_WARNING_SECONDS = 8;
+    private const EVENT_READ_LIMIT = 250;
 
     public function __construct(
         private readonly DatabaseBackupService $backupService,
@@ -47,6 +48,10 @@ class DatabaseRestoreService
             'estimated_mode' => File::size($storedAbsolute) >= (5 * 1024 * 1024) ? 'chunked' : 'single_part',
             'platform_launcher' => DIRECTORY_SEPARATOR === '\\' ? 'windows_cmd' : 'unix_sh',
             'file_size_bytes' => File::size($storedAbsolute),
+            'launcher_command' => null,
+            'launcher_script' => null,
+            'launcher_log' => null,
+            'launcher_started_at' => null,
             'current_command' => null,
             'current_step' => 'En cola',
             'file_path' => $storedAbsolute,
@@ -56,9 +61,10 @@ class DatabaseRestoreService
             'finished_at' => null,
             'created_at' => now()->toDateTimeString(),
             'last_event_at' => now()->toDateTimeString(),
+            'super_admin_restored' => false,
         ];
 
-        $this->writeStatus($restoreId, $status);
+        $this->persistStatusSnapshot($restoreId, $status);
         $this->appendLog($restoreId, 'Restore en cola para archivo: '.$file->getClientOriginalName());
         $this->appendEvent($restoreId, [
             'level' => 'phase',
@@ -82,11 +88,18 @@ class DatabaseRestoreService
 
         if (($status['cancel_requested'] ?? false) === true) {
             $status['status'] = 'cancelled';
+            $status['stage'] = 'cancelled';
             $status['current_step'] = 'Restauracion cancelada antes de iniciar';
             $status['finished_at'] = now()->toDateTimeString();
             $status['error'] = null;
-            $this->writeStatus($restoreId, $status);
+            $this->persistStatusSnapshot($restoreId, $status);
             $this->appendLog($restoreId, 'Restauracion cancelada antes de iniciar.');
+            $this->appendEvent($restoreId, [
+                'level' => 'warn',
+                'stage' => 'cancelled',
+                'message' => 'Restauracion cancelada antes de iniciar.',
+                'progress' => 0,
+            ]);
 
             File::delete($filePath);
 
@@ -98,7 +111,7 @@ class DatabaseRestoreService
         $status['current_step'] = 'Inicializando restauracion';
         $status['started_at'] = now()->toDateTimeString();
         $status['error'] = null;
-        $this->writeStatus($restoreId, $status);
+        $this->persistStatusSnapshot($restoreId, $status);
         $this->appendLog($restoreId, 'Inicio de restauracion.');
         $this->appendEvent($restoreId, [
             'level' => 'phase',
@@ -116,7 +129,7 @@ class DatabaseRestoreService
                     $status['current_step'] = 'Cancelando restauracion';
                     $status['finished_at'] = now()->toDateTimeString();
                     $status['error'] = null;
-                    $this->writeStatus($restoreId, $status);
+                    $this->persistStatusSnapshot($restoreId, $status);
                     $this->appendLog($restoreId, 'Cancelacion solicitada por el usuario.');
                     $this->appendEvent($restoreId, [
                         'level' => 'warn',
@@ -143,7 +156,7 @@ class DatabaseRestoreService
                 $updatedStatus['estimated_mode'] = ! empty($updatedStatus['is_large_restore']) ? 'chunked' : 'single_part';
 
                 if ($this->shouldPersistProgress($status, $updatedStatus)) {
-                    $this->writeStatus($restoreId, $updatedStatus);
+                    $this->persistStatusSnapshot($restoreId, $updatedStatus);
                 }
 
                 if (! empty($progress['log'])) {
@@ -168,7 +181,7 @@ class DatabaseRestoreService
             $status['stage'] = 'restoring_super_admin';
             $status['current_step'] = 'Restaurando credenciales del super-admin';
             $status['current_command'] = 'Database\\Seeders\\BaseCatalogSeeder + Database\\Seeders\\AdminUserSeeder';
-            $this->writeStatus($restoreId, $status);
+            $this->persistStatusSnapshot($restoreId, $status);
             $this->appendLog($restoreId, 'Restaurando catalogos base y credenciales del super-admin.');
             $this->appendEvent($restoreId, [
                 'level' => 'phase',
@@ -187,7 +200,7 @@ class DatabaseRestoreService
             $status['current_step'] = 'Restauracion completada';
             $status['current_part'] = $status['total_parts'] ?? $status['current_part'] ?? 0;
             $status['finished_at'] = now()->toDateTimeString();
-            $this->writeStatus($restoreId, $status);
+            $this->persistStatusSnapshot($restoreId, $status);
             $this->appendLog($restoreId, 'Restauracion completada correctamente.');
             $this->appendEvent($restoreId, [
                 'level' => 'success',
@@ -202,7 +215,7 @@ class DatabaseRestoreService
             $status['current_step'] = 'Restauracion cancelada';
             $status['finished_at'] = now()->toDateTimeString();
             $status['error'] = null;
-            $this->writeStatus($restoreId, $status);
+            $this->persistStatusSnapshot($restoreId, $status);
             $this->appendLog($restoreId, 'Restauracion cancelada correctamente.');
             $this->appendEvent($restoreId, [
                 'level' => 'warn',
@@ -217,7 +230,7 @@ class DatabaseRestoreService
             $status['error'] = $e->getMessage();
             $status['current_step'] = 'Restauracion fallida';
             $status['finished_at'] = now()->toDateTimeString();
-            $this->writeStatus($restoreId, $status);
+            $this->persistStatusSnapshot($restoreId, $status);
             $this->appendLog($restoreId, 'ERROR: '.$e->getMessage());
             $this->appendEvent($restoreId, [
                 'level' => 'error',
@@ -253,7 +266,7 @@ class DatabaseRestoreService
         $status['current_step'] = $currentStatus === 'queued'
             ? 'Cancelacion solicitada antes de iniciar'
             : 'Cancelacion solicitada';
-        $this->writeStatus($restoreId, $status);
+        $this->persistStatusSnapshot($restoreId, $status);
         $this->appendLog($restoreId, 'Se solicito cancelar la restauracion.');
         $this->appendEvent($restoreId, [
             'level' => 'warn',
@@ -265,15 +278,18 @@ class DatabaseRestoreService
 
     public function latestStatus(): ?array
     {
-        $files = collect(File::glob($this->restoreDirectory().DIRECTORY_SEPARATOR.'*.json'))
-            ->sortDesc()
+        $files = collect(File::files($this->restoreDirectory()))
+            ->filter(fn (\SplFileInfo $file) => $file->getExtension() === 'json')
+            ->sortByDesc(fn (\SplFileInfo $file) => $file->getMTime())
             ->values();
 
         if ($files->isEmpty()) {
             return null;
         }
 
-        return $this->readStatus(basename((string) $files->first(), '.json'));
+        $latest = $files->first();
+
+        return $this->readStatus(basename($latest->getRealPath(), '.json'));
     }
 
     public function readStatus(?string $restoreId): ?array
@@ -288,6 +304,9 @@ class DatabaseRestoreService
         }
 
         $decoded = json_decode(File::get($path), true);
+        if (is_array($decoded)) {
+            $decoded = $this->maybeEmitQueuedDelayWarning($restoreId, $decoded);
+        }
 
         return is_array($decoded) ? $decoded : null;
     }
@@ -313,7 +332,7 @@ class DatabaseRestoreService
     /**
      * @return array{events:list<array<string, mixed>>,next_offset:int}
      */
-    public function readEvents(?string $restoreId, ?int $afterOffset = null, int $limit = 250): array
+    public function readEvents(?string $restoreId, ?int $afterOffset = null, int $limit = self::EVENT_READ_LIMIT): array
     {
         if (! $restoreId) {
             return ['events' => [], 'next_offset' => 0];
@@ -324,64 +343,71 @@ class DatabaseRestoreService
             return ['events' => [], 'next_offset' => 0];
         }
 
-        $lines = preg_split("/\\r\\n|\\n|\\r/", File::get($path)) ?: [];
-        $lines = array_values(array_filter($lines, fn (string $line) => trim($line) !== ''));
-        $start = max(0, (int) ($afterOffset ?? 0));
-        $slice = array_slice($lines, $start, $limit);
+        $offset = max(0, (int) ($afterOffset ?? 0));
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            return ['events' => [], 'next_offset' => 0];
+        }
 
-        $events = array_values(array_filter(array_map(function (string $line): ?array {
-            $decoded = json_decode($line, true);
+        if ($offset > 0) {
+            fseek($handle, $offset);
+        }
 
-            return is_array($decoded) ? $decoded : null;
-        }, $slice)));
+        $events = [];
+        try {
+            while (! feof($handle) && count($events) < $limit) {
+                $line = fgets($handle);
+                if ($line === false) {
+                    break;
+                }
+
+                $line = trim($line);
+                if ($line === '') {
+                    continue;
+                }
+
+                $decoded = json_decode($line, true);
+                if (is_array($decoded)) {
+                    $events[] = $decoded;
+                }
+            }
+
+            $nextOffset = ftell($handle);
+        } finally {
+            fclose($handle);
+        }
 
         return [
             'events' => $events,
-            'next_offset' => $start + count($slice),
+            'next_offset' => is_int($nextOffset) ? $nextOffset : $offset,
         ];
     }
 
     public function flagQueuedDelayWarning(string $restoreId, int $seconds = self::QUEUE_WARNING_SECONDS): void
     {
         $status = $this->readStatus($restoreId);
-        if (! is_array($status)) {
-            return;
+        if (is_array($status)) {
+            $this->maybeEmitQueuedDelayWarning($restoreId, $status, $seconds);
         }
-
-        if (($status['status'] ?? null) !== 'queued' || ($status['queue_warning_emitted'] ?? false) === true) {
-            return;
-        }
-
-        $createdAt = isset($status['created_at']) ? strtotime((string) $status['created_at']) : false;
-        if (! is_int($createdAt) || $createdAt <= 0) {
-            return;
-        }
-
-        if ((time() - $createdAt) < $seconds) {
-            return;
-        }
-
-        $status['queue_warning_emitted'] = true;
-        $status['current_step'] = 'Aun en cola, esperando que el proceso de fondo inicie';
-        $this->writeStatus($restoreId, $status);
-        $this->appendLog($restoreId, 'WARN: la restauracion sigue en cola mas tiempo de lo esperado.');
-        $this->appendEvent($restoreId, [
-            'level' => 'warn',
-            'stage' => 'launching_background_process',
-            'message' => 'La restauracion sigue en cola mas tiempo de lo esperado. Revise el lanzador en segundo plano.',
-            'progress' => 0,
-        ]);
     }
 
     private function dispatchBackgroundRestore(string $restoreId): void
     {
-        $phpBinary = PHP_BINARY;
+        $phpBinary = $this->resolveCliPhpBinary();
         $artisanPath = base_path('artisan');
         $workingDirectory = base_path();
 
         if (DIRECTORY_SEPARATOR === '\\') {
             $launcherPath = $this->createWindowsLauncherScript($restoreId, $phpBinary, $artisanPath, $workingDirectory);
             $command = 'cmd /c start "" /B "'.$launcherPath.'"';
+            $launcherLog = $this->launcherLogPath($restoreId);
+            $status = $this->readStatusOrFail($restoreId);
+            $status['launcher_command'] = $command;
+            $status['launcher_script'] = $launcherPath;
+            $status['launcher_log'] = $launcherLog;
+            $status['launcher_started_at'] = now()->toDateTimeString();
+            $status['platform_launcher'] = 'windows_cmd_start';
+            $this->persistStatusSnapshot($restoreId, $status);
             $this->appendLog($restoreId, 'Lanzando proceso en segundo plano con script CMD.');
             $this->appendEvent($restoreId, [
                 'level' => 'phase',
@@ -397,6 +423,13 @@ class DatabaseRestoreService
 
         $launcherPath = $this->createUnixLauncherScript($restoreId, $phpBinary, $artisanPath, $workingDirectory);
         $launcher = escapeshellarg($launcherPath);
+        $status = $this->readStatusOrFail($restoreId);
+        $status['launcher_command'] = "nohup sh {$launcher} > /dev/null 2>&1 &";
+        $status['launcher_script'] = $launcherPath;
+        $status['launcher_log'] = $this->launcherLogPath($restoreId);
+        $status['launcher_started_at'] = now()->toDateTimeString();
+        $status['platform_launcher'] = 'linux_nohup_sh';
+        $this->persistStatusSnapshot($restoreId, $status);
         $this->appendLog($restoreId, 'Lanzando proceso en segundo plano con nohup.');
         $this->appendEvent($restoreId, [
             'level' => 'phase',
@@ -406,6 +439,40 @@ class DatabaseRestoreService
             'progress' => 0,
         ]);
         exec("nohup sh {$launcher} > /dev/null 2>&1 &");
+    }
+
+    private function resolveCliPhpBinary(): string
+    {
+        $binary = $this->currentPhpBinary();
+        $basename = strtolower(basename($binary));
+
+        if (in_array($basename, ['php-cgi.exe', 'php-win.exe', 'phpdbg.exe', 'php-cgi', 'php-fpm', 'php-fpm8', 'php-fpm8.1', 'php-fpm8.2', 'php-fpm8.3'], true)) {
+            $candidate = dirname($binary).DIRECTORY_SEPARATOR.(DIRECTORY_SEPARATOR === '\\' ? 'php.exe' : 'php');
+            if (File::exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        if (DIRECTORY_SEPARATOR === '\\' && $basename !== 'php.exe') {
+            $candidate = dirname($binary).DIRECTORY_SEPARATOR.'php.exe';
+            if (File::exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        if (DIRECTORY_SEPARATOR !== '\\' && $basename !== 'php') {
+            $candidate = dirname($binary).DIRECTORY_SEPARATOR.'php';
+            if (File::exists($candidate)) {
+                return $candidate;
+            }
+        }
+
+        return $binary;
+    }
+
+    protected function currentPhpBinary(): string
+    {
+        return PHP_BINARY;
     }
 
     private function restoreSuperAdminCredentials(string $restoreId): void
@@ -436,6 +503,9 @@ class DatabaseRestoreService
             $restoreId,
             'Super-admin restaurado correctamente: '.$user->email.' (id '.$user->id.').'
         );
+        $status = $this->readStatusOrFail($restoreId);
+        $status['super_admin_restored'] = true;
+        $this->persistStatusSnapshot($restoreId, $status);
         $this->appendEvent($restoreId, [
             'level' => 'success',
             'stage' => 'restoring_super_admin',
@@ -469,6 +539,11 @@ class DatabaseRestoreService
         return $this->restoreDirectory().DIRECTORY_SEPARATOR.$restoreId.'.jsonl';
     }
 
+    private function launcherLogPath(string $restoreId): string
+    {
+        return $this->restoreDirectory().DIRECTORY_SEPARATOR.$restoreId.'.launcher.log';
+    }
+
     private function launcherScriptPath(string $restoreId): string
     {
         $extension = DIRECTORY_SEPARATOR === '\\' ? '.cmd' : '.sh';
@@ -479,10 +554,11 @@ class DatabaseRestoreService
     private function createWindowsLauncherScript(string $restoreId, string $phpBinary, string $artisanPath, string $workingDirectory): string
     {
         $launcherPath = $this->restoreDirectory().DIRECTORY_SEPARATOR.$restoreId.'.cmd';
+        $launcherLogPath = $this->launcherLogPath($restoreId);
         $script = implode(PHP_EOL, [
             '@echo off',
             'cd /d "'.$workingDirectory.'"',
-            '"'.$phpBinary.'" "'.$artisanPath.'" backup:restore-run --id="'.$restoreId.'"',
+            '"'.$phpBinary.'" "'.$artisanPath.'" backup:restore-run --id="'.$restoreId.'" >> "'.$launcherLogPath.'" 2>&1',
             '',
         ]);
 
@@ -494,10 +570,11 @@ class DatabaseRestoreService
     private function createUnixLauncherScript(string $restoreId, string $phpBinary, string $artisanPath, string $workingDirectory): string
     {
         $launcherPath = $this->restoreDirectory().DIRECTORY_SEPARATOR.$restoreId.'.sh';
+        $launcherLogPath = $this->launcherLogPath($restoreId);
         $script = implode(PHP_EOL, [
             '#!/usr/bin/env sh',
             'cd '.escapeshellarg($workingDirectory),
-            escapeshellarg($phpBinary).' '.escapeshellarg($artisanPath).' backup:restore-run --id='.escapeshellarg($restoreId),
+            escapeshellarg($phpBinary).' '.escapeshellarg($artisanPath).' backup:restore-run --id='.escapeshellarg($restoreId).' >> '.escapeshellarg($launcherLogPath).' 2>&1',
             '',
         ]);
 
@@ -510,17 +587,24 @@ class DatabaseRestoreService
     /**
      * @param  array<string, mixed>  $status
      */
-    private function writeStatus(string $restoreId, array $status): void
+    private function persistStatusSnapshot(string $restoreId, array $status): void
     {
         File::ensureDirectoryExists($this->restoreDirectory());
-        $status['last_event_at'] ??= now()->toDateTimeString();
-        File::put($this->statusPath($restoreId), json_encode($status, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        file_put_contents(
+            $this->statusPath($restoreId),
+            json_encode($status, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE),
+            LOCK_EX
+        );
     }
 
     private function appendLog(string $restoreId, string $line): void
     {
         File::ensureDirectoryExists($this->restoreDirectory());
-        File::append($this->logPath($restoreId), '['.now()->format('Y-m-d H:i:s').'] '.$line.PHP_EOL);
+        file_put_contents(
+            $this->logPath($restoreId),
+            '['.now()->format('Y-m-d H:i:s').'] '.$line.PHP_EOL,
+            FILE_APPEND | LOCK_EX
+        );
     }
 
     /**
@@ -543,13 +627,11 @@ class DatabaseRestoreService
             'total_statements' => $event['total_statements'] ?? null,
         ];
 
-        File::append($this->eventsPath($restoreId), json_encode($payload, JSON_UNESCAPED_UNICODE).PHP_EOL);
-
-        $status = $this->readStatus($restoreId);
-        if (is_array($status)) {
-            $status['last_event_at'] = $payload['timestamp'];
-            $this->writeStatus($restoreId, $status);
-        }
+        file_put_contents(
+            $this->eventsPath($restoreId),
+            json_encode($payload, JSON_UNESCAPED_UNICODE).PHP_EOL,
+            FILE_APPEND | LOCK_EX
+        );
     }
 
     /**
@@ -577,6 +659,36 @@ class DatabaseRestoreService
         }
 
         return false;
+    }
+
+    /**
+     * @param  array<string, mixed>  $status
+     * @return array<string, mixed>
+     */
+    private function maybeEmitQueuedDelayWarning(string $restoreId, array $status, int $seconds = self::QUEUE_WARNING_SECONDS): array
+    {
+        if (($status['status'] ?? null) !== 'queued' || ($status['queue_warning_emitted'] ?? false) === true) {
+            return $status;
+        }
+
+        $createdAt = isset($status['created_at']) ? strtotime((string) $status['created_at']) : false;
+        if (! is_int($createdAt) || $createdAt <= 0 || (time() - $createdAt) < $seconds) {
+            return $status;
+        }
+
+        $status['queue_warning_emitted'] = true;
+        $status['current_step'] = 'Aun en cola, esperando que el proceso de fondo inicie';
+        $status['last_event_at'] = now()->toDateTimeString();
+        $this->persistStatusSnapshot($restoreId, $status);
+        $this->appendLog($restoreId, 'WARN: la restauracion sigue en cola mas tiempo de lo esperado.');
+        $this->appendEvent($restoreId, [
+            'level' => 'warn',
+            'stage' => 'launching_background_process',
+            'message' => 'La restauracion sigue en cola mas tiempo de lo esperado. Revise el lanzador en segundo plano.',
+            'progress' => 0,
+        ]);
+
+        return $status;
     }
 
     /**

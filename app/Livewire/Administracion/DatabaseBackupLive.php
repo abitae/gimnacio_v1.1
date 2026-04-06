@@ -20,7 +20,6 @@ class DatabaseBackupLive extends Component
     public array $backups = [];
     public ?string $restoreJobId = null;
     public ?array $restoreStatus = null;
-    public string $restoreLog = '';
     public array $restoreEvents = [];
     public int $restoreEventOffset = 0;
     public bool $showRestoreMonitorModal = false;
@@ -35,7 +34,6 @@ class DatabaseBackupLive extends Component
         $this->refreshBackups($backupService);
         $this->restoreStatus = $restoreService->latestStatus();
         $this->restoreJobId = $this->restoreStatus['id'] ?? null;
-        $this->restoreLog = $restoreService->readLog($this->restoreJobId);
         $this->syncRestoreEvents($restoreService, true);
     }
 
@@ -74,7 +72,6 @@ class DatabaseBackupLive extends Component
 
         $this->restoreJobId = $restoreService->queueRestoreFromUploadedFile($this->restoreFile);
         $this->restoreStatus = $restoreService->readStatus($this->restoreJobId);
-        $this->restoreLog = $restoreService->readLog($this->restoreJobId);
         $this->restoreEvents = [];
         $this->restoreEventOffset = 0;
         $this->syncRestoreEvents($restoreService, true);
@@ -94,7 +91,6 @@ class DatabaseBackupLive extends Component
 
         $this->restoreStatus = $restoreService->readStatus($this->restoreJobId) ?? $restoreService->latestStatus();
         $this->restoreJobId = $this->restoreStatus['id'] ?? null;
-        $this->restoreLog = $restoreService->readLog($this->restoreJobId);
         $this->syncRestoreEvents($restoreService, $previousRestoreId !== $this->restoreJobId);
     }
 
@@ -154,7 +150,7 @@ class DatabaseBackupLive extends Component
         if ($reset) {
             $this->restoreEvents = $events;
         } elseif ($events !== []) {
-            $this->restoreEvents = array_slice(array_merge($this->restoreEvents, $events), -300);
+            $this->restoreEvents = array_slice(array_merge($this->restoreEvents, $events), -500);
         }
 
         $this->restoreEventOffset = (int) ($payload['next_offset'] ?? $this->restoreEventOffset);

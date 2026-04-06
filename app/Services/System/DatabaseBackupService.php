@@ -106,15 +106,15 @@ class DatabaseBackupService
         }
 
         $fileSize = (int) File::size($path);
-        if ($fileSize <= 0 || trim((string) File::get($path)) === '') {
+        if ($fileSize <= 0 || ! $this->fileHasMeaningfulContent($path)) {
             throw new RuntimeException('El archivo SQL esta vacio.');
         }
 
         $connection = DB::connection();
         $driver = $connection->getDriverName();
-        $totalStatements = $this->countStatementsInFile($path);
         $totalParts = max(1, (int) ceil($fileSize / self::RESTORE_READ_CHUNK_BYTES));
         $isLargeRestore = $fileSize >= self::LARGE_RESTORE_THRESHOLD_BYTES;
+        $totalStatements = $isLargeRestore ? null : $this->countStatementsInFile($path);
 
         $notify = function (
             string $step,
@@ -128,11 +128,15 @@ class DatabaseBackupService
                 return;
             }
 
+            $progressValue = $totalStatements && $totalStatements > 0
+                ? (int) floor(($executed / max(1, $totalStatements)) * 100)
+                : ($currentPart !== null ? min(99, (int) floor(($currentPart / max(1, $totalParts)) * 100)) : 0);
+
             $progressCallback([
                 'current_step' => $step,
                 'executed_statements' => $executed,
                 'total_statements' => $totalStatements,
-                'progress' => $totalStatements > 0 ? (int) floor(($executed / max(1, $totalStatements)) * 100) : 0,
+                'progress' => $progressValue,
                 'current_command' => $command,
                 'log' => $log,
                 'current_part' => $currentPart ?? 1,
@@ -153,10 +157,12 @@ class DatabaseBackupService
         }
 
         try {
+            $lastExecuted = 0;
             foreach ($this->statementStream($path) as $index => $statementData) {
                 $trimmed = $statementData['statement'];
                 $currentPart = $statementData['part'];
                 $executed = $index + 1;
+                $lastExecuted = $executed;
                 $step = $isLargeRestore
                     ? 'Ejecutando parte '.$currentPart.' de '.$totalParts.' | sentencia '.$executed.' de '.$totalStatements
                     : 'Ejecutando sentencia '.$executed.' de '.$totalStatements;
@@ -182,10 +188,10 @@ class DatabaseBackupService
         } finally {
             if ($driver === 'mysql') {
                 $connection->unprepared('SET FOREIGN_KEY_CHECKS=1');
-                $notify('Rehabilitando llaves foraneas', $totalStatements, 'SET FOREIGN_KEY_CHECKS=1;', 'SET FOREIGN_KEY_CHECKS=1;', $totalParts, 'enabling_foreign_keys');
+                $notify('Rehabilitando llaves foraneas', $totalStatements ?? $lastExecuted ?? 0, 'SET FOREIGN_KEY_CHECKS=1;', 'SET FOREIGN_KEY_CHECKS=1;', $totalParts, 'enabling_foreign_keys');
             } elseif ($driver === 'sqlite') {
                 $connection->unprepared('PRAGMA foreign_keys = ON');
-                $notify('Rehabilitando llaves foraneas', $totalStatements, 'PRAGMA foreign_keys = ON;', 'PRAGMA foreign_keys = ON;', $totalParts, 'enabling_foreign_keys');
+                $notify('Rehabilitando llaves foraneas', $totalStatements ?? $lastExecuted ?? 0, 'PRAGMA foreign_keys = ON;', 'PRAGMA foreign_keys = ON;', $totalParts, 'enabling_foreign_keys');
             }
         }
     }
@@ -410,6 +416,31 @@ class DatabaseBackupService
         }
 
         return $count;
+    }
+
+    private function fileHasMeaningfulContent(string $path): bool
+    {
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            throw new RuntimeException('No se pudo abrir el archivo SQL para validarlo.');
+        }
+
+        try {
+            while (! feof($handle)) {
+                $chunk = fread($handle, 8192);
+                if ($chunk === false) {
+                    throw new RuntimeException('No se pudo leer el archivo SQL para validarlo.');
+                }
+
+                if (trim($chunk) !== '') {
+                    return true;
+                }
+            }
+
+            return false;
+        } finally {
+            fclose($handle);
+        }
     }
 
     /**
