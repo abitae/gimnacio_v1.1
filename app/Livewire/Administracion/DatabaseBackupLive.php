@@ -81,6 +81,18 @@ class DatabaseBackupLive extends Component
         $this->flashToast('success', 'Restauracion iniciada. Se mostrara el avance en esta pantalla.');
     }
 
+    public function restoreGeneratedBackup(string $filename, DatabaseRestoreService $restoreService): void
+    {
+        $this->restoreJobId = $restoreService->queueRestoreFromBackupFilename($filename);
+        $this->restoreStatus = $restoreService->readStatus($this->restoreJobId);
+        $this->restoreEvents = [];
+        $this->restoreEventOffset = 0;
+        $this->syncRestoreEvents($restoreService, true);
+        $this->showRestoreMonitorModal = true;
+
+        $this->flashToast('success', 'Restauracion iniciada desde el backup generado. Se mostrara el avance en esta pantalla.');
+    }
+
     public function refreshRestoreStatus(DatabaseRestoreService $restoreService): void
     {
         $previousRestoreId = $this->restoreJobId;

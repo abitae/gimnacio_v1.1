@@ -10,11 +10,15 @@ use Livewire\Livewire;
 beforeEach(function () {
     $this->seed(BaseCatalogSeeder::class);
 
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
     File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
     File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
 });
 
 afterEach(function () {
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
     File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
     File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores'));
 });
@@ -86,4 +90,22 @@ it('loads terminal events for the latest restore and can reopen the monitor', fu
         ->assertSee('Terminal de restauracion')
         ->assertSee('Restore en cola')
         ->assertSee('SELECT 1;');
+});
+
+it('can start a restore directly from a generated backup', function () {
+    $user = User::factory()->create(['estado' => 'activo']);
+    $user->assignRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME);
+    $this->actingAs($user);
+
+    $backupDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups');
+    File::ensureDirectoryExists($backupDirectory);
+    $backupFilename = 'backup_direct_restore_test.sql';
+    File::put($backupDirectory.DIRECTORY_SEPARATOR.$backupFilename, 'CREATE TABLE direct_restore_test (id INTEGER);');
+
+    Livewire::test(DatabaseBackupLive::class)
+        ->call('restoreGeneratedBackup', $backupFilename)
+        ->assertSet('showRestoreMonitorModal', true)
+        ->assertSet('restoreJobId', fn ($value) => is_string($value) && str_starts_with($value, 'restore_'))
+        ->assertSet('restoreStatus.original_name', $backupFilename)
+        ->assertSee('Terminal de restauracion');
 });

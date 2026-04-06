@@ -8,6 +8,13 @@ use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
     $this->seed(BaseCatalogSeeder::class);
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
+});
+
+afterEach(function () {
+    File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
+    File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
 });
 
 it('creates a sql backup file with schema and data', function () {

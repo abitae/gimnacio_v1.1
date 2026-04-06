@@ -26,12 +26,37 @@ class DatabaseRestoreService
             throw new RuntimeException('Solo se permiten archivos .sql o .txt.');
         }
 
+        return $this->queueRestoreFromSourcePath(
+            $file->getRealPath(),
+            $file->getClientOriginalName()
+        );
+    }
+
+    public function queueRestoreFromBackupFilename(string $filename): string
+    {
+        $originalName = basename($filename);
+        $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
+        if (! in_array($extension, ['sql', 'txt'], true)) {
+            throw new RuntimeException('Solo se permiten archivos .sql o .txt.');
+        }
+
+        $absolutePath = $this->backupService->absolutePathFor($originalName);
+
+        return $this->queueRestoreFromSourcePath($absolutePath, $originalName);
+    }
+
+    private function queueRestoreFromSourcePath(string $sourcePath, string $originalName): string
+    {
+        if (! File::exists($sourcePath)) {
+            throw new RuntimeException('No se encontro el archivo de origen para la restauracion.');
+        }
+
         $restoreId = uniqid('restore_', true);
         File::ensureDirectoryExists($this->restoreDirectory());
         $uploadsDirectory = $this->uploadsDirectory();
         File::ensureDirectoryExists($uploadsDirectory);
         $storedAbsolute = $uploadsDirectory.DIRECTORY_SEPARATOR.$restoreId.'.sql';
-        File::copy($file->getRealPath(), $storedAbsolute);
+        File::copy($sourcePath, $storedAbsolute);
 
         $status = [
             'id' => $restoreId,
@@ -55,7 +80,7 @@ class DatabaseRestoreService
             'current_command' => null,
             'current_step' => 'En cola',
             'file_path' => $storedAbsolute,
-            'original_name' => $file->getClientOriginalName(),
+            'original_name' => $originalName,
             'error' => null,
             'started_at' => null,
             'finished_at' => null,
@@ -65,11 +90,11 @@ class DatabaseRestoreService
         ];
 
         $this->persistStatusSnapshot($restoreId, $status);
-        $this->appendLog($restoreId, 'Restore en cola para archivo: '.$file->getClientOriginalName());
+        $this->appendLog($restoreId, 'Restore en cola para archivo: '.$originalName);
         $this->appendEvent($restoreId, [
             'level' => 'phase',
             'stage' => 'queued',
-            'message' => 'Restore en cola para archivo: '.$file->getClientOriginalName(),
+            'message' => 'Restore en cola para archivo: '.$originalName,
             'progress' => 0,
         ]);
         $this->dispatchBackgroundRestore($restoreId);
@@ -303,7 +328,7 @@ class DatabaseRestoreService
             return null;
         }
 
-        $decoded = json_decode(File::get($path), true);
+        $decoded = $this->readJsonFileSafely($path);
         if (is_array($decoded)) {
             $decoded = $this->maybeEmitQueuedDelayWarning($restoreId, $decoded);
         }
@@ -322,7 +347,10 @@ class DatabaseRestoreService
             return '';
         }
 
-        $content = File::get($path);
+        $content = $this->readTextFileSafely($path);
+        if ($content === null) {
+            return '';
+        }
         $lines = preg_split("/\\r\\n|\\n|\\r/", $content) ?: [];
         $lines = array_values(array_filter($lines, fn (string $line) => $line !== ''));
 
@@ -344,19 +372,30 @@ class DatabaseRestoreService
         }
 
         $offset = max(0, (int) ($afterOffset ?? 0));
-        $handle = fopen($path, 'rb');
+        $handle = @fopen($path, 'rb');
         if ($handle === false) {
-            return ['events' => [], 'next_offset' => 0];
-        }
-
-        if ($offset > 0) {
-            fseek($handle, $offset);
+            return ['events' => [], 'next_offset' => $offset];
         }
 
         $events = [];
         try {
+            if (! @flock($handle, LOCK_SH)) {
+                return ['events' => [], 'next_offset' => $offset];
+            }
+
+            clearstatcache(true, $path);
+            $fileSize = File::size($path);
+            if ($offset > $fileSize) {
+                $offset = 0;
+            }
+
+            if ($offset > 0 && @fseek($handle, $offset) === -1) {
+                $offset = 0;
+                @rewind($handle);
+            }
+
             while (! feof($handle) && count($events) < $limit) {
-                $line = fgets($handle);
+                $line = @fgets($handle);
                 if ($line === false) {
                     break;
                 }
@@ -374,6 +413,7 @@ class DatabaseRestoreService
 
             $nextOffset = ftell($handle);
         } finally {
+            @flock($handle, LOCK_UN);
             fclose($handle);
         }
 
@@ -632,6 +672,45 @@ class DatabaseRestoreService
             json_encode($payload, JSON_UNESCAPED_UNICODE).PHP_EOL,
             FILE_APPEND | LOCK_EX
         );
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function readJsonFileSafely(string $path): ?array
+    {
+        $content = $this->readTextFileSafely($path);
+        if ($content === null || trim($content) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($content, true);
+
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    private function readTextFileSafely(string $path): ?string
+    {
+        $handle = @fopen($path, 'rb');
+        if ($handle === false) {
+            return null;
+        }
+
+        try {
+            if (! @flock($handle, LOCK_SH)) {
+                return null;
+            }
+
+            $content = stream_get_contents($handle);
+            if ($content === false) {
+                return null;
+            }
+
+            return $content;
+        } finally {
+            @flock($handle, LOCK_UN);
+            fclose($handle);
+        }
     }
 
     /**

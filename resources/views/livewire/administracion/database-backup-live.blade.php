@@ -96,6 +96,17 @@
                                         <flux:button size="xs" variant="ghost" icon="arrow-down-tray" wire:click="downloadBackup('{{ $backup['filename'] }}')" :disabled="$restoreIsRunning">
                                             Descargar
                                         </flux:button>
+                                        <flux:button
+                                            size="xs"
+                                            variant="ghost"
+                                            color="amber"
+                                            icon="arrow-path"
+                                            wire:click="restoreGeneratedBackup('{{ $backup['filename'] }}')"
+                                            wire:confirm="Restaurar directamente este backup reemplazara toda la base de datos actual. Continuar?"
+                                            :disabled="$restoreIsRunning"
+                                        >
+                                            Restaurar
+                                        </flux:button>
                                         <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="deleteBackup('{{ $backup['filename'] }}')" wire:confirm="Eliminar este backup SQL?" :disabled="$restoreIsRunning">
                                             Eliminar
                                         </flux:button>
@@ -143,9 +154,9 @@
         </div>
     </div>
 
-    <flux:modal name="restore-monitor" wire:model="showRestoreMonitorModal" focusable class="max-w-6xl w-full">
+    <flux:modal name="restore-monitor" wire:model="showRestoreMonitorModal" focusable class="max-w-4xl w-full">
         <div
-            class="p-4 sm:p-5"
+            class="p-3"
             @if($showRestoreMonitorModal && $restoreJobId) wire:poll.2s="refreshRestoreStatus" @endif
             x-data="{ stickToBottom: true, newLines: false, lastCount: {{ $eventCount }}, scrollToEnd() { if (this.$refs.term) { this.$nextTick(() => { this.$refs.term.scrollTop = this.$refs.term.scrollHeight; this.stickToBottom = true; this.newLines = false; }); } }, handleScroll() { if (! this.$refs.term) return; this.stickToBottom = (this.$refs.term.scrollTop + this.$refs.term.clientHeight) >= (this.$refs.term.scrollHeight - 24); if (this.stickToBottom) this.newLines = false; } }"
             x-init="scrollToEnd()"
@@ -170,48 +181,27 @@
             </div>
 
             @if($restoreStatus)
-                <div class="mt-4 space-y-4">
-                    <div class="rounded-xl border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
-                        <div class="flex items-center justify-between gap-3 text-xs text-zinc-600 dark:text-zinc-400">
-                            <span>{{ $restoreStatus['current_step'] ?? 'Sin actividad' }}</span>
-                            <span>{{ $progress }}%</span>
+                <div class="mt-3 space-y-2.5">
+                    <div class="rounded-xl border border-zinc-200 bg-white p-2.5 dark:border-zinc-700 dark:bg-zinc-900">
+                        <div class="flex flex-wrap items-center justify-between gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                            <div class="flex min-w-0 items-center gap-2">
+                                <span class="truncate font-medium text-zinc-900 dark:text-zinc-100">{{ $restoreStatus['current_step'] ?? 'Sin actividad' }}</span>
+                                <span class="rounded-full bg-zinc-100 px-1.5 py-0.5 font-mono text-[10px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                    {{ $restoreStatus['executed_statements'] ?? 0 }}/{{ $restoreStatus['total_statements'] ?? '?' }}
+                                </span>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
+                                <span>{{ $launcherLabel }}</span>
+                                <span class="text-zinc-400">|</span>
+                                <span class="uppercase">{{ $estimatedMode }}</span>
+                                <span class="text-zinc-400">|</span>
+                                <span>{{ $currentPart }}/{{ $totalParts }}</span>
+                                <span class="text-zinc-400">|</span>
+                                <span>{{ $progress }}%</span>
+                            </div>
                         </div>
-                        <div class="mt-2 h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
+                        <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
                             <div class="h-full bg-blue-600 transition-all" style="width: {{ $progress }}%"></div>
-                        </div>
-
-                        <div class="mt-4 grid gap-3 md:grid-cols-4">
-                            <div class="rounded-lg border border-zinc-200 p-3 text-xs dark:border-zinc-700">
-                                <p class="text-zinc-500 dark:text-zinc-400">Archivo</p>
-                                <p class="mt-1 font-mono text-zinc-900 dark:text-zinc-100">{{ $restoreStatus['original_name'] ?? '-' }}</p>
-                            </div>
-                            <div class="rounded-lg border border-zinc-200 p-3 text-xs dark:border-zinc-700">
-                                <p class="text-zinc-500 dark:text-zinc-400">Plataforma</p>
-                                <p class="mt-1 font-semibold uppercase text-zinc-900 dark:text-zinc-100">{{ $platformLauncher }}</p>
-                            </div>
-                            <div class="rounded-lg border border-zinc-200 p-3 text-xs dark:border-zinc-700">
-                                <p class="text-zinc-500 dark:text-zinc-400">Modo</p>
-                                <p class="mt-1 font-semibold uppercase text-zinc-900 dark:text-zinc-100">{{ $estimatedMode }}</p>
-                            </div>
-                            <div class="rounded-lg border border-zinc-200 p-3 text-xs dark:border-zinc-700">
-                                <p class="text-zinc-500 dark:text-zinc-400">Partes</p>
-                                <p class="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{{ $currentPart }} / {{ $totalParts }}</p>
-                            </div>
-                        </div>
-
-                        <div class="mt-3 grid gap-3 md:grid-cols-3">
-                            <div class="rounded-lg border border-zinc-200 p-3 text-xs dark:border-zinc-700">
-                                <p class="text-zinc-500 dark:text-zinc-400">Sentencias</p>
-                                <p class="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{{ $restoreStatus['executed_statements'] ?? 0 }} / {{ $restoreStatus['total_statements'] ?? 0 }}</p>
-                            </div>
-                            <div class="rounded-lg border border-zinc-200 p-3 text-xs dark:border-zinc-700">
-                                <p class="text-zinc-500 dark:text-zinc-400">Inicio</p>
-                                <p class="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{{ $restoreStatus['started_at'] ?? '-' }}</p>
-                            </div>
-                            <div class="rounded-lg border border-zinc-200 p-3 text-xs dark:border-zinc-700">
-                                <p class="text-zinc-500 dark:text-zinc-400">Ultimo evento</p>
-                                <p class="mt-1 font-semibold text-zinc-900 dark:text-zinc-100">{{ $restoreStatus['last_event_at'] ?? '-' }}</p>
-                            </div>
                         </div>
                     </div>
 
@@ -223,7 +213,7 @@
 
                     <div class="overflow-hidden rounded-2xl border border-zinc-800 bg-[#050816] shadow-[0_20px_80px_-40px_rgba(15,23,42,0.9)]">
                         <div class="border-b border-zinc-800 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_34%),linear-gradient(180deg,_rgba(15,23,42,0.98),_rgba(2,6,23,0.96))]">
-                            <div class="flex items-center justify-between gap-3 px-4 py-3">
+                            <div class="flex items-center justify-between gap-3 px-3 py-2.5">
                                 <div class="flex items-center gap-3">
                                     <div class="flex items-center gap-2">
                                         <span class="h-2.5 w-2.5 rounded-full bg-red-400 shadow-[0_0_12px_rgba(248,113,113,0.65)]"></span>
@@ -231,8 +221,8 @@
                                         <span class="h-2.5 w-2.5 rounded-full bg-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.65)]"></span>
                                     </div>
                                     <div>
-                                        <p class="font-mono text-[11px] uppercase tracking-[0.24em] text-zinc-400">restore@fitcenter terminal</p>
-                                        <p class="mt-1 text-[11px] text-zinc-500">Monitoreo operativo en tiempo real</p>
+                                        <p class="font-mono text-[10px] uppercase tracking-[0.24em] text-zinc-400">restore@fitcenter terminal</p>
+                                        <p class="mt-0.5 text-[10px] text-zinc-500">Monitoreo operativo en tiempo real</p>
                                     </div>
                                 </div>
 
@@ -240,13 +230,13 @@
                                     <span
                                         x-show="newLines"
                                         x-cloak
-                                        class="rounded-full border border-sky-400/30 bg-sky-500/10 px-2.5 py-1 text-[11px] font-medium text-sky-300"
+                                        class="rounded-full border border-sky-400/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-medium text-sky-300"
                                     >
                                         Nuevas lineas disponibles
                                     </span>
                                     <button
                                         type="button"
-                                        class="rounded-lg border border-zinc-700 bg-zinc-900/60 px-2.5 py-1.5 text-[11px] font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
+                                        class="rounded-lg border border-zinc-700 bg-zinc-900/60 px-2 py-1 text-[10px] font-medium text-zinc-200 transition hover:border-zinc-600 hover:bg-zinc-800"
                                         x-on:click="scrollToEnd()"
                                     >
                                         Volver al final
@@ -254,48 +244,23 @@
                                 </div>
                             </div>
 
-                            <div class="grid gap-3 border-t border-zinc-800/90 px-4 py-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
-                                <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-                                    <div class="rounded-xl border border-zinc-800 bg-black/25 px-3 py-2">
-                                        <p class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Restore ID</p>
-                                        <p class="mt-1 truncate font-mono text-[12px] text-zinc-100">{{ $restoreJobId ?? '-' }}</p>
-                                    </div>
-                                    <div class="rounded-xl border border-zinc-800 bg-black/25 px-3 py-2">
-                                        <p class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Launcher</p>
-                                        <p class="mt-1 font-mono text-[12px] text-cyan-300">{{ $launcherLabel }}</p>
-                                    </div>
-                                    <div class="rounded-xl border border-zinc-800 bg-black/25 px-3 py-2">
-                                        <p class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Modo</p>
-                                        <p class="mt-1 font-mono text-[12px] uppercase text-violet-300">{{ $estimatedMode }}</p>
-                                    </div>
-                                    <div class="rounded-xl border border-zinc-800 bg-black/25 px-3 py-2">
-                                        <p class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Partes</p>
-                                        <p class="mt-1 font-mono text-[12px] text-zinc-100">{{ $currentPart }} / {{ $totalParts }}</p>
-                                    </div>
-                                </div>
-
-                                <div class="rounded-xl border border-zinc-800 bg-black/25 px-3 py-2">
-                                    <div class="flex items-center justify-between gap-3 text-[10px] uppercase tracking-[0.18em] text-zinc-500">
-                                        <span>Progreso</span>
-                                        <span>{{ $progress }}%</span>
-                                    </div>
-                                    <div class="mt-2 h-2 overflow-hidden rounded-full bg-zinc-900">
-                                        <div class="h-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-500 to-indigo-500 transition-all" style="width: {{ $progress }}%"></div>
-                                    </div>
-                                    <div class="mt-2 flex items-center justify-between text-[11px] text-zinc-400">
-                                        <span>{{ $restoreStatus['current_step'] ?? 'Sin actividad' }}</span>
-                                        <span>{{ $restoreStatus['executed_statements'] ?? 0 }} sentencias</span>
-                                    </div>
+                            <div class="border-t border-zinc-800/90 px-3 py-2 font-mono text-[10px] text-zinc-500">
+                                <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
+                                    <span>id={{ $restoreJobId ?? '-' }}</span>
+                                    <span>file={{ $restoreStatus['original_name'] ?? '-' }}</span>
+                                    <span>start={{ $restoreStatus['started_at'] ?? '-' }}</span>
+                                    <span>last={{ $restoreStatus['last_event_at'] ?? '-' }}</span>
+                                    <span>admin={{ !empty($restoreStatus['super_admin_restored']) ? 'ok' : 'pending' }}</span>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="grid border-t border-zinc-800 lg:grid-cols-[minmax(0,1fr)_18rem]">
+                        <div class="border-t border-zinc-800">
                             <div class="relative min-w-0 overflow-hidden bg-[linear-gradient(180deg,_rgba(2,6,23,0.96),_rgba(3,7,18,1))]">
                                 <div class="pointer-events-none absolute inset-0 bg-[linear-gradient(to_bottom,_rgba(255,255,255,0.02)_1px,_transparent_1px)] bg-[size:100%_28px] opacity-40"></div>
                                 <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.08),_transparent_36%)]"></div>
 
-                                <div class="border-b border-zinc-800/90 px-4 py-2 font-mono text-[11px] text-zinc-500">
+                                <div class="border-b border-zinc-800/90 px-3 py-2 font-mono text-[10px] text-zinc-500">
                                     <div class="flex flex-wrap items-center gap-x-4 gap-y-1">
                                         <span>archivo={{ $restoreStatus['original_name'] ?? '-' }}</span>
                                         <span>launcher={{ $platformLauncher }}</span>
@@ -304,7 +269,7 @@
                                     </div>
                                 </div>
 
-                                <div x-ref="term" @scroll="handleScroll()" class="max-h-[30rem] overflow-auto px-4 py-4 font-mono text-[12px] leading-6 text-zinc-100">
+                                <div x-ref="term" @scroll="handleScroll()" class="max-h-[24rem] overflow-auto px-3 py-3 font-mono text-[11px] leading-5 text-zinc-100">
                                     @forelse($restoreEvents as $event)
                                         @php
                                             $level = $event['level'] ?? 'info';
@@ -331,49 +296,49 @@
                                                 default => 'restore@fitcenter:~$',
                                             };
                                         @endphp
-                                        <div class="grid grid-cols-[3rem_minmax(0,1fr)] gap-3 border-l border-zinc-800/80 pl-3">
-                                            <div class="pt-1 text-right text-[10px] text-zinc-600">{{ $loop->iteration }}</div>
-                                            <div class="pb-2">
-                                                <div class="flex flex-wrap items-center gap-2">
+                                        <div class="grid grid-cols-[2.25rem_minmax(0,1fr)] gap-2 border-l border-zinc-800/80 pl-2.5">
+                                            <div class="pt-0.5 text-right text-[9px] text-zinc-600">{{ $loop->iteration }}</div>
+                                            <div class="pb-1.5">
+                                                <div class="flex flex-wrap items-center gap-1.5">
                                                     <span class="text-zinc-500">[{{ $event['timestamp'] ?? '--' }}]</span>
                                                     <span class="text-zinc-400">{{ $prompt }}</span>
-                                                    <span class="inline-flex rounded-full border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.16em] {{ $badgeClass }}">
+                                                    <span class="inline-flex rounded-full border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] {{ $badgeClass }}">
                                                         {{ $level }}
                                                     </span>
                                                     @if(!empty($event['stage']))
-                                                        <span class="text-[10px] uppercase tracking-[0.14em] text-zinc-500">{{ str_replace('_', ' ', $event['stage']) }}</span>
+                                                        <span class="text-[9px] uppercase tracking-[0.12em] text-zinc-500">{{ str_replace('_', ' ', $event['stage']) }}</span>
                                                     @endif
                                                 </div>
 
-                                                <div class="mt-1 {{ $lineClass }}">
+                                                <div class="mt-0.5 {{ $lineClass }}">
                                                     {{ $event['message'] ?? '' }}
                                                 </div>
 
                                                 @if(!empty($event['command']))
-                                                    <div class="mt-2 overflow-hidden rounded-lg border border-violet-500/20 bg-violet-500/5">
-                                                        <div class="border-b border-violet-500/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.16em] text-violet-300">
+                                                    <div class="mt-1.5 overflow-hidden rounded-lg border border-violet-500/20 bg-violet-500/5">
+                                                        <div class="border-b border-violet-500/10 px-2.5 py-1 text-[9px] uppercase tracking-[0.14em] text-violet-300">
                                                             comando
                                                         </div>
-                                                        <div class="break-all px-3 py-2 text-violet-200">
+                                                        <div class="break-all px-2.5 py-1.5 text-violet-200">
                                                             {{ $event['command'] }}
                                                         </div>
                                                     </div>
                                                 @endif
 
                                                 @if(!empty($event['statement_index']) || !empty($event['part']) || isset($event['progress']))
-                                                    <div class="mt-2 flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.14em] text-zinc-500">
+                                                    <div class="mt-1.5 flex flex-wrap gap-1.5 text-[9px] uppercase tracking-[0.12em] text-zinc-500">
                                                         @if(!empty($event['statement_index']))
-                                                            <span class="rounded-full border border-zinc-800 bg-zinc-950/80 px-2 py-1">
+                                                            <span class="rounded-full border border-zinc-800 bg-zinc-950/80 px-1.5 py-0.5">
                                                                 sentencia {{ $event['statement_index'] }} / {{ $event['total_statements'] ?? '?' }}
                                                             </span>
                                                         @endif
                                                         @if(!empty($event['part']))
-                                                            <span class="rounded-full border border-zinc-800 bg-zinc-950/80 px-2 py-1">
+                                                            <span class="rounded-full border border-zinc-800 bg-zinc-950/80 px-1.5 py-0.5">
                                                                 parte {{ $event['part'] }} / {{ $event['total_parts'] ?? '?' }}
                                                             </span>
                                                         @endif
                                                         @if(isset($event['progress']) && $event['progress'] !== null)
-                                                            <span class="rounded-full border border-zinc-800 bg-zinc-950/80 px-2 py-1">
+                                                            <span class="rounded-full border border-zinc-800 bg-zinc-950/80 px-1.5 py-0.5">
                                                                 {{ $event['progress'] }}% completado
                                                             </span>
                                                         @endif
@@ -388,72 +353,12 @@
                                     @endforelse
                                 </div>
                             </div>
-
-                            <aside class="border-t border-zinc-800 bg-[#060a17] lg:border-l lg:border-t-0">
-                                <div class="space-y-4 p-4">
-                                    <div class="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
-                                        <p class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Estado actual</p>
-                                        <p class="mt-2 text-sm font-semibold text-zinc-100">{{ $restoreStatus['current_step'] ?? 'Sin actividad' }}</p>
-                                        <p class="mt-1 text-xs text-zinc-400">{{ $restoreStatus['last_event_at'] ?? 'Sin eventos' }}</p>
-                                    </div>
-
-                                    <div class="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
-                                        <p class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Telemetria</p>
-                                        <dl class="mt-3 space-y-2 text-xs">
-                                            <div class="flex items-center justify-between gap-3">
-                                                <dt class="text-zinc-500">Sentencias</dt>
-                                                <dd class="font-mono text-zinc-100">{{ $restoreStatus['executed_statements'] ?? 0 }} / {{ $restoreStatus['total_statements'] ?? '?' }}</dd>
-                                            </div>
-                                            <div class="flex items-center justify-between gap-3">
-                                                <dt class="text-zinc-500">Partes</dt>
-                                                <dd class="font-mono text-zinc-100">{{ $currentPart }} / {{ $totalParts }}</dd>
-                                            </div>
-                                            <div class="flex items-center justify-between gap-3">
-                                                <dt class="text-zinc-500">Tamano</dt>
-                                                <dd class="font-mono text-zinc-100">{{ isset($restoreStatus['file_size_bytes']) ? number_format(((int) $restoreStatus['file_size_bytes']) / 1048576, 2) . ' MB' : '-' }}</dd>
-                                            </div>
-                                            <div class="flex items-center justify-between gap-3">
-                                                <dt class="text-zinc-500">Inicio</dt>
-                                                <dd class="font-mono text-zinc-100">{{ $restoreStatus['started_at'] ?? '-' }}</dd>
-                                            </div>
-                                            <div class="flex items-center justify-between gap-3">
-                                                <dt class="text-zinc-500">Duracion</dt>
-                                                <dd class="font-mono text-zinc-100">{{ $durationSeconds !== null ? $durationSeconds . ' s' : '-' }}</dd>
-                                            </div>
-                                        </dl>
-                                    </div>
-
-                                    <div class="rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
-                                        <p class="text-[10px] uppercase tracking-[0.18em] text-zinc-500">Resultado tecnico</p>
-                                        <div class="mt-3 space-y-2 text-xs text-zinc-300">
-                                            <div class="flex items-center justify-between gap-3">
-                                                <span>Super-admin</span>
-                                                <span @class([
-                                                    'rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]',
-                                                    'bg-emerald-500/10 text-emerald-300' => !empty($restoreStatus['super_admin_restored']),
-                                                    'bg-zinc-800 text-zinc-300' => empty($restoreStatus['super_admin_restored']),
-                                                ])>
-                                                    {{ !empty($restoreStatus['super_admin_restored']) ? 'OK' : 'Pendiente' }}
-                                                </span>
-                                            </div>
-                                            <div class="flex items-center justify-between gap-3">
-                                                <span>Launcher</span>
-                                                <span class="font-mono text-zinc-100">{{ $launcherLabel }}</span>
-                                            </div>
-                                            <div class="flex items-center justify-between gap-3">
-                                                <span>Eventos cargados</span>
-                                                <span class="font-mono text-zinc-100">{{ $eventCount }}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </aside>
                         </div>
                     </div>
 
                     @if($restoreIsDone)
                         <div @class([
-                            'rounded-lg p-3 text-xs',
+                            'rounded-lg p-2.5 text-[11px]',
                             'border border-green-200 bg-green-50 text-green-800 dark:border-green-900/40 dark:bg-green-950/20 dark:text-green-300' => ($restoreStatus['status'] ?? null) === 'completed',
                             'border border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-300' => ($restoreStatus['status'] ?? null) === 'cancelled',
                             'border border-red-200 bg-red-50 text-red-800 dark:border-red-900/40 dark:bg-red-950/20 dark:text-red-300' => ($restoreStatus['status'] ?? null) === 'failed',
@@ -465,7 +370,7 @@
                             @elseif(($restoreStatus['status'] ?? null) === 'failed')
                                 Restauracion fallida.
                             @endif
-                            <div class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+                            <div class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
                                 <div>Duracion: <span class="font-semibold">{{ $durationSeconds !== null ? $durationSeconds.' s' : '-' }}</span></div>
                                 <div>Sentencias: <span class="font-semibold">{{ $restoreStatus['executed_statements'] ?? 0 }}</span></div>
                                 <div>Partes: <span class="font-semibold">{{ $currentPart }} / {{ $totalParts }}</span></div>
@@ -476,7 +381,7 @@
                     @endif
 
                     <div class="flex items-center justify-between gap-3">
-                        <div class="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        <div class="text-[10px] text-zinc-500 dark:text-zinc-400">
                             @if($restoreIsRunning)
                                 Actualizacion automatica activa.
                             @else
