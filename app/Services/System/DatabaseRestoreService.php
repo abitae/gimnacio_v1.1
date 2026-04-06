@@ -14,6 +14,8 @@ class DatabaseRestoreService
 {
     private const QUEUE_WARNING_SECONDS = 8;
     private const EVENT_READ_LIMIT = 250;
+    private const FILE_READ_RETRIES = 3;
+    private const FILE_READ_RETRY_US = 120000;
 
     public function __construct(
         private readonly DatabaseBackupService $backupService,
@@ -691,26 +693,42 @@ class DatabaseRestoreService
 
     private function readTextFileSafely(string $path): ?string
     {
-        $handle = @fopen($path, 'rb');
-        if ($handle === false) {
-            return null;
-        }
+        for ($attempt = 1; $attempt <= self::FILE_READ_RETRIES; $attempt++) {
+            $handle = @fopen($path, 'rb');
+            if ($handle === false) {
+                if ($attempt < self::FILE_READ_RETRIES) {
+                    usleep(self::FILE_READ_RETRY_US);
+                }
 
-        try {
-            if (! @flock($handle, LOCK_SH)) {
-                return null;
+                continue;
             }
 
-            $content = stream_get_contents($handle);
-            if ($content === false) {
-                return null;
-            }
+            try {
+                if (! @flock($handle, LOCK_SH)) {
+                    if ($attempt < self::FILE_READ_RETRIES) {
+                        usleep(self::FILE_READ_RETRY_US);
+                    }
 
-            return $content;
-        } finally {
-            @flock($handle, LOCK_UN);
-            fclose($handle);
+                    continue;
+                }
+
+                $content = @stream_get_contents($handle);
+                if ($content === false) {
+                    if ($attempt < self::FILE_READ_RETRIES) {
+                        usleep(self::FILE_READ_RETRY_US);
+                    }
+
+                    continue;
+                }
+
+                return $content;
+            } finally {
+                @flock($handle, LOCK_UN);
+                fclose($handle);
+            }
         }
+
+        return null;
     }
 
     /**
