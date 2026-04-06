@@ -89,7 +89,7 @@ it('restores super admin credentials after a successful restore', function () {
     File::ensureDirectoryExists($uploadsDirectory);
 
     $filePath = $uploadsDirectory.DIRECTORY_SEPARATOR.$restoreId.'.sql';
-    $backupService->materializeManifestToSql($backup['path'], $filePath);
+    $backupService->materializeArchiveToSql($backup['path'], $filePath);
 
     $statusPath = $restoreDirectory.DIRECTORY_SEPARATOR.$restoreId.'.json';
     File::put($statusPath, json_encode([
@@ -157,7 +157,7 @@ it('repairs an existing incomplete super admin during restore', function () {
     File::ensureDirectoryExists($uploadsDirectory);
 
     $filePath = $uploadsDirectory.DIRECTORY_SEPARATOR.$restoreId.'.sql';
-    $backupService->materializeManifestToSql($backup['path'], $filePath);
+    $backupService->materializeArchiveToSql($backup['path'], $filePath);
 
     $statusPath = $restoreDirectory.DIRECTORY_SEPARATOR.$restoreId.'.json';
     File::put($statusPath, json_encode([

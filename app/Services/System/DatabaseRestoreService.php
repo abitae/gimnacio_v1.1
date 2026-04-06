@@ -25,13 +25,13 @@ class DatabaseRestoreService
     {
         $originalName = $file->getClientOriginalName();
 
-        if ($this->backupService->isManifestFilename($originalName)) {
-            return $this->queueRestoreFromManifestPath($file->getRealPath(), $originalName);
+        if ($this->backupService->isBackupArchiveFilename($originalName)) {
+            return $this->queueRestoreFromArchivePath($file->getRealPath(), $originalName);
         }
 
         $extension = strtolower($file->getClientOriginalExtension());
         if (! in_array($extension, ['sql', 'txt'], true)) {
-            throw new RuntimeException('Solo se permiten archivos .sql, .txt o manifests .backup.json.');
+            throw new RuntimeException('Solo se permiten archivos .zip, .sql o .txt.');
         }
 
         return $this->queueRestoreFromSourcePath($file->getRealPath(), $originalName);
@@ -41,15 +41,15 @@ class DatabaseRestoreService
     {
         $originalName = basename($filename);
 
-        if ($this->backupService->isManifestFilename($originalName)) {
+        if ($this->backupService->isBackupArchiveFilename($originalName)) {
             $absolutePath = $this->backupService->absolutePathFor($originalName);
 
-            return $this->queueRestoreFromManifestPath($absolutePath, $originalName);
+            return $this->queueRestoreFromArchivePath($absolutePath, $originalName);
         }
 
         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
         if (! in_array($extension, ['sql', 'txt'], true)) {
-            throw new RuntimeException('Solo se permiten archivos .sql, .txt o manifests .backup.json.');
+            throw new RuntimeException('Solo se permiten archivos .zip, .sql o .txt.');
         }
 
         $absolutePath = $this->backupService->absolutePathFor($originalName);
@@ -59,20 +59,20 @@ class DatabaseRestoreService
 
     public function queueRestoreFromBackupManifest(string $manifestFilename): string
     {
-        if (! $this->backupService->isManifestFilename($manifestFilename)) {
-            throw new RuntimeException('El archivo seleccionado no es un manifest de backup valido.');
+        if (! $this->backupService->isBackupArchiveFilename($manifestFilename)) {
+            throw new RuntimeException('El archivo seleccionado no es un backup ZIP valido.');
         }
 
-        return $this->queueRestoreFromManifestPath(
+        return $this->queueRestoreFromArchivePath(
             $this->backupService->absolutePathFor($manifestFilename),
             basename($manifestFilename)
         );
     }
 
-    public function queueRestoreFromManifestPath(string $manifestPath, string $originalName): string
+    public function queueRestoreFromArchivePath(string $archivePath, string $originalName): string
     {
-        if (! File::exists($manifestPath)) {
-            throw new RuntimeException('No se encontro el manifest de origen para la restauracion.');
+        if (! File::exists($archivePath)) {
+            throw new RuntimeException('No se encontro el backup ZIP de origen para la restauracion.');
         }
 
         $restoreId = uniqid('restore_', true);
@@ -81,7 +81,7 @@ class DatabaseRestoreService
         File::ensureDirectoryExists($uploadsDirectory);
 
         $storedAbsolute = $uploadsDirectory.DIRECTORY_SEPARATOR.$restoreId.'.sql';
-        $manifestMetadata = $this->backupService->materializeManifestToSql($manifestPath, $storedAbsolute);
+        $manifestMetadata = $this->backupService->materializeArchiveToSql($archivePath, $storedAbsolute);
 
         return $this->queueRestoreFromPreparedSql(
             $restoreId,
@@ -89,9 +89,9 @@ class DatabaseRestoreService
             $originalName,
             [
                 'backup_id' => $manifestMetadata['backup_id'] ?? null,
-                'manifest_filename' => basename($manifestPath),
+                'manifest_filename' => basename($archivePath),
                 'part_count' => $manifestMetadata['part_count'] ?? null,
-                'source_type' => 'manifest',
+                'source_type' => 'zip',
                 'assembled_file_size_bytes' => File::size($storedAbsolute),
             ]
         );

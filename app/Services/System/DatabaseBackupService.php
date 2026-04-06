@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use RuntimeException;
+use ZipArchive;
 
 class DatabaseBackupService
 {
@@ -29,7 +30,9 @@ class DatabaseBackupService
         File::ensureDirectoryExists($directory);
 
         $backupId = 'backup_'.now()->format('Ymd_His');
-        $writer = new BackupPartWriter($directory, $backupId, self::BACKUP_PART_MAX_BYTES);
+        $stagingDirectory = $this->stagingDirectory($backupId);
+        File::ensureDirectoryExists($stagingDirectory);
+        $writer = new BackupPartWriter($stagingDirectory, $backupId, self::BACKUP_PART_MAX_BYTES);
 
         try {
             $writer->writeBlock($this->dumpHeader(), 'cabecera SQL');
@@ -53,12 +56,17 @@ class DatabaseBackupService
                 'format_version' => self::MANIFEST_FORMAT_VERSION,
                 'max_part_size_bytes' => self::BACKUP_PART_MAX_BYTES,
             ]);
+
+            $zipPath = $this->createBackupArchive($backupId, $manifestPath, $writer->partPaths());
         } catch (\Throwable $e) {
             $writer->cleanup();
+            File::deleteDirectory($stagingDirectory);
             throw $e;
         }
 
-        return $this->manifestMetadata($manifestPath);
+        File::deleteDirectory($stagingDirectory);
+
+        return $this->archiveMetadata($zipPath);
     }
 
     /**
@@ -69,11 +77,11 @@ class DatabaseBackupService
         $directory = $this->backupDirectory();
         File::ensureDirectoryExists($directory);
 
-        $manifestBackups = collect(File::files($directory))
-            ->filter(fn (\SplFileInfo $file) => $this->isManifestFilename($file->getFilename()))
+        $archiveBackups = collect(File::files($directory))
+            ->filter(fn (\SplFileInfo $file) => $this->isBackupArchiveFilename($file->getFilename()))
             ->map(function (\SplFileInfo $file): ?array {
                 try {
-                    return $this->manifestMetadata($file->getRealPath());
+                    return $this->archiveMetadata($file->getRealPath());
                 } catch (\Throwable) {
                     return null;
                 }
@@ -92,7 +100,7 @@ class DatabaseBackupService
             ->map(fn (\SplFileInfo $file) => $this->legacyBackupMetadata($file->getRealPath()))
             ->values();
 
-        return $manifestBackups
+        return $archiveBackups
             ->merge($legacyBackups)
             ->sortByDesc(function (array $backup): int {
                 $createdAt = strtotime((string) ($backup['created_at'] ?? '')) ?: 0;
@@ -118,20 +126,6 @@ class DatabaseBackupService
     {
         $path = $this->absolutePathFor($filename);
 
-        if ($this->isManifestFilename($filename)) {
-            $manifest = $this->readManifestFromPath($path);
-            $paths = collect($manifest['parts'] ?? [])
-                ->pluck('filename')
-                ->map(fn (string $partFilename) => $this->backupDirectory().DIRECTORY_SEPARATOR.$partFilename)
-                ->push($path)
-                ->filter(fn (string $itemPath) => File::exists($itemPath))
-                ->all();
-
-            File::delete($paths);
-
-            return;
-        }
-
         File::delete($path);
     }
 
@@ -139,12 +133,12 @@ class DatabaseBackupService
     {
         $originalName = $file->getClientOriginalName();
 
-        if ($this->isManifestFilename($originalName)) {
-            $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_manifest_', true).'.sql');
+        if ($this->isBackupArchiveFilename($originalName)) {
+            $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_zip_', true).'.sql');
             File::ensureDirectoryExists(dirname($tempPath));
 
             try {
-                $this->materializeManifestToSql($file->getRealPath(), $tempPath);
+                $this->materializeArchiveToSql($file->getRealPath(), $tempPath);
                 $this->restoreFromPath($tempPath);
             } finally {
                 File::delete($tempPath);
@@ -155,7 +149,7 @@ class DatabaseBackupService
 
         $extension = strtolower($file->getClientOriginalExtension());
         if (! in_array($extension, ['sql', 'txt'], true)) {
-            throw new RuntimeException('Solo se permiten archivos .sql, .txt o manifests .backup.json.');
+            throw new RuntimeException('Solo se permiten archivos .zip, .sql o .txt.');
         }
 
         $tempPath = $file->storeAs('backups/uploads', uniqid('restore_', true).'.sql');
@@ -168,13 +162,13 @@ class DatabaseBackupService
         }
     }
 
-    public function restoreFromManifestPath(string $manifestPath, ?callable $progressCallback = null): void
+    public function restoreFromArchivePath(string $archivePath, ?callable $progressCallback = null): void
     {
-        $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_manifest_', true).'.sql');
+        $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_zip_', true).'.sql');
         File::ensureDirectoryExists(dirname($tempPath));
 
         try {
-            $this->materializeManifestToSql($manifestPath, $tempPath);
+            $this->materializeArchiveToSql($archivePath, $tempPath);
             $this->restoreFromPath($tempPath, $progressCallback);
         } finally {
             File::delete($tempPath);
@@ -184,10 +178,9 @@ class DatabaseBackupService
     /**
      * @return array<string, mixed>
      */
-    public function materializeManifestToSql(string $manifestPath, string $targetPath): array
+    public function materializeArchiveToSql(string $archivePath, string $targetPath): array
     {
-        $manifest = $this->readManifestFromPath($manifestPath);
-        $baseDirectory = dirname($manifestPath);
+        $manifest = $this->readManifestFromArchivePath($archivePath);
         File::ensureDirectoryExists(dirname($targetPath));
 
         $handle = fopen($targetPath, 'wb');
@@ -195,22 +188,28 @@ class DatabaseBackupService
             throw new RuntimeException('No se pudo crear el archivo temporal para la restauracion.');
         }
 
+        $zip = $this->openArchive($archivePath);
+
         try {
             foreach ($manifest['parts'] as $index => $part) {
                 $partFilename = (string) ($part['filename'] ?? '');
-                $partPath = $baseDirectory.DIRECTORY_SEPARATOR.$partFilename;
+                $zipEntry = 'parts/'.$partFilename;
 
-                if ($partFilename === '' || ! File::exists($partPath)) {
+                if ($partFilename === '' || $zip->locateName($zipEntry) === false) {
                     throw new RuntimeException('Falta la parte '.($index + 1).' del backup: '.$partFilename);
                 }
 
                 $expectedChecksum = strtolower((string) ($part['checksum'] ?? ''));
-                $actualChecksum = strtolower(hash_file('sha256', $partPath));
+                $contents = $zip->getFromName($zipEntry);
+                if ($contents === false) {
+                    throw new RuntimeException('No se pudo leer la parte '.$partFilename.' del backup.');
+                }
+                $actualChecksum = strtolower(hash('sha256', $contents));
                 if ($expectedChecksum === '' || $expectedChecksum !== $actualChecksum) {
                     throw new RuntimeException('La integridad de la parte '.$partFilename.' no es valida.');
                 }
 
-                $partHandle = fopen($partPath, 'rb');
+                $partHandle = $zip->getStream($zipEntry);
                 if ($partHandle === false) {
                     throw new RuntimeException('No se pudo abrir la parte '.$partFilename.' del backup.');
                 }
@@ -235,24 +234,26 @@ class DatabaseBackupService
                 }
             }
         } catch (\Throwable $e) {
+            $zip->close();
             fclose($handle);
             File::delete($targetPath);
             throw $e;
         }
 
+        $zip->close();
         fclose($handle);
 
         return [
             'backup_id' => $manifest['backup_id'],
-            'manifest_filename' => basename($manifestPath),
+            'manifest_filename' => basename($archivePath),
             'part_count' => (int) $manifest['part_count'],
             'total_size_bytes' => (int) ($manifest['total_size_bytes'] ?? 0),
         ];
     }
 
-    public function isManifestFilename(string $filename): bool
+    public function isBackupArchiveFilename(string $filename): bool
     {
-        return str_ends_with(strtolower($filename), '.backup.json');
+        return str_ends_with(strtolower($filename), '.zip');
     }
 
     /**
@@ -260,19 +261,27 @@ class DatabaseBackupService
      */
     public function readManifest(string $filename): array
     {
-        return $this->readManifestFromPath($this->absolutePathFor($filename));
+        return $this->readManifestFromArchivePath($this->absolutePathFor($filename));
     }
 
     /**
      * @return array<string, mixed>
      */
-    public function readManifestFromPath(string $path): array
+    public function readManifestFromArchivePath(string $path): array
     {
         if (! File::exists($path)) {
-            throw new RuntimeException('El manifest solicitado no existe.');
+            throw new RuntimeException('El backup ZIP solicitado no existe.');
         }
 
-        $decoded = json_decode((string) File::get($path), true);
+        $zip = $this->openArchive($path);
+        $manifestContents = $zip->getFromName('manifest.json');
+        $zip->close();
+
+        if ($manifestContents === false) {
+            throw new RuntimeException('El backup ZIP no contiene manifest.json.');
+        }
+
+        $decoded = json_decode($manifestContents, true);
         if (! is_array($decoded)) {
             throw new RuntimeException('El manifest del backup no es un JSON valido.');
         }
@@ -691,9 +700,9 @@ class DatabaseBackupService
     /**
      * @return array<string, mixed>
      */
-    private function manifestMetadata(string $path): array
+    private function archiveMetadata(string $path): array
     {
-        $manifest = $this->readManifestFromPath($path);
+        $manifest = $this->readManifestFromArchivePath($path);
         $totalSizeBytes = (int) ($manifest['total_size_bytes'] ?? collect($manifest['parts'])->sum('size_bytes'));
         $parts = collect($manifest['parts'])
             ->map(fn (array $part) => [
@@ -706,9 +715,9 @@ class DatabaseBackupService
             ->all();
 
         return [
-            'storage_type' => 'multipart_manifest',
+            'storage_type' => 'zip_bundle',
             'filename' => basename($path),
-            'manifest_filename' => basename($path),
+            'manifest_filename' => 'manifest.json',
             'path' => $path,
             'backup_id' => $manifest['backup_id'],
             'display_name' => $manifest['backup_id'],
@@ -809,6 +818,53 @@ class DatabaseBackupService
 
         return $this->excludedSuperAdminContext;
     }
+
+    private function stagingDirectory(string $backupId): string
+    {
+        return $this->backupDirectory().DIRECTORY_SEPARATOR.'tmp'.DIRECTORY_SEPARATOR.$backupId;
+    }
+
+    /**
+     * @param  list<string>  $partPaths
+     */
+    private function createBackupArchive(string $backupId, string $manifestPath, array $partPaths): string
+    {
+        $zipPath = $this->backupDirectory().DIRECTORY_SEPARATOR.$backupId.'.zip';
+        $zip = new ZipArchive();
+
+        $result = $zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE);
+        if ($result !== true) {
+            throw new RuntimeException('No se pudo crear el archivo ZIP del backup.');
+        }
+
+        if (! $zip->addFile($manifestPath, 'manifest.json')) {
+            $zip->close();
+            throw new RuntimeException('No se pudo agregar el manifest al backup ZIP.');
+        }
+
+        foreach ($partPaths as $partPath) {
+            if (! $zip->addFile($partPath, 'parts/'.basename($partPath))) {
+                $zip->close();
+                throw new RuntimeException('No se pudo agregar una parte SQL al backup ZIP.');
+            }
+        }
+
+        $zip->close();
+
+        return $zipPath;
+    }
+
+    private function openArchive(string $path): ZipArchive
+    {
+        $zip = new ZipArchive();
+        $result = $zip->open($path);
+
+        if ($result !== true) {
+            throw new RuntimeException('No se pudo abrir el archivo ZIP del backup.');
+        }
+
+        return $zip;
+    }
 }
 
 class BackupPartWriter
@@ -906,6 +962,14 @@ class BackupPartWriter
         if (File::exists($manifestPath)) {
             File::delete($manifestPath);
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function partPaths(): array
+    {
+        return $this->partPaths;
     }
 
     private function rotatePart(): void
