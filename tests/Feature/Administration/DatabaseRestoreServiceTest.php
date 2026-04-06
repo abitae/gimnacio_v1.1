@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Services\System\DatabaseBackupService;
 use App\Services\System\DatabaseRestoreService;
 use App\Support\PermissionCatalog;
 use Database\Seeders\BaseCatalogSeeder;
@@ -77,7 +78,8 @@ it('restores super admin credentials after a successful restore', function () {
     ]);
     $superAdmin->assignRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME);
 
-    $backupPath = app(\App\Services\System\DatabaseBackupService::class)->createBackup()['path'];
+    $backupService = app(DatabaseBackupService::class);
+    $backup = $backupService->createBackup();
     User::query()->where('email', 'abel.arana@hotmail.com')->delete();
 
     $restoreId = 'restore_test_super_admin';
@@ -87,7 +89,7 @@ it('restores super admin credentials after a successful restore', function () {
     File::ensureDirectoryExists($uploadsDirectory);
 
     $filePath = $uploadsDirectory.DIRECTORY_SEPARATOR.$restoreId.'.sql';
-    File::copy($backupPath, $filePath);
+    $backupService->materializeManifestToSql($backup['path'], $filePath);
 
     $statusPath = $restoreDirectory.DIRECTORY_SEPARATOR.$restoreId.'.json';
     File::put($statusPath, json_encode([
@@ -104,7 +106,7 @@ it('restores super admin credentials after a successful restore', function () {
         'current_command' => null,
         'current_step' => 'En cola',
         'file_path' => $filePath,
-        'original_name' => 'super_admin_restore.sql',
+        'original_name' => $backup['filename'],
         'error' => null,
         'started_at' => null,
         'finished_at' => null,
@@ -145,7 +147,8 @@ it('repairs an existing incomplete super admin during restore', function () {
     ]);
     $superAdmin->syncRoles([]);
 
-    $backupPath = app(\App\Services\System\DatabaseBackupService::class)->createBackup()['path'];
+    $backupService = app(DatabaseBackupService::class);
+    $backup = $backupService->createBackup();
 
     $restoreId = 'restore_test_super_admin_repair';
     $restoreDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'restores');
@@ -154,7 +157,7 @@ it('repairs an existing incomplete super admin during restore', function () {
     File::ensureDirectoryExists($uploadsDirectory);
 
     $filePath = $uploadsDirectory.DIRECTORY_SEPARATOR.$restoreId.'.sql';
-    File::copy($backupPath, $filePath);
+    $backupService->materializeManifestToSql($backup['path'], $filePath);
 
     $statusPath = $restoreDirectory.DIRECTORY_SEPARATOR.$restoreId.'.json';
     File::put($statusPath, json_encode([
@@ -171,7 +174,7 @@ it('repairs an existing incomplete super admin during restore', function () {
         'current_command' => null,
         'current_step' => 'En cola',
         'file_path' => $filePath,
-        'original_name' => 'super_admin_repair_restore.sql',
+        'original_name' => $backup['filename'],
         'error' => null,
         'started_at' => null,
         'finished_at' => null,

@@ -22,7 +22,7 @@
     <div class="flex items-start justify-between gap-4">
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Backups de base de datos</h1>
-            <p class="text-xs text-zinc-600 dark:text-zinc-400">Exporta un backup completo en SQL y restaura toda la base desde un archivo generado por el sistema.</p>
+            <p class="text-xs text-zinc-600 dark:text-zinc-400">Exporta backups manuales en lotes SQL de hasta 1.5 MB por parte y restaura toda la base desde un manifest o un SQL legado.</p>
         </div>
 
         <div class="flex items-center gap-2">
@@ -72,15 +72,16 @@
         <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
             <div class="border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
                 <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Backups generados</h2>
-                <p class="text-xs text-zinc-500 dark:text-zinc-400">Se guardan en <span class="font-mono">storage/app/backups</span>.</p>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">Se guardan en <span class="font-mono">storage/app/backups</span> y solo se generan manualmente desde este modulo.</p>
             </div>
 
             <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-zinc-50 dark:bg-zinc-900">
                         <tr>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Archivo</th>
-                            <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Tamano</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Backup</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Tamano total</th>
+                            <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Partes</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Fecha de creacion</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Acciones</th>
                         </tr>
@@ -88,14 +89,37 @@
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                         @forelse ($backups as $backup)
                             <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-700/50">
-                                <td class="px-4 py-2.5 font-mono text-xs text-zinc-900 dark:text-zinc-100">{{ $backup['filename'] }}</td>
-                                <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $backup['size_human'] }}</td>
+                                <td class="px-4 py-2.5">
+                                    <div class="space-y-1">
+                                        <div class="font-mono text-xs text-zinc-900 dark:text-zinc-100">{{ $backup['display_name'] }}</div>
+                                        <div class="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                            @if(($backup['storage_type'] ?? null) === 'multipart_manifest')
+                                                Manifest: <span class="font-mono">{{ $backup['manifest_filename'] }}</span>
+                                            @else
+                                                SQL legado: <span class="font-mono">{{ $backup['filename'] }}</span>
+                                            @endif
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $backup['total_size_human'] ?? $backup['size_human'] }}</td>
+                                <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $backup['part_count'] }}</td>
                                 <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $backup['created_at'] }}</td>
                                 <td class="px-4 py-2.5">
-                                    <div class="flex flex-wrap gap-2">
-                                        <flux:button size="xs" variant="ghost" icon="arrow-down-tray" wire:click="downloadBackup('{{ $backup['filename'] }}')" :disabled="$restoreIsRunning">
-                                            Descargar
-                                        </flux:button>
+                                    <div class="space-y-2">
+                                        <div class="flex flex-wrap gap-2">
+                                            <flux:button size="xs" variant="ghost" icon="arrow-down-tray" wire:click="downloadBackup('{{ $backup['filename'] }}')" :disabled="$restoreIsRunning">
+                                                {{ ($backup['storage_type'] ?? null) === 'multipart_manifest' ? 'Manifest' : 'SQL' }}
+                                            </flux:button>
+                                            @if(($backup['storage_type'] ?? null) === 'multipart_manifest')
+                                                @foreach(($backup['parts'] ?? []) as $part)
+                                                    <flux:button size="xs" variant="ghost" icon="document-arrow-down" wire:click="downloadBackupPart('{{ $part['filename'] }}')" :disabled="$restoreIsRunning">
+                                                        {{ basename($part['filename'], '.sql') === $part['filename'] ? $part['filename'] : 'Parte '.($loop->iteration) }}
+                                                    </flux:button>
+                                                @endforeach
+                                            @endif
+                                        </div>
+
+                                        <div class="flex flex-wrap gap-2">
                                         <flux:button
                                             size="xs"
                                             variant="ghost"
@@ -107,15 +131,16 @@
                                         >
                                             Restaurar
                                         </flux:button>
-                                        <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="deleteBackup('{{ $backup['filename'] }}')" wire:confirm="Eliminar este backup SQL?" :disabled="$restoreIsRunning">
+                                        <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="deleteBackup('{{ $backup['filename'] }}')" wire:confirm="Eliminar este backup y todas sus partes asociadas?" :disabled="$restoreIsRunning">
                                             Eliminar
                                         </flux:button>
+                                        </div>
                                     </div>
                                 </td>
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="4" class="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">Todavia no hay backups generados.</td>
+                                <td colspan="5" class="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">Todavia no hay backups generados.</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -125,12 +150,12 @@
 
         <div class="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
             <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Restaurar base de datos</h2>
-            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Sube un archivo <span class="font-mono">.sql</span> exportado desde este modulo.</p>
+            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Sube un <span class="font-mono">.backup.json</span> del nuevo formato o un <span class="font-mono">.sql</span> legado.</p>
 
             <form wire:submit="restoreBackup" class="mt-4 space-y-4">
                 <flux:field>
-                    <flux:label>Archivo SQL</flux:label>
-                    <input type="file" wire:model="restoreFile" accept=".sql,.txt"
+                    <flux:label>Manifest o archivo SQL</flux:label>
+                    <input type="file" wire:model="restoreFile" accept=".backup.json,.json,.sql,.txt"
                         class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-xs file:font-medium dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:file:bg-zinc-700" />
                     <flux:error name="restoreFile" />
                 </flux:field>
@@ -248,6 +273,12 @@
                                 <div class="flex flex-wrap items-center gap-x-3 gap-y-1">
                                     <span>id={{ $restoreJobId ?? '-' }}</span>
                                     <span>file={{ $restoreStatus['original_name'] ?? '-' }}</span>
+                                    @if(!empty($restoreStatus['manifest_filename']))
+                                        <span>manifest={{ $restoreStatus['manifest_filename'] }}</span>
+                                    @endif
+                                    @if(!empty($restoreStatus['part_count']))
+                                        <span>lote={{ $restoreStatus['part_count'] }} parte(s)</span>
+                                    @endif
                                     <span>start={{ $restoreStatus['started_at'] ?? '-' }}</span>
                                     <span>last={{ $restoreStatus['last_event_at'] ?? '-' }}</span>
                                     <span>admin={{ !empty($restoreStatus['super_admin_restored']) ? 'ok' : 'pending' }}</span>

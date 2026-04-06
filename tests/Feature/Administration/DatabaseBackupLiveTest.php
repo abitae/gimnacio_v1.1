@@ -2,6 +2,7 @@
 
 use App\Livewire\Administracion\DatabaseBackupLive;
 use App\Models\User;
+use App\Services\System\DatabaseBackupService;
 use App\Support\PermissionCatalog;
 use Database\Seeders\BaseCatalogSeeder;
 use Illuminate\Support\Facades\File;
@@ -92,15 +93,12 @@ it('loads terminal events for the latest restore and can reopen the monitor', fu
         ->assertSee('SELECT 1;');
 });
 
-it('can start a restore directly from a generated backup', function () {
+it('can start a restore directly from a generated backup lot', function () {
     $user = User::factory()->create(['estado' => 'activo']);
     $user->assignRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME);
     $this->actingAs($user);
 
-    $backupDirectory = storage_path('app'.DIRECTORY_SEPARATOR.'backups');
-    File::ensureDirectoryExists($backupDirectory);
-    $backupFilename = 'backup_direct_restore_test.sql';
-    File::put($backupDirectory.DIRECTORY_SEPARATOR.$backupFilename, 'CREATE TABLE direct_restore_test (id INTEGER);');
+    $backupFilename = app(DatabaseBackupService::class)->createBackup()['filename'];
 
     Livewire::test(DatabaseBackupLive::class)
         ->call('restoreGeneratedBackup', $backupFilename)

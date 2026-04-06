@@ -3,6 +3,7 @@
 use App\Models\User;
 use App\Services\System\DatabaseBackupService;
 use App\Support\PermissionCatalog;
+use Illuminate\Support\Facades\DB;
 use Database\Seeders\BaseCatalogSeeder;
 use Illuminate\Support\Facades\File;
 
@@ -17,7 +18,7 @@ afterEach(function () {
     File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'backups'));
 });
 
-it('creates a sql backup file with schema and data', function () {
+it('creates a manifest backup with parts and data', function () {
     $superAdmin = User::factory()->create([
         'name' => 'Super Admin',
         'email' => 'super-admin@example.test',
@@ -34,10 +35,15 @@ it('creates a sql backup file with schema and data', function () {
     $service = app(DatabaseBackupService::class);
     $backup = $service->createBackup();
 
-    expect($backup['filename'])->toEndWith('.sql');
+    expect($backup['filename'])->toEndWith('.backup.json');
     expect(file_exists($backup['path']))->toBeTrue();
+    expect($backup['part_count'])->toBeGreaterThanOrEqual(1);
+    expect($backup['storage_type'])->toBe('multipart_manifest');
 
-    $contents = file_get_contents($backup['path']);
+    $manifest = $service->readManifest($backup['filename']);
+    $contents = collect($manifest['parts'])
+        ->map(fn (array $part) => file_get_contents(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.$part['filename'])))
+        ->implode('');
 
     expect($contents)->toContain('CREATE TABLE');
     expect($contents)->toContain('INSERT INTO');
@@ -45,7 +51,7 @@ it('creates a sql backup file with schema and data', function () {
     expect($contents)->not->toContain('super-admin@example.test');
 });
 
-it('restores the database from a generated backup', function () {
+it('restores the database from a generated manifest backup', function () {
     $service = app(DatabaseBackupService::class);
 
     $original = User::factory()->create([
@@ -62,22 +68,72 @@ it('restores the database from a generated backup', function () {
 
     expect(User::query()->where('email', 'extra-user@example.test')->exists())->toBeTrue();
 
-    $service->restoreFromPath($backup['path']);
+    $service->restoreFromManifestPath($backup['path']);
 
     expect(User::query()->where('email', 'original-user@example.test')->exists())->toBeTrue();
     expect(User::query()->where('email', 'extra-user@example.test')->exists())->toBeFalse();
 });
 
-it('deletes a generated backup file manually', function () {
+it('deletes a generated backup lot manually', function () {
     $service = app(DatabaseBackupService::class);
 
     $backup = $service->createBackup();
 
     expect(file_exists($backup['path']))->toBeTrue();
+    foreach ($backup['parts'] as $part) {
+        expect(file_exists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.$part['filename'])))->toBeTrue();
+    }
 
     $service->deleteBackup($backup['filename']);
 
     expect(file_exists($backup['path']))->toBeFalse();
+    foreach ($backup['parts'] as $part) {
+        expect(file_exists(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.$part['filename'])))->toBeFalse();
+    }
+});
+
+it('lists multipart backups as a single lot entry', function () {
+    $service = app(DatabaseBackupService::class);
+
+    $backup = $service->createBackup();
+    $listed = $service->listBackups();
+
+    expect($listed)->toHaveCount(1);
+    expect($listed[0]['filename'])->toBe($backup['filename']);
+    expect($listed[0]['part_count'])->toBe($backup['part_count']);
+    expect($listed[0]['storage_type'])->toBe('multipart_manifest');
+});
+
+it('splits large backups into multiple parts below the configured limit', function () {
+    DB::statement('CREATE TABLE chunked_backup_payloads (id INTEGER PRIMARY KEY AUTOINCREMENT, payload TEXT)');
+
+    $payload = str_repeat('X', 14000);
+    for ($i = 0; $i < 180; $i++) {
+        DB::table('chunked_backup_payloads')->insert(['payload' => $payload.$i]);
+    }
+
+    $service = app(DatabaseBackupService::class);
+    $backup = $service->createBackup();
+
+    expect($backup['part_count'])->toBeGreaterThan(1);
+    foreach ($backup['parts'] as $part) {
+        expect($part['size_bytes'])->toBeLessThanOrEqual(1572864);
+    }
+});
+
+it('fails cleanly when a manifest part is missing during restore assembly', function () {
+    $service = app(DatabaseBackupService::class);
+    $backup = $service->createBackup();
+    $manifest = $service->readManifest($backup['filename']);
+
+    File::delete(storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.$manifest['parts'][0]['filename']));
+
+    $targetPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'missing_manifest_restore.sql');
+
+    expect(fn () => $service->materializeManifestToSql($backup['path'], $targetPath))
+        ->toThrow(RuntimeException::class);
+
+    expect(File::exists($targetPath))->toBeFalse();
 });
 
 it('restores large sql files in parts and reports chunked progress', function () {

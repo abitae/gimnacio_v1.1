@@ -23,28 +23,78 @@ class DatabaseRestoreService
 
     public function queueRestoreFromUploadedFile(UploadedFile $file): string
     {
-        $extension = strtolower($file->getClientOriginalExtension());
-        if (! in_array($extension, ['sql', 'txt'], true)) {
-            throw new RuntimeException('Solo se permiten archivos .sql o .txt.');
+        $originalName = $file->getClientOriginalName();
+
+        if ($this->backupService->isManifestFilename($originalName)) {
+            return $this->queueRestoreFromManifestPath($file->getRealPath(), $originalName);
         }
 
-        return $this->queueRestoreFromSourcePath(
-            $file->getRealPath(),
-            $file->getClientOriginalName()
-        );
+        $extension = strtolower($file->getClientOriginalExtension());
+        if (! in_array($extension, ['sql', 'txt'], true)) {
+            throw new RuntimeException('Solo se permiten archivos .sql, .txt o manifests .backup.json.');
+        }
+
+        return $this->queueRestoreFromSourcePath($file->getRealPath(), $originalName);
     }
 
     public function queueRestoreFromBackupFilename(string $filename): string
     {
         $originalName = basename($filename);
+
+        if ($this->backupService->isManifestFilename($originalName)) {
+            $absolutePath = $this->backupService->absolutePathFor($originalName);
+
+            return $this->queueRestoreFromManifestPath($absolutePath, $originalName);
+        }
+
         $extension = strtolower(pathinfo($originalName, PATHINFO_EXTENSION));
         if (! in_array($extension, ['sql', 'txt'], true)) {
-            throw new RuntimeException('Solo se permiten archivos .sql o .txt.');
+            throw new RuntimeException('Solo se permiten archivos .sql, .txt o manifests .backup.json.');
         }
 
         $absolutePath = $this->backupService->absolutePathFor($originalName);
 
         return $this->queueRestoreFromSourcePath($absolutePath, $originalName);
+    }
+
+    public function queueRestoreFromBackupManifest(string $manifestFilename): string
+    {
+        if (! $this->backupService->isManifestFilename($manifestFilename)) {
+            throw new RuntimeException('El archivo seleccionado no es un manifest de backup valido.');
+        }
+
+        return $this->queueRestoreFromManifestPath(
+            $this->backupService->absolutePathFor($manifestFilename),
+            basename($manifestFilename)
+        );
+    }
+
+    public function queueRestoreFromManifestPath(string $manifestPath, string $originalName): string
+    {
+        if (! File::exists($manifestPath)) {
+            throw new RuntimeException('No se encontro el manifest de origen para la restauracion.');
+        }
+
+        $restoreId = uniqid('restore_', true);
+        File::ensureDirectoryExists($this->restoreDirectory());
+        $uploadsDirectory = $this->uploadsDirectory();
+        File::ensureDirectoryExists($uploadsDirectory);
+
+        $storedAbsolute = $uploadsDirectory.DIRECTORY_SEPARATOR.$restoreId.'.sql';
+        $manifestMetadata = $this->backupService->materializeManifestToSql($manifestPath, $storedAbsolute);
+
+        return $this->queueRestoreFromPreparedSql(
+            $restoreId,
+            $storedAbsolute,
+            $originalName,
+            [
+                'backup_id' => $manifestMetadata['backup_id'] ?? null,
+                'manifest_filename' => basename($manifestPath),
+                'part_count' => $manifestMetadata['part_count'] ?? null,
+                'source_type' => 'manifest',
+                'assembled_file_size_bytes' => File::size($storedAbsolute),
+            ]
+        );
     }
 
     private function queueRestoreFromSourcePath(string $sourcePath, string $originalName): string
@@ -60,6 +110,20 @@ class DatabaseRestoreService
         $storedAbsolute = $uploadsDirectory.DIRECTORY_SEPARATOR.$restoreId.'.sql';
         File::copy($sourcePath, $storedAbsolute);
 
+        return $this->queueRestoreFromPreparedSql(
+            $restoreId,
+            $storedAbsolute,
+            $originalName,
+            [
+                'source_type' => 'sql',
+                'part_count' => 1,
+                'assembled_file_size_bytes' => File::size($storedAbsolute),
+            ]
+        );
+    }
+
+    private function queueRestoreFromPreparedSql(string $restoreId, string $storedAbsolute, string $originalName, array $extraStatus = []): string
+    {
         $status = [
             'id' => $restoreId,
             'status' => 'queued',
@@ -89,7 +153,7 @@ class DatabaseRestoreService
             'created_at' => now()->toDateTimeString(),
             'last_event_at' => now()->toDateTimeString(),
             'super_admin_restored' => false,
-        ];
+        ] + $extraStatus;
 
         $this->persistStatusSnapshot($restoreId, $status);
         $this->appendLog($restoreId, 'Restore en cola para archivo: '.$originalName);

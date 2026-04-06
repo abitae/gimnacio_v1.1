@@ -39,9 +39,10 @@ class DatabaseBackupLive extends Component
     {
         $backup = $backupService->createBackup();
         $this->refreshBackups($backupService);
-        $this->flashToast('success', 'Backup generado correctamente.');
-
-        return response()->download($backup['path'], $backup['filename']);
+        $this->flashToast(
+            'success',
+            'Backup generado correctamente en '.$backup['part_count'].' parte(s). Descargalo desde la tabla de backups generados.'
+        );
     }
 
     public function downloadBackup(string $filename, DatabaseBackupService $backupService)
@@ -58,13 +59,20 @@ class DatabaseBackupLive extends Component
         $this->flashToast('success', 'Backup eliminado correctamente.');
     }
 
+    public function downloadBackupPart(string $filename, DatabaseBackupService $backupService)
+    {
+        $path = $backupService->absolutePathFor($filename);
+
+        return response()->download($path, basename($path));
+    }
+
     public function restoreBackup(DatabaseRestoreService $restoreService): void
     {
         $this->validate([
-            'restoreFile' => 'required|file|max:512000',
+            'restoreFile' => 'required|file|max:2048',
             'restoreConfirmation' => 'required|string|in:RESTAURAR',
         ], [
-            'restoreFile.required' => 'Debes seleccionar un archivo SQL.',
+            'restoreFile.required' => 'Debes seleccionar un manifest o un archivo SQL.',
             'restoreConfirmation.in' => 'Debes escribir RESTAURAR para confirmar.',
         ]);
 

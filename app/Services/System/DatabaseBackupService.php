@@ -17,6 +17,10 @@ class DatabaseBackupService
 
     private const LARGE_RESTORE_THRESHOLD_BYTES = 5 * 1024 * 1024;
 
+    private const BACKUP_PART_MAX_BYTES = 1572864;
+
+    private const MANIFEST_FORMAT_VERSION = 1;
+
     private ?array $excludedSuperAdminContext = null;
 
     public function createBackup(): array
@@ -24,43 +28,78 @@ class DatabaseBackupService
         $directory = $this->backupDirectory();
         File::ensureDirectoryExists($directory);
 
-        $filename = 'backup_'.now()->format('Ymd_His').'.sql';
-        $path = $directory.DIRECTORY_SEPARATOR.$filename;
-
-        $handle = fopen($path, 'wb');
-        if ($handle === false) {
-            throw new RuntimeException('No se pudo crear el archivo de backup.');
-        }
+        $backupId = 'backup_'.now()->format('Ymd_His');
+        $writer = new BackupPartWriter($directory, $backupId, self::BACKUP_PART_MAX_BYTES);
 
         try {
-            fwrite($handle, $this->dumpHeader());
+            $writer->writeBlock($this->dumpHeader(), 'cabecera SQL');
 
             foreach ($this->databaseObjects() as $object) {
-                fwrite($handle, $this->dumpTableStructure($object['name'], $object['create_sql']));
-                fwrite($handle, $this->dumpTableData($object['name']));
+                $writer->writeBlock(
+                    $this->dumpTableStructure($object['name'], $object['create_sql']),
+                    'estructura de tabla '.$object['name']
+                );
+
+                foreach ($this->dumpTableDataStatements($object['name']) as $statement) {
+                    $writer->writeBlock($statement, 'datos de tabla '.$object['name']);
+                }
             }
-        } finally {
-            fclose($handle);
+
+            $manifestPath = $writer->finalize([
+                'backup_id' => $backupId,
+                'created_at' => now()->toDateTimeString(),
+                'driver' => DB::connection()->getDriverName(),
+                'database' => DB::connection()->getDatabaseName(),
+                'format_version' => self::MANIFEST_FORMAT_VERSION,
+                'max_part_size_bytes' => self::BACKUP_PART_MAX_BYTES,
+            ]);
+        } catch (\Throwable $e) {
+            $writer->cleanup();
+            throw $e;
         }
 
-        return $this->backupMetadata($path);
+        return $this->manifestMetadata($manifestPath);
     }
 
     /**
-     * @return list<array{filename:string,path:string,size_bytes:int,size_human:string,modified_at:string}>
+     * @return list<array<string, mixed>>
      */
     public function listBackups(): array
     {
         $directory = $this->backupDirectory();
         File::ensureDirectoryExists($directory);
 
-        $files = collect(File::files($directory))
-            ->filter(fn (\SplFileInfo $file) => $file->getExtension() === 'sql')
-            ->sortByDesc(fn (\SplFileInfo $file) => $file->getMTime())
+        $manifestBackups = collect(File::files($directory))
+            ->filter(fn (\SplFileInfo $file) => $this->isManifestFilename($file->getFilename()))
+            ->map(function (\SplFileInfo $file): ?array {
+                try {
+                    return $this->manifestMetadata($file->getRealPath());
+                } catch (\Throwable) {
+                    return null;
+                }
+            })
+            ->filter()
             ->values();
 
-        return $files
-            ->map(fn (\SplFileInfo $file) => $this->backupMetadata($file->getRealPath()))
+        $legacyBackups = collect(File::files($directory))
+            ->filter(function (\SplFileInfo $file): bool {
+                if ($file->getExtension() !== 'sql') {
+                    return false;
+                }
+
+                return ! preg_match('/\.part\d{3}\.sql$/i', $file->getFilename());
+            })
+            ->map(fn (\SplFileInfo $file) => $this->legacyBackupMetadata($file->getRealPath()))
+            ->values();
+
+        return $manifestBackups
+            ->merge($legacyBackups)
+            ->sortByDesc(function (array $backup): int {
+                $createdAt = strtotime((string) ($backup['created_at'] ?? '')) ?: 0;
+
+                return $createdAt;
+            })
+            ->values()
             ->all();
     }
 
@@ -79,14 +118,44 @@ class DatabaseBackupService
     {
         $path = $this->absolutePathFor($filename);
 
+        if ($this->isManifestFilename($filename)) {
+            $manifest = $this->readManifestFromPath($path);
+            $paths = collect($manifest['parts'] ?? [])
+                ->pluck('filename')
+                ->map(fn (string $partFilename) => $this->backupDirectory().DIRECTORY_SEPARATOR.$partFilename)
+                ->push($path)
+                ->filter(fn (string $itemPath) => File::exists($itemPath))
+                ->all();
+
+            File::delete($paths);
+
+            return;
+        }
+
         File::delete($path);
     }
 
     public function restoreFromUploadedFile(UploadedFile $file): void
     {
+        $originalName = $file->getClientOriginalName();
+
+        if ($this->isManifestFilename($originalName)) {
+            $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_manifest_', true).'.sql');
+            File::ensureDirectoryExists(dirname($tempPath));
+
+            try {
+                $this->materializeManifestToSql($file->getRealPath(), $tempPath);
+                $this->restoreFromPath($tempPath);
+            } finally {
+                File::delete($tempPath);
+            }
+
+            return;
+        }
+
         $extension = strtolower($file->getClientOriginalExtension());
         if (! in_array($extension, ['sql', 'txt'], true)) {
-            throw new RuntimeException('Solo se permiten archivos .sql o .txt.');
+            throw new RuntimeException('Solo se permiten archivos .sql, .txt o manifests .backup.json.');
         }
 
         $tempPath = $file->storeAs('backups/uploads', uniqid('restore_', true).'.sql');
@@ -97,6 +166,145 @@ class DatabaseBackupService
         } finally {
             File::delete($absolutePath);
         }
+    }
+
+    public function restoreFromManifestPath(string $manifestPath, ?callable $progressCallback = null): void
+    {
+        $tempPath = storage_path('app'.DIRECTORY_SEPARATOR.'backups'.DIRECTORY_SEPARATOR.'uploads'.DIRECTORY_SEPARATOR.uniqid('restore_manifest_', true).'.sql');
+        File::ensureDirectoryExists(dirname($tempPath));
+
+        try {
+            $this->materializeManifestToSql($manifestPath, $tempPath);
+            $this->restoreFromPath($tempPath, $progressCallback);
+        } finally {
+            File::delete($tempPath);
+        }
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function materializeManifestToSql(string $manifestPath, string $targetPath): array
+    {
+        $manifest = $this->readManifestFromPath($manifestPath);
+        $baseDirectory = dirname($manifestPath);
+        File::ensureDirectoryExists(dirname($targetPath));
+
+        $handle = fopen($targetPath, 'wb');
+        if ($handle === false) {
+            throw new RuntimeException('No se pudo crear el archivo temporal para la restauracion.');
+        }
+
+        try {
+            foreach ($manifest['parts'] as $index => $part) {
+                $partFilename = (string) ($part['filename'] ?? '');
+                $partPath = $baseDirectory.DIRECTORY_SEPARATOR.$partFilename;
+
+                if ($partFilename === '' || ! File::exists($partPath)) {
+                    throw new RuntimeException('Falta la parte '.($index + 1).' del backup: '.$partFilename);
+                }
+
+                $expectedChecksum = strtolower((string) ($part['checksum'] ?? ''));
+                $actualChecksum = strtolower(hash_file('sha256', $partPath));
+                if ($expectedChecksum === '' || $expectedChecksum !== $actualChecksum) {
+                    throw new RuntimeException('La integridad de la parte '.$partFilename.' no es valida.');
+                }
+
+                $partHandle = fopen($partPath, 'rb');
+                if ($partHandle === false) {
+                    throw new RuntimeException('No se pudo abrir la parte '.$partFilename.' del backup.');
+                }
+
+                try {
+                    while (! feof($partHandle)) {
+                        $chunk = fread($partHandle, 8192);
+                        if ($chunk === false) {
+                            throw new RuntimeException('No se pudo leer la parte '.$partFilename.' del backup.');
+                        }
+
+                        if ($chunk === '') {
+                            continue;
+                        }
+
+                        if (fwrite($handle, $chunk) === false) {
+                            throw new RuntimeException('No se pudo ensamblar el backup temporal para restaurar.');
+                        }
+                    }
+                } finally {
+                    fclose($partHandle);
+                }
+            }
+        } catch (\Throwable $e) {
+            fclose($handle);
+            File::delete($targetPath);
+            throw $e;
+        }
+
+        fclose($handle);
+
+        return [
+            'backup_id' => $manifest['backup_id'],
+            'manifest_filename' => basename($manifestPath),
+            'part_count' => (int) $manifest['part_count'],
+            'total_size_bytes' => (int) ($manifest['total_size_bytes'] ?? 0),
+        ];
+    }
+
+    public function isManifestFilename(string $filename): bool
+    {
+        return str_ends_with(strtolower($filename), '.backup.json');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function readManifest(string $filename): array
+    {
+        return $this->readManifestFromPath($this->absolutePathFor($filename));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function readManifestFromPath(string $path): array
+    {
+        if (! File::exists($path)) {
+            throw new RuntimeException('El manifest solicitado no existe.');
+        }
+
+        $decoded = json_decode((string) File::get($path), true);
+        if (! is_array($decoded)) {
+            throw new RuntimeException('El manifest del backup no es un JSON valido.');
+        }
+
+        $requiredKeys = ['backup_id', 'created_at', 'driver', 'database', 'part_count', 'max_part_size_bytes', 'parts', 'format_version'];
+        foreach ($requiredKeys as $key) {
+            if (! array_key_exists($key, $decoded)) {
+                throw new RuntimeException('El manifest del backup no contiene el campo requerido: '.$key);
+            }
+        }
+
+        if (! is_array($decoded['parts']) || $decoded['parts'] === []) {
+            throw new RuntimeException('El manifest del backup no contiene partes validas.');
+        }
+
+        $partCount = (int) $decoded['part_count'];
+        if ($partCount !== count($decoded['parts'])) {
+            throw new RuntimeException('El manifest del backup tiene un conteo de partes inconsistente.');
+        }
+
+        foreach ($decoded['parts'] as $index => $part) {
+            if (
+                ! is_array($part)
+                || empty($part['filename'])
+                || ! isset($part['size_bytes'])
+                || empty($part['checksum'])
+            ) {
+                throw new RuntimeException('La parte '.($index + 1).' del manifest es invalida.');
+            }
+        }
+
+        return $decoded;
     }
 
     public function restoreFromPath(string $path, ?callable $progressCallback = null): void
@@ -156,15 +364,16 @@ class DatabaseBackupService
             $notify('Deshabilitando llaves foraneas', 0, 'PRAGMA foreign_keys = OFF;', 'PRAGMA foreign_keys = OFF;', 1, 'disabling_foreign_keys');
         }
 
+        $lastExecuted = 0;
+
         try {
-            $lastExecuted = 0;
             foreach ($this->statementStream($path) as $index => $statementData) {
                 $trimmed = $statementData['statement'];
                 $currentPart = $statementData['part'];
                 $executed = $index + 1;
                 $lastExecuted = $executed;
                 $step = $isLargeRestore
-                    ? 'Ejecutando parte '.$currentPart.' de '.$totalParts.' | sentencia '.$executed.' de '.$totalStatements
+                    ? 'Ejecutando parte '.$currentPart.' de '.$totalParts.' | sentencia '.$executed.' de '.($totalStatements ?? '?')
                     : 'Ejecutando sentencia '.$executed.' de '.$totalStatements;
 
                 $notify(
@@ -188,10 +397,10 @@ class DatabaseBackupService
         } finally {
             if ($driver === 'mysql') {
                 $connection->unprepared('SET FOREIGN_KEY_CHECKS=1');
-                $notify('Rehabilitando llaves foraneas', $totalStatements ?? $lastExecuted ?? 0, 'SET FOREIGN_KEY_CHECKS=1;', 'SET FOREIGN_KEY_CHECKS=1;', $totalParts, 'enabling_foreign_keys');
+                $notify('Rehabilitando llaves foraneas', $totalStatements ?? $lastExecuted, 'SET FOREIGN_KEY_CHECKS=1;', 'SET FOREIGN_KEY_CHECKS=1;', $totalParts, 'enabling_foreign_keys');
             } elseif ($driver === 'sqlite') {
                 $connection->unprepared('PRAGMA foreign_keys = ON');
-                $notify('Rehabilitando llaves foraneas', $totalStatements ?? $lastExecuted ?? 0, 'PRAGMA foreign_keys = ON;', 'PRAGMA foreign_keys = ON;', $totalParts, 'enabling_foreign_keys');
+                $notify('Rehabilitando llaves foraneas', $totalStatements ?? $lastExecuted, 'PRAGMA foreign_keys = ON;', 'PRAGMA foreign_keys = ON;', $totalParts, 'enabling_foreign_keys');
             }
         }
     }
@@ -273,16 +482,18 @@ class DatabaseBackupService
         ]);
     }
 
-    private function dumpTableData(string $table): string
+    /**
+     * @return \Generator<int, string>
+     */
+    private function dumpTableDataStatements(string $table): \Generator
     {
         $columns = Schema::getColumnListing($table);
         if ($columns === []) {
-            return '';
+            return;
         }
 
         $wrappedColumns = implode(', ', array_map(fn (string $column) => $this->wrapIdentifier($column), $columns));
         $pdo = DB::connection()->getPdo();
-        $sql = '';
 
         foreach (DB::table($table)->cursor() as $row) {
             if ($this->shouldSkipRow($table, (array) $row)) {
@@ -294,10 +505,10 @@ class DatabaseBackupService
                 $values[] = $this->sqlLiteral($row->{$column} ?? null, $pdo);
             }
 
-            $sql .= 'INSERT INTO '.$this->wrapIdentifier($table).' ('.$wrappedColumns.') VALUES ('.implode(', ', $values).');'.PHP_EOL;
+            yield 'INSERT INTO '.$this->wrapIdentifier($table).' ('.$wrappedColumns.') VALUES ('.implode(', ', $values).');'.PHP_EOL;
         }
 
-        return $sql.PHP_EOL;
+        yield PHP_EOL;
     }
 
     /**
@@ -354,55 +565,6 @@ class DatabaseBackupService
         return $driver === 'mysql'
             ? '`'.str_replace('`', '``', $identifier).'`'
             : '"'.str_replace('"', '""', $identifier).'"';
-    }
-
-    /**
-     * @return list<string>
-     */
-    private function splitStatements(string $sql): array
-    {
-        $statements = [];
-        $buffer = '';
-        $length = strlen($sql);
-        $inSingle = false;
-        $inDouble = false;
-        $escape = false;
-
-        for ($i = 0; $i < $length; $i++) {
-            $char = $sql[$i];
-            $buffer .= $char;
-
-            if ($escape) {
-                $escape = false;
-                continue;
-            }
-
-            if ($char === '\\') {
-                $escape = true;
-                continue;
-            }
-
-            if ($char === "'" && ! $inDouble) {
-                $inSingle = ! $inSingle;
-                continue;
-            }
-
-            if ($char === '"' && ! $inSingle) {
-                $inDouble = ! $inDouble;
-                continue;
-            }
-
-            if ($char === ';' && ! $inSingle && ! $inDouble) {
-                $statements[] = $buffer;
-                $buffer = '';
-            }
-        }
-
-        if (trim($buffer) !== '') {
-            $statements[] = $buffer;
-        }
-
-        return $statements;
     }
 
     private function countStatementsInFile(string $path): int
@@ -527,9 +689,46 @@ class DatabaseBackupService
     }
 
     /**
-     * @return array{filename:string,path:string,size_bytes:int,size_human:string,created_at:string}
+     * @return array<string, mixed>
      */
-    private function backupMetadata(string $path): array
+    private function manifestMetadata(string $path): array
+    {
+        $manifest = $this->readManifestFromPath($path);
+        $totalSizeBytes = (int) ($manifest['total_size_bytes'] ?? collect($manifest['parts'])->sum('size_bytes'));
+        $parts = collect($manifest['parts'])
+            ->map(fn (array $part) => [
+                'filename' => $part['filename'],
+                'size_bytes' => (int) $part['size_bytes'],
+                'size_human' => $this->formatBytes((int) $part['size_bytes']),
+                'checksum' => $part['checksum'],
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'storage_type' => 'multipart_manifest',
+            'filename' => basename($path),
+            'manifest_filename' => basename($path),
+            'path' => $path,
+            'backup_id' => $manifest['backup_id'],
+            'display_name' => $manifest['backup_id'],
+            'part_count' => (int) $manifest['part_count'],
+            'parts' => $parts,
+            'size_bytes' => $totalSizeBytes,
+            'size_human' => $this->formatBytes($totalSizeBytes),
+            'total_size_bytes' => $totalSizeBytes,
+            'total_size_human' => $this->formatBytes($totalSizeBytes),
+            'created_at' => (string) $manifest['created_at'],
+            'driver' => (string) $manifest['driver'],
+            'database' => (string) $manifest['database'],
+            'format_version' => (int) $manifest['format_version'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function legacyBackupMetadata(string $path): array
     {
         $size = File::size($path);
         $createdTimestamp = @filectime($path);
@@ -538,11 +737,27 @@ class DatabaseBackupService
         }
 
         return [
+            'storage_type' => 'legacy_sql',
             'filename' => basename($path),
+            'manifest_filename' => null,
             'path' => $path,
+            'backup_id' => basename($path, '.sql'),
+            'display_name' => basename($path),
+            'part_count' => 1,
+            'parts' => [[
+                'filename' => basename($path),
+                'size_bytes' => $size,
+                'size_human' => $this->formatBytes($size),
+                'checksum' => strtolower(hash_file('sha256', $path)),
+            ]],
             'size_bytes' => $size,
             'size_human' => $this->formatBytes($size),
+            'total_size_bytes' => $size,
+            'total_size_human' => $this->formatBytes($size),
             'created_at' => date('Y-m-d H:i:s', $createdTimestamp),
+            'driver' => DB::connection()->getDriverName(),
+            'database' => DB::connection()->getDatabaseName(),
+            'format_version' => 0,
         ];
     }
 
@@ -593,5 +808,128 @@ class DatabaseBackupService
         ];
 
         return $this->excludedSuperAdminContext;
+    }
+}
+
+class BackupPartWriter
+{
+    private int $currentPart = 0;
+
+    private $handle = null;
+
+    private int $currentBytes = 0;
+
+    /** @var list<string> */
+    private array $partPaths = [];
+
+    public function __construct(
+        private readonly string $directory,
+        private readonly string $backupId,
+        private readonly int $maxPartBytes,
+    ) {}
+
+    public function writeBlock(string $block, string $description = 'bloque SQL'): void
+    {
+        if ($block === '') {
+            return;
+        }
+
+        $size = strlen($block);
+
+        if ($size > $this->maxPartBytes) {
+            throw new RuntimeException('No se pudo generar el backup: '.$description.' excede el tamano maximo de 1.5 MB por parte.');
+        }
+
+        if ($this->handle === null) {
+            $this->rotatePart();
+        }
+
+        if (($this->currentBytes + $size) > $this->maxPartBytes && $this->currentBytes > 0) {
+            $this->rotatePart();
+        }
+
+        $written = fwrite($this->handle, $block);
+        if ($written === false || $written !== $size) {
+            throw new RuntimeException('No se pudo escribir una parte del backup.');
+        }
+
+        $this->currentBytes += $written;
+    }
+
+    /**
+     * @param  array<string, mixed>  $manifestData
+     */
+    public function finalize(array $manifestData): string
+    {
+        $this->closeHandle();
+
+        if ($this->partPaths === []) {
+            throw new RuntimeException('No se genero ningun contenido para el backup.');
+        }
+
+        $parts = collect($this->partPaths)
+            ->map(function (string $path): array {
+                return [
+                    'filename' => basename($path),
+                    'size_bytes' => File::size($path),
+                    'checksum' => strtolower(hash_file('sha256', $path)),
+                ];
+            })
+            ->values()
+            ->all();
+
+        $payload = $manifestData + [
+            'part_count' => count($parts),
+            'parts' => $parts,
+            'total_size_bytes' => (int) collect($parts)->sum('size_bytes'),
+            'bundle_checksum' => strtolower(hash('sha256', implode('|', array_map(
+                fn (array $part) => $part['filename'].':'.$part['checksum'],
+                $parts
+            )))),
+        ];
+
+        $manifestPath = $this->directory.DIRECTORY_SEPARATOR.$this->backupId.'.backup.json';
+        File::put($manifestPath, json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+
+        return $manifestPath;
+    }
+
+    public function cleanup(): void
+    {
+        $this->closeHandle();
+
+        if ($this->partPaths !== []) {
+            File::delete($this->partPaths);
+        }
+
+        $manifestPath = $this->directory.DIRECTORY_SEPARATOR.$this->backupId.'.backup.json';
+        if (File::exists($manifestPath)) {
+            File::delete($manifestPath);
+        }
+    }
+
+    private function rotatePart(): void
+    {
+        $this->closeHandle();
+        $this->currentPart++;
+        $this->currentBytes = 0;
+
+        $partPath = $this->directory.DIRECTORY_SEPARATOR.$this->backupId.'.part'.str_pad((string) $this->currentPart, 3, '0', STR_PAD_LEFT).'.sql';
+        $handle = fopen($partPath, 'wb');
+        if ($handle === false) {
+            throw new RuntimeException('No se pudo crear una parte del backup.');
+        }
+
+        $this->handle = $handle;
+        $this->partPaths[] = $partPath;
+    }
+
+    private function closeHandle(): void
+    {
+        if (is_resource($this->handle)) {
+            fclose($this->handle);
+        }
+
+        $this->handle = null;
     }
 }
