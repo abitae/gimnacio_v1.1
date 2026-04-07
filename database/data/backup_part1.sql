@@ -3,7 +3,6 @@
 -- Fecha: 2026-04-02 01:15:10
 -- Driver: mysql
 -- Base de datos: gimnacio_v1
-use gimnacio_v1;
 SET FOREIGN_KEY_CHECKS=0;
 -- --------------------------------------------------------
 -- Estructura de tabla para asistencias

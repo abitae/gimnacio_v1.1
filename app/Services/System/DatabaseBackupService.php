@@ -613,6 +613,34 @@ class DatabaseBackupService
         }
     }
 
+    private function sanitizeStatementForRestore(string $statement): string
+    {
+        $statement = preg_replace('/^\xEF\xBB\xBF/', '', $statement) ?? $statement;
+
+        // Descarta comentarios iniciales del dump y comandos de contexto que la
+        // conexion actual no necesita o no puede ejecutar en entornos gestionados.
+        $statement = preg_replace('/\A\s*(?:--[^\r\n]*(?:\r?\n|$)|#[^\r\n]*(?:\r?\n|$)|\/\*.*?\*\/\s*)+/s', '', $statement) ?? $statement;
+        $statement = trim($statement);
+
+        if ($statement === '') {
+            return '';
+        }
+
+        if (preg_match('/^use\s+/i', $statement) === 1) {
+            return '';
+        }
+
+        if (preg_match('/^set\s+foreign_key_checks\s*=\s*[01]\s*;?$/i', $statement) === 1) {
+            return '';
+        }
+
+        if (preg_match('/^pragma\s+foreign_keys\s*=\s*(off|on)\s*;?$/i', $statement) === 1) {
+            return '';
+        }
+
+        return $statement;
+    }
+
     /**
      * @return \Generator<int, array{statement:string,part:int}>
      */
@@ -673,7 +701,7 @@ class DatabaseBackupService
                     }
 
                     if ($char === ';' && ! $inSingle && ! $inDouble) {
-                        $statement = trim($buffer);
+                        $statement = $this->sanitizeStatementForRestore(trim($buffer));
                         if ($statement !== '') {
                             yield [
                                 'statement' => $statement,
@@ -688,7 +716,7 @@ class DatabaseBackupService
                 $currentPart++;
             }
 
-            $statement = trim($buffer);
+            $statement = $this->sanitizeStatementForRestore(trim($buffer));
             if ($statement !== '') {
                 yield [
                     'statement' => $statement,
