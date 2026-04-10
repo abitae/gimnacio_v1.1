@@ -3,6 +3,7 @@
 namespace App\Livewire\POS;
 
 use App\Livewire\Concerns\FlashesToast;
+use App\Models\Core\Cliente;
 use App\Models\Core\PaymentMethod;
 use App\Models\Core\Producto;
 use App\Models\Core\ServicioExterno;
@@ -10,6 +11,7 @@ use App\Services\CajaService;
 use App\Services\ClienteMatriculaService;
 use App\Services\ClienteMembresiaService;
 use App\Services\ClienteService;
+use App\Services\EnrollmentInstallmentService;
 use App\Services\ProductoService;
 use App\Services\ServicioExternoService;
 use App\Services\VentaService;
@@ -120,7 +122,7 @@ class POSLive extends Component
 
     public $mostrarModalCobro = false;
 
-    public $cobroItemTipo = null; // 'matricula' | 'membresia'
+    public $cobroItemTipo = null; // 'matricula' | 'membresia' (cuotas se cobran vía ruta cuotas.pagar)
 
     public $cobroItemId = null;
 
@@ -147,6 +149,8 @@ class POSLive extends Component
 
     protected ClienteMembresiaService $clienteMembresiaService;
 
+    protected EnrollmentInstallmentService $enrollmentInstallmentService;
+
     public function boot(
         CajaService $cajaService,
         ProductoService $productoService,
@@ -154,7 +158,8 @@ class POSLive extends Component
         VentaService $ventaService,
         ClienteService $clienteService,
         ClienteMatriculaService $clienteMatriculaService,
-        ClienteMembresiaService $clienteMembresiaService
+        ClienteMembresiaService $clienteMembresiaService,
+        EnrollmentInstallmentService $enrollmentInstallmentService
     ) {
         $this->cajaService = $cajaService;
         $this->productoService = $productoService;
@@ -163,6 +168,7 @@ class POSLive extends Component
         $this->clienteService = $clienteService;
         $this->clienteMatriculaService = $clienteMatriculaService;
         $this->clienteMembresiaService = $clienteMembresiaService;
+        $this->enrollmentInstallmentService = $enrollmentInstallmentService;
     }
 
     public function mount()
@@ -176,6 +182,11 @@ class POSLive extends Component
         // Validar que haya caja abierta
         if (! $this->cajaService->validarCajaAbierta(auth()->id())) {
             $this->flashToast('error', 'No hay una caja abierta. Por favor, abra una caja antes de usar el punto de venta.');
+        }
+
+        $cobrarClienteId = (int) request()->query('cobrar_cliente', 0);
+        if ($cobrarClienteId > 0 && Cliente::query()->whereKey($cobrarClienteId)->exists()) {
+            $this->irACobrarCliente($cobrarClienteId);
         }
     }
 
@@ -796,6 +807,9 @@ class POSLive extends Component
 
         $matriculas = $this->clienteMatriculaService->getByCliente($clienteId, [], 100);
         foreach ($matriculas->items() as $mat) {
+            if ($mat->usaPlanCuotas()) {
+                continue;
+            }
             $saldo = $this->clienteMatriculaService->obtenerSaldoPendiente($mat->id);
             if ($saldo > 0) {
                 $this->itemsConSaldo[] = [
@@ -819,10 +833,34 @@ class POSLive extends Component
                 ];
             }
         }
+
+        $installments = $this->enrollmentInstallmentService->installmentsForCliente($clienteId);
+        $installments->loadMissing(['plan.clienteMatricula', 'clienteMatricula']);
+        foreach ($installments as $installment) {
+            if (! in_array($installment->estado, ['pendiente', 'vencida', 'parcial'], true)) {
+                continue;
+            }
+            $matriculaId = $installment->cliente_matricula_id ?? $installment->plan?->cliente_matricula_id;
+            if (! $matriculaId) {
+                continue;
+            }
+            $matriculaNombre = $installment->clienteMatricula?->nombre
+                ?? $installment->plan?->clienteMatricula?->nombre;
+            $label = 'Cuota '.$installment->numero_cuota.($matriculaNombre ? ' — '.$matriculaNombre : '');
+            $this->itemsConSaldo[] = [
+                'tipo' => 'cuota',
+                'id' => $installment->id,
+                'nombre' => $label,
+                'saldo_pendiente' => (float) $installment->monto,
+            ];
+        }
     }
 
     public function openCobroModal(string $tipo, int $id)
     {
+        if (! in_array($tipo, ['matricula', 'membresia'], true)) {
+            return;
+        }
         $this->cobroItemTipo = $tipo;
         $this->cobroItemId = $id;
         if ($tipo === 'matricula') {

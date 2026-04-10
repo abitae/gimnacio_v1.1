@@ -94,8 +94,9 @@
                 </div>
 
                 @if ($selectedClienteCobro)
-                    <div class="flex items-center gap-3 mb-4 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
+                    <div class="flex flex-wrap items-center gap-2 mb-4 p-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50">
                         <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $selectedClienteCobro->nombres }} {{ $selectedClienteCobro->apellidos }}</span>
+                        <flux:button variant="ghost" size="xs" href="{{ route('clientes.perfil', $selectedClienteCobro) }}" wire:navigate>Ver ficha</flux:button>
                         <flux:button variant="ghost" size="xs" wire:click="clearClienteCobro">Cambiar</flux:button>
                     </div>
 
@@ -114,12 +115,28 @@
                                     @foreach ($itemsConSaldo as $item)
                                         <tr>
                                             <td class="px-4 py-2.5 font-medium text-zinc-900 dark:text-zinc-100">{{ $item['nombre'] }}</td>
-                                            <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $item['tipo'] === 'matricula' ? 'Matrícula' : 'Membresía' }}</td>
+                                            <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">
+                                                @if ($item['tipo'] === 'matricula')
+                                                    Matrícula
+                                                @elseif ($item['tipo'] === 'membresia')
+                                                    Membresía
+                                                @elseif ($item['tipo'] === 'cuota')
+                                                    Plan de cuotas
+                                                @else
+                                                    —
+                                                @endif
+                                            </td>
                                             <td class="px-4 py-2.5 text-right font-medium text-zinc-900 dark:text-zinc-100">S/ {{ number_format($item['saldo_pendiente'], 2) }}</td>
                                             <td class="px-4 py-2.5 text-right">
-                                                <flux:button variant="primary" size="xs" color="green" wire:click="openCobroModal('{{ $item['tipo'] }}', {{ $item['id'] }})">
-                                                    Cobrar
-                                                </flux:button>
+                                                @if ($item['tipo'] === 'cuota')
+                                                    <flux:button variant="primary" size="xs" color="green" href="{{ route('cuotas.pagar', ['installment' => $item['id']]) }}" wire:navigate>
+                                                        Cobrar
+                                                    </flux:button>
+                                                @else
+                                                    <flux:button variant="primary" size="xs" color="green" wire:click="openCobroModal('{{ $item['tipo'] }}', {{ $item['id'] }})">
+                                                        Cobrar
+                                                    </flux:button>
+                                                @endif
                                             </td>
                                         </tr>
                                     @endforeach
@@ -127,7 +144,18 @@
                             </table>
                         </div>
                     @else
-                        <p class="text-sm text-zinc-500 dark:text-zinc-400">Este cliente no tiene matrículas ni membresías con saldo pendiente.</p>
+                        @if ($selectedClienteCobro->deuda_total > 0)
+                            <div class="rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100 space-y-2">
+                                <p class="font-medium">Hay deuda registrada (S/ {{ number_format($selectedClienteCobro->deuda_total, 2) }}) pero no hay ítems cobrables desde esta pantalla (por ejemplo ventas a crédito u otros conceptos).</p>
+                                <p class="text-xs text-amber-900/90 dark:text-amber-200/90">Usa la ficha del cliente o cuentas por cobrar para gestionar ese saldo.</p>
+                                <div class="flex flex-wrap gap-2 pt-1">
+                                    <flux:button size="xs" variant="primary" href="{{ route('clientes.perfil', $selectedClienteCobro) }}" wire:navigate>Abrir ficha</flux:button>
+                                    <flux:button size="xs" variant="ghost" href="{{ route('pos.cuentas-por-cobrar') }}" wire:navigate>Cuentas por cobrar</flux:button>
+                                </div>
+                            </div>
+                        @else
+                            <p class="text-sm text-zinc-500 dark:text-zinc-400">Este cliente no tiene matrículas ni membresías con saldo pendiente.</p>
+                        @endif
                     @endif
                 @else
                     <p class="text-sm text-zinc-500 dark:text-zinc-400">Selecciona un cliente para ver sus ítems con saldo pendiente, o elige uno de la tabla siguiente.</p>
@@ -143,22 +171,25 @@
                                     <tr>
                                         <th class="px-3 py-1.5 text-left font-medium text-zinc-600 dark:text-zinc-400">Cliente</th>
                                         <th class="px-3 py-1.5 text-right font-medium text-zinc-600 dark:text-zinc-400">Deuda</th>
-                                        <th class="px-3 py-1.5 text-right font-medium text-zinc-600 dark:text-zinc-400">Acción</th>
+                                        <th class="px-3 py-1.5 text-right font-medium text-zinc-600 dark:text-zinc-400">Acciones</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                                     @foreach ($clientesConDeuda as $c)
                                         <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
                                             <td class="px-3 py-1.5 text-zinc-900 dark:text-zinc-100">
-                                                {{ $c->nombres }} {{ $c->apellidos }}
+                                                <a href="{{ route('clientes.perfil', $c) }}" wire:navigate class="font-medium text-purple-700 hover:underline dark:text-purple-400">{{ $c->nombres }} {{ $c->apellidos }}</a>
                                             </td>
                                             <td class="px-3 py-1.5 text-right font-medium text-amber-600 dark:text-amber-400">
                                                 S/ {{ number_format($c->deuda_total, 2) }}
                                             </td>
                                             <td class="px-3 py-1.5 text-right">
-                                                <flux:button variant="primary" size="xs" color="green" wire:click="selectClienteCobro({{ $c->id }})">
-                                                    Cobrar
-                                                </flux:button>
+                                                <div class="inline-flex flex-wrap justify-end gap-1">
+                                                    <flux:button variant="ghost" size="xs" href="{{ route('clientes.perfil', $c) }}" wire:navigate>Ficha</flux:button>
+                                                    <flux:button variant="primary" size="xs" color="green" wire:click="selectClienteCobro({{ $c->id }})">
+                                                        Cobrar
+                                                    </flux:button>
+                                                </div>
                                             </td>
                                         </tr>
                                     @endforeach
