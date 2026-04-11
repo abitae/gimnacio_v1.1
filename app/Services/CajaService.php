@@ -51,6 +51,7 @@ class CajaService
 
         return DB::transaction(function () use ($caja, $validated) {
             $caja->cerrar($validated['observaciones_cierre'] ?? null);
+
             return $caja->fresh(['usuario']);
         });
     }
@@ -359,8 +360,8 @@ class CajaService
         }
 
         if ($allowCrossCaja) {
-            $puedeCruzar = $user->can('cajas.movimientos-manuales');
-            $esResponsable = $caja->usuario_id === $user->id && $user->can('cajas.update');
+            $puedeCruzar = $user->can('caja.movimiento_manual');
+            $esResponsable = $caja->usuario_id === $user->id && $user->can('caja.editar');
 
             if (! $puedeCruzar && ! $esResponsable) {
                 throw new \Exception('No tienes permiso para registrar movimientos manuales en esta caja.');

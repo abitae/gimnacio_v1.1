@@ -1,8 +1,8 @@
 <div class="space-y-3 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
     <div class="flex items-center justify-between">
         <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Personal</h1>
-        @can('employees.create')
-        <flux:button size="xs" href="{{ route('employees.create') }}" wire:navigate>Nuevo empleado</flux:button>
+        @can('empleado.crear')
+        <flux:button size="xs" href="{{ route('empleado.crear') }}" wire:navigate>Nuevo empleado</flux:button>
         @endcan
     </div>
     <div class="flex gap-2">
@@ -33,7 +33,7 @@
                         <td class="px-4 py-2"><span class="rounded-full px-1.5 py-0.5 text-xs {{ $e->estado === 'activo' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-zinc-100 dark:bg-zinc-700' }}">{{ ucfirst($e->estado) }}</span></td>
                         <td class="px-4 py-2">
                             <flux:button size="xs" variant="ghost" href="{{ route('employees.show', $e) }}" wire:navigate>Ver</flux:button>
-                            @can('employees.update')
+                            @can('empleado.editar')
                             <flux:button size="xs" variant="ghost" href="{{ route('employees.edit', $e) }}" wire:navigate>Editar</flux:button>
                             @endcan
                         </td>

@@ -13,25 +13,41 @@ class CheckingLive extends Component
     use FlashesToast;
 
     public $clienteSearch = '';
+
     public $clientes;
+
     public $selectedClienteId = null;
+
     public $selectedCliente = null;
+
     public $isSearching = false;
 
     public $membresiaActiva = null;
+
     public $asistenciasRecientes = [];
+
     public $estadisticasAsistencia = [];
+
     public $validacionAcceso = [];
+
     public $saldoPendiente = 0.00;
+
     public $historialMembresias = [];
+
     public $historialClases = [];
+
     public $mostrarModalConfirmacion = false;
+
     public $asistenciaRegistrada = null;
+
     public $tipoRegistroModal = null;
+
     public $ingresoEnCurso = null;
 
     protected AsistenciaService $asistenciaService;
+
     protected ClienteService $clienteService;
+
     protected ClientEnrollmentService $clientEnrollmentService;
 
     public function boot(
@@ -46,7 +62,7 @@ class CheckingLive extends Component
 
     public function mount()
     {
-        $this->authorize('checking.view');
+        $this->authorize('checking.ver');
         $this->clientes = collect([]);
     }
 
@@ -55,7 +71,7 @@ class CheckingLive extends Component
         $this->isSearching = true;
 
         if ($this->selectedCliente) {
-            $nombreCompleto = $this->selectedCliente->nombres . ' ' . $this->selectedCliente->apellidos;
+            $nombreCompleto = $this->selectedCliente->nombres.' '.$this->selectedCliente->apellidos;
             $valorTrim = trim($value);
             if ($valorTrim !== $nombreCompleto && $valorTrim !== '') {
                 $this->selectedClienteId = null;
@@ -89,7 +105,7 @@ class CheckingLive extends Component
         $this->selectedCliente = $this->clienteService->find($clienteId);
 
         if ($this->selectedCliente) {
-            $this->clienteSearch = $this->selectedCliente->nombres . ' ' . $this->selectedCliente->apellidos;
+            $this->clienteSearch = $this->selectedCliente->nombres.' '.$this->selectedCliente->apellidos;
         }
 
         $this->clientes = collect([]);
@@ -109,10 +125,11 @@ class CheckingLive extends Component
 
     public function registrarIngreso()
     {
-        $this->authorize('checking.create');
+        $this->authorize('checking.crear');
 
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Debes seleccionar un cliente primero.');
+
             return;
         }
 
@@ -121,6 +138,7 @@ class CheckingLive extends Component
 
             if (! $validacion['valido']) {
                 $this->flashToast('error', $validacion['mensaje']);
+
                 return;
             }
 
@@ -140,10 +158,11 @@ class CheckingLive extends Component
 
     public function registrarSalida($asistenciaId)
     {
-        $this->authorize('checking.update');
+        $this->authorize('checking.editar');
 
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Debes seleccionar un cliente primero.');
+
             return;
         }
 

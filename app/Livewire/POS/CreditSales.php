@@ -18,7 +18,7 @@ class CreditSales extends Component
 
     public function mount(): void
     {
-        $this->authorize('pos.view');
+        $this->authorize('punto_venta.ver');
     }
 
     public function render()
@@ -30,10 +30,10 @@ class CreditSales extends Component
 
         if ($this->search) {
             $query->where(function ($q) {
-                $q->where('numero_venta', 'like', '%' . $this->search . '%')
-                    ->orWhereHas('cliente', fn ($c) => $c->where('nombres', 'like', '%' . $this->search . '%')
-                        ->orWhere('apellidos', 'like', '%' . $this->search . '%')
-                        ->orWhere('numero_documento', 'like', '%' . $this->search . '%'));
+                $q->where('numero_venta', 'like', '%'.$this->search.'%')
+                    ->orWhereHas('cliente', fn ($c) => $c->where('nombres', 'like', '%'.$this->search.'%')
+                        ->orWhere('apellidos', 'like', '%'.$this->search.'%')
+                        ->orWhere('numero_documento', 'like', '%'.$this->search.'%'));
             });
         }
 

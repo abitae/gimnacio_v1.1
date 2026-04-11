@@ -7,7 +7,7 @@
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">Gestiona las membresías y clases asignadas a los clientes</p>
             </div>
             <div class="flex gap-2">
-                @can('clientes.create')
+                @can('cliente.crear')
                 <a href="{{ route('clientes.perfil.index') }}" wire:navigate>
                     <flux:button icon="plus" color="blue" variant="primary" size="xs" aria-label="Crear nuevo cliente">
                         Nuevo Cliente
@@ -127,7 +127,7 @@
 
                     <!-- Filters and Actions -->
                     <div class="flex gap-3 items-center justify-between">
-                        @can('cliente-matriculas.create')
+                        @can('matricula_cliente.crear')
                         <flux:button icon="plus" color="purple" variant="primary" size="xs" wire:click="openCreateModal"
                             wire:loading.attr="disabled" wire:target="openCreateModal" aria-label="Nueva matrícula">
                             <span wire:loading.remove wire:target="openCreateModal">Agregar {{ $activeTab === 'membresias' ? 'Membresía' : 'Clase' }}</span>
@@ -258,13 +258,13 @@
                                             </td>
                                             <td class="px-4 py-2.5 text-xs">
                                                 <div class="flex gap-1 flex-wrap">
-                                                    @can('cliente-matriculas.view')
+                                                    @can('matricula_cliente.ver')
                                                     <a href="{{ route('cliente-matriculas.cuotas', $matricula) }}" wire:navigate aria-label="Cuotas">
                                                         <flux:button variant="ghost" size="xs" icon="currency-dollar">Cuotas</flux:button>
                                                     </a>
                                                     @endcan
                                                     @if ($matricula->estado !== 'completada')
-                                                        @can('cliente-matriculas.update')
+                                                        @can('matricula_cliente.editar')
                                                         @if ($activeTab === 'membresias' && $matricula->esMembresia() && $matricula->estado === 'activa' && $matricula->membresia?->permite_congelacion)
                                                             <flux:button variant="ghost" size="xs" icon="pause-circle"
                                                                 wire:click="openCongelarMatriculaModal({{ $matricula->id }})" aria-label="{{ __('Congelar') }}">
@@ -274,7 +274,7 @@
                                                             wire:click="openEditModal({{ $matricula->id }})" aria-label="Editar">
                                                         </flux:button>
                                                         @endcan
-                                                        @can('cliente-matriculas.delete')
+                                                        @can('matricula_cliente.eliminar')
                                                         <flux:button variant="ghost" size="xs" icon="trash" color="red"
                                                             wire:click="openDeleteModal({{ $matricula->id }})" aria-label="Eliminar">
                                                         </flux:button>

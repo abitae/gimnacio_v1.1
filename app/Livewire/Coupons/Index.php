@@ -21,14 +21,14 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->authorize('cupones.view');
+        $this->authorize('cupon.ver');
     }
 
     public function render()
     {
         $query = DiscountCoupon::query()
-            ->when($this->search, fn ($q) => $q->where('codigo', 'like', '%' . $this->search . '%')
-                ->orWhere('nombre', 'like', '%' . $this->search . '%'))
+            ->when($this->search, fn ($q) => $q->where('codigo', 'like', '%'.$this->search.'%')
+                ->orWhere('nombre', 'like', '%'.$this->search.'%'))
             ->when($this->estadoFilter, fn ($q) => $q->where('estado', $this->estadoFilter))
             ->orderByDesc('created_at');
 

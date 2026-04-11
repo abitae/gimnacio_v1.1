@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Validator;
 
 class MembresiaService
 {
+    public function __construct(
+        protected SucursalContext $sucursalContext
+    ) {}
+
     /**
      * Obtener todas las membresías con paginación
      */
@@ -90,6 +94,7 @@ class MembresiaService
     public function create(array $data): Membresia
     {
         $validated = $this->validate($data);
+        $validated['sucursal_id'] = $validated['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
 
         return DB::transaction(function () use ($validated) {
             return Membresia::create($validated);
@@ -110,6 +115,7 @@ class MembresiaService
         $validated = $this->validate($data, $id);
 
         return DB::transaction(function () use ($membresia, $validated) {
+            $validated['sucursal_id'] = $membresia->sucursal_id;
             $membresia->update($validated);
 
             return $membresia->fresh();
@@ -176,6 +182,7 @@ class MembresiaService
                 },
             ],
             'estado' => [$isUpdate ? 'sometimes' : 'required', 'string', 'in:activa,inactiva'],
+            'sucursal_id' => ['nullable', 'exists:sucursales,id'],
         ];
 
         $validator = Validator::make($data, $rules);

@@ -29,7 +29,7 @@ class ClienteLive extends Component
 
     public function mount(): void
     {
-        $this->authorize('clientes.view');
+        $this->authorize('cliente.ver');
         $this->resetPage();
     }
 

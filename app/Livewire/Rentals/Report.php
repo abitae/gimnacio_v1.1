@@ -3,7 +3,6 @@
 namespace App\Livewire\Rentals;
 
 use App\Models\Core\Rental;
-use Carbon\Carbon;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -21,7 +20,7 @@ class Report extends Component
 
     public function mount(): void
     {
-        $this->authorize('rentals.view');
+        $this->authorize('alquiler.ver');
         $this->fechaDesde = request()->query('desde', now()->startOfMonth()->format('Y-m-d'));
         $this->fechaHasta = request()->query('hasta', now()->format('Y-m-d'));
     }
@@ -35,7 +34,10 @@ class Report extends Component
             ->orderByDesc('fecha')->orderByDesc('hora_inicio');
 
         $rentals = $query->paginate($this->perPage);
-        $totalIngresos = (clone $query)->get()->sum(fn ($r) => (float) $r->precio - (float) $r->descuento);
+        $totalIngresos = (float) (clone $query)
+            ->reorder()
+            ->selectRaw('COALESCE(SUM(precio - descuento), 0) as total_ingresos')
+            ->value('total_ingresos');
 
         return view('livewire.rentals.report', [
             'rentals' => $rentals,

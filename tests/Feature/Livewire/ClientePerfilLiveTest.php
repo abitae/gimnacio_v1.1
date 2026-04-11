@@ -2,8 +2,8 @@
 
 use App\Livewire\Clientes\ClienteLive;
 use App\Livewire\Clientes\ClientePerfilLive;
-use App\Models\Core\Cliente;
 use App\Models\Core\Clase;
+use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\EnrollmentInstallment;
 use App\Models\Core\EnrollmentInstallmentPlan;
@@ -15,7 +15,7 @@ use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
     $guard = config('auth.defaults.guard');
-    foreach (['clientes.view', 'clientes.create', 'clientes.update', 'cliente-matriculas.view', 'cliente-matriculas.create', 'cliente-matriculas.update'] as $perm) {
+    foreach (['cliente.ver', 'cliente.crear', 'cliente.editar', 'matricula_cliente.ver', 'matricula_cliente.crear', 'matricula_cliente.editar'] as $perm) {
         Permission::firstOrCreate(['name' => $perm, 'guard_name' => $guard]);
     }
 });
@@ -24,25 +24,25 @@ it('redirige invitados del perfil de clientes al login', function () {
     $this->get(route('clientes.perfil.index'))->assertRedirect(route('login'));
 });
 
-it('responde 200 en perfil index con permiso clientes.view', function () {
+it('responde 200 en perfil index con permiso cliente.ver', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo('clientes.view');
+    $user->givePermissionTo('cliente.ver');
     $this->actingAs($user);
 
     $this->get(route('clientes.perfil.index'))->assertOk();
 });
 
-it('responde 200 en listado /clientes con permiso clientes.view', function () {
+it('responde 200 en listado /clientes con permiso cliente.ver', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo('clientes.view');
+    $user->givePermissionTo('cliente.ver');
     $this->actingAs($user);
 
     $this->get(route('clientes.index'))->assertOk();
 });
 
-it('lanza autorización al abrir nuevo cliente sin permiso clientes.create', function () {
+it('lanza autorización al abrir nuevo cliente sin permiso cliente.crear', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo('clientes.view');
+    $user->givePermissionTo('cliente.ver');
     $this->actingAs($user);
 
     Livewire::test(ClientePerfilLive::class)
@@ -50,9 +50,9 @@ it('lanza autorización al abrir nuevo cliente sin permiso clientes.create', fun
         ->assertForbidden();
 });
 
-it('abre modal de nuevo cliente con permiso clientes.create', function () {
+it('abre modal de nuevo cliente con permiso cliente.crear', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo(['clientes.view', 'clientes.create']);
+    $user->givePermissionTo(['cliente.ver', 'cliente.crear']);
     $this->actingAs($user);
 
     Livewire::test(ClientePerfilLive::class)
@@ -62,7 +62,7 @@ it('abre modal de nuevo cliente con permiso clientes.create', function () {
 
 it('renderiza el componente listado secundario', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo('clientes.view');
+    $user->givePermissionTo('cliente.ver');
     $this->actingAs($user);
 
     Livewire::test(ClienteLive::class)->assertOk();
@@ -70,7 +70,7 @@ it('renderiza el componente listado secundario', function () {
 
 it('selecciona cliente en perfil y fija la ficha', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo('clientes.view');
+    $user->givePermissionTo('cliente.ver');
     $this->actingAs($user);
 
     $cliente = Cliente::create([
@@ -89,7 +89,7 @@ it('selecciona cliente en perfil y fija la ficha', function () {
 
 it('permite minimizar y expandir el card del perfil del cliente', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo('clientes.view');
+    $user->givePermissionTo('cliente.ver');
     $this->actingAs($user);
 
     $cliente = Cliente::create([
@@ -112,7 +112,7 @@ it('permite minimizar y expandir el card del perfil del cliente', function () {
 
 it('muestra pagos agrupados por matricula y permite cobrar solo si hay saldo', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo(['clientes.view', 'cliente-matriculas.view', 'cliente-matriculas.update']);
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver', 'matricula_cliente.editar']);
     $this->actingAs($user);
 
     $cliente = Cliente::factory()->create(['created_by' => $user->id]);
@@ -189,7 +189,7 @@ it('muestra pagos agrupados por matricula y permite cobrar solo si hay saldo', f
 
 it('muestra matriculas en cuotas y solo permite pagar cuotas pendientes', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo(['clientes.view', 'cliente-matriculas.view', 'cliente-matriculas.update', 'cliente-matriculas.create']);
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver', 'matricula_cliente.editar', 'matricula_cliente.crear']);
     $this->actingAs($user);
 
     $cliente = Cliente::factory()->create(['created_by' => $user->id]);
@@ -249,7 +249,7 @@ it('muestra matriculas en cuotas y solo permite pagar cuotas pendientes', functi
 
 it('muestra empty state cuando no existen matriculas en cuotas', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo(['clientes.view', 'cliente-matriculas.view']);
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver']);
     $this->actingAs($user);
 
     $cliente = Cliente::factory()->create(['created_by' => $user->id]);
@@ -262,7 +262,7 @@ it('muestra empty state cuando no existen matriculas en cuotas', function () {
 
 it('recalcula la cuota estimada al cambiar la frecuencia en una nueva matricula en cuotas', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo(['clientes.view', 'cliente-matriculas.view', 'cliente-matriculas.create']);
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver', 'matricula_cliente.crear']);
     $this->actingAs($user);
 
     $cliente = Cliente::factory()->create(['created_by' => $user->id]);
@@ -289,7 +289,7 @@ it('recalcula la cuota estimada al cambiar la frecuencia en una nueva matricula 
 
 it('muestra en el resumen la suma de saldos de planes y membresias del cliente', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo(['clientes.view', 'cliente-matriculas.view', 'cliente-matriculas.update']);
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver', 'matricula_cliente.editar']);
     $this->actingAs($user);
 
     $cliente = Cliente::factory()->create(['created_by' => $user->id]);

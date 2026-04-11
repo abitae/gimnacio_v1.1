@@ -9,12 +9,14 @@ use Livewire\Component;
 class ProgressByExercise extends Component
 {
     public string $tipo_documento = 'DNI';
+
     public string $numero_documento = '';
+
     public ?Cliente $cliente = null;
 
     public function mount(): void
     {
-        $this->authorize('ejercicios-rutinas.view');
+        $this->authorize('ejercicio_rutina.ver');
     }
 
     public function buscarCliente(): void
@@ -86,6 +88,7 @@ class ProgressByExercise extends Component
                 ];
             }
         }
+
         return view('livewire.reports.progress-by-exercise', ['progress' => $progress]);
     }
 }

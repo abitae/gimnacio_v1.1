@@ -9,26 +9,26 @@ class LeadPolicy
 {
     public function viewAny(User $user): bool
     {
-        return $user->can('crm.view');
+        return $user->can('crm.ver');
     }
 
     public function view(User $user, Lead $lead): bool
     {
-        return $user->can('crm.view');
+        return $user->can('crm.ver');
     }
 
     public function create(User $user): bool
     {
-        return $user->can('crm.create');
+        return $user->can('crm.crear');
     }
 
     public function update(User $user, Lead $lead): bool
     {
-        return $user->can('crm.update');
+        return $user->can('crm.editar');
     }
 
     public function delete(User $user, Lead $lead): bool
     {
-        return $user->can('crm.delete');
+        return $user->can('crm.eliminar');
     }
 }

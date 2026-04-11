@@ -33,7 +33,7 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->authorize('payment-methods.view');
+        $this->authorize('metodo_pago.ver');
         $this->resetPage();
     }
 
@@ -49,17 +49,18 @@ class Index extends Component
 
     public function openCreateModal(): void
     {
-        $this->authorize('payment-methods.create');
+        $this->authorize('metodo_pago.crear');
         $this->resetForm();
         $this->modalState['create'] = true;
     }
 
     public function openEditModal(int $id): void
     {
-        $this->authorize('payment-methods.update');
+        $this->authorize('metodo_pago.editar');
         $method = PaymentMethod::find($id);
         if (! $method) {
             $this->flashToast('error', 'Método de pago no encontrado.');
+
             return;
         }
 
@@ -76,14 +77,14 @@ class Index extends Component
 
     public function openDeleteModal(int $id): void
     {
-        $this->authorize('payment-methods.delete');
+        $this->authorize('metodo_pago.eliminar');
         $this->paymentMethodId = $id;
         $this->modalState['delete'] = true;
     }
 
     public function save(): void
     {
-        $this->authorize($this->paymentMethodId ? 'payment-methods.update' : 'payment-methods.create');
+        $this->authorize($this->paymentMethodId ? 'metodo_pago.editar' : 'metodo_pago.crear');
         $rules = [
             'formData.nombre' => 'required|string|max:80',
             'formData.descripcion' => 'nullable|string',
@@ -92,7 +93,7 @@ class Index extends Component
             'formData.estado' => 'required|in:activo,inactivo',
         ];
         if ($this->paymentMethodId) {
-            $rules['formData.nombre'] = 'required|string|max:80|unique:payment_methods,nombre,' . $this->paymentMethodId;
+            $rules['formData.nombre'] = 'required|string|max:80|unique:payment_methods,nombre,'.$this->paymentMethodId;
         } else {
             $rules['formData.nombre'] = 'required|string|max:80|unique:payment_methods,nombre';
         }
@@ -116,7 +117,7 @@ class Index extends Component
 
     public function delete(): void
     {
-        $this->authorize('payment-methods.delete');
+        $this->authorize('metodo_pago.eliminar');
         try {
             $method = PaymentMethod::findOrFail($this->paymentMethodId);
             $method->delete();
@@ -130,10 +131,11 @@ class Index extends Component
 
     public function toggleEstado(int $id): void
     {
-        $this->authorize('payment-methods.update');
+        $this->authorize('metodo_pago.editar');
         $method = PaymentMethod::find($id);
         if (! $method) {
             $this->flashToast('error', 'Método de pago no encontrado.');
+
             return;
         }
         $method->estado = $method->estado === 'activo' ? 'inactivo' : 'activo';
@@ -162,8 +164,8 @@ class Index extends Component
     public function render()
     {
         $query = PaymentMethod::query()
-            ->when($this->search, fn ($q) => $q->where('nombre', 'like', '%' . $this->search . '%')
-                ->orWhere('descripcion', 'like', '%' . $this->search . '%'))
+            ->when($this->search, fn ($q) => $q->where('nombre', 'like', '%'.$this->search.'%')
+                ->orWhere('descripcion', 'like', '%'.$this->search.'%'))
             ->when($this->estadoFilter, fn ($q) => $q->where('estado', $this->estadoFilter))
             ->orderBy('nombre');
 

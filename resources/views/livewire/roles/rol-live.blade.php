@@ -5,7 +5,7 @@
                 <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Roles</h1>
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">Administra roles y permisos</p>
             </div>
-            @can('roles.create')
+            @can('rol.crear')
             <flux:button icon="plus" color="purple" variant="primary" size="xs" wire:click="openCreateModal">
                 Nuevo rol
             </flux:button>
@@ -53,10 +53,10 @@
                                 <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $role->users_count ?? 0 }} usuarios</td>
                                 <td class="px-4 py-2.5 text-xs">
                                     <div class="flex gap-2">
-                                        @can('roles.update')
+                                        @can('rol.editar')
                                         <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $role->id }})" aria-label="Editar">Editar</flux:button>
                                         @endcan
-                                        @can('roles.delete')
+                                        @can('rol.eliminar')
                                         @if (($role->users_count ?? 0) === 0)
                                             <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="openDeleteModal({{ $role->id }})" aria-label="Eliminar">Eliminar</flux:button>
                                         @else
@@ -103,21 +103,18 @@
                 <flux:field>
                     <flux:label>Permisos</flux:label>
                     <div class="max-h-64 overflow-y-auto space-y-4 rounded border border-zinc-200 dark:border-zinc-600 p-3">
-                        @php
-                            $grouped = $permissions->groupBy(function ($p) {
-                                $parts = explode('.', $p->name);
-                                return $parts[0] ?? 'otros';
-                            });
-                        @endphp
-                        @foreach ($grouped as $recurso => $perms)
+                        @foreach ($permissionGroups as $recurso => $perms)
                             <div class="space-y-1.5">
                                 <p class="text-xs font-semibold text-zinc-600 dark:text-zinc-400 border-b border-zinc-200 dark:border-zinc-600 pb-1">
-                                    {{ \Illuminate\Support\Str::title(str_replace(['-', '_'], ' ', $recurso)) }}
+                                    {{ $recurso }}
                                 </p>
                                 @foreach ($perms as $perm)
-                                    <label class="flex items-center gap-2">
+                                    <label class="flex items-start gap-2">
                                         <flux:checkbox wire:model="formData.permissions" value="{{ $perm->name }}" />
-                                        <span class="text-sm">{{ \Illuminate\Support\Str::title(str_replace('_', ' ', $perm->name)) }}</span>
+                                        <span class="space-y-0.5">
+                                            <span class="block text-sm font-medium">{{ $perm->name }}</span>
+                                            <span class="block text-xs text-zinc-500 dark:text-zinc-400">{{ $perm->descripcion_corta }}</span>
+                                        </span>
                                     </label>
                                 @endforeach
                             </div>
@@ -135,7 +132,7 @@
         </form>
     </flux:modal>
 
-    @can('roles.delete')
+    @can('rol.eliminar')
     <!-- Modal Delete -->
     <flux:modal name="rol-delete" wire:model="modalState.delete" focusable flyout variant="floating" class="md:w-lg">
         <div class="p-4">

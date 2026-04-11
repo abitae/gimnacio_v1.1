@@ -4,7 +4,7 @@
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{{ $template->nombre }}</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">{{ $template->estado_label }} · {{ $template->objetivo ?: '—' }} · {{ $template->nivel ?: '—' }}</p>
         </div>
-        @can('ejercicios-rutinas.update')
+        @can('ejercicio_rutina.editar')
         <div class="flex gap-2">
             <flux:button href="{{ route('rutinas-base.builder', $template) }}" size="xs" variant="primary" wire:navigate>Builder</flux:button>
             <flux:button href="{{ route('rutinas-base.index') }}?editar={{ $template->id }}" size="xs" variant="ghost" wire:navigate>Editar</flux:button>

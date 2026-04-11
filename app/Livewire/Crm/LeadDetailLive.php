@@ -16,17 +16,27 @@ class LeadDetailLive extends Component
     use FlashesToast;
 
     public int $leadId;
+
     public $modalConvert = false;
+
     public $modalDeal = false;
+
     public $modalActivity = false;
+
     public $modalTags = false;
+
     public $modalTask = false;
+
     public $editingDealId = null;
+
     public $editingActivityId = null;
+
     public $editingTaskId = null;
 
     protected LeadService $leadService;
+
     protected DealService $dealService;
+
     protected CrmActivityService $activityService;
 
     public function boot(LeadService $leadService, DealService $dealService, CrmActivityService $activityService)
@@ -38,7 +48,7 @@ class LeadDetailLive extends Component
 
     public function mount($lead)
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
         $this->leadId = (int) $lead;
     }
 
@@ -65,7 +75,7 @@ class LeadDetailLive extends Component
 
     public function openDealModal(?int $dealId = null)
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $this->editingDealId = $dealId;
         $this->modalDeal = true;
     }
@@ -84,7 +94,7 @@ class LeadDetailLive extends Component
 
     public function deleteDeal(int $id)
     {
-        $this->authorize('crm.delete');
+        $this->authorize('crm.eliminar');
         $deal = Deal::find($id);
         if ($deal && $deal->lead_id === $this->leadId) {
             $this->dealService->delete($deal);
@@ -94,7 +104,7 @@ class LeadDetailLive extends Component
 
     public function openActivityModal(?int $activityId = null)
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $this->editingActivityId = $activityId;
         $this->modalActivity = true;
     }
@@ -113,7 +123,7 @@ class LeadDetailLive extends Component
 
     public function deleteActivity(int $id)
     {
-        $this->authorize('crm.delete');
+        $this->authorize('crm.eliminar');
         $act = CrmActivity::find($id);
         if ($act && $act->lead_id === $this->leadId) {
             $this->activityService->delete($act);
@@ -123,7 +133,7 @@ class LeadDetailLive extends Component
 
     public function openTaskModal(?int $taskId = null)
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $this->editingTaskId = $taskId;
         $this->modalTask = true;
     }
@@ -142,7 +152,7 @@ class LeadDetailLive extends Component
 
     public function openTagsModal()
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $this->modalTags = true;
     }
 
@@ -160,9 +170,10 @@ class LeadDetailLive extends Component
     public function render()
     {
         $lead = $this->getLeadProperty();
-        if (!$lead) {
+        if (! $lead) {
             return $this->redirect(route('crm.pipeline'), navigate: true);
         }
+
         return view('livewire.crm.lead-detail-live', [
             'lead' => $lead,
         ]);

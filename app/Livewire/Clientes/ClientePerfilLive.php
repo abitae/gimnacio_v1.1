@@ -157,7 +157,7 @@ class ClientePerfilLive extends Component
 
     public function mount(?Cliente $cliente = null): void
     {
-        $this->authorize('clientes.view');
+        $this->authorize('cliente.ver');
         $this->matriculaFormSinPagoInicialEnAlta = true;
         $this->clientes = collect([]);
         $this->matriculaForm['asesor_id'] = auth()->id();
@@ -280,7 +280,7 @@ class ClientePerfilLive extends Component
 
     public function openCobroMatriculaModal(?int $clienteMatriculaId = null): void
     {
-        $this->authorize('cliente-matriculas.update');
+        $this->authorize('matricula_cliente.editar');
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Selecciona un cliente.');
 
@@ -346,7 +346,7 @@ class ClientePerfilLive extends Component
 
     public function openPrimeraCuotasConPlan(): void
     {
-        $this->authorize('cliente-matriculas.view');
+        $this->authorize('matricula_cliente.ver');
         if (! $this->selectedClienteId) {
             return;
         }
@@ -371,7 +371,7 @@ class ClientePerfilLive extends Component
 
     public function openCrearPlanCuotasModal(): void
     {
-        $this->authorize('cliente-matriculas.create');
+        $this->authorize('matricula_cliente.crear');
         if (! $this->selectedClienteId) {
             return;
         }
@@ -424,7 +424,7 @@ class ClientePerfilLive extends Component
 
     public function guardarCrearPlanCuotas(): void
     {
-        $this->authorize('cliente-matriculas.create');
+        $this->authorize('matricula_cliente.crear');
         $this->validate([
             'crearPlanCuotasMatriculaId' => 'required|exists:cliente_matriculas,id',
             'crearPlanCuotasForm.monto_total' => 'required|numeric|min:0.01',
@@ -499,7 +499,7 @@ class ClientePerfilLive extends Component
 
     public function openCuotasModal(int $clienteMatriculaId): void
     {
-        $this->authorize('cliente-matriculas.view');
+        $this->authorize('matricula_cliente.ver');
         if (! $this->selectedClienteId) {
             return;
         }
@@ -556,7 +556,7 @@ class ClientePerfilLive extends Component
 
     public function guardarCobroMatricula(): void
     {
-        $this->authorize('cliente-matriculas.update');
+        $this->authorize('matricula_cliente.editar');
         $this->validate([
             'cobroForm.cliente_matricula_id' => 'required|exists:cliente_matriculas,id',
             'cobroForm.monto_pago' => 'required|numeric|min:0.01',
@@ -599,7 +599,7 @@ class ClientePerfilLive extends Component
     public function openReservaModal(?int $rentalId = null): void
     {
         if ($rentalId) {
-            $this->authorize('rentals.update');
+            $this->authorize('alquiler.editar');
             $rental = Rental::where('cliente_id', $this->selectedClienteId)->find($rentalId);
             if (! $rental) {
                 $this->flashToast('error', 'Reserva no encontrada.');
@@ -617,7 +617,7 @@ class ClientePerfilLive extends Component
                 'observaciones' => (string) ($rental->observaciones ?? ''),
             ];
         } else {
-            $this->authorize('rentals.create');
+            $this->authorize('alquiler.crear');
             $this->editingRentalId = null;
             $this->reservaForm = [
                 'rentable_space_id' => null,
@@ -678,7 +678,7 @@ class ClientePerfilLive extends Component
 
         try {
             if ($this->editingRentalId) {
-                $this->authorize('rentals.update');
+                $this->authorize('alquiler.editar');
                 $rental = Rental::findOrFail($this->editingRentalId);
                 $this->clientWellnessService->updateClienteReservation($rental, (int) $this->selectedClienteId, [
                     'rentable_space_id' => (int) $this->reservaForm['rentable_space_id'],
@@ -691,7 +691,7 @@ class ClientePerfilLive extends Component
                 ]);
                 $this->flashToast('success', 'Reserva actualizada.');
             } else {
-                $this->authorize('rentals.create');
+                $this->authorize('alquiler.crear');
                 $this->clientWellnessService->createReservation((int) $this->selectedClienteId, [
                     'rentable_space_id' => (int) $this->reservaForm['rentable_space_id'],
                     'fecha' => $this->reservaForm['fecha'],
@@ -790,7 +790,7 @@ class ClientePerfilLive extends Component
 
     public function openFidelizacionHistorialModal(): void
     {
-        $this->authorize('clientes.view');
+        $this->authorize('cliente.ver');
         if (! $this->selectedClienteId) {
             return;
         }
@@ -804,7 +804,7 @@ class ClientePerfilLive extends Component
 
     public function openFidelizacionNuevoModal(): void
     {
-        $this->authorize('clientes.update');
+        $this->authorize('cliente.editar');
         if (! $this->selectedClienteId) {
             $this->flashToast('error', __('Selecciona un cliente.'));
 
@@ -822,7 +822,7 @@ class ClientePerfilLive extends Component
 
     public function guardarFidelizacionMensaje(): void
     {
-        $this->authorize('clientes.update');
+        $this->authorize('cliente.editar');
         if (! $this->selectedClienteId) {
             $this->flashToast('error', __('Selecciona un cliente.'));
 

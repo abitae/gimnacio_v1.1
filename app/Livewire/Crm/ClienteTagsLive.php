@@ -21,7 +21,7 @@ class ClienteTagsLive extends Component
 
     public function mount($cliente)
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
         $this->clienteId = (int) $cliente;
     }
 
@@ -33,9 +33,10 @@ class ClienteTagsLive extends Component
     public function render()
     {
         $cliente = $this->getClienteProperty();
-        if (!$cliente) {
+        if (! $cliente) {
             return $this->redirect(route('clientes.index'), navigate: true);
         }
+
         return view('livewire.crm.cliente-tags-live', ['cliente' => $cliente]);
     }
 }

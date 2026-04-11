@@ -1,7 +1,7 @@
 <div class="space-y-3 border border-zinc-200 dark:border-zinc-700 rounded-lg p-4">
     <div class="flex items-center justify-between">
         <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Asistencia de personal</h1>
-        @can('attendance.create')
+        @can('asistencia_empleado.crear')
         <flux:button size="xs" href="{{ route('employees.attendances.create') }}" wire:navigate>Registrar asistencia</flux:button>
         @endcan
     </div>

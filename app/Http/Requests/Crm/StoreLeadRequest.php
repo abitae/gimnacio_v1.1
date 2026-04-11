@@ -10,7 +10,7 @@ class StoreLeadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('crm.create') ?? false;
+        return $this->user()?->can('crm.crear') ?? false;
     }
 
     public function rules(): array
@@ -29,7 +29,7 @@ class StoreLeadRequest extends FormRequest
                 'string',
                 'max:20',
                 function ($attr, $value, $fail) {
-                    if (!$value || !$this->input('tipo_documento')) {
+                    if (! $value || ! $this->input('tipo_documento')) {
                         return;
                     }
                     $exists = Lead::where('tipo_documento', $this->input('tipo_documento'))

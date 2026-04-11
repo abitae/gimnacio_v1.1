@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Validator;
 
 class ClaseService
 {
+    public function __construct(
+        protected SucursalContext $sucursalContext
+    ) {}
+
     /**
      * Obtener clases con paginación
      */
@@ -68,6 +72,7 @@ class ClaseService
     public function create(array $data): Clase
     {
         $validated = $this->validate($data);
+        $validated['sucursal_id'] = $validated['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
 
         return DB::transaction(function () use ($validated) {
             return Clase::create($validated);
@@ -81,14 +86,16 @@ class ClaseService
     {
         $clase = $this->find($id);
 
-        if (!$clase) {
+        if (! $clase) {
             throw new \Exception('Clase no encontrada');
         }
 
         $validated = $this->validate($data, $id);
 
         return DB::transaction(function () use ($clase, $validated) {
+            $validated['sucursal_id'] = $clase->sucursal_id;
             $clase->update($validated);
+
             return $clase->fresh(['instructor']);
         });
     }
@@ -100,7 +107,7 @@ class ClaseService
     {
         $clase = $this->find($id);
 
-        if (!$clase) {
+        if (! $clase) {
             throw new \Exception('Clase no encontrada');
         }
 
@@ -117,7 +124,7 @@ class ClaseService
         $isUpdate = $id !== null;
 
         $rules = [
-            'codigo' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:50', 'unique:clases,codigo' . ($id ? ",{$id}" : '')],
+            'codigo' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:50'],
             'nombre' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
             'descripcion' => ['nullable', 'string'],
             'tipo' => [$isUpdate ? 'sometimes' : 'required', 'string', 'in:sesion,paquete'],
@@ -126,9 +133,26 @@ class ClaseService
             'sesiones_paquete' => ['nullable', 'required_if:tipo,paquete', 'integer', 'min:1'],
             'instructor_id' => ['nullable', 'exists:users,id'],
             'estado' => ['nullable', 'string', 'in:activo,inactivo'],
+            'sucursal_id' => ['nullable', 'exists:sucursales,id'],
         ];
 
         $validator = Validator::make($data, $rules);
+        $validator->after(function ($validator) use ($data, $id) {
+            $codigo = $data['codigo'] ?? null;
+            if (! $codigo) {
+                return;
+            }
+
+            $exists = Clase::withoutGlobalScopes()
+                ->where('codigo', $codigo)
+                ->where('sucursal_id', $data['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId())
+                ->when($id, fn ($query) => $query->where('id', '!=', $id))
+                ->exists();
+
+            if ($exists) {
+                $validator->errors()->add('codigo', 'Ya existe una clase con este código en la sucursal activa.');
+            }
+        });
 
         if ($validator->fails()) {
             throw new \Illuminate\Validation\ValidationException($validator);

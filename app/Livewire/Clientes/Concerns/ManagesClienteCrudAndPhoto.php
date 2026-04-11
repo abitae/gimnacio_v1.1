@@ -69,14 +69,14 @@ trait ManagesClienteCrudAndPhoto
 
     public function openClienteCreateModal(): void
     {
-        $this->authorize('clientes.create');
+        $this->authorize('cliente.crear');
         $this->resetClienteForm();
         $this->clienteModalState['create'] = true;
     }
 
     public function openClienteEditModal(int $id): void
     {
-        $this->authorize('clientes.update');
+        $this->authorize('cliente.editar');
         $cliente = $this->clienteService->find($id);
 
         if (! $cliente) {
@@ -92,14 +92,14 @@ trait ManagesClienteCrudAndPhoto
 
     public function openClienteDeleteModal(int $id): void
     {
-        $this->authorize('clientes.delete');
+        $this->authorize('cliente.eliminar');
         $this->clienteId = $id;
         $this->clienteModalState['delete'] = true;
     }
 
     public function openClientePhotoModal(?int $id = null): void
     {
-        $this->authorize('clientes.update');
+        $this->authorize('cliente.editar');
         $this->photoClienteId = $id;
         $this->foto = null;
         $this->capturedPhotoUrl = null;
@@ -128,7 +128,7 @@ trait ManagesClienteCrudAndPhoto
 
     public function openSaludModal(int $clienteId): void
     {
-        $this->authorize('gestion-nutricional.update');
+        $this->authorize('gestion_nutricional.editar');
         $this->saludClienteId = $clienteId;
         $this->clienteModalState['salud'] = true;
     }
@@ -228,7 +228,7 @@ trait ManagesClienteCrudAndPhoto
 
     public function uploadClientePhoto(): void
     {
-        $this->authorize('clientes.update');
+        $this->authorize('cliente.editar');
         try {
             $path = null;
 
@@ -315,7 +315,7 @@ trait ManagesClienteCrudAndPhoto
 
     public function saveCliente(): void
     {
-        $this->authorize($this->clienteId ? 'clientes.update' : 'clientes.create');
+        $this->authorize($this->clienteId ? 'cliente.editar' : 'cliente.crear');
         try {
             $data = $this->mapFormToClienteData();
 
@@ -355,7 +355,7 @@ trait ManagesClienteCrudAndPhoto
 
     public function deleteCliente(): void
     {
-        $this->authorize('clientes.delete');
+        $this->authorize('cliente.eliminar');
         try {
             $deletedId = $this->clienteId;
             $this->clienteService->delete($this->clienteId);

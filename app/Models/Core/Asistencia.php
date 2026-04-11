@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Asistencia extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -20,6 +22,7 @@ class Asistencia extends Model
         'origen',
         'valido_por_membresia',
         'registrada_por',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -28,6 +31,7 @@ class Asistencia extends Model
             'fecha_hora_ingreso' => 'datetime',
             'fecha_hora_salida' => 'datetime',
             'valido_por_membresia' => 'boolean',
+            'sucursal_id' => 'integer',
         ];
     }
 

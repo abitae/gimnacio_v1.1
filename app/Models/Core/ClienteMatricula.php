@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ClienteMatricula extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $table = 'cliente_matriculas';
@@ -35,6 +37,7 @@ class ClienteMatricula extends Model
         'motivo_cancelacion',
         'sesiones_totales',
         'sesiones_usadas',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -49,6 +52,7 @@ class ClienteMatricula extends Model
             'cuota_inicial_monto' => 'decimal:2',
             'requiere_plan_cuotas' => 'boolean',
             'fechas_congelacion' => 'array',
+            'sucursal_id' => 'integer',
         ];
     }
 

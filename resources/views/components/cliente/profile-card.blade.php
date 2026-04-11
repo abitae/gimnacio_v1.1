@@ -148,7 +148,7 @@
                         </div>
                     @endif
                 </div>
-                @can('gestion-nutricional.update')
+                @can('gestion_nutricional.editar')
                     @if ($saludLinkOnly)
                         <flux:button href="{{ route('gestion-nutricional.salud', $cliente) }}" wire:navigate variant="ghost" size="xs" icon="pencil"
                             class="mt-1 h-auto min-h-0 px-0 py-0.5 text-xs text-violet-600 hover:underline dark:text-violet-400">
@@ -162,7 +162,7 @@
                 @endcan
             </div>
         @else
-            @can('gestion-nutricional.update')
+            @can('gestion_nutricional.editar')
                 <div class="border-t border-zinc-200 pt-2 dark:border-zinc-700">
                     @if ($saludLinkOnly)
                         <flux:button href="{{ route('gestion-nutricional.salud', $cliente) }}" wire:navigate variant="ghost" size="xs" icon="heart"
@@ -178,7 +178,7 @@
             @endcan
         @endif
 
-        @can('gestion-nutricional.view')
+        @can('gestion_nutricional.ver')
             <div class="border-t border-zinc-200 pt-2 dark:border-zinc-700">
                 <flux:button href="{{ route('gestion-nutricional.objetivos.index', ['cliente_id' => $cliente->id]) }}" wire:navigate variant="ghost" size="xs" icon="flag"
                     class="h-auto min-h-0 px-0 py-0.5 text-xs text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
@@ -236,7 +236,7 @@
         @if (!$hideActions)
             <div class="space-y-1.5 border-t border-zinc-200 pt-2 dark:border-zinc-700">
                 <div class="flex gap-1.5">
-                    @can('clientes.update')
+                    @can('cliente.editar')
                         <flux:button icon="photo" color="purple" variant="primary" size="xs"
                             wire:click="openClientePhotoModal({{ $cliente->id }})" class="flex-1" aria-label="Subir foto">
                             Foto
@@ -247,7 +247,7 @@
                         </flux:button>
                     @endcan
                 </div>
-                @can('clientes.delete')
+                @can('cliente.eliminar')
                     <flux:button icon="trash" color="red" variant="primary" size="xs"
                         wire:click="openClienteDeleteModal({{ $cliente->id }})" class="w-full" aria-label="Eliminar cliente">
                         Eliminar

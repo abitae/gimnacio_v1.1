@@ -29,7 +29,7 @@ class HealthRecordForm extends Component
 
     public function mount(?Cliente $cliente = null): void
     {
-        $this->authorize('gestion-nutricional.update');
+        $this->authorize('gestion_nutricional.editar');
         if ($cliente) {
             $this->clienteId = $cliente->id;
             $this->cliente = $cliente;
@@ -109,6 +109,7 @@ class HealthRecordForm extends Component
 
         if (! $this->cliente) {
             $this->flashToast('error', 'Cliente no encontrado.');
+
             return;
         }
 

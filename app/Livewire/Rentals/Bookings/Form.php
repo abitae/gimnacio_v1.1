@@ -3,8 +3,8 @@
 namespace App\Livewire\Rentals\Bookings;
 
 use App\Livewire\Concerns\FlashesToast;
-use App\Models\Core\Rental;
 use App\Models\Core\RentableSpace;
+use App\Models\Core\Rental;
 use Carbon\Carbon;
 use Livewire\Component;
 
@@ -33,7 +33,7 @@ class Form extends Component
 
     public function mount(?Rental $rental = null): void
     {
-        $this->authorize('rentals.create');
+        $this->authorize('alquiler.crear');
         $this->rental = $rental;
         if ($rental) {
             $this->form = [
@@ -66,10 +66,11 @@ class Form extends Component
             'form.estado' => 'required|in:reservado,confirmado,pagado,cancelado,finalizado',
         ]);
 
-        $horaInicio = Carbon::parse($this->form['fecha'] . ' ' . $this->form['hora_inicio']);
-        $horaFin = Carbon::parse($this->form['fecha'] . ' ' . $this->form['hora_fin']);
+        $horaInicio = Carbon::parse($this->form['fecha'].' '.$this->form['hora_inicio']);
+        $horaFin = Carbon::parse($this->form['fecha'].' '.$this->form['hora_fin']);
         if ($horaFin <= $horaInicio) {
             $this->addError('form.hora_fin', 'La hora fin debe ser posterior a la hora de inicio.');
+
             return;
         }
 
@@ -86,6 +87,7 @@ class Form extends Component
             ->exists();
         if ($solapado) {
             $this->flashToast('error', 'El horario se solapa con otra reserva.');
+
             return;
         }
 

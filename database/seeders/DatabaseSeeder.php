@@ -2,29 +2,53 @@
 
 namespace Database\Seeders;
 
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
 {
-    /**
-     * Seed the application's database.
-     *
-     * Para cargar el dump completo empaquetado (MySQL, database/data/backup_part*.sql) y
-     * el super admin, usar en su lugar: php artisan db:seed --class=BundledSqlBackupSeeder
-     * (no combinar con BaseCatalogSeeder en el mismo run).
-     */
     public function run(): void
     {
-        // Bootstrap base obligatorio para una instalación limpia.
-        /* $this->call([
-            BaseCatalogSeeder::class,
+        $this->call([
+            RoleSeeder::class,
+            GymSettingSeeder::class,
+            BiotimeSettingSeeder::class,
+            ComprobanteConfigSeeder::class,
+            PaymentMethodSeeder::class,
+            CategoriaProductoSeeder::class,
+            CategoriaServicioSeeder::class,
+            CrmStageSeeder::class,
+            LossReasonSeeder::class,
+            CompanyBranchSeeder::class,
             AdminUserSeeder::class,
-        ]); */
-        $this->call(BundledSqlBackupSeeder::class);
-        $this->call(AdminUserSeeder::class);
-        // Datos demo funcionales: php artisan db:seed --class=DemoDataSeeder
-        // Seeders legacy/especiales: ClienteMembresiaSeeder, PagoSeeder, EvaluacionFisicaSeeder
-        // Escenarios/volumen: ScenarioSeeder, MassiveRootSeeder, EdgeCaseSeeder
+            MembresiaSeeder::class,
+            TrainerSeeder::class,
+            ClienteSeeder::class,
+            ProductoSeeder::class,
+            ServicioExternoSeeder::class,
+            ClaseSeeder::class,
+            RentableSpaceSeeder::class,
+            DiscountCouponSeeder::class,
+            CajaSeeder::class,
+            EmployeeSeeder::class,
+            ClienteMembresiaSeeder::class,
+            PagoSeeder::class,
+            CajaMovimientoSeeder::class,
+            AsistenciaSeeder::class,
+            ClienteMatriculaDemoSeeder::class,
+            EvaluacionMedidasNutricionSeeder::class,
+            CitaSeeder::class,
+            SeguimientoNutricionSeeder::class,
+            HealthRecordSeeder::class,
+            NutritionGoalSeeder::class,
+            CrmMensajeSeeder::class,
+            BiotimeAccessLogSeeder::class,
+            IntegrationErrorLogSeeder::class,
+            AuditLogSeeder::class,
+            ExerciseSeeder::class,
+            RoutineTemplateSeeder::class,
+            ScenarioSeeder::class,
+            EdgeCaseSeeder::class,
+            MassiveRootSeeder::class,
+        ]);
     }
 }

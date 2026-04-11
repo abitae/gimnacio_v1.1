@@ -21,16 +21,16 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->authorize('employees.view');
+        $this->authorize('empleado.ver');
     }
 
     public function render()
     {
         $query = Employee::query()
             ->when($this->search, fn ($q) => $q->where(function ($q2) {
-                $q2->where('nombres', 'like', '%' . $this->search . '%')
-                    ->orWhere('apellidos', 'like', '%' . $this->search . '%')
-                    ->orWhere('documento', 'like', '%' . $this->search . '%');
+                $q2->where('nombres', 'like', '%'.$this->search.'%')
+                    ->orWhere('apellidos', 'like', '%'.$this->search.'%')
+                    ->orWhere('documento', 'like', '%'.$this->search.'%');
             }))
             ->when($this->estadoFilter, fn ($q) => $q->where('estado', $this->estadoFilter))
             ->orderBy('apellidos');

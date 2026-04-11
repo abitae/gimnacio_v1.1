@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ClienteMembresia extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -26,6 +28,7 @@ class ClienteMembresia extends Model
         'canal_venta',
         'fechas_congelacion',
         'motivo_cancelacion',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -35,6 +38,7 @@ class ClienteMembresia extends Model
             'fecha_inicio' => 'date',
             'fecha_fin' => 'date',
             'fechas_congelacion' => 'array',
+            'sucursal_id' => 'integer',
         ];
     }
 

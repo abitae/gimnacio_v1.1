@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,7 +10,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PaymentMethod extends Model
 {
-    use HasFactory, SoftDeletes;
+    use BelongsToSucursal;
+    use HasFactory;
+    use SoftDeletes;
 
     protected $fillable = [
         'nombre',
@@ -17,6 +20,7 @@ class PaymentMethod extends Model
         'requiere_numero_operacion',
         'requiere_entidad',
         'estado',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -24,6 +28,7 @@ class PaymentMethod extends Model
         return [
             'requiere_numero_operacion' => 'boolean',
             'requiere_entidad' => 'boolean',
+            'sucursal_id' => 'integer',
         ];
     }
 

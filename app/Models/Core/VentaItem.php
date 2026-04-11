@@ -2,12 +2,14 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class VentaItem extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -19,6 +21,7 @@ class VentaItem extends Model
         'precio_unitario',
         'descuento',
         'subtotal',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -28,6 +31,7 @@ class VentaItem extends Model
             'precio_unitario' => 'decimal:2',
             'descuento' => 'decimal:2',
             'subtotal' => 'decimal:2',
+            'sucursal_id' => 'integer',
         ];
     }
 
@@ -40,21 +44,21 @@ class VentaItem extends Model
     // Relaciones polimórficas
     public function producto()
     {
-        return $this->tipo_item === 'producto' 
+        return $this->tipo_item === 'producto'
             ? $this->belongsTo(Producto::class, 'item_id')
             : null;
     }
 
     public function servicio()
     {
-        return $this->tipo_item === 'servicio' 
+        return $this->tipo_item === 'servicio'
             ? $this->belongsTo(ServicioExterno::class, 'item_id')
             : null;
     }
 
     public function clase()
     {
-        return $this->tipo_item === 'clase' 
+        return $this->tipo_item === 'clase'
             ? $this->belongsTo(Clase::class, 'item_id')
             : null;
     }

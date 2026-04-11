@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Venta extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -40,6 +42,7 @@ class Venta extends Model
         'estado',
         'fecha_venta',
         'observaciones',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -54,6 +57,7 @@ class Venta extends Model
             'es_credito' => 'boolean',
             'monto_inicial' => 'decimal:2',
             'fecha_vencimiento_deuda' => 'date',
+            'sucursal_id' => 'integer',
         ];
     }
 
@@ -109,14 +113,15 @@ class Venta extends Model
     public function getNombreCompradorAttribute(): string
     {
         if ($this->cliente_id && $this->cliente) {
-            return trim($this->cliente->nombres . ' ' . $this->cliente->apellidos);
+            return trim($this->cliente->nombres.' '.$this->cliente->apellidos);
         }
         if ($this->employee_id && $this->employee) {
             return $this->employee->nombre_completo;
         }
         if ($this->cliente_venta_nombre) {
-            return $this->cliente_venta_nombre . ($this->cliente_venta_documento ? ' · ' . $this->cliente_venta_documento : '');
+            return $this->cliente_venta_nombre.($this->cliente_venta_documento ? ' · '.$this->cliente_venta_documento : '');
         }
+
         return '—';
     }
 }

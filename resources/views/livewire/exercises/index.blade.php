@@ -5,7 +5,7 @@
                 <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Ejercicios</h1>
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">Catálogo de ejercicios</p>
             </div>
-            @can('ejercicios-rutinas.create')
+            @can('ejercicio_rutina.crear')
             <flux:button icon="plus" variant="primary" size="xs" wire:click="openCreateModal" wire:loading.attr="disabled" wire:target="openCreateModal">
                 <span wire:loading.remove wire:target="openCreateModal">Nuevo ejercicio</span>
                 <span wire:loading wire:target="openCreateModal">...</span>
@@ -75,7 +75,7 @@
                             <td class="px-4 py-2">{{ $ex->nivel ?? '—' }}</td>
                             <td class="px-4 py-2">{{ $ex->estado_label }}</td>
                             <td class="px-4 py-2 text-right">
-                                @can('ejercicios-rutinas.update')
+                                @can('ejercicio_rutina.editar')
                                 <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $ex->id }})" wire:loading.attr="disabled">Editar</flux:button>
                                 @endcan
                             </td>

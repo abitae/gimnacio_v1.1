@@ -5,7 +5,7 @@
                 <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Servicios Externos</h1>
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">Administra los servicios externos</p>
             </div>
-            @can('servicios.create')
+            @can('servicio.crear')
             <flux:button icon="plus" color="purple" variant="primary" size="xs" wire:click="openCreateModal">
                 Nuevo Servicio
             </flux:button>
@@ -46,7 +46,7 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-2.5 text-xs">
-                                    @can('servicios.update')
+                                    @can('servicio.editar')
                                     <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $servicio->id }})">Editar</flux:button>
                                     @endcan
                                 </td>

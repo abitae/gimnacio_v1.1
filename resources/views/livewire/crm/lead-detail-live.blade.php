@@ -3,7 +3,7 @@
         <a href="{{ route('crm.pipeline') }}" wire:navigate class="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1">
             <flux:icon name="arrow-left" class="w-4 h-4" /> Volver al pipeline
         </a>
-        @can('crm.update')
+        @can('crm.editar')
         @if(!$lead->isConvertido())
         <flux:button size="sm" variant="primary" wire:click="openConvertModal"
             wire:loading.attr="disabled" wire:target="openConvertModal">
@@ -34,7 +34,7 @@
                 </a>
                 @endif
             </div>
-            @can('crm.update')
+            @can('crm.editar')
             <flux:button size="xs" variant="ghost" wire:click="openTagsModal"
                 wire:loading.attr="disabled" wire:target="openTagsModal">
                 <flux:icon name="tag" class="w-4 h-4" /> Etiquetas
@@ -57,7 +57,7 @@
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
         <div class="flex items-center justify-between mb-3">
             <h2 class="font-medium text-zinc-800 dark:text-zinc-200">Oportunidades</h2>
-            @can('crm.create')
+            @can('crm.crear')
             <flux:button size="xs" variant="primary" wire:click="openDealModal(null)"
                 wire:loading.attr="disabled" wire:target="openDealModal">Nueva oportunidad</flux:button>
             @endcan
@@ -75,11 +75,11 @@
                 </div>
                 <div class="flex gap-1">
                     @if($d->estado === 'open')
-                    @can('crm.update')
+                    @can('crm.editar')
                     <flux:button size="xs" variant="ghost" wire:click="openDealModal({{ $d->id }})">Editar</flux:button>
                     @endcan
                     @endif
-                    @can('crm.delete')
+                    @can('crm.eliminar')
                     <flux:button size="xs" variant="ghost" wire:click="deleteDeal({{ $d->id }})" wire:confirm="¿Eliminar esta oportunidad?">Eliminar</flux:button>
                     @endcan
                 </div>
@@ -87,7 +87,7 @@
             @empty
             <li class="p-4 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-600 text-center">
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-2">Sin oportunidades en este lead.</p>
-                @can('crm.create')
+                @can('crm.crear')
                 <flux:button size="sm" variant="primary" wire:click="openDealModal(null)">Crear primera oportunidad</flux:button>
                 @endcan
             </li>
@@ -99,7 +99,7 @@
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
         <div class="flex items-center justify-between mb-3">
             <h2 class="font-medium text-zinc-800 dark:text-zinc-200">Actividades</h2>
-            @can('crm.create')
+            @can('crm.crear')
             <flux:button size="xs" variant="primary" wire:click="openActivityModal(null)"
                 wire:loading.attr="disabled" wire:target="openActivityModal">Nueva actividad</flux:button>
             @endcan
@@ -113,17 +113,17 @@
                     @if($a->resultado)<span class="text-zinc-500">· {{ $a->resultado }}</span>@endif
                     <span class="text-zinc-400">· {{ $a->user->name ?? '-' }}</span>
                 </div>
-                @can('crm.update')
+                @can('crm.editar')
                 <flux:button size="xs" variant="ghost" wire:click="openActivityModal({{ $a->id }})">Editar</flux:button>
                 @endcan
-                @can('crm.delete')
+                @can('crm.eliminar')
                 <flux:button size="xs" variant="ghost" wire:click="deleteActivity({{ $a->id }})" wire:confirm="¿Eliminar esta actividad?">Eliminar</flux:button>
                 @endcan
             </li>
             @empty
             <li class="p-4 rounded-lg border border-dashed border-zinc-200 dark:border-zinc-600 text-center">
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-2">Sin actividades registradas.</p>
-                @can('crm.create')
+                @can('crm.crear')
                 <flux:button size="sm" variant="primary" wire:click="openActivityModal(null)">Registrar primera actividad</flux:button>
                 @endcan
             </li>
@@ -135,7 +135,7 @@
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
         <div class="flex items-center justify-between mb-2">
             <h2 class="font-medium text-zinc-800 dark:text-zinc-200">Tareas</h2>
-            @can('crm.create')
+            @can('crm.crear')
             <flux:button size="xs" variant="primary" wire:click="openTaskModal(null)"
                 wire:loading.attr="disabled" wire:target="openTaskModal">Nueva tarea</flux:button>
             @endcan
@@ -144,7 +144,7 @@
             @forelse($lead->tasks as $t)
             <li class="flex justify-between gap-2 p-2 rounded-lg bg-zinc-50 dark:bg-zinc-900">
                 <span>{{ $t->tipo_label }} · {{ $t->fecha_hora_programada->format('d/m H:i') }} ({{ $t->estado_label }})</span>
-                @can('crm.update')
+                @can('crm.editar')
                 @if($t->estado !== 'done')
                 <flux:button size="xs" variant="ghost" wire:click="openTaskModal({{ $t->id }})">Editar</flux:button>
                 @endif

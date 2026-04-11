@@ -6,11 +6,16 @@ use App\Models\Core\Cliente;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 
 class ClienteService
 {
+    public function __construct(
+        protected SucursalContext $sucursalContext
+    ) {}
+
     /**
      * Obtener todos los clientes con paginación
      */
@@ -55,11 +60,11 @@ class ClienteService
     public function quickSearch(string $search, int $limit = 10): Collection
     {
         $searchTerm = trim($search);
-        
+
         if (strlen($searchTerm) < 2) {
             return collect([]);
         }
-        
+
         return Cliente::query()
             ->select(['id', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'email', 'estado_cliente'])
             ->where(function ($q) use ($searchTerm) {
@@ -106,6 +111,7 @@ class ClienteService
     {
         $validated = $this->validate($data);
         $validated['created_by'] = $validated['created_by'] ?? auth()->id();
+        $validated['sucursal_id'] = $validated['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
 
         return DB::transaction(function () use ($validated) {
             return Cliente::create($validated);
@@ -119,7 +125,7 @@ class ClienteService
     {
         $cliente = $this->find($id);
 
-        if (!$cliente) {
+        if (! $cliente) {
             throw new \Exception('Cliente no encontrado');
         }
 
@@ -128,7 +134,9 @@ class ClienteService
         return DB::transaction(function () use ($cliente, $validated) {
             $validated['biotime_update'] = true;
             $validated['updated_by'] = auth()->id();
+            $validated['sucursal_id'] = $cliente->sucursal_id;
             $cliente->update($validated);
+
             return $cliente->fresh();
         });
     }
@@ -140,7 +148,7 @@ class ClienteService
     {
         $cliente = $this->find($id);
 
-        if (!$cliente) {
+        if (! $cliente) {
             throw new \Exception('Cliente no encontrado');
         }
 
@@ -159,7 +167,7 @@ class ClienteService
     {
         // En actualizaciones, solo validar campos que están presentes
         $isUpdate = $id !== null;
-        
+
         $rules = [
             'tipo_documento' => [$isUpdate ? 'sometimes' : 'required', 'in:DNI,CE'],
             'numero_documento' => [
@@ -167,12 +175,13 @@ class ClienteService
                 'string',
                 'max:20',
                 function ($attribute, $value, $fail) use ($data, $id) {
-                    if (!isset($data['tipo_documento']) || !isset($value)) {
+                    if (! isset($data['tipo_documento']) || ! isset($value)) {
                         return;
                     }
                     $exists = Cliente::where('tipo_documento', $data['tipo_documento'])
                         ->where('numero_documento', $value)
-                        ->when($id, fn($q) => $q->where('id', '!=', $id))
+                        ->where('sucursal_id', $data['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId())
+                        ->when($id, fn ($q) => $q->where('id', '!=', $id))
                         ->exists();
 
                     if ($exists) {
@@ -208,6 +217,7 @@ class ClienteService
             'created_by' => ['nullable', 'exists:users,id'],
             'updated_by' => ['nullable', 'exists:users,id'],
             'trainer_user_id' => ['nullable', 'exists:users,id'],
+            'sucursal_id' => ['nullable', 'exists:sucursales,id'],
         ];
 
         $validator = Validator::make($data, $rules);
@@ -231,7 +241,8 @@ class ClienteService
         $hasHealthRecord = $cliente->healthRecord()->exists();
         $hasCitas = $cliente->citas()->exists();
         $hasSeguimientos = $cliente->seguimientosNutricion()->exists();
-        $hasEvaluacionesFisicas = $cliente->evaluacionesFisicas()->exists();
+        $hasEvaluacionesFisicas = Schema::hasTable('evaluacion_fisicas')
+            && $cliente->evaluacionesFisicas()->exists();
         $hasEvaluacionesNutricion = $cliente->evaluacionesMedidasNutricion()->exists();
         $hasRutinas = $cliente->clientRoutines()->exists();
         $hasMetas = $cliente->nutritionGoals()->exists();
@@ -263,4 +274,3 @@ class ClienteService
         }
     }
 }
-

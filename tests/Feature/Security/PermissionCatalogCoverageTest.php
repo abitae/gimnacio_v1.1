@@ -5,9 +5,9 @@ use Illuminate\Support\Facades\File;
 
 it('covers every permission string referenced by routes, authorization checks and views', function () {
     $patterns = [
-        "/permission:([a-z0-9\\-\\.]+)/i",
-        "/authorize\\('([a-z0-9\\-\\.]+)'/i",
-        "/@can\\('([a-z0-9\\-\\.]+)'/i",
+        '/permission:([a-z0-9_\\-\\.]+)/i',
+        "/authorize\\('([a-z0-9_\\-\\.]+)'/i",
+        "/@can\\('([a-z0-9_\\-\\.]+)'/i",
     ];
 
     $files = collect([
@@ -34,12 +34,7 @@ it('covers every permission string referenced by routes, authorization checks an
         ->sort()
         ->values();
 
-    $catalogPermissions = collect(PermissionCatalog::EXTRA_PERMISSIONS)
-        ->merge(
-            collect(PermissionCatalog::RESOURCES)
-                ->flatMap(fn (string $resource) => collect(PermissionCatalog::CRUD_ACTIONS)
-                    ->map(fn (string $action) => "{$resource}.{$action}"))
-        )
+    $catalogPermissions = collect(PermissionCatalog::permissionNames())
         ->unique()
         ->sort()
         ->values();

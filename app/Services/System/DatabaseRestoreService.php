@@ -4,7 +4,15 @@ namespace App\Services\System;
 
 use App\Support\PermissionCatalog;
 use Database\Seeders\AdminUserSeeder;
-use Database\Seeders\BaseCatalogSeeder;
+use Database\Seeders\BiotimeSettingSeeder;
+use Database\Seeders\CategoriaProductoSeeder;
+use Database\Seeders\CategoriaServicioSeeder;
+use Database\Seeders\ComprobanteConfigSeeder;
+use Database\Seeders\CrmStageSeeder;
+use Database\Seeders\GymSettingSeeder;
+use Database\Seeders\LossReasonSeeder;
+use Database\Seeders\PaymentMethodSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\File;
 use RuntimeException;
@@ -272,14 +280,14 @@ class DatabaseRestoreService
 
             $status = $this->readStatusOrFail($restoreId);
             $status['stage'] = 'restoring_super_admin';
-            $status['current_step'] = 'Restaurando credenciales del super-admin';
+            $status['current_step'] = 'Restaurando credenciales del super_administrador';
             $status['current_command'] = 'Database\\Seeders\\BaseCatalogSeeder + Database\\Seeders\\AdminUserSeeder';
             $this->persistStatusSnapshot($restoreId, $status);
-            $this->appendLog($restoreId, 'Restaurando catalogos base y credenciales del super-admin.');
+            $this->appendLog($restoreId, 'Restaurando catalogos base y credenciales del super_administrador.');
             $this->appendEvent($restoreId, [
                 'level' => 'phase',
                 'stage' => 'restoring_super_admin',
-                'message' => 'Restaurando catalogos base y credenciales del super-admin.',
+                'message' => 'Restaurando catalogos base y credenciales del super_administrador.',
                 'command' => 'Database\\Seeders\\BaseCatalogSeeder + Database\\Seeders\\AdminUserSeeder',
                 'progress' => $status['progress'] ?? null,
             ]);
@@ -591,25 +599,37 @@ class DatabaseRestoreService
     private function restoreSuperAdminCredentials(string $restoreId): void
     {
         $this->appendLog($restoreId, 'Sincronizando catalogos base.');
-        app(BaseCatalogSeeder::class)->run();
+        foreach ([
+            RoleSeeder::class,
+            GymSettingSeeder::class,
+            BiotimeSettingSeeder::class,
+            ComprobanteConfigSeeder::class,
+            PaymentMethodSeeder::class,
+            CategoriaProductoSeeder::class,
+            CategoriaServicioSeeder::class,
+            CrmStageSeeder::class,
+            LossReasonSeeder::class,
+        ] as $seederClass) {
+            app($seederClass)->run();
+        }
 
-        $this->appendLog($restoreId, 'Creando o actualizando usuario super-admin.');
+        $this->appendLog($restoreId, 'Creando o actualizando usuario super_administrador.');
         $user = app(AdminUserSeeder::class)->upsertAdmin();
 
         if (! $user->hasRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME)) {
-            throw new RuntimeException('No se pudo asignar el rol super-admin al usuario restaurado.');
+            throw new RuntimeException('No se pudo asignar el rol super_administrador al usuario restaurado.');
         }
 
         if ($user->estado !== 'activo') {
-            throw new RuntimeException('El usuario super-admin restaurado no quedo activo.');
+            throw new RuntimeException('El usuario super_administrador restaurado no quedo activo.');
         }
 
         if ($user->email !== AdminUserSeeder::ADMIN_EMAIL) {
-            throw new RuntimeException('El usuario restaurado no coincide con el email canonico del super-admin.');
+            throw new RuntimeException('El usuario restaurado no coincide con el email canonico del super_administrador.');
         }
 
         if ($user->email_verified_at === null) {
-            throw new RuntimeException('El usuario super-admin restaurado no quedo con email verificado.');
+            throw new RuntimeException('El usuario super_administrador restaurado no quedo con email verificado.');
         }
 
         $this->appendLog(

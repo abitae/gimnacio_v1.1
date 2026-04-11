@@ -4,7 +4,7 @@
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Campañas CRM</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">Campañas de renovación, reactivación y captación</p>
         </div>
-        @can('crm.create')
+        @can('crm.crear')
         <flux:button size="sm" variant="primary" wire:click="openCreate">Nueva campaña</flux:button>
         @endcan
     </div>
@@ -32,7 +32,7 @@
                     <td class="px-4 py-2">{{ \App\Models\Crm\Campaign::ESTADOS[$c->estado] ?? $c->estado }}</td>
                     <td class="px-4 py-2">{{ $c->createdBy?->name ?? '—' }}</td>
                     <td class="px-4 py-2">
-                        @can('crm.update')
+                        @can('crm.editar')
                         <flux:button size="xs" variant="ghost" wire:click="openEdit({{ $c->id }})">Editar</flux:button>
                         @endcan
                     </td>

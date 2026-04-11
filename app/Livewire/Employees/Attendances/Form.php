@@ -21,7 +21,7 @@ class Form extends Component
 
     public function mount(): void
     {
-        $this->authorize('attendance.create');
+        $this->authorize('asistencia_empleado.crear');
         $this->form['fecha'] = request()->query('fecha', now()->format('Y-m-d'));
         $this->form['employee_id'] = request()->query('employee_id');
     }
@@ -40,6 +40,7 @@ class Form extends Component
             ->first();
         if ($exists) {
             $this->flashToast('error', 'Ya existe un registro de asistencia para este empleado en esta fecha.');
+
             return;
         }
 

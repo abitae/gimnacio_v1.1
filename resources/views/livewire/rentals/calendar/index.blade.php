@@ -9,7 +9,7 @@
                     <option value="{{ $s->id }}">{{ $s->nombre }}</option>
                 @endforeach
             </select>
-            @can('rentals.create')
+            @can('alquiler.crear')
             <flux:button size="xs" href="{{ route('rentals.bookings.create', ['fecha' => $fechaCarbon->format('Y-m-d')]) }}" wire:navigate>Nueva reserva</flux:button>
             @endcan
         </div>

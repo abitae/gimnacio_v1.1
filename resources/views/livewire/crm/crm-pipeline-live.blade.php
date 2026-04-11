@@ -4,7 +4,7 @@
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Pipeline CRM</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">Leads por etapa · Arrastra o mueve entre columnas</p>
         </div>
-        @can('crm.create')
+        @can('crm.crear')
         <flux:button icon="plus" variant="primary" size="sm" wire:click="openNewLead"
             wire:loading.attr="disabled" wire:target="openNewLead">
             <span wire:loading.remove wire:target="openNewLead">Nuevo Lead</span>
@@ -118,7 +118,7 @@
                     @empty
                     <div class="flex flex-col items-center justify-center py-8 px-2 text-center min-h-[120px] rounded-lg border border-dashed border-zinc-200 dark:border-zinc-600">
                         <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Sin leads en esta etapa</p>
-                        @can('crm.create')
+                        @can('crm.crear')
                         <flux:button size="xs" variant="ghost" wire:click="openNewLead">Añadir lead</flux:button>
                         @endcan
                     </div>

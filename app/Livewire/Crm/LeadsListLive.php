@@ -12,12 +12,17 @@ class LeadsListLive extends Component
     use FlashesToast, WithPagination;
 
     public $search = '';
+
     public $stage_id = '';
+
     public $assignedFilter = '';
+
     public $canalFilter = '';
+
     public $perPage = 20;
 
     protected LeadService $leadService;
+
     protected $paginationTheme = 'tailwind';
 
     public function boot(LeadService $leadService)
@@ -27,7 +32,7 @@ class LeadsListLive extends Component
 
     public function mount()
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
         $this->stage_id = request()->query('stage_id', '');
     }
 
@@ -55,6 +60,7 @@ class LeadsListLive extends Component
             'canal_origen' => $this->canalFilter ?: null,
         ];
         $leads = $this->leadService->paginate($filters, $this->perPage);
+
         return view('livewire.crm.leads-list-live', ['leads' => $leads]);
     }
 }

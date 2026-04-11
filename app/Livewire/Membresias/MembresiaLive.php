@@ -56,7 +56,7 @@ class MembresiaLive extends Component
 
     public function mount()
     {
-        $this->authorize('membresias.view');
+        $this->authorize('membresia.ver');
         $this->resetPage();
     }
 
@@ -81,14 +81,14 @@ class MembresiaLive extends Component
 
     public function openCreateModal()
     {
-        $this->authorize('membresias.create');
+        $this->authorize('membresia.crear');
         $this->resetForm();
         $this->modalState['create'] = true;
     }
 
     public function openEditModal($id)
     {
-        $this->authorize('membresias.update');
+        $this->authorize('membresia.editar');
         $membresia = $this->service->find($id);
 
         if (! $membresia) {
@@ -104,7 +104,7 @@ class MembresiaLive extends Component
 
     public function openDeleteModal($id)
     {
-        $this->authorize('membresias.delete');
+        $this->authorize('membresia.eliminar');
         $this->membresiaId = $id;
         $this->modalState['delete'] = true;
     }
@@ -120,7 +120,7 @@ class MembresiaLive extends Component
 
     public function save()
     {
-        $this->authorize($this->membresiaId ? 'membresias.update' : 'membresias.create');
+        $this->authorize($this->membresiaId ? 'membresia.editar' : 'membresia.crear');
         try {
             $data = $this->mapFormToData();
 
@@ -143,7 +143,7 @@ class MembresiaLive extends Component
 
     public function delete()
     {
-        $this->authorize('membresias.delete');
+        $this->authorize('membresia.eliminar');
         try {
             $this->service->delete($this->membresiaId);
             $this->flashToast('success', 'Membresía eliminada correctamente');

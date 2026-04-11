@@ -31,8 +31,8 @@ it('registers a manual income on an open cash box', function () {
 it('allows a user with manual cash permission to move another users open cash box', function () {
     $owner = User::factory()->create();
     $operator = User::factory()->create();
-    Permission::findOrCreate('cajas.movimientos-manuales', 'web');
-    $operator->givePermissionTo('cajas.movimientos-manuales');
+    Permission::findOrCreate('caja.movimiento_manual', 'web');
+    $operator->givePermissionTo('caja.movimiento_manual');
     $this->actingAs($operator);
 
     $caja = Caja::create([

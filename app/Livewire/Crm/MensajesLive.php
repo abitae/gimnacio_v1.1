@@ -13,17 +13,25 @@ class MensajesLive extends Component
     use FlashesToast, WithPagination;
 
     public $clienteSearch = '';
+
     public $clientes;
+
     public $selectedClienteId = null;
+
     public $selectedCliente = null;
+
     public $isSearching = false;
+
     public $contenido = '';
+
     public $canalFilter = '';
+
     public $perPage = 15;
 
     protected $paginationTheme = 'tailwind';
 
     protected CrmMensajeService $crmService;
+
     protected ClienteService $clienteService;
 
     public function boot(CrmMensajeService $crmService, ClienteService $clienteService)
@@ -34,7 +42,7 @@ class MensajesLive extends Component
 
     public function mount()
     {
-        $this->authorize('crm-mensajes.view');
+        $this->authorize('crm_mensaje.ver');
         $this->clientes = collect([]);
     }
 
@@ -54,7 +62,7 @@ class MensajesLive extends Component
     {
         $this->selectedClienteId = $id;
         $this->selectedCliente = $this->clienteService->find($id);
-        $this->clienteSearch = $this->selectedCliente->nombres . ' ' . $this->selectedCliente->apellidos;
+        $this->clienteSearch = $this->selectedCliente->nombres.' '.$this->selectedCliente->apellidos;
         $this->clientes = collect([]);
         $this->resetPage();
     }
@@ -71,14 +79,16 @@ class MensajesLive extends Component
 
     public function enviarWhatsApp()
     {
-        $this->authorize('crm-mensajes.create');
+        $this->authorize('crm_mensaje.crear');
         try {
             if (! $this->selectedClienteId) {
                 $this->flashToast('error', 'Selecciona un cliente');
+
                 return;
             }
             if (empty(trim($this->contenido))) {
                 $this->flashToast('error', 'Escribe el mensaje');
+
                 return;
             }
             $this->crmService->enviarWhatsApp($this->selectedClienteId, trim($this->contenido), auth()->id());

@@ -26,7 +26,7 @@ class ReporteClientesLive extends Component
 
     public function mount(): void
     {
-        $this->authorize('reportes.view');
+        $this->authorize('reporte.ver');
         $this->fechaDesde = now()->subYear()->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');
     }

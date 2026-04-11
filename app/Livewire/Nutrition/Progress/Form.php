@@ -23,7 +23,7 @@ class Form extends Component
 
     public function mount(NutritionGoal $goal): void
     {
-        $this->authorize('gestion-nutricional.create');
+        $this->authorize('gestion_nutricional.crear');
         $this->goal = $goal;
         $this->form['fecha'] = now()->format('Y-m-d');
     }

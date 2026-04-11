@@ -18,7 +18,7 @@ class Show extends Component
 
     public function mount(Employee $employee): void
     {
-        $this->authorize('employees.view');
+        $this->authorize('empleado.ver');
         $this->employee = $employee;
     }
 

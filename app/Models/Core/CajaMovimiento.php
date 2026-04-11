@@ -2,35 +2,51 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
-use Illuminate\Database\Eloquent\Builder;
 
 class CajaMovimiento extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $table = 'caja_movimientos';
 
     public const CATEGORIA_APERTURA = 'apertura';
+
     public const CATEGORIA_MANUAL_INGRESO = 'manual_ingreso';
+
     public const CATEGORIA_MANUAL_SALIDA = 'manual_salida';
+
     public const CATEGORIA_MEMBRESIA = 'membresia';
+
     public const CATEGORIA_CLASE = 'clase';
+
     public const CATEGORIA_CUOTA = 'cuota';
+
     public const CATEGORIA_POS = 'pos';
+
     public const CATEGORIA_ALQUILER = 'alquiler';
+
     public const CATEGORIA_AJUSTE = 'ajuste';
 
     public const ORIGEN_CAJA = 'caja';
+
     public const ORIGEN_CLIENTE_MEMBRESIAS = 'cliente_membresias';
+
     public const ORIGEN_CLIENTE_MATRICULAS = 'cliente_matriculas';
+
     public const ORIGEN_ENROLLMENT_INSTALLMENTS = 'enrollment_installments';
+
     public const ORIGEN_VENTAS = 'ventas';
+
     public const ORIGEN_RENTALS = 'rentals';
+
     public const ORIGEN_MANUAL = 'manual';
 
     protected $fillable = [
@@ -45,6 +61,7 @@ class CajaMovimiento extends Model
         'usuario_id',
         'observaciones',
         'fecha_movimiento',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -52,6 +69,7 @@ class CajaMovimiento extends Model
         return [
             'monto' => 'decimal:2',
             'fecha_movimiento' => 'datetime',
+            'sucursal_id' => 'integer',
         ];
     }
 

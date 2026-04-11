@@ -12,19 +12,33 @@ class LeadFormLive extends Component
     use FlashesToast;
 
     public ?int $leadId = null;
+
     public $stage_id = '';
+
     public $telefono = '';
+
     public $whatsapp = '';
+
     public $nombres = '';
+
     public $apellidos = '';
+
     public $tipo_documento = '';
+
     public $numero_documento = '';
+
     public $email = '';
+
     public $direccion = '';
+
     public $canal_origen = '';
+
     public $sede = '';
+
     public $interes_principal = '';
+
     public $assigned_to = '';
+
     public $notas = '';
 
     protected LeadService $leadService;
@@ -43,14 +57,15 @@ class LeadFormLive extends Component
 
     public function loadLead(?int $id = null)
     {
-        if (!$id) {
+        if (! $id) {
             $this->resetForm();
             $defaultStage = CrmStage::where('is_default', true)->first();
             $this->stage_id = $defaultStage?->id ?? '';
+
             return;
         }
         $lead = $this->leadService->find($id);
-        if (!$lead) {
+        if (! $lead) {
             return;
         }
         $this->leadId = $lead->id;
@@ -72,7 +87,7 @@ class LeadFormLive extends Component
 
     public function save()
     {
-        $this->authorize($this->leadId ? 'crm.update' : 'crm.create');
+        $this->authorize($this->leadId ? 'crm.editar' : 'crm.crear');
 
         $rules = [
             'telefono' => 'required|string|max:20',

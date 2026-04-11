@@ -72,7 +72,7 @@
                             <div class="flex items-center justify-between">
                                 <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Ficha de Salud</h2>
                                 <div class="flex gap-2">
-                                    @can('gestion-nutricional.create')
+                                    @can('gestion_nutricional.crear')
                                     <flux:button icon="plus" color="purple" variant="primary" size="xs"
                                         wire:click="openCreateEvaluacionModal" wire:loading.attr="disabled"
                                         wire:target="openCreateEvaluacionModal" aria-label="Nueva evaluación">
@@ -366,13 +366,13 @@
                                                                     {{ $evaluacion->nutricionista->name ?? '-' }}</td>
                                                                 <td class="px-4 py-2.5">
                                                                     <div class="flex gap-1">
-                                                                        @can('gestion-nutricional.update')
+                                                                        @can('gestion_nutricional.editar')
                                                                         <flux:button variant="ghost" size="xs"
                                                                             icon="pencil"
                                                                             wire:click="openEditEvaluacionModal({{ $evaluacion->id }})"
                                                                             aria-label="Editar" />
                                                                         @endcan
-                                                                        @can('gestion-nutricional.delete')
+                                                                        @can('gestion_nutricional.eliminar')
                                                                         <flux:button variant="ghost" size="xs"
                                                                             icon="trash" color="red"
                                                                             wire:click="openDeleteEvaluacionModal({{ $evaluacion->id }})"
@@ -403,7 +403,7 @@
                                     <div class="flex flex-col items-center justify-center text-center">
                                         <p class="text-sm text-zinc-500 dark:text-zinc-400">No hay evaluaciones
                                             registradas para este cliente</p>
-                                        @can('gestion-nutricional.create')
+                                        @can('gestion_nutricional.crear')
                                         <flux:button icon="plus" color="purple" variant="primary" size="xs"
                                             wire:click="openCreateEvaluacionModal" class="mt-4">Crear Primera
                                             Evaluación</flux:button>
@@ -420,7 +420,7 @@
                             <div class="flex items-center justify-between">
                                 <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Seguimiento
                                     Nutricional</h2>
-                                @can('gestion-nutricional.create')
+                                @can('gestion_nutricional.crear')
                                 <flux:button icon="plus" color="purple" variant="primary" size="xs"
                                     wire:click="openCreateNutricionModal">Nuevo seguimiento</flux:button>
                                 @endcan
@@ -482,12 +482,12 @@
                                                         class="inline-flex rounded-full px-2 py-0.5 text-xs {{ $s->estado === 'activo' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400' }}">{{ $s->estado }}</span>
                                                 </td>
                                                 <td class="px-4 py-2.5 text-right">
-                                                    @can('gestion-nutricional.update')
+                                                    @can('gestion_nutricional.editar')
                                                     <flux:button variant="ghost" size="xs" icon="pencil"
                                                         wire:click="openEditNutricionModal({{ $s->id }})"
                                                         aria-label="Editar" />
                                                     @endcan
-                                                    @can('gestion-nutricional.delete')
+                                                    @can('gestion_nutricional.eliminar')
                                                     <flux:button variant="ghost" size="xs" icon="trash"
                                                         color="red"
                                                         wire:click="openDeleteNutricionModal({{ $s->id }})"
@@ -517,7 +517,7 @@
                             <div class="flex items-center justify-between">
                                 <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Reserva de Citas
                                 </h2>
-                                @can('gestion-nutricional.create')
+                                @can('gestion_nutricional.crear')
                                 <flux:button icon="plus" color="purple" variant="primary" size="xs"
                                     wire:click="openCreateCitaModal">Nueva cita</flux:button>
                                 @endcan
@@ -593,7 +593,7 @@
                                                     ">{{ ucfirst(str_replace('_', ' ', $cita->estado)) }}</span>
                                                 </td>
                                                 <td class="px-4 py-2.5 text-right">
-                                                    @can('gestion-nutricional.update')
+                                                    @can('gestion_nutricional.editar')
                                                     @if (in_array($cita->estado, ['programada', 'confirmada', 'en_curso']))
                                                         <flux:button variant="ghost" size="xs" icon="x-mark"
                                                             color="red"
@@ -604,7 +604,7 @@
                                                         wire:click="openEditCitaModal({{ $cita->id }})"
                                                         aria-label="Editar" />
                                                     @endcan
-                                                    @can('gestion-nutricional.delete')
+                                                    @can('gestion_nutricional.eliminar')
                                                     <flux:button variant="ghost" size="xs" icon="trash"
                                                         color="red"
                                                         wire:click="openDeleteCitaModal({{ $cita->id }})"
@@ -636,16 +636,16 @@
                                     <p class="text-xs text-zinc-500 dark:text-zinc-400">Rutinas, congelamientos, reservas y eventos recientes del cliente.</p>
                                 </div>
                                 <div class="flex flex-wrap gap-2">
-                                    @can('ejercicios-rutinas.create')
+                                    @can('ejercicio_rutina.crear')
                                     <flux:button icon="clipboard-document-list" size="xs" variant="primary" wire:click="openCreateRutinaModal">Agregar rutina</flux:button>
                                     @endcan
-                                    @can('gestion-nutricional.update')
+                                    @can('gestion_nutricional.editar')
                                     <flux:button icon="pause-circle" size="xs" variant="ghost" wire:click="openCongelamientoModal">Congelar plan</flux:button>
                                     @endcan
-                                    @can('rentals.create')
+                                    @can('alquiler.crear')
                                     <flux:button icon="calendar-days" size="xs" variant="ghost" wire:click="openCreateReservaModal">Nueva reserva</flux:button>
                                     @endcan
-                                    @can('gestion-nutricional.create')
+                                    @can('gestion_nutricional.crear')
                                     <flux:button icon="chat-bubble-left-ellipsis" size="xs" variant="ghost" wire:click="openCreateNutricionModal">Nuevo seguimiento</flux:button>
                                     @endcan
                                 </div>
@@ -1280,7 +1280,7 @@
         @endif
     </flux:modal>
 
-    @can('gestion-nutricional.update')
+    @can('gestion_nutricional.editar')
     <flux:modal name="salud-modal" wire:model="modalState.salud" focusable flyout variant="floating" class="md:w-lg">
         <div class="p-4">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-3">Salud / Nutrición</h2>

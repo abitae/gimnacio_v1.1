@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
+            'sucursal.context' => \App\Http\Middleware\EnsureSucursalContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -24,6 +25,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->expectsJson()) {
                 return response()->json(['message' => 'Página no encontrada'], 404);
             }
+
             return response()->view('errors.404', [], 404);
         });
 
@@ -32,8 +34,10 @@ return Application::configure(basePath: dirname(__DIR__))
                 if ($request->expectsJson()) {
                     return response()->json(['message' => 'Acceso denegado'], 403);
                 }
+
                 return response()->view('errors.403', [], 403);
             }
+
             return null;
         });
 
@@ -41,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($request->expectsJson()) {
                 return response()->json(['message' => $e->getMessage() ?: 'Acceso denegado'], 403);
             }
+
             return response()->view('errors.403', [], 403);
         });
     })->create();

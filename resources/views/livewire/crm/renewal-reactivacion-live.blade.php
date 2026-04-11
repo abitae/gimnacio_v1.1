@@ -15,7 +15,7 @@
         <flux:button size="xs" variant="{{ $renovacionDays === '7' ? 'primary' : 'ghost' }}" wire:click="$set('renovacionDays', '7')">7 días</flux:button>
         <flux:button size="xs" variant="{{ $renovacionDays === '3' ? 'primary' : 'ghost' }}" wire:click="$set('renovacionDays', '3')">3 días</flux:button>
         <flux:button size="xs" variant="{{ $renovacionDays === '1' ? 'primary' : 'ghost' }}" wire:click="$set('renovacionDays', '1')">1 día</flux:button>
-        @can('crm.create')
+        @can('crm.crear')
         @if($this->renovacionList->isEmpty())
         <flux:button size="sm" variant="primary" class="ml-auto" disabled title="No hay contactos en la lista">
             Crear campaña desde esta lista
@@ -57,7 +57,7 @@
         <flux:button size="xs" variant="{{ $reactivacionDays === '15' ? 'primary' : 'ghost' }}" wire:click="$set('reactivacionDays', '15')">15 días</flux:button>
         <flux:button size="xs" variant="{{ $reactivacionDays === '30' ? 'primary' : 'ghost' }}" wire:click="$set('reactivacionDays', '30')">30 días</flux:button>
         <flux:button size="xs" variant="{{ $reactivacionDays === '60' ? 'primary' : 'ghost' }}" wire:click="$set('reactivacionDays', '60')">60 días</flux:button>
-        @can('crm.create')
+        @can('crm.crear')
         @if($this->reactivacionList->isEmpty())
         <flux:button size="sm" variant="primary" class="ml-auto" disabled title="No hay contactos en la lista">
             Crear campaña desde esta lista

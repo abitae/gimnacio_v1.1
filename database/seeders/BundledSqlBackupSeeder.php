@@ -11,7 +11,7 @@ use RuntimeException;
 class BundledSqlBackupSeeder extends Seeder
 {
     /**
-     * Importa las partes SQL empaquetadas en orden y asegura el usuario administrador.
+     * Importa las partes SQL empaquetadas en orden y recompone el bootstrap actual.
      *
      * Requiere MySQL y los archivos database/data/backup_part[1-3].sql.
      * No ejecutar junto a BaseCatalogSeeder (el dump ya incluye catálogo y datos).
@@ -45,6 +45,6 @@ class BundledSqlBackupSeeder extends Seeder
             $backupService->restoreFromPath($path);
         }
 
-        $this->call(AdminUserSeeder::class);
+        $this->command?->warn('BundledSqlBackupSeeder ya no ejecuta seeders adicionales. Si necesitas bootstrap local posterior, ejecuta DatabaseSeeder manualmente.');
     }
 }

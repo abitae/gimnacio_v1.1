@@ -6,19 +6,30 @@ use App\Models\Core\Cliente;
 use App\Models\Core\EvaluacionFisica;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Schema;
 
 class EvaluacionFisicaSeeder extends Seeder
 {
     /**
      * Run the database seeds.
+     *
+     * La tabla `evaluacion_fisicas` fue eliminada en 2026_01_11_052202_drop_evaluacion_fisicas_table.
+     * Este seeder se mantiene por si se vuelve a crear la tabla; no está incluido en DatabaseSeeder.
      */
     public function run(): void
     {
+        if (! Schema::hasTable('evaluacion_fisicas')) {
+            $this->command?->warn('Saltando EvaluacionFisicaSeeder: no existe la tabla evaluacion_fisicas.');
+
+            return;
+        }
+
         $user = User::first();
         $clientes = Cliente::all();
 
         if ($clientes->isEmpty()) {
             $this->command->warn('No hay clientes. Ejecuta ClienteSeeder primero.');
+
             return;
         }
 

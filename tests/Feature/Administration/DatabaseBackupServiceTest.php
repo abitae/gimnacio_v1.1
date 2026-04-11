@@ -21,7 +21,7 @@ afterEach(function () {
 it('creates a zip backup with a single internal sql file and data', function () {
     $superAdmin = User::factory()->create([
         'name' => 'Super Admin',
-        'email' => 'super-admin@example.test',
+        'email' => 'super_administrador@example.test',
         'estado' => 'activo',
     ]);
     $superAdmin->assignRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME);
@@ -49,7 +49,7 @@ it('creates a zip backup with a single internal sql file and data', function () 
     expect($contents)->toContain('CREATE TABLE');
     expect($contents)->toContain('INSERT INTO');
     expect($contents)->toContain('backup-user@example.test');
-    expect($contents)->not->toContain('super-admin@example.test');
+    expect($contents)->not->toContain('super_administrador@example.test');
 });
 
 it('restores the database from a generated zip backup', function () {

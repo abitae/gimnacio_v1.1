@@ -28,7 +28,7 @@ class Form extends Component
 
     public function mount(): void
     {
-        $this->authorize($this->goal ? 'gestion-nutricional.update' : 'gestion-nutricional.create');
+        $this->authorize($this->goal ? 'gestion_nutricional.editar' : 'gestion_nutricional.crear');
         $this->cliente_id = (int) request()->query('cliente_id');
         if ($this->goal) {
             $this->form = [
@@ -76,7 +76,7 @@ class Form extends Component
     public function render()
     {
         $clientes = \App\Models\Core\Cliente::where('estado_cliente', 'activo')->orderBy('nombres')->get(['id', 'nombres', 'apellidos']);
-        $trainers = \App\Models\User::role(['trainer', 'nutricionista', 'administrador', PermissionCatalog::SUPER_ADMIN_ROLE_NAME])->orderBy('name')->get(['id', 'name']);
+        $trainers = \App\Models\User::role(['trainer', 'nutricionista', 'administrador_sucursal', PermissionCatalog::SUPER_ADMIN_ROLE_NAME])->orderBy('name')->get(['id', 'name']);
 
         return view('livewire.nutrition.goals.form', [
             'clientes' => $clientes,

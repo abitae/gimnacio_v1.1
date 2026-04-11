@@ -4,7 +4,7 @@
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">{{ $exercise->nombre }}</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">{{ $exercise->tipo_label }} · {{ $exercise->estado_label }}</p>
         </div>
-        @can('ejercicios-rutinas.update')
+        @can('ejercicio_rutina.editar')
         <flux:button href="{{ route('ejercicios.index') }}?editar={{ $exercise->id }}" size="xs" variant="primary" wire:navigate>Editar</flux:button>
         @endcan
     </div>
@@ -64,7 +64,7 @@
 
     @if($activeTab === 'variaciones')
         <div class="space-y-3">
-            @can('ejercicios-rutinas.update')
+            @can('ejercicio_rutina.editar')
             <div class="flex flex-wrap gap-2 items-end">
                 <flux:field class="min-w-[200px]">
                     <flux:label>Agregar variación</flux:label>
@@ -82,7 +82,7 @@
                 @forelse($exercise->variations as $variation)
                     <li class="flex items-center justify-between py-2">
                         <a href="{{ route('ejercicios.show', $variation) }}" wire:navigate class="font-medium text-zinc-900 dark:text-zinc-100 hover:underline">{{ $variation->nombre }}</a>
-                        @can('ejercicios-rutinas.update')
+                        @can('ejercicio_rutina.editar')
                         <flux:button size="xs" variant="ghost" wire:click="removeRelation({{ $variation->id }}, 'variation')" wire:confirm="¿Quitar esta variación?">Quitar</flux:button>
                         @endcan
                     </li>
@@ -95,7 +95,7 @@
 
     @if($activeTab === 'sustituciones')
         <div class="space-y-3">
-            @can('ejercicios-rutinas.update')
+            @can('ejercicio_rutina.editar')
             <div class="flex flex-wrap gap-2 items-end">
                 <flux:field class="min-w-[200px]">
                     <flux:label>Agregar sustituto</flux:label>
@@ -113,7 +113,7 @@
                 @forelse($exercise->substitutions as $sub)
                     <li class="flex items-center justify-between py-2">
                         <a href="{{ route('ejercicios.show', $sub) }}" wire:navigate class="font-medium text-zinc-900 dark:text-zinc-100 hover:underline">{{ $sub->nombre }}</a>
-                        @can('ejercicios-rutinas.update')
+                        @can('ejercicio_rutina.editar')
                         <flux:button size="xs" variant="ghost" wire:click="removeRelation({{ $sub->id }}, 'substitution')" wire:confirm="¿Quitar este sustituto?">Quitar</flux:button>
                         @endcan
                     </li>

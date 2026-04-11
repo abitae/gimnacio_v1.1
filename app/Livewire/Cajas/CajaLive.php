@@ -86,7 +86,7 @@ class CajaLive extends Component
 
     public function mount()
     {
-        $this->authorize('cajas.view');
+        $this->authorize('caja.ver');
         $this->fechaDesde = now()->subDays(15)->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');
         $this->syncTabsDesdeMovimientos();
@@ -109,7 +109,7 @@ class CajaLive extends Component
 
     public function abrirModalApertura()
     {
-        $this->authorize('cajas.create');
+        $this->authorize('caja.crear');
         $this->resetFormApertura();
         $this->mostrarModalApertura = true;
     }

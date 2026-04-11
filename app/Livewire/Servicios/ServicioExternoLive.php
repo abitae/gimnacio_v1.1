@@ -12,11 +12,15 @@ class ServicioExternoLive extends Component
     use FlashesToast, WithPagination;
 
     public $search = '';
+
     public $categoriaFilter = '';
+
     public $estadoFilter = '';
+
     public $perPage = 15;
 
     public $modalState = ['create' => false, 'delete' => false];
+
     public $servicioId = null;
 
     public $formData = [
@@ -30,6 +34,7 @@ class ServicioExternoLive extends Component
     ];
 
     protected $paginationTheme = 'tailwind';
+
     protected ServicioExternoService $service;
 
     public function boot(ServicioExternoService $service)
@@ -39,23 +44,24 @@ class ServicioExternoLive extends Component
 
     public function mount()
     {
-        $this->authorize('servicios.view');
+        $this->authorize('servicio.ver');
         $this->resetPage();
     }
 
     public function openCreateModal()
     {
-        $this->authorize('servicios.create');
+        $this->authorize('servicio.crear');
         $this->resetForm();
         $this->modalState['create'] = true;
     }
 
     public function openEditModal($id)
     {
-        $this->authorize('servicios.update');
+        $this->authorize('servicio.editar');
         $servicio = $this->service->find($id);
-        if (!$servicio) {
+        if (! $servicio) {
             $this->flashToast('error', 'Servicio no encontrado');
+
             return;
         }
 
@@ -74,7 +80,7 @@ class ServicioExternoLive extends Component
 
     public function save()
     {
-        $this->authorize($this->servicioId ? 'servicios.update' : 'servicios.create');
+        $this->authorize($this->servicioId ? 'servicio.editar' : 'servicio.crear');
         try {
             if ($this->servicioId) {
                 $this->service->update($this->servicioId, $this->formData);
@@ -92,7 +98,7 @@ class ServicioExternoLive extends Component
 
     public function delete()
     {
-        $this->authorize('servicios.delete');
+        $this->authorize('servicio.eliminar');
         try {
             $this->service->delete($this->servicioId);
             $this->flashToast('success', 'Servicio eliminado exitosamente.');

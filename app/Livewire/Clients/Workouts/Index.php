@@ -12,13 +12,14 @@ class Index extends Component
     use WithPagination;
 
     public Cliente $cliente;
+
     public ClientRoutine $clientRoutine;
 
     protected $paginationTheme = 'tailwind';
 
     public function mount(Cliente $cliente, ClientRoutine $clientRoutine): void
     {
-        $this->authorize('ejercicios-rutinas.view');
+        $this->authorize('ejercicio_rutina.ver');
         $this->cliente = $cliente;
         $this->clientRoutine = $clientRoutine;
     }
@@ -26,6 +27,7 @@ class Index extends Component
     public function render()
     {
         $sessions = $this->clientRoutine->workoutSessions()->orderByDesc('fecha_hora')->paginate(15);
+
         return view('livewire.clients.workouts.index', ['sessions' => $sessions]);
     }
 }

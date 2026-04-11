@@ -11,19 +11,23 @@ class CrmTagsLive extends Component
     use FlashesToast;
 
     public $search = '';
+
     public $modalForm = false;
+
     public $editingTagId = null;
+
     public $nombre = '';
+
     public $color = '#6366f1';
 
     public function mount()
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
     }
 
     public function openCreate()
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $this->editingTagId = null;
         $this->nombre = '';
         $this->color = '#6366f1';
@@ -32,9 +36,9 @@ class CrmTagsLive extends Component
 
     public function openEdit(int $id)
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $tag = Tag::find($id);
-        if (!$tag) {
+        if (! $tag) {
             return;
         }
         $this->editingTagId = $id;
@@ -45,7 +49,7 @@ class CrmTagsLive extends Component
 
     public function save()
     {
-        $this->authorize($this->editingTagId ? 'crm.update' : 'crm.create');
+        $this->authorize($this->editingTagId ? 'crm.editar' : 'crm.crear');
         $this->validate([
             'nombre' => 'required|string|max:60',
             'color' => 'nullable|string|max:20',
@@ -63,7 +67,7 @@ class CrmTagsLive extends Component
 
     public function deleteTag(int $id)
     {
-        $this->authorize('crm.delete');
+        $this->authorize('crm.eliminar');
         $tag = Tag::find($id);
         if ($tag) {
             $tag->delete();
@@ -81,8 +85,9 @@ class CrmTagsLive extends Component
     {
         $q = Tag::query()->orderBy('nombre');
         if ($this->search) {
-            $q->where('nombre', 'like', '%' . $this->search . '%');
+            $q->where('nombre', 'like', '%'.$this->search.'%');
         }
+
         return $q->get();
     }
 

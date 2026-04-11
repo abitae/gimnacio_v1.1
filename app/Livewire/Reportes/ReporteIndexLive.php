@@ -8,7 +8,7 @@ class ReporteIndexLive extends Component
 {
     public function mount(): void
     {
-        $this->authorize('reportes.view');
+        $this->authorize('reporte.ver');
     }
 
     public function render()

@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Pago extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -28,6 +30,7 @@ class Pago extends Model
         'comprobante_numero',
         'registrado_por',
         'caja_id',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -35,6 +38,7 @@ class Pago extends Model
         return [
             'fecha_pago' => 'datetime',
             'es_pago_parcial' => 'boolean',
+            'sucursal_id' => 'integer',
         ];
     }
 

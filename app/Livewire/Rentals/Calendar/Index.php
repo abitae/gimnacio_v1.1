@@ -2,8 +2,8 @@
 
 namespace App\Livewire\Rentals\Calendar;
 
-use App\Models\Core\Rental;
 use App\Models\Core\RentableSpace;
+use App\Models\Core\Rental;
 use Carbon\Carbon;
 use Livewire\Component;
 
@@ -15,7 +15,7 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->authorize('rentals.view');
+        $this->authorize('alquiler.ver');
         $this->fecha = request()->query('fecha', now()->format('Y-m-d'));
     }
 

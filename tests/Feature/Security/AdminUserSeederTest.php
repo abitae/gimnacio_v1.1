@@ -1,16 +1,46 @@
 <?php
 
+use App\Models\System\Empresa;
+use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Support\PermissionCatalog;
 use Database\Seeders\AdminUserSeeder;
-use Database\Seeders\BaseCatalogSeeder;
 use Illuminate\Support\Facades\Hash;
 
-it('creates the base administrator with the minimum required fields', function () {
-    config()->set('app.key', 'base64:test-app-key');
-    putenv('SEED_ADMIN_PASSWORD=seed-admin-secret');
+function seedBranchStructure(): void
+{
+    $empresa = Empresa::query()->firstOrCreate(
+        ['nombre' => 'Empresa Demo'],
+        [
+            'razon_social' => 'Empresa Demo SAC',
+            'estado' => 'activa',
+        ]
+    );
 
-    $this->seed(BaseCatalogSeeder::class);
+    Sucursal::query()->firstOrCreate(
+        ['codigo' => 'principal'],
+        [
+            'empresa_id' => $empresa->id,
+            'nombre' => 'Sucursal Principal',
+            'estado' => 'activa',
+            'es_principal' => true,
+        ]
+    );
+
+    Sucursal::query()->firstOrCreate(
+        ['codigo' => 'secundaria'],
+        [
+            'empresa_id' => $empresa->id,
+            'nombre' => 'Sucursal Secundaria',
+            'estado' => 'activa',
+            'es_principal' => false,
+        ]
+    );
+}
+
+it('creates the base administrator with the minimum required fields', function () {
+    $this->seed(\Database\Seeders\RoleSeeder::class);
+    seedBranchStructure();
     $this->seed(AdminUserSeeder::class);
 
     $user = User::query()->where('email', AdminUserSeeder::ADMIN_EMAIL)->first();
@@ -19,34 +49,32 @@ it('creates the base administrator with the minimum required fields', function (
     expect($user->name)->toBe('Administrador');
     expect($user->estado)->toBe('activo');
     expect($user->email_verified_at)->not->toBeNull();
-    expect(Hash::check('seed-admin-secret', $user->password))->toBeTrue();
+    expect(Hash::check(AdminUserSeeder::ADMIN_PASSWORD, $user->password))->toBeTrue();
     expect($user->hasRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME))->toBeTrue();
-
-    putenv('SEED_ADMIN_PASSWORD');
+    expect($user->sucursales()->count())->toBe(2);
+    expect($user->default_sucursal_id)->toBe(
+        Sucursal::query()->where('codigo', 'principal')->value('id')
+    );
 });
 
 it('is idempotent when seeding the base administrator repeatedly', function () {
-    config()->set('app.key', 'base64:test-app-key');
-    putenv('SEED_ADMIN_PASSWORD=seed-admin-secret');
-
-    $this->seed(BaseCatalogSeeder::class);
+    $this->seed(\Database\Seeders\RoleSeeder::class);
+    seedBranchStructure();
     $this->seed(AdminUserSeeder::class);
     $this->seed(AdminUserSeeder::class);
 
     expect(User::query()->where('email', AdminUserSeeder::ADMIN_EMAIL)->count())->toBe(1);
-
-    putenv('SEED_ADMIN_PASSWORD');
+    expect(
+        User::query()->where('email', AdminUserSeeder::ADMIN_EMAIL)->firstOrFail()->sucursales()->count()
+    )->toBe(2);
 });
 
-it('falls back to a deterministic password when no env password is configured', function () {
-    config()->set('app.key', 'base64:test-app-key');
-    putenv('SEED_ADMIN_PASSWORD');
-
-    $this->seed(BaseCatalogSeeder::class);
+it('always uses the fixed administrator password', function () {
+    $this->seed(\Database\Seeders\RoleSeeder::class);
+    seedBranchStructure();
     $this->seed(AdminUserSeeder::class);
 
     $user = User::query()->where('email', AdminUserSeeder::ADMIN_EMAIL)->firstOrFail();
-    $expectedFallback = hash('sha256', config('app.key') . '|' . AdminUserSeeder::ADMIN_EMAIL);
 
-    expect(Hash::check($expectedFallback, $user->password))->toBeTrue();
+    expect(Hash::check(AdminUserSeeder::ADMIN_PASSWORD, $user->password))->toBeTrue();
 });

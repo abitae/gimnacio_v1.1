@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\Integration\BiotimeAccessLog;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Schema;
 
 class Cliente extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -41,6 +43,7 @@ class Cliente extends Model
         'biotime_state',
         'biotime_update',
         'trainer_user_id',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -55,6 +58,7 @@ class Cliente extends Model
             'updated_by' => 'integer',
             'biotime_state' => 'boolean',
             'biotime_update' => 'boolean',
+            'sucursal_id' => 'integer',
         ];
     }
 

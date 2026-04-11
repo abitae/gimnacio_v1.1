@@ -13,16 +13,27 @@ class ConvertLeadLive extends Component
     use FlashesToast;
 
     public ?int $leadId = null;
+
     public $tipo_documento = 'DNI';
+
     public $numero_documento = '';
+
     public $nombres = '';
+
     public $apellidos = '';
+
     public $telefono = '';
+
     public $email = '';
+
     public $direccion = '';
+
     public $activar_membresia = false;
+
     public $membresia_id = '';
+
     public $pago_monto = '';
+
     public $pago_metodo = 'efectivo';
 
     protected ConvertLeadToClientService $convertService;
@@ -56,7 +67,7 @@ class ConvertLeadLive extends Component
 
     public function convert()
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $this->validate([
             'tipo_documento' => 'required|in:DNI,CE',
             'numero_documento' => 'required|string|max:20',
@@ -69,8 +80,9 @@ class ConvertLeadLive extends Component
         ]);
 
         $lead = Lead::find($this->leadId);
-        if (!$lead) {
+        if (! $lead) {
             $this->flashToast('error', 'Lead no encontrado');
+
             return;
         }
 

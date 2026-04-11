@@ -7,7 +7,7 @@
         <div class="flex gap-2">
             <flux:button href="{{ route('clientes.rutinas.sesiones.index', [$cliente, $workoutSession->clientRoutine]) }}" variant="ghost" size="xs" wire:navigate>Volver a sesiones</flux:button>
             @if($workoutSession->estado === 'iniciada')
-                @can('ejercicios-rutinas.update')
+                @can('ejercicio_rutina.editar')
                 <flux:button size="xs" variant="primary" wire:click="completar" wire:confirm="¿Marcar esta sesión como completada?">Completar sesión</flux:button>
                 @endcan
             @endif

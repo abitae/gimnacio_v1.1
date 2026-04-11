@@ -9,7 +9,7 @@
                 <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Productos</h1>
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">Administra el catálogo de productos</p>
             </div>
-            @can('productos.create')
+            @can('producto.crear')
             <flux:button icon="plus" color="purple" variant="primary" size="xs" wire:click="openCreateModal">
                 Nuevo Producto
             </flux:button>
@@ -82,7 +82,7 @@
                                 </td>
                                 <td class="px-4 py-2.5 text-xs">
                                     <div class="flex gap-2">
-                                        @can('productos.update')
+                                        @can('producto.editar')
                                         <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $producto->id }})">Editar</flux:button>
                                         <flux:button size="xs" variant="ghost" wire:click="openImageModal({{ $producto->id }})">Imagen</flux:button>
                                         @endcan

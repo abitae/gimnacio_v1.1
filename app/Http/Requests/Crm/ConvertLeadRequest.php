@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests\Crm;
 
-use App\Models\Core\Cliente;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -10,7 +9,7 @@ class ConvertLeadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('crm.update') ?? false;
+        return $this->user()?->can('crm.editar') ?? false;
     }
 
     public function rules(): array

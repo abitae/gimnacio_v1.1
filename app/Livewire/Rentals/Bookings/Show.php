@@ -11,7 +11,7 @@ class Show extends Component
 
     public function mount(Rental $rental): void
     {
-        $this->authorize('rentals.view');
+        $this->authorize('alquiler.ver');
         $this->rental = $rental->load(['rentableSpace', 'cliente', 'payments.paymentMethod']);
     }
 

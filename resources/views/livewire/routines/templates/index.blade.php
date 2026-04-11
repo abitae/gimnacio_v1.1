@@ -5,7 +5,7 @@
                 <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Rutinas base</h1>
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">Plantillas de rutinas para asignar a clientes</p>
             </div>
-            @can('ejercicios-rutinas.create')
+            @can('ejercicio_rutina.crear')
             <flux:button icon="plus" variant="primary" size="xs" wire:click="openCreateModal" wire:loading.attr="disabled">
                 Nueva rutina base
             </flux:button>
@@ -49,11 +49,11 @@
                             <td class="px-4 py-2">{{ $t->frecuencia_dias_semana ?? '—' }}</td>
                             <td class="px-4 py-2">{{ $t->estado_label }}</td>
                             <td class="px-4 py-2 text-right space-x-1">
-                                @can('ejercicios-rutinas.update')
+                                @can('ejercicio_rutina.editar')
                                 <flux:button href="{{ route('rutinas-base.builder', $t) }}" size="xs" variant="ghost" wire:navigate>Builder</flux:button>
                                 <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $t->id }})">Editar</flux:button>
                                 @endcan
-                                @can('ejercicios-rutinas.create')
+                                @can('ejercicio_rutina.crear')
                                 <flux:button size="xs" variant="ghost" wire:click="cloneTemplate({{ $t->id }})" wire:loading.attr="disabled">Clonar</flux:button>
                                 @endcan
                             </td>

@@ -12,7 +12,7 @@ use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
     $guard = config('auth.defaults.guard');
-    Permission::firstOrCreate(['name' => 'pos.view', 'guard_name' => $guard]);
+    Permission::firstOrCreate(['name' => 'punto_venta.ver', 'guard_name' => $guard]);
 });
 
 function crearClienteConCuotaPendiente(User $user): array
@@ -65,7 +65,7 @@ function crearClienteConCuotaPendiente(User $user): array
 
 it('get pos con cobrar_cliente muestra el cliente en modo cobro', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo('pos.view');
+    $user->givePermissionTo('punto_venta.ver');
     [$cliente] = crearClienteConCuotaPendiente($user);
 
     $this->actingAs($user)
@@ -76,7 +76,7 @@ it('get pos con cobrar_cliente muestra el cliente en modo cobro', function () {
 
 it('abre modo cobro y selecciona cliente con irACobrarCliente', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo('pos.view');
+    $user->givePermissionTo('punto_venta.ver');
     [$cliente] = crearClienteConCuotaPendiente($user);
 
     Livewire::actingAs($user)
@@ -91,7 +91,7 @@ it('abre modo cobro y selecciona cliente con irACobrarCliente', function () {
 
 it('lista cuota pendiente al seleccionar cliente en POS cobro', function () {
     $user = User::factory()->create();
-    $user->givePermissionTo('pos.view');
+    $user->givePermissionTo('punto_venta.ver');
     [$cliente, $cuota] = crearClienteConCuotaPendiente($user);
 
     Livewire::actingAs($user)

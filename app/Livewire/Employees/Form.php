@@ -26,7 +26,7 @@ class Form extends Component
 
     public function mount(?Employee $employee = null): void
     {
-        $this->authorize($employee ? 'employees.update' : 'employees.create');
+        $this->authorize($employee ? 'empleado.editar' : 'empleado.crear');
         $this->employee = $employee;
         if ($employee) {
             $this->form = [

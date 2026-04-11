@@ -60,7 +60,7 @@ class AreaIndexLive extends Component
 
     public function mount()
     {
-        $this->authorize('biotime.view');
+        $this->authorize('biotime.ver');
         $this->loadCompanies();
         $this->loadAreas();
     }
@@ -112,7 +112,7 @@ class AreaIndexLive extends Component
             $this->total = (int) ($response['count'] ?? 0);
             $this->ensureCompaniesFromAreas();
         } catch (\Throwable $e) {
-            $this->message = 'Error al cargar áreas: ' . $e->getMessage();
+            $this->message = 'Error al cargar áreas: '.$e->getMessage();
             $this->areas = [];
         }
     }
@@ -158,7 +158,7 @@ class AreaIndexLive extends Component
 
     public function openCreateModal()
     {
-        $this->authorize('biotime.create');
+        $this->authorize('biotime.crear');
         $this->editingId = null;
         $this->formAreaCode = '';
         $this->formAreaName = '';
@@ -171,7 +171,7 @@ class AreaIndexLive extends Component
 
     public function openEditModal(int $id)
     {
-        $this->authorize('biotime.update');
+        $this->authorize('biotime.editar');
         try {
             $area = $this->client->getArea($id);
             $this->editingId = $id;
@@ -185,7 +185,7 @@ class AreaIndexLive extends Component
             $this->modalOpen = true;
             $this->resetValidation();
         } catch (\Throwable $e) {
-            $this->message = 'Error al cargar área: ' . $e->getMessage();
+            $this->message = 'Error al cargar área: '.$e->getMessage();
             $this->messageSuccess = false;
         }
     }
@@ -219,6 +219,7 @@ class AreaIndexLive extends Component
                     return true;
                 }
             }
+
             return false;
         } catch (\Throwable $e) {
             return false;
@@ -227,7 +228,7 @@ class AreaIndexLive extends Component
 
     public function saveArea()
     {
-        $this->authorize($this->editingId ? 'biotime.update' : 'biotime.create');
+        $this->authorize($this->editingId ? 'biotime.editar' : 'biotime.crear');
         $this->validate([
             'formAreaCode' => ['required', 'string', 'max:255'],
             'formAreaName' => ['required', 'string', 'max:255'],
@@ -240,6 +241,7 @@ class AreaIndexLive extends Component
 
         if ($this->areaCodeExists($this->formAreaCode, $this->editingId)) {
             $this->addError('formAreaCode', 'El código de área ya existe. Debe ser único.');
+
             return;
         }
 
@@ -261,7 +263,7 @@ class AreaIndexLive extends Component
             $this->closeModal();
             $this->loadAreas();
         } catch (\Throwable $e) {
-            $this->message = 'Error: ' . $e->getMessage();
+            $this->message = 'Error: '.$e->getMessage();
             $this->messageSuccess = false;
         }
     }
@@ -280,7 +282,7 @@ class AreaIndexLive extends Component
 
     public function deleteArea()
     {
-        $this->authorize('biotime.delete');
+        $this->authorize('biotime.eliminar');
         if ($this->deleteId === null) {
             return;
         }
@@ -291,7 +293,7 @@ class AreaIndexLive extends Component
             $this->cancelDelete();
             $this->loadAreas();
         } catch (\Throwable $e) {
-            $this->message = 'Error al eliminar: ' . $e->getMessage();
+            $this->message = 'Error al eliminar: '.$e->getMessage();
             $this->messageSuccess = false;
         }
     }

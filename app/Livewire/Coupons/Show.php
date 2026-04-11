@@ -18,7 +18,7 @@ class Show extends Component
 
     public function mount(DiscountCoupon $coupon): void
     {
-        $this->authorize('cupones.view');
+        $this->authorize('cupon.ver');
         $this->coupon = $coupon;
     }
 
@@ -28,6 +28,6 @@ class Show extends Component
 
         return view('livewire.coupons.show', [
             'usages' => $usages,
-        ])->layout('layouts.app', ['title' => 'Cupón: ' . $this->coupon->codigo]);
+        ])->layout('layouts.app', ['title' => 'Cupón: '.$this->coupon->codigo]);
     }
 }

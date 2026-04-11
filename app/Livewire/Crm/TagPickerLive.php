@@ -3,8 +3,8 @@
 namespace App\Livewire\Crm;
 
 use App\Livewire\Concerns\FlashesToast;
-use App\Models\Crm\Lead;
 use App\Models\Core\Cliente;
+use App\Models\Crm\Lead;
 use App\Models\Crm\Tag;
 use Livewire\Component;
 
@@ -13,8 +13,11 @@ class TagPickerLive extends Component
     use FlashesToast;
 
     public string $entityType = 'lead'; // 'lead' | 'cliente'
+
     public ?int $leadId = null;
+
     public ?int $clienteId = null;
+
     public array $selectedTagIds = [];
 
     public function mount(string $entityType, ?int $leadId = null, ?int $clienteId = null)
@@ -48,7 +51,7 @@ class TagPickerLive extends Component
 
     public function save(): void
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         try {
             if ($this->entityType === 'lead' && $this->leadId) {
                 $lead = Lead::findOrFail($this->leadId);

@@ -10,18 +10,26 @@ use Livewire\WithPagination;
 
 class ProductoLive extends Component
 {
-    use FlashesToast, WithPagination, WithFileUploads;
+    use FlashesToast, WithFileUploads, WithPagination;
 
     public $search = '';
+
     public $categoriaFilter = '';
+
     public $estadoFilter = '';
+
     public $stockBajoFilter = false;
+
     public $perPage = 15;
 
     public $modalState = ['create' => false, 'delete' => false, 'image' => false];
+
     public $productoId = null;
+
     public $imageProductoId = null;
+
     public $imagen = null;
+
     public $currentImagen = null;
 
     public $formData = [
@@ -38,6 +46,7 @@ class ProductoLive extends Component
     ];
 
     protected $paginationTheme = 'tailwind';
+
     protected ProductoService $service;
 
     public function boot(ProductoService $service)
@@ -47,7 +56,7 @@ class ProductoLive extends Component
 
     public function mount()
     {
-        $this->authorize('productos.view');
+        $this->authorize('producto.ver');
         $this->resetPage();
     }
 
@@ -58,17 +67,18 @@ class ProductoLive extends Component
 
     public function openCreateModal()
     {
-        $this->authorize('productos.create');
+        $this->authorize('producto.crear');
         $this->resetForm();
         $this->modalState['create'] = true;
     }
 
     public function openEditModal($id)
     {
-        $this->authorize('productos.update');
+        $this->authorize('producto.editar');
         $producto = $this->service->find($id);
-        if (!$producto) {
+        if (! $producto) {
             $this->flashToast('error', 'Producto no encontrado');
+
             return;
         }
 
@@ -90,19 +100,19 @@ class ProductoLive extends Component
 
     public function openImageModal($id)
     {
-        $this->authorize('productos.update');
+        $this->authorize('producto.editar');
         $this->imageProductoId = $id;
         $this->imagen = null;
-        
+
         $producto = $this->service->find($id);
         $this->currentImagen = $producto && $producto->imagen ? $producto->imagen : null;
-        
+
         $this->modalState['image'] = true;
     }
 
     public function uploadImage()
     {
-        $this->authorize('productos.update');
+        $this->authorize('producto.editar');
         try {
             $this->validate([
                 'imagen' => [
@@ -120,8 +130,9 @@ class ProductoLive extends Component
 
             $producto = $this->service->find($this->imageProductoId);
 
-            if (!$producto) {
+            if (! $producto) {
                 $this->flashToast('error', 'Producto no encontrado');
+
                 return;
             }
 
@@ -132,24 +143,24 @@ class ProductoLive extends Component
 
             // Guardar nueva imagen
             $path = $this->imagen->store('productos/imagenes', 'public');
-            
+
             $this->service->update($this->imageProductoId, [
                 'imagen' => $path,
             ]);
-            
+
             $this->flashToast('success', 'Imagen subida correctamente');
             $this->closeModal();
             $this->resetPage();
         } catch (\Illuminate\Validation\ValidationException $e) {
             // Los errores de validación se mostrarán automáticamente
         } catch (\Exception $e) {
-            $this->flashToast('error', 'Error al subir la imagen: ' . $e->getMessage());
+            $this->flashToast('error', 'Error al subir la imagen: '.$e->getMessage());
         }
     }
 
     public function save()
     {
-        $this->authorize($this->productoId ? 'productos.update' : 'productos.create');
+        $this->authorize($this->productoId ? 'producto.editar' : 'producto.crear');
         try {
             if ($this->productoId) {
                 $this->service->update($this->productoId, $this->formData);
@@ -167,7 +178,7 @@ class ProductoLive extends Component
 
     public function delete()
     {
-        $this->authorize('productos.delete');
+        $this->authorize('producto.eliminar');
         try {
             $this->service->delete($this->productoId);
             $this->flashToast('success', 'Producto eliminado exitosamente.');

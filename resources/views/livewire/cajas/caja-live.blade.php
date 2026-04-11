@@ -7,22 +7,22 @@
                 <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">Una caja abierta por usuario. Movimientos por categoría.</p>
             </div>
             <div class="flex flex-wrap gap-2">
-                @can('cajas.create')
+                @can('caja.crear')
                     @if (!$cajaActiva)
                         <flux:button icon="plus" variant="primary" wire:click="abrirModalApertura">Abrir caja</flux:button>
                     @endif
                 @endcan
-                @can('cajas.movimientos-manuales')
+                @can('caja.movimiento_manual')
                     <flux:button icon="arrow-down-circle" variant="outline" wire:click="abrirModalIngresoManual" :disabled="!$cajaActiva">Ingreso manual</flux:button>
                     <flux:button icon="arrow-up-circle" variant="outline" wire:click="abrirModalSalidaManual" :disabled="!$cajaActiva">Salida manual</flux:button>
-                @elsecan('cajas.update')
+                @elsecan('caja.editar')
                     @if ($cajaActiva && $cajaActiva->usuario_id === auth()->id())
                         <flux:button icon="arrow-down-circle" variant="outline" wire:click="abrirModalIngresoManual">Ingreso manual</flux:button>
                         <flux:button icon="arrow-up-circle" variant="outline" wire:click="abrirModalSalidaManual">Salida manual</flux:button>
                     @endif
                 @endcan
                 @if ($cajaActiva && $cajaActiva->estado === 'abierta' && (int) $cajaActiva->usuario_id === (int) auth()->id())
-                    @can('cajas.update')
+                    @can('caja.editar')
                         <flux:button icon="lock-closed" color="red" variant="primary" wire:click="abrirModalCierre({{ $cajaActiva->id }})">Cerrar caja</flux:button>
                     @endcan
                 @endif

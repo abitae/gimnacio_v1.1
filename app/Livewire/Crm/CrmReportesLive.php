@@ -8,7 +8,9 @@ use Livewire\Component;
 class CrmReportesLive extends Component
 {
     public string $tab = 'conversion';
+
     public $from = '';
+
     public $to = '';
 
     protected CrmReportService $reportService;
@@ -20,7 +22,7 @@ class CrmReportesLive extends Component
 
     public function mount()
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
         $this->from = now()->startOfMonth()->format('Y-m-d');
         $this->to = now()->format('Y-m-d');
     }

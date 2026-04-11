@@ -16,6 +16,7 @@ use Livewire\Component;
 class BiotimeConfigLive extends Component
 {
     use FlashesToast;
+
     public $base_url = '';
 
     public $username = '';
@@ -41,7 +42,7 @@ class BiotimeConfigLive extends Component
 
     public function mount()
     {
-        $this->authorize('biotime.view');
+        $this->authorize('biotime.ver');
         $setting = BiotimeSetting::getInstance();
         if ($setting) {
             $this->base_url = $setting->base_url ?? '';
@@ -72,7 +73,7 @@ class BiotimeConfigLive extends Component
 
     public function save()
     {
-        $this->authorize('biotime.update');
+        $this->authorize('biotime.editar');
         $this->validate();
 
         $data = [
@@ -110,6 +111,7 @@ class BiotimeConfigLive extends Component
         }
         if ($password === '') {
             $this->addError('password', __('La contraseña es necesaria para probar la conexión.'));
+
             return;
         }
 

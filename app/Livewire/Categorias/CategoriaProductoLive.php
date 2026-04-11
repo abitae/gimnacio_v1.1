@@ -12,10 +12,13 @@ class CategoriaProductoLive extends Component
     use FlashesToast, WithPagination;
 
     public $search = '';
+
     public $estadoFilter = '';
+
     public $perPage = 15;
 
     public $modalState = ['create' => false, 'delete' => false];
+
     public $categoriaId = null;
 
     public $formData = [
@@ -25,6 +28,7 @@ class CategoriaProductoLive extends Component
     ];
 
     protected $paginationTheme = 'tailwind';
+
     protected CategoriaProductoService $service;
 
     public function boot(CategoriaProductoService $service)
@@ -34,7 +38,7 @@ class CategoriaProductoLive extends Component
 
     public function mount()
     {
-        $this->authorize('categorias-productos.view');
+        $this->authorize('categoria_producto.ver');
         $this->resetPage();
     }
 
@@ -45,17 +49,18 @@ class CategoriaProductoLive extends Component
 
     public function openCreateModal()
     {
-        $this->authorize('categorias-productos.create');
+        $this->authorize('categoria_producto.crear');
         $this->resetForm();
         $this->modalState['create'] = true;
     }
 
     public function openEditModal($id)
     {
-        $this->authorize('categorias-productos.update');
+        $this->authorize('categoria_producto.editar');
         $categoria = $this->service->find($id);
-        if (!$categoria) {
+        if (! $categoria) {
             $this->flashToast('error', 'Categoría no encontrada');
+
             return;
         }
 
@@ -70,14 +75,14 @@ class CategoriaProductoLive extends Component
 
     public function openDeleteModal($id)
     {
-        $this->authorize('categorias-productos.delete');
+        $this->authorize('categoria_producto.eliminar');
         $this->categoriaId = $id;
         $this->modalState['delete'] = true;
     }
 
     public function save()
     {
-        $this->authorize($this->categoriaId ? 'categorias-productos.update' : 'categorias-productos.create');
+        $this->authorize($this->categoriaId ? 'categoria_producto.editar' : 'categoria_producto.crear');
         try {
             if ($this->categoriaId) {
                 $this->service->update($this->categoriaId, $this->formData);
@@ -95,7 +100,7 @@ class CategoriaProductoLive extends Component
 
     public function delete()
     {
-        $this->authorize('categorias-productos.delete');
+        $this->authorize('categoria_producto.eliminar');
         try {
             $this->service->delete($this->categoriaId);
             $this->flashToast('success', 'Categoría eliminada exitosamente.');

@@ -27,7 +27,7 @@ class PlanForm extends Component
 
     public function mount(Cliente $cliente, Request $request): void
     {
-        $this->authorize('cliente-matriculas.create');
+        $this->authorize('matricula_cliente.crear');
         $mid = (int) ($request->query('matricula') ?? 0);
         $this->cliente = $cliente;
         $this->clienteMatricula = ClienteMatricula::query()

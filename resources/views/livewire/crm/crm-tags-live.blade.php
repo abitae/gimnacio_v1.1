@@ -4,7 +4,7 @@
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Etiquetas CRM</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">Gestiona etiquetas para leads y clientes</p>
         </div>
-        @can('crm.create')
+        @can('crm.crear')
         <flux:button size="sm" variant="primary" wire:click="openCreate">Nueva etiqueta</flux:button>
         @endcan
     </div>
@@ -20,10 +20,10 @@
                     <span class="font-medium">{{ $tag->nombre }}</span>
                 </div>
                 <div class="flex gap-1">
-                    @can('crm.update')
+                    @can('crm.editar')
                     <flux:button size="xs" variant="ghost" wire:click="openEdit({{ $tag->id }})">Editar</flux:button>
                     @endcan
-                    @can('crm.delete')
+                    @can('crm.eliminar')
                     <flux:button size="xs" variant="ghost" wire:click="deleteTag({{ $tag->id }})" wire:confirm="¿Eliminar esta etiqueta?">Eliminar</flux:button>
                     @endcan
                 </div>
@@ -31,7 +31,7 @@
             @empty
             <li class="p-8 text-center rounded-lg border border-dashed border-zinc-200 dark:border-zinc-600">
                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-2">No hay etiquetas. Crea etiquetas para organizar leads y clientes.</p>
-                @can('crm.create')
+                @can('crm.crear')
                 <flux:button size="sm" variant="primary" wire:click="openCreate">Crear primera etiqueta</flux:button>
                 @endcan
             </li>

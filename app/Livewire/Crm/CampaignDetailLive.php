@@ -14,19 +14,29 @@ class CampaignDetailLive extends Component
     use FlashesToast, WithPagination;
 
     public int $campaignId;
+
     public $modalGenerar = false;
+
     public $filtroTipo = 'renovacion';
+
     public $filtroDias = '7';
+
     public $asignarUsuario = '';
+
     public $editingTargetId = null;
+
     public $targetEstado = 'pending';
+
     public $targetAssignedTo = '';
+
     /** @var array<int, string|int> Asignado por target: targetId => user_id */
     public $targetAssignments = [];
+
     /** @var array<int, string> Estado por target: targetId => estado */
     public $targetStatuses = [];
 
     protected CampaignService $campaignService;
+
     protected $paginationTheme = 'tailwind';
 
     public function boot(CampaignService $campaignService)
@@ -36,7 +46,7 @@ class CampaignDetailLive extends Component
 
     public function mount(int $campaign)
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
         $this->campaignId = (int) $campaign;
     }
 
@@ -47,15 +57,17 @@ class CampaignDetailLive extends Component
 
     public function openGenerarTargets()
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $this->modalGenerar = true;
     }
 
     public function generarTargets()
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $campaign = $this->getCampaignProperty();
-        if (!$campaign) return;
+        if (! $campaign) {
+            return;
+        }
         $filtros = [
             'tipo' => $this->filtroTipo,
             'dias_renovacion' => $this->filtroTipo === 'renovacion' ? (int) $this->filtroDias : null,
@@ -72,7 +84,7 @@ class CampaignDetailLive extends Component
 
     public function updateTargetStatus(int $targetId, string $estado)
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $target = CampaignTarget::find($targetId);
         if ($target && $target->campaign_id === $this->campaignId) {
             $this->campaignService->updateTargetStatus($target, $estado);
@@ -82,7 +94,7 @@ class CampaignDetailLive extends Component
 
     public function assignTarget(int $targetId, $userId)
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $target = CampaignTarget::find($targetId);
         if ($target && $target->campaign_id === $this->campaignId) {
             $this->campaignService->assignTarget($target, $userId ? (int) $userId : null);
@@ -110,18 +122,19 @@ class CampaignDetailLive extends Component
     public function render()
     {
         $campaign = $this->getCampaignProperty();
-        if (!$campaign) {
+        if (! $campaign) {
             return $this->redirect(route('crm.campaigns'), navigate: true);
         }
         $targets = $campaign->targets()->with(['cliente', 'lead', 'assignedTo'])->orderBy('estado')->paginate(20);
         foreach ($targets as $t) {
-            if (!array_key_exists($t->id, $this->targetAssignments)) {
+            if (! array_key_exists($t->id, $this->targetAssignments)) {
                 $this->targetAssignments[$t->id] = $t->assigned_to ? (string) $t->assigned_to : '';
             }
-            if (!array_key_exists($t->id, $this->targetStatuses)) {
+            if (! array_key_exists($t->id, $this->targetStatuses)) {
                 $this->targetStatuses[$t->id] = $t->estado ?? 'pending';
             }
         }
+
         return view('livewire.crm.campaign-detail-live', [
             'campaign' => $campaign,
             'targets' => $targets,

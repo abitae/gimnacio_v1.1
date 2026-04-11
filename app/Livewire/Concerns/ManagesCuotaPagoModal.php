@@ -33,7 +33,7 @@ trait ManagesCuotaPagoModal
 
     public function openRegistrarPagoCuota(int $installmentId): void
     {
-        $this->authorize('cliente-matriculas.update');
+        $this->authorize('matricula_cliente.editar');
 
         $inst = EnrollmentInstallment::query()
             ->with('plan.cliente')
@@ -77,7 +77,7 @@ trait ManagesCuotaPagoModal
 
     public function guardarPagoCuota(): void
     {
-        $this->authorize('cliente-matriculas.update');
+        $this->authorize('matricula_cliente.editar');
         $this->validate([
             'pagoCuotaForm.monto' => 'required|numeric|min:0.01',
             'pagoCuotaForm.fecha_pago' => 'required|date',

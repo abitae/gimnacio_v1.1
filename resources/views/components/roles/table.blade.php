@@ -23,10 +23,10 @@
                     <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $role->permissions_count }} permisos</td>
                     <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $role->users_count ?? 0 }} usuarios</td>
                     <td class="px-4 py-2.5 text-right">
-                        @can('roles.update')
+                        @can('rol.editar')
                         <flux:button variant="ghost" size="xs" icon="pencil" wire:click="openEditModal({{ $role->id }})" aria-label="Editar" />
                         @endcan
-                        @can('roles.delete')
+                        @can('rol.eliminar')
                         @if (($role->users_count ?? 0) === 0)
                             <flux:button variant="ghost" size="xs" icon="trash" color="red" wire:click="openDeleteModal({{ $role->id }})" aria-label="Eliminar" />
                         @else

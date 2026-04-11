@@ -45,7 +45,7 @@ class ClienteMatriculaLive extends Component
 
     public function mount(): void
     {
-        $this->authorize('cliente-matriculas.view');
+        $this->authorize('matricula_cliente.ver');
         $this->matriculaForm['asesor_id'] = auth()->id();
         $this->matriculaForm['fecha_matricula'] = now()->format('Y-m-d');
         $this->clientes = collect([]);

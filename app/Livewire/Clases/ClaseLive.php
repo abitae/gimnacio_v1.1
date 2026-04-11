@@ -13,9 +13,13 @@ class ClaseLive extends Component
 
     // Filters and pagination
     public $search = '';
+
     public $tipoFilter = '';
+
     public $instructorFilter = '';
+
     public $estadoFilter = '';
+
     public $perPage = 15;
 
     // Modal state
@@ -26,7 +30,9 @@ class ClaseLive extends Component
 
     // Selected items
     public $claseId = null;
+
     public $selectedClaseId = null;
+
     public $selectedClase = null; // Cached selected clase
 
     public $formData = [
@@ -42,6 +48,7 @@ class ClaseLive extends Component
     ];
 
     protected $paginationTheme = 'tailwind';
+
     protected ClaseService $service;
 
     public function boot(ClaseService $service)
@@ -51,7 +58,7 @@ class ClaseLive extends Component
 
     public function mount()
     {
-        $this->authorize('clases.view');
+        $this->authorize('clase.ver');
         $this->resetPage();
     }
 
@@ -90,17 +97,18 @@ class ClaseLive extends Component
 
     public function openCreateModal()
     {
-        $this->authorize('clases.create');
+        $this->authorize('clase.crear');
         $this->resetForm();
         $this->modalState['create'] = true;
     }
 
     public function openEditModal($id)
     {
-        $this->authorize('clases.update');
+        $this->authorize('clase.editar');
         $clase = $this->service->find($id);
-        if (!$clase) {
+        if (! $clase) {
             $this->flashToast('error', 'Clase no encontrada');
+
             return;
         }
 
@@ -111,14 +119,14 @@ class ClaseLive extends Component
 
     public function openDeleteModal($id)
     {
-        $this->authorize('clases.delete');
+        $this->authorize('clase.eliminar');
         $this->claseId = $id;
         $this->modalState['delete'] = true;
     }
 
     public function save()
     {
-        $this->authorize($this->claseId ? 'clases.update' : 'clases.create');
+        $this->authorize($this->claseId ? 'clase.editar' : 'clase.crear');
         try {
             $data = $this->mapFormToData();
 
@@ -156,7 +164,7 @@ class ClaseLive extends Component
 
     public function delete()
     {
-        $this->authorize('clases.delete');
+        $this->authorize('clase.eliminar');
         try {
             $this->service->delete($this->claseId);
             $this->flashToast('success', 'Clase eliminada exitosamente.');

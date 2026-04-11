@@ -11,12 +11,19 @@ class RenewalReactivacionLive extends Component
     use FlashesToast;
 
     public string $tab = 'renovacion';
+
     public string $renovacionDays = '7';
+
     public string $reactivacionDays = '30';
+
     public $modalCrearCampana = false;
+
     public $campanaNombre = '';
+
     public $campanaTipo = 'renovacion';
+
     public $campanaDias = '7';
+
     public $selectedIds = [];
 
     protected RenewalReactivationService $renewalService;
@@ -28,7 +35,7 @@ class RenewalReactivacionLive extends Component
 
     public function mount()
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
     }
 
     public function getRenovacionListProperty()
@@ -43,7 +50,7 @@ class RenewalReactivacionLive extends Component
 
     public function openCrearCampana()
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $this->campanaNombre = '';
         $this->campanaTipo = $this->tab === 'renovacion' ? 'renovacion' : 'reactivacion';
         $this->campanaDias = $this->tab === 'renovacion' ? $this->renovacionDays : $this->reactivacionDays;
@@ -58,7 +65,7 @@ class RenewalReactivacionLive extends Component
 
     public function crearCampana()
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $this->validate(['campanaNombre' => 'required|string|max:120']);
         $campaignService = app(\App\Services\Crm\CampaignService::class);
         $campaign = $campaignService->create([
@@ -75,6 +82,7 @@ class RenewalReactivacionLive extends Component
         $count = $campaignService->generateTargets($campaign, $campaign->filtros);
         $this->modalCrearCampana = false;
         $this->flashToast('success', "Campaña creada con {$count} contactos.");
+
         return $this->redirect(route('crm.campaigns.show', $campaign->id), navigate: true);
     }
 

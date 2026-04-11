@@ -36,7 +36,7 @@
                         <td class="px-4 py-2">{{ $c->fecha_vencimiento->format('d/m/Y') }}</td>
                         <td class="px-4 py-2">S/ {{ number_format($c->monto, 2) }}</td>
                         <td class="px-4 py-2">
-                            @can('cliente-matriculas.update')
+                            @can('matricula_cliente.editar')
                             <flux:button size="xs" variant="ghost" type="button" wire:click="openRegistrarPagoCuota({{ $c->id }})">{{ __('Pagar') }}</flux:button>
                             @endcan
                         </td>
@@ -49,7 +49,7 @@
     </div>
     <div class="flex justify-end">{{ $cuotas->links() }}</div>
 
-    @can('cliente-matriculas.update')
+    @can('matricula_cliente.editar')
     <flux:modal name="reporte-pago-cuota-modal" wire:model="cuotaPagoModalAbierto" focusable class="md:w-lg">
         <form wire:submit.prevent="guardarPagoCuota" class="space-y-3 p-4">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago de cuota') }}</h2>

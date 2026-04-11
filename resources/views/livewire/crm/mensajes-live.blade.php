@@ -14,7 +14,7 @@
                     <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Destino: {{ $selectedCliente->telefono }}</p>
                     <div class="flex gap-2">
                         <textarea wire:model="contenido" rows="3" placeholder="Escribe el mensaje..." class="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"></textarea>
-                        @can('crm-mensajes.create')
+                        @can('crm_mensaje.crear')
                         <flux:button variant="primary" size="sm" wire:click="enviarWhatsApp" wire:loading.attr="disabled">
                             <span wire:loading.remove wire:target="enviarWhatsApp">Enviar</span>
                             <span wire:loading wire:target="enviarWhatsApp">Enviando...</span>

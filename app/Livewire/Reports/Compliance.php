@@ -10,12 +10,14 @@ use Livewire\Component;
 class Compliance extends Component
 {
     public string $tipo_documento = 'DNI';
+
     public string $numero_documento = '';
+
     public ?Cliente $cliente = null;
 
     public function mount(): void
     {
-        $this->authorize('ejercicios-rutinas.view');
+        $this->authorize('ejercicio_rutina.ver');
     }
 
     public function buscarCliente(): void
@@ -55,6 +57,7 @@ class Compliance extends Component
                 ];
             }
         }
+
         return view('livewire.reports.compliance', ['data' => $data]);
     }
 }

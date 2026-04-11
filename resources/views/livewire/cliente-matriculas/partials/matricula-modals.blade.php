@@ -1,4 +1,4 @@
-@canany(['cliente-matriculas.create', 'cliente-matriculas.update'])
+@canany(['matricula_cliente.crear', 'matricula_cliente.editar'])
 <!-- Create/Edit Modal -->
 <flux:modal name="create-edit-modal" wire:model="matriculaModalState.create" focusable flyout variant="floating"
     class="md:w-lg">
@@ -270,7 +270,7 @@
                     Cancelar
                 </flux:button>
             </flux:modal.close>
-            @if (auth()->check() && ($clienteMatriculaId ? auth()->user()->can('cliente-matriculas.update') : auth()->user()->can('cliente-matriculas.create')))
+            @if (auth()->check() && ($clienteMatriculaId ? auth()->user()->can('matricula_cliente.editar') : auth()->user()->can('matricula_cliente.crear')))
                 <flux:button variant="primary" size="xs" type="submit" wire:loading.attr="disabled"
                     wire:target="save">
                     <span class="inline-flex items-center gap-1.5">
@@ -285,7 +285,7 @@
 </flux:modal>
 @endcanany
 
-@can('cliente-matriculas.delete')
+@can('matricula_cliente.eliminar')
 <!-- Delete Modal -->
 <flux:modal name="delete-modal" wire:model="matriculaModalState.delete" focusable class="md:w-lg">
     <div class="p-4">
@@ -315,7 +315,7 @@
 </flux:modal>
 @endcan
 
-@can('cliente-matriculas.update')
+@can('matricula_cliente.editar')
 <flux:modal name="matricula-congelar-modal" wire:model="matriculaCongelarModalOpen" focusable class="md:w-md">
     <form wire:submit.prevent="saveCongelarMatricula" class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Congelar membresía') }}</h2>

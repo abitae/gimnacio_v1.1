@@ -10,7 +10,7 @@ class UpdateLeadRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()?->can('crm.update') ?? false;
+        return $this->user()?->can('crm.editar') ?? false;
     }
 
     public function rules(): array
@@ -31,7 +31,7 @@ class UpdateLeadRequest extends FormRequest
                 'string',
                 'max:20',
                 function ($attr, $value, $fail) use ($leadId) {
-                    if (!$value || !$this->input('tipo_documento')) {
+                    if (! $value || ! $this->input('tipo_documento')) {
                         return;
                     }
                     $q = Lead::where('tipo_documento', $this->input('tipo_documento'))

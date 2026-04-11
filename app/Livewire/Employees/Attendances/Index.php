@@ -3,7 +3,6 @@
 namespace App\Livewire\Employees\Attendances;
 
 use App\Models\Core\EmployeeAttendance;
-use Carbon\Carbon;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -21,7 +20,7 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->authorize('attendance.view');
+        $this->authorize('asistencia_empleado.ver');
         $this->fecha = request()->query('fecha', now()->format('Y-m-d'));
     }
 

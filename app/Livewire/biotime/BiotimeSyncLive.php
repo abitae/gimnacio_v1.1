@@ -50,7 +50,7 @@ class BiotimeSyncLive extends Component
 
     public function mount()
     {
-        $this->authorize('biotime.view');
+        $this->authorize('biotime.ver');
         $this->syncStartDate = now()->subDays(7)->format('Y-m-d');
         $this->syncEndDate = now()->format('Y-m-d');
         $this->loadEmployees();
@@ -111,6 +111,7 @@ class BiotimeSyncLive extends Component
         } catch (\Throwable $e) {
             return null;
         }
+
         return null;
     }
 
@@ -124,14 +125,14 @@ class BiotimeSyncLive extends Component
             $this->employees = $response['data'] ?? [];
             $this->employeesTotal = (int) ($response['count'] ?? 0);
         } catch (\Throwable $e) {
-            $this->syncMessage = 'Error al cargar empleados: ' . $e->getMessage();
+            $this->syncMessage = 'Error al cargar empleados: '.$e->getMessage();
             $this->employees = [];
         }
     }
 
     public function syncTransactions()
     {
-        $this->authorize('biotime.create');
+        $this->authorize('biotime.crear');
         $this->validate([
             'syncStartDate' => ['required', 'date'],
             'syncEndDate' => ['required', 'date', 'after_or_equal:syncStartDate'],
@@ -164,8 +165,9 @@ class BiotimeSyncLive extends Component
                 $punchStateDisplay = $tx['punch_state_display'] ?? '';
                 $txId = $tx['id'] ?? null;
 
-                if (!$punchTime) {
+                if (! $punchTime) {
                     $skipped++;
+
                     continue;
                 }
 
@@ -178,6 +180,7 @@ class BiotimeSyncLive extends Component
                     ->exists();
                 if ($exists) {
                     $skipped++;
+
                     continue;
                 }
 
@@ -208,7 +211,7 @@ class BiotimeSyncLive extends Component
             }
 
             $this->syncResult = true;
-            $this->syncMessage = "Transacciones sincronizadas: {$createdLogs} registros en BiotimeAccessLog, {$createdAsistencias} asistencias creadas." . ($skipped ? " Omitidos: {$skipped}." : '');
+            $this->syncMessage = "Transacciones sincronizadas: {$createdLogs} registros en BiotimeAccessLog, {$createdAsistencias} asistencias creadas.".($skipped ? " Omitidos: {$skipped}." : '');
         } catch (\Throwable $e) {
             $this->syncResult = false;
             $this->syncMessage = $e->getMessage();
@@ -245,7 +248,7 @@ class BiotimeSyncLive extends Component
      */
     public function syncClientesToBiotime()
     {
-        $this->authorize('biotime.create');
+        $this->authorize('biotime.crear');
         $this->validate([
             'uploadDepartmentId' => ['required', 'integer', 'min:1'],
             'uploadAreaId' => ['required', 'integer', 'min:1'],
@@ -263,6 +266,7 @@ class BiotimeSyncLive extends Component
         if ($clientes->isEmpty()) {
             $this->uploadResult = false;
             $this->uploadMessage = 'No hay clientes activos para sincronizar.';
+
             return;
         }
 
@@ -270,6 +274,7 @@ class BiotimeSyncLive extends Component
         if ($companyId === null || $companyId <= 0) {
             $this->uploadResult = false;
             $this->uploadMessage = 'No se pudo obtener la empresa del departamento seleccionado.';
+
             return;
         }
 
@@ -297,8 +302,9 @@ class BiotimeSyncLive extends Component
                         $cliente->update(['biotime_state' => true]);
                         $created++;
                     } catch (\Throwable $e) {
-                        $errors[] = $cliente->nombres . ' ' . $cliente->apellidos . ': ' . $e->getMessage();
+                        $errors[] = $cliente->nombres.' '.$cliente->apellidos.': '.$e->getMessage();
                     }
+
                     continue;
                 }
 
@@ -333,7 +339,7 @@ class BiotimeSyncLive extends Component
                         $cliente->update(['biotime_update' => false]);
                         $updated++;
                     } catch (\Throwable $e) {
-                        $errors[] = $cliente->nombres . ' ' . $cliente->apellidos . ': ' . $e->getMessage();
+                        $errors[] = $cliente->nombres.' '.$cliente->apellidos.': '.$e->getMessage();
                     }
                 }
             }
@@ -346,11 +352,11 @@ class BiotimeSyncLive extends Component
             if ($updated > 0) {
                 $parts[] = "{$updated} actualizado(s)";
             }
-            $this->uploadMessage = 'Sincronización con BioTime: ' . (implode(', ', $parts) ?: '0') . '.';
+            $this->uploadMessage = 'Sincronización con BioTime: '.(implode(', ', $parts) ?: '0').'.';
             if (count($errors) > 0) {
-                $this->uploadMessage .= ' Errores: ' . implode('; ', array_slice($errors, 0, 5));
+                $this->uploadMessage .= ' Errores: '.implode('; ', array_slice($errors, 0, 5));
                 if (count($errors) > 5) {
-                    $this->uploadMessage .= '... (+' . (count($errors) - 5) . ' más)';
+                    $this->uploadMessage .= '... (+'.(count($errors) - 5).' más)';
                 }
             }
             if ($created > 0 || $updated > 0) {
@@ -378,7 +384,7 @@ class BiotimeSyncLive extends Component
      */
     public function syncClienteToBiotime(int $clienteId)
     {
-        $this->authorize('biotime.create');
+        $this->authorize('biotime.crear');
         $this->validate([
             'uploadDepartmentId' => ['required', 'integer', 'min:1'],
             'uploadAreaId' => ['required', 'integer', 'min:1'],
@@ -394,6 +400,7 @@ class BiotimeSyncLive extends Component
         if (! $cliente) {
             $this->uploadResult = false;
             $this->uploadMessage = 'Cliente no encontrado o no está activo.';
+
             return;
         }
 
@@ -401,6 +408,7 @@ class BiotimeSyncLive extends Component
         if ($companyId === null || $companyId <= 0) {
             $this->uploadResult = false;
             $this->uploadMessage = 'No se pudo obtener la empresa del departamento. Selecciona departamento y área.';
+
             return;
         }
 
@@ -421,17 +429,19 @@ class BiotimeSyncLive extends Component
                 ]);
                 $cliente->update(['biotime_state' => true]);
                 $this->uploadResult = true;
-                $this->uploadMessage = $cliente->nombres . ' ' . $cliente->apellidos . ': creado en BioTime.';
+                $this->uploadMessage = $cliente->nombres.' '.$cliente->apellidos.': creado en BioTime.';
             } catch (\Throwable $e) {
                 $this->uploadResult = false;
-                $this->uploadMessage = $cliente->nombres . ' ' . $cliente->apellidos . ': ' . $e->getMessage();
+                $this->uploadMessage = $cliente->nombres.' '.$cliente->apellidos.': '.$e->getMessage();
             }
+
             return;
         }
 
         if ($synced && ! $pendingUpdate) {
             $this->uploadResult = true;
-            $this->uploadMessage = $cliente->nombres . ' ' . $cliente->apellidos . ': ya sincronizado y sin cambios pendientes.';
+            $this->uploadMessage = $cliente->nombres.' '.$cliente->apellidos.': ya sincronizado y sin cambios pendientes.';
+
             return;
         }
 
@@ -464,10 +474,10 @@ class BiotimeSyncLive extends Component
             ]);
             $cliente->update(['biotime_update' => false]);
             $this->uploadResult = true;
-            $this->uploadMessage = $cliente->nombres . ' ' . $cliente->apellidos . ': actualizado en BioTime.';
+            $this->uploadMessage = $cliente->nombres.' '.$cliente->apellidos.': actualizado en BioTime.';
         } catch (\Throwable $e) {
             $this->uploadResult = false;
-            $this->uploadMessage = $cliente->nombres . ' ' . $cliente->apellidos . ': ' . $e->getMessage();
+            $this->uploadMessage = $cliente->nombres.' '.$cliente->apellidos.': '.$e->getMessage();
         }
     }
 
@@ -477,16 +487,18 @@ class BiotimeSyncLive extends Component
      */
     public function createClienteFromBiotimeEmployee(int $empCode, string $firstName = '', string $lastName = '')
     {
-        $this->authorize('biotime.create');
+        $this->authorize('biotime.crear');
         $this->syncMessage = '';
 
         if ($empCode <= 0) {
             $this->syncMessage = 'Código de empleado no válido.';
+
             return;
         }
 
         if (Cliente::find($empCode)) {
-            $this->syncMessage = 'Ya existe un cliente con ese código (id ' . $empCode . ').';
+            $this->syncMessage = 'Ya existe un cliente con ese código (id '.$empCode.').';
+
             return;
         }
 
@@ -499,19 +511,22 @@ class BiotimeSyncLive extends Component
                 $firstName = trim($emp['first_name'] ?? '');
                 $lastName = trim($emp['last_name'] ?? '');
             } catch (\Throwable $e) {
-                $this->syncMessage = 'No se pudo obtener el empleado de BioTime: ' . $e->getMessage();
+                $this->syncMessage = 'No se pudo obtener el empleado de BioTime: '.$e->getMessage();
+
                 return;
             }
         }
 
         if ($firstName === '' && $lastName === '') {
             $this->syncMessage = 'El empleado no tiene nombre en BioTime. No se puede crear el cliente.';
+
             return;
         }
 
         $userId = Auth::id();
         if (! $userId) {
             $this->syncMessage = 'Debes iniciar sesión para crear el cliente.';
+
             return;
         }
 
@@ -529,10 +544,10 @@ class BiotimeSyncLive extends Component
             $cliente->updated_by = $userId;
             $cliente->save();
 
-            $this->syncMessage = 'Cliente creado: ' . $cliente->nombres . ' ' . $cliente->apellidos . ' (id ' . $empCode . ').';
+            $this->syncMessage = 'Cliente creado: '.$cliente->nombres.' '.$cliente->apellidos.' (id '.$empCode.').';
             $this->loadEmployees();
         } catch (\Throwable $e) {
-            $this->syncMessage = 'Error al crear el cliente: ' . $e->getMessage();
+            $this->syncMessage = 'Error al crear el cliente: '.$e->getMessage();
         }
     }
 
@@ -540,16 +555,17 @@ class BiotimeSyncLive extends Component
      * Elimina manualmente un empleado de BioTime.
      * La API de BioTime usa el id interno del empleado en la URL, no el emp_code.
      *
-     * @param int $biotimeEmployeeId Id interno del empleado en BioTime (viene de $emp['id'] en la lista).
-     * @param int $empCode Código del empleado (emp_code); si hay cliente local con ese id, se actualiza biotime_state.
+     * @param  int  $biotimeEmployeeId  Id interno del empleado en BioTime (viene de $emp['id'] en la lista).
+     * @param  int  $empCode  Código del empleado (emp_code); si hay cliente local con ese id, se actualiza biotime_state.
      */
     public function deleteEmployeeFromBiotime(int $biotimeEmployeeId, int $empCode = 0)
     {
-        $this->authorize('biotime.delete');
+        $this->authorize('biotime.eliminar');
         $this->syncMessage = '';
 
         if ($biotimeEmployeeId <= 0) {
             $this->syncMessage = 'Id de empleado en BioTime no válido.';
+
             return;
         }
 
@@ -564,16 +580,17 @@ class BiotimeSyncLive extends Component
                 ]);
             }
 
-            $this->syncMessage = 'Empleado eliminado de BioTime.' . ($cliente ? ' Cliente local actualizado (biotime_state = false).' : '');
+            $this->syncMessage = 'Empleado eliminado de BioTime.'.($cliente ? ' Cliente local actualizado (biotime_state = false).' : '');
             $this->loadEmployees();
         } catch (\Throwable $e) {
             $msg = $e->getMessage();
             if (str_contains($msg, '404') || str_contains($msg, 'No encontrado') || str_contains($msg, 'not found')) {
                 $this->syncMessage = 'El empleado no existe en BioTime o ya fue eliminado.';
                 $this->loadEmployees();
+
                 return;
             }
-            $this->syncMessage = 'Error al eliminar de BioTime: ' . $msg;
+            $this->syncMessage = 'Error al eliminar de BioTime: '.$msg;
         }
     }
 

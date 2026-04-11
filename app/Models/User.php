@@ -11,7 +11,10 @@ use App\Models\Core\ClienteMembresia;
 use App\Models\Core\EvaluacionFisica;
 use App\Models\Core\Pago;
 use App\Models\System\AuditLog;
+use App\Models\System\Sucursal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -42,6 +45,7 @@ class User extends Authenticatable
         'header_bg',
         'body_bg',
         'font_size',
+        'default_sucursal_id',
     ];
 
     /**
@@ -66,6 +70,7 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'default_sucursal_id' => 'integer',
         ];
     }
 
@@ -125,5 +130,15 @@ class User extends Authenticatable
     public function citasComoTrainer(): HasMany
     {
         return $this->hasMany(Cita::class, 'trainer_user_id');
+    }
+
+    public function sucursales(): BelongsToMany
+    {
+        return $this->belongsToMany(Sucursal::class, 'sucursal_user')->withTimestamps();
+    }
+
+    public function defaultSucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class, 'default_sucursal_id');
     }
 }

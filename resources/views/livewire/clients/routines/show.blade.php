@@ -7,7 +7,7 @@
         <div class="flex gap-2">
             <flux:button href="{{ route('clientes.rutinas.index', $cliente) }}" variant="ghost" size="xs" wire:navigate>Volver a rutinas</flux:button>
             <flux:button href="{{ route('clientes.rutinas.sesiones.index', [$cliente, $clientRoutine]) }}" variant="ghost" size="xs" wire:navigate>Sesiones</flux:button>
-            @can('ejercicios-rutinas.update')
+            @can('ejercicio_rutina.editar')
             <flux:button href="{{ route('clientes.rutinas.sesiones.create', [$cliente, $clientRoutine]) }}" variant="primary" size="xs" wire:navigate>Registrar sesión</flux:button>
             @endcan
         </div>

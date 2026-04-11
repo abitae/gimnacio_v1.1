@@ -11,7 +11,7 @@ class Show extends Component
 
     public function mount(RoutineTemplate $template): void
     {
-        $this->authorize('ejercicios-rutinas.view');
+        $this->authorize('ejercicio_rutina.ver');
         $this->template = $template->load(['days.exercises.exercise']);
     }
 

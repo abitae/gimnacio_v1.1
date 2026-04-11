@@ -4,7 +4,7 @@
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Objetivos nutricionales</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">Por cliente y trainer</p>
         </div>
-        @can('gestion-nutricional.create')
+        @can('gestion_nutricional.crear')
         <flux:button icon="plus" size="xs" href="{{ route('gestion-nutricional.objetivos.create', $clienteId ? ['cliente_id' => $clienteId] : []) }}" wire:navigate>Nuevo objetivo</flux:button>
         @endcan
     </div>

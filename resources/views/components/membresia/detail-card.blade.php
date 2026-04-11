@@ -97,7 +97,7 @@
 
     <!-- Botones de Acción -->
     <div class="border-t border-zinc-200 dark:border-zinc-700 pt-2 space-y-1.5">
-        @can('membresias.update')
+        @can('membresia.editar')
         <div class="flex gap-1.5">
             <flux:button icon="pencil" color="blue" variant="primary" size="xs"
                 wire:click="openEditModal({{ $membresia->id }})" class="flex-1" aria-label="Editar membresía">
@@ -105,7 +105,7 @@
             </flux:button>
         </div>
         @endcan
-        @can('membresias.delete')
+        @can('membresia.eliminar')
         <flux:button icon="trash" color="red" variant="primary" size="xs"
             wire:click="openDeleteModal({{ $membresia->id }})" class="w-full" aria-label="Eliminar membresía">
             Eliminar

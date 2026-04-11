@@ -5,7 +5,7 @@
                 <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Categorías de Productos</h1>
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">Administra las categorías de productos</p>
             </div>
-            @can('categorias-productos.create')
+            @can('categoria_producto.crear')
             <flux:button icon="plus" color="purple" variant="primary" size="xs" wire:click="openCreateModal">
                 Nueva Categoría
             </flux:button>
@@ -52,10 +52,10 @@
                                 </td>
                                 <td class="px-4 py-2.5 text-xs">
                                     <div class="flex gap-2">
-                                        @can('categorias-productos.update')
+                                        @can('categoria_producto.editar')
                                         <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $categoria->id }})">Editar</flux:button>
                                         @endcan
-                                        @can('categorias-productos.delete')
+                                        @can('categoria_producto.eliminar')
                                         <flux:button size="xs" variant="ghost" color="red" wire:click="openDeleteModal({{ $categoria->id }})">Eliminar</flux:button>
                                         @endcan
                                     </div>
@@ -106,7 +106,7 @@
         </form>
     </flux:modal>
 
-    @can('categorias-productos.delete')
+    @can('categoria_producto.eliminar')
     <!-- Modal Delete -->
     <flux:modal name="delete-modal" wire:model="modalState.delete" focusable flyout variant="floating" class="md:w-lg">
         <div class="p-4">

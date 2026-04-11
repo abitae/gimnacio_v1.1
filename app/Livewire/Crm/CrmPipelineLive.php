@@ -12,19 +12,25 @@ class CrmPipelineLive extends Component
     use FlashesToast;
 
     public $search = '';
+
     public $assignedFilter = '';
+
     public $canalFilter = '';
 
     /** Límite de leads por columna en el Kanban */
     public int $perStageLimit = 25;
 
     public $modalLead = false;
+
     public $modalConvert = false;
+
     public $selectedLeadId = null;
+
     public $editingLeadId = null;
 
     /** Para mostrar loading al mover lead (leadId => stageId) */
     public $movingLeadId = null;
+
     public $movingToStageId = null;
 
     protected LeadService $leadService;
@@ -36,7 +42,7 @@ class CrmPipelineLive extends Component
 
     public function mount()
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
     }
 
     public function getStagesProperty()
@@ -55,14 +61,14 @@ class CrmPipelineLive extends Component
 
     public function openNewLead()
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $this->editingLeadId = null;
         $this->modalLead = true;
     }
 
     public function openEditLead($id)
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $this->editingLeadId = (int) $id;
         $this->modalLead = true;
     }
@@ -74,15 +80,16 @@ class CrmPipelineLive extends Component
 
     public function moveToStage(int $leadId, int $stageId)
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $this->movingLeadId = $leadId;
         $this->movingToStageId = $stageId;
 
         $lead = Lead::find($leadId);
-        if (!$lead) {
+        if (! $lead) {
             $this->movingLeadId = null;
             $this->movingToStageId = null;
             $this->flashToast('error', 'Lead no encontrado');
+
             return;
         }
         $this->leadService->moveToStage($lead, $stageId);
@@ -105,7 +112,7 @@ class CrmPipelineLive extends Component
 
     public function openConvertModal($id)
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $this->selectedLeadId = (int) $id;
         $this->modalConvert = true;
     }

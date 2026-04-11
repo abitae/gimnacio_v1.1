@@ -49,7 +49,7 @@ class EmployeesIndexLive extends Component
 
     public function mount()
     {
-        $this->authorize('biotime.view');
+        $this->authorize('biotime.ver');
     }
 
     public function switchTab(string $tab)
@@ -83,7 +83,7 @@ class EmployeesIndexLive extends Component
         if ($search === '') {
             return;
         }
-        $term = '%' . $search . '%';
+        $term = '%'.$search.'%';
         $query->where(function ($q) use ($term) {
             $q->where('nombres', 'like', $term)
                 ->orWhere('apellidos', 'like', $term)
@@ -141,12 +141,13 @@ class EmployeesIndexLive extends Component
      */
     public function suspendCliente(int $clienteId)
     {
-        $this->authorize('biotime.delete');
+        $this->authorize('biotime.eliminar');
         $this->message = '';
         $this->messageSuccess = false;
         $cliente = Cliente::where('estado_cliente', 'inactivo')->find($clienteId);
         if (! $cliente) {
             $this->message = 'Cliente no encontrado o no está inactivo.';
+
             return;
         }
         try {
@@ -156,10 +157,10 @@ class EmployeesIndexLive extends Component
                 'biotime_state' => false,
                 'biotime_update' => false,
             ]);
-            $this->message = $cliente->nombres . ' ' . $cliente->apellidos . ' suspendido. Eliminado de BioTime si existía.';
+            $this->message = $cliente->nombres.' '.$cliente->apellidos.' suspendido. Eliminado de BioTime si existía.';
             $this->messageSuccess = true;
         } catch (\Throwable $e) {
-            $this->message = 'Error: ' . $e->getMessage();
+            $this->message = 'Error: '.$e->getMessage();
         }
         $this->confirmSuspendId = null;
     }
@@ -169,13 +170,14 @@ class EmployeesIndexLive extends Component
      */
     public function suspendClientesMasivo()
     {
-        $this->authorize('biotime.delete');
+        $this->authorize('biotime.eliminar');
         $this->message = '';
         $this->messageSuccess = false;
         $clientes = $this->clientesInactivosAll;
         if ($clientes->isEmpty()) {
             $this->message = 'No hay clientes inactivos para suspender.';
             $this->showSuspendMasivoModal = false;
+
             return;
         }
         set_time_limit(120);
@@ -186,6 +188,7 @@ class EmployeesIndexLive extends Component
             $fresh = Cliente::find($cliente->id);
             if (! $fresh || $fresh->estado_cliente !== 'inactivo') {
                 $skipped++;
+
                 continue;
             }
             try {
@@ -197,17 +200,17 @@ class EmployeesIndexLive extends Component
                 ]);
                 $count++;
             } catch (\Throwable $e) {
-                $errors[] = $fresh->nombres . ' ' . $fresh->apellidos . ': ' . $e->getMessage();
+                $errors[] = $fresh->nombres.' '.$fresh->apellidos.': '.$e->getMessage();
             }
         }
-        $this->message = "Suspendidos: {$count} de " . $clientes->count() . '.';
+        $this->message = "Suspendidos: {$count} de ".$clientes->count().'.';
         if ($skipped > 0) {
             $this->message .= " Omitidos (activos): {$skipped}.";
         }
         if (count($errors) > 0) {
-            $this->message .= ' Errores: ' . implode('; ', array_slice($errors, 0, 3));
+            $this->message .= ' Errores: '.implode('; ', array_slice($errors, 0, 3));
             if (count($errors) > 3) {
-                $this->message .= '... (+' . (count($errors) - 3) . ' más)';
+                $this->message .= '... (+'.(count($errors) - 3).' más)';
             }
         }
         $this->messageSuccess = $count > 0;

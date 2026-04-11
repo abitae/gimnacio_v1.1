@@ -13,11 +13,15 @@ class Index extends Component
     use FlashesToast, WithPagination;
 
     public string $search = '';
+
     public string $estadoFilter = '';
+
     public int $perPage = 15;
 
     public array $modalState = ['create' => false];
+
     public ?int $templateId = null;
+
     public array $form = [
         'nombre' => '',
         'objetivo' => '',
@@ -28,6 +32,7 @@ class Index extends Component
         'tags' => [],
         'estado' => 'borrador',
     ];
+
     public string $tagsInput = '';
 
     protected $queryString = [
@@ -52,7 +57,7 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->authorize('ejercicios-rutinas.view');
+        $this->authorize('ejercicio_rutina.ver');
         if (request()->has('editar')) {
             $id = (int) request('editar');
             if ($id > 0) {
@@ -63,17 +68,18 @@ class Index extends Component
 
     public function openCreateModal(): void
     {
-        $this->authorize('ejercicios-rutinas.create');
+        $this->authorize('ejercicio_rutina.crear');
         $this->resetForm();
         $this->modalState['create'] = true;
     }
 
     public function openEditModal($id): void
     {
-        $this->authorize('ejercicios-rutinas.update');
+        $this->authorize('ejercicio_rutina.editar');
         $template = RoutineTemplate::find($id);
         if (! $template) {
             $this->flashToast('error', 'Rutina no encontrada.');
+
             return;
         }
         $this->templateId = $template->id;
@@ -115,7 +121,7 @@ class Index extends Component
 
     public function save(): void
     {
-        $this->authorize($this->templateId ? 'ejercicios-rutinas.update' : 'ejercicios-rutinas.create');
+        $this->authorize($this->templateId ? 'ejercicio_rutina.editar' : 'ejercicio_rutina.crear');
         $this->validate();
         $parts = array_map('trim', explode(',', $this->tagsInput));
         $this->form['tags'] = array_values(array_filter($parts));
@@ -147,10 +153,11 @@ class Index extends Component
 
     public function cloneTemplate(int $id, RoutineTemplateService $service): void
     {
-        $this->authorize('ejercicios-rutinas.create');
+        $this->authorize('ejercicio_rutina.crear');
         $template = RoutineTemplate::find($id);
         if (! $template) {
             $this->flashToast('error', 'Rutina no encontrada.');
+
             return;
         }
         $newTemplate = $service->clone($template, auth()->user());
@@ -163,15 +170,16 @@ class Index extends Component
         $query = RoutineTemplate::query();
         if ($this->search !== '') {
             $query->where(function ($q) {
-                $q->where('nombre', 'like', '%' . $this->search . '%')
-                    ->orWhere('objetivo', 'like', '%' . $this->search . '%')
-                    ->orWhere('descripcion', 'like', '%' . $this->search . '%');
+                $q->where('nombre', 'like', '%'.$this->search.'%')
+                    ->orWhere('objetivo', 'like', '%'.$this->search.'%')
+                    ->orWhere('descripcion', 'like', '%'.$this->search.'%');
             });
         }
         if ($this->estadoFilter !== '') {
             $query->where('estado', $this->estadoFilter);
         }
         $templates = $query->orderBy('nombre')->paginate($this->perPage);
+
         return view('livewire.routines.templates.index', ['templates' => $templates]);
     }
 }

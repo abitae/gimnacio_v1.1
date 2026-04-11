@@ -43,7 +43,9 @@
             </div>
         </div>
 
-        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+            wire:loading.delay.class="opacity-60 pointer-events-none"
+            wire:target="search,estadoFilter,perPage">
             @forelse ($clientes as $cliente)
                 <div wire:key="cliente-card-{{ $cliente->id }}" class="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50/50 p-2 dark:border-zinc-700 dark:bg-zinc-900/40">
                     <x-cliente.profile-card

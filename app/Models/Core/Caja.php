@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Caja extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -22,6 +24,7 @@ class Caja extends Model
         'estado',
         'observaciones_apertura',
         'observaciones_cierre',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -31,6 +34,7 @@ class Caja extends Model
             'saldo_final' => 'decimal:2',
             'fecha_apertura' => 'datetime',
             'fecha_cierre' => 'datetime',
+            'sucursal_id' => 'integer',
         ];
     }
 

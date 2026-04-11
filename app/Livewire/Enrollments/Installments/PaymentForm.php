@@ -25,7 +25,7 @@ class PaymentForm extends Component
 
     public function mount(EnrollmentInstallment $installment): void
     {
-        $this->authorize('cliente-matriculas.update');
+        $this->authorize('matricula_cliente.editar');
         $this->installment = $installment->load(['plan.cliente', 'clienteMatricula.cliente']);
         $this->form['monto'] = (string) $installment->monto;
         $this->form['fecha_pago'] = now()->format('Y-m-d');

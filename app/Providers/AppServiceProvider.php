@@ -2,11 +2,14 @@
 
 namespace App\Providers;
 
+use App\Services\SucursalContext;
 use App\Services\WhatsApp\MockWhatsAppService;
 use App\Services\WhatsApp\WhatsAppServiceInterface;
 use App\Support\PermissionCatalog;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -19,6 +22,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(WhatsAppServiceInterface::class, MockWhatsAppService::class);
+        $this->app->singleton(SucursalContext::class);
     }
 
     /**
@@ -26,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Opción B (Spatie): super-admin pasa cualquier comprobación de autorización sin listar todos los permisos en BD.
+        // Opción B (Spatie): super_administrador pasa cualquier comprobación de autorización sin listar todos los permisos en BD.
         Gate::before(function ($user, $ability) {
             if ($user === null || ! is_string($ability)) {
                 return null;
@@ -38,6 +42,21 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Gate::policy(\App\Models\Crm\Lead::class, \App\Policies\Crm\LeadPolicy::class);
+
+        $slowMs = (int) env('DB_SLOW_QUERY_LOG_MS', 0);
+        if ($slowMs > 0 && (bool) config('app.debug')) {
+            DB::listen(function ($query) use ($slowMs): void {
+                if ($query->time < $slowMs) {
+                    return;
+                }
+                Log::warning('Consulta lenta', [
+                    'sql' => $query->sql,
+                    'bindings' => $query->bindings,
+                    'ms' => $query->time,
+                    'connection' => $query->connectionName,
+                ]);
+            });
+        }
 
         $this->app->booted(function () {
             Schedule::command('crm:mark-overdue-tasks')->hourly();
@@ -117,6 +136,10 @@ class AppServiceProvider extends ServiceProvider
                 };
             }
 
+            $sucursalContext = app(SucursalContext::class);
+            $activeSucursal = Auth::check() ? $sucursalContext->sucursal() : null;
+            $availableSucursales = Auth::check() ? $sucursalContext->availableForUser(Auth::user()) : collect();
+
             $view->with('bodyAppearanceClass', $bodyAppearanceClass);
             $view->with('appearanceValue', $appearanceValue);
             $view->with('sidebarAppearanceClass', $sidebarAppearanceClass);
@@ -133,6 +156,8 @@ class AppServiceProvider extends ServiceProvider
             $view->with('bodyBgValue', $bodyBgValue);
             $view->with('fontSizeValue', $fontSizeValue);
             $view->with('fontSizeClass', $fontSizeClass);
+            $view->with('activeSucursal', $activeSucursal);
+            $view->with('availableSucursales', $availableSucursales);
         });
     }
 }

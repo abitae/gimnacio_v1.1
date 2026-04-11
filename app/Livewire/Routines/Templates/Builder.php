@@ -23,7 +23,7 @@ class Builder extends Component
 
     public function mount(RoutineTemplate $template): void
     {
-        $this->authorize('ejercicios-rutinas.update');
+        $this->authorize('ejercicio_rutina.editar');
         $this->template = $template->load(['days.exercises.exercise']);
         $this->hydrateDays();
     }
@@ -77,7 +77,7 @@ class Builder extends Component
         }
         $day = new RoutineTemplateDay;
         $day->routine_template_id = $this->template->id;
-        $day->nombre = 'Día ' . (count($this->days) + 1);
+        $day->nombre = 'Día '.(count($this->days) + 1);
         $day->orden = $maxOrden;
         $day->save();
         $this->template->load(['days.exercises']);
@@ -140,6 +140,7 @@ class Builder extends Component
         $exerciseId = $data['exercise_id'] ?? null;
         if (! $exerciseId) {
             $this->flashToast('error', 'Selecciona un ejercicio.');
+
             return;
         }
         $day = RoutineTemplateDay::where('routine_template_id', $this->template->id)->find($dayId);
@@ -230,6 +231,7 @@ class Builder extends Component
     public function render()
     {
         $exercisesForSelect = Exercise::where('estado', 'activo')->orderBy('nombre')->get();
+
         return view('livewire.routines.templates.builder', ['exercisesForSelect' => $exercisesForSelect]);
     }
 }

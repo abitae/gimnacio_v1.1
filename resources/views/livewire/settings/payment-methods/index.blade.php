@@ -5,7 +5,7 @@
                 <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Métodos de pago</h1>
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">Configura los métodos de pago para ventas, matrículas y cobros</p>
             </div>
-            @can('payment-methods.create')
+            @can('metodo_pago.crear')
             <flux:button icon="plus" color="purple" variant="primary" size="xs" wire:click="openCreateModal">
                 Nuevo método
             </flux:button>
@@ -64,13 +64,13 @@
                                 </td>
                                 <td class="px-4 py-2.5 text-xs">
                                     <div class="flex gap-2">
-                                        @can('payment-methods.update')
+                                        @can('metodo_pago.editar')
                                         <flux:button size="xs" variant="ghost" wire:click="toggleEstado({{ $method->id }})">
                                             {{ $method->estado === 'activo' ? 'Desactivar' : 'Activar' }}
                                         </flux:button>
                                         <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $method->id }})">Editar</flux:button>
                                         @endcan
-                                        @can('payment-methods.delete')
+                                        @can('metodo_pago.eliminar')
                                         <flux:button size="xs" variant="ghost" color="red" wire:click="openDeleteModal({{ $method->id }})">Eliminar</flux:button>
                                         @endcan
                                     </div>
@@ -134,7 +134,7 @@
         </form>
     </flux:modal>
 
-    @can('payment-methods.delete')
+    @can('metodo_pago.eliminar')
     <flux:modal name="delete-modal" wire:model="modalState.delete" focusable flyout variant="floating" class="md:w-lg">
         <div class="p-4">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Eliminar método de pago</h2>

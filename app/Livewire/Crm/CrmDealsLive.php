@@ -12,11 +12,15 @@ class CrmDealsLive extends Component
     use FlashesToast, WithPagination;
 
     public $search = '';
+
     public $estadoFilter = '';
+
     public $assignedFilter = 'me';
+
     public $perPage = 15;
 
     protected DealService $dealService;
+
     protected $paginationTheme = 'tailwind';
 
     public function boot(DealService $dealService)
@@ -26,7 +30,7 @@ class CrmDealsLive extends Component
 
     public function mount()
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
     }
 
     public function render()
@@ -37,6 +41,7 @@ class CrmDealsLive extends Component
             'search' => $this->search ?: null,
         ];
         $deals = $this->dealService->paginate($filters, $this->perPage);
+
         return view('livewire.crm.crm-deals-live', ['deals' => $deals]);
     }
 }

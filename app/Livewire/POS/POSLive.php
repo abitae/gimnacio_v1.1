@@ -14,7 +14,9 @@ use App\Services\ClienteService;
 use App\Services\EnrollmentInstallmentService;
 use App\Services\ProductoService;
 use App\Services\ServicioExternoService;
+use App\Services\SucursalContext;
 use App\Services\VentaService;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
 class POSLive extends Component
@@ -173,7 +175,7 @@ class POSLive extends Component
 
     public function mount()
     {
-        $this->authorize('pos.view');
+        $this->authorize('punto_venta.ver');
         $this->clientesCobro = collect([]);
         $this->clientesProcesar = collect([]);
         $this->employeesProcesar = collect([]);
@@ -932,36 +934,61 @@ class POSLive extends Component
 
     public function render()
     {
-        // Obtener categorías según el tipo seleccionado
+        $sucursalId = app(SucursalContext::class)->getSucursalId() ?? 0;
+        $catalogTtl = 120;
+        $deudaTtl = 25;
+
+        // Obtener categorías según el tipo seleccionado (caché corta por sucursal)
         if ($this->tipoItem === 'producto') {
-            $categorias = \App\Models\Core\CategoriaProducto::where('estado', 'activa')
-                ->orderBy('nombre')
-                ->get();
+            $categorias = Cache::remember(
+                "pos.categorias_producto.{$sucursalId}",
+                $catalogTtl,
+                fn () => \App\Models\Core\CategoriaProducto::where('estado', 'activa')
+                    ->orderBy('nombre')
+                    ->get()
+            );
             $itemsPorCategoria = $this->obtenerProductosPorCategoria();
         } else {
-            $categorias = \App\Models\Core\CategoriaServicio::where('estado', 'activa')
-                ->orderBy('nombre')
-                ->get();
+            $categorias = Cache::remember(
+                "pos.categorias_servicio.{$sucursalId}",
+                $catalogTtl,
+                fn () => \App\Models\Core\CategoriaServicio::where('estado', 'activa')
+                    ->orderBy('nombre')
+                    ->get()
+            );
             $itemsPorCategoria = $this->obtenerServiciosPorCategoria();
         }
 
-        // Clientes con deuda (tienen al menos un pago con saldo_pendiente > 0 y deuda_total > 0)
-        $clienteIdsConSaldo = \App\Models\Core\Pago::where('saldo_pendiente', '>', 0)
-            ->distinct()
-            ->pluck('cliente_id')
-            ->filter()
-            ->unique()
-            ->values();
-        $clientesConDeuda = collect([]);
-        if ($clienteIdsConSaldo->isNotEmpty()) {
-            $clientesConDeuda = \App\Models\Core\Cliente::whereIn('id', $clienteIdsConSaldo)
-                ->orderBy('nombres')
-                ->get()
-                ->filter(fn ($c) => $c->deuda_total > 0)
-                ->values();
-        }
+        // Clientes con deuda: caché breve + tope para no evaluar deuda_total en exceso
+        $clientesConDeuda = Cache::remember(
+            "pos.clientes_con_deuda.{$sucursalId}",
+            $deudaTtl,
+            function () {
+                $clienteIdsConSaldo = \App\Models\Core\Pago::where('saldo_pendiente', '>', 0)
+                    ->distinct()
+                    ->pluck('cliente_id')
+                    ->filter()
+                    ->unique()
+                    ->take(200)
+                    ->values();
+                if ($clienteIdsConSaldo->isEmpty()) {
+                    return collect();
+                }
 
-        $paymentMethods = PaymentMethod::activos()->orderBy('nombre')->get();
+                return \App\Models\Core\Cliente::whereIn('id', $clienteIdsConSaldo)
+                    ->orderBy('nombres')
+                    ->limit(100)
+                    ->get()
+                    ->filter(fn ($c) => $c->deuda_total > 0)
+                    ->values();
+            }
+        );
+
+        $paymentMethods = Cache::remember(
+            "pos.payment_methods.{$sucursalId}",
+            $catalogTtl,
+            fn () => PaymentMethod::activos()->orderBy('nombre')->get()
+        );
         $selectedPaymentMethod = $this->paymentMethodId ? PaymentMethod::find($this->paymentMethodId) : null;
         $cobroPaymentMethod = isset($this->cobroFormData['payment_method_id']) && $this->cobroFormData['payment_method_id']
             ? PaymentMethod::find($this->cobroFormData['payment_method_id']) : null;

@@ -13,13 +13,19 @@ class CrmCampaignsLive extends Component
     use FlashesToast, WithPagination;
 
     public $search = '';
+
     public $modalForm = false;
+
     public $editingId = null;
+
     public $nombre = '';
+
     public $tipo = 'captacion';
+
     public $estado = 'draft';
 
     protected CampaignService $campaignService;
+
     protected $paginationTheme = 'tailwind';
 
     public function boot(CampaignService $campaignService)
@@ -29,12 +35,12 @@ class CrmCampaignsLive extends Component
 
     public function mount()
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
     }
 
     public function openCreate()
     {
-        $this->authorize('crm.create');
+        $this->authorize('crm.crear');
         $this->editingId = null;
         $this->nombre = '';
         $this->tipo = 'captacion';
@@ -44,9 +50,11 @@ class CrmCampaignsLive extends Component
 
     public function openEdit(int $id)
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $c = Campaign::find($id);
-        if (!$c) return;
+        if (! $c) {
+            return;
+        }
         $this->editingId = $id;
         $this->nombre = $c->nombre;
         $this->tipo = $c->tipo;
@@ -56,7 +64,7 @@ class CrmCampaignsLive extends Component
 
     public function save()
     {
-        $this->authorize($this->editingId ? 'crm.update' : 'crm.create');
+        $this->authorize($this->editingId ? 'crm.editar' : 'crm.crear');
         $this->validate(['nombre' => 'required|string|max:120']);
         if ($this->editingId) {
             $c = Campaign::findOrFail($this->editingId);
@@ -87,9 +95,10 @@ class CrmCampaignsLive extends Component
     {
         $q = Campaign::query()->with('createdBy')->orderBy('updated_at', 'desc');
         if ($this->search) {
-            $q->where('nombre', 'like', '%' . $this->search . '%');
+            $q->where('nombre', 'like', '%'.$this->search.'%');
         }
         $campaigns = $q->paginate(15);
+
         return view('livewire.crm.crm-campaigns-live', ['campaigns' => $campaigns]);
     }
 }

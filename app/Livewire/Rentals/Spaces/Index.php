@@ -29,12 +29,12 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->authorize('rentals.view');
+        $this->authorize('alquiler.ver');
     }
 
     public function openCreateModal(): void
     {
-        $this->authorize('rentals.create');
+        $this->authorize('alquiler.crear');
         $this->resetForm();
         $this->spaceId = null;
         $this->modalState['create'] = true;
@@ -42,10 +42,11 @@ class Index extends Component
 
     public function openEditModal(int $id): void
     {
-        $this->authorize('rentals.update');
+        $this->authorize('alquiler.editar');
         $space = RentableSpace::find($id);
         if (! $space) {
             $this->flashToast('error', 'Espacio no encontrado.');
+
             return;
         }
         $this->spaceId = $space->id;
@@ -61,7 +62,7 @@ class Index extends Component
 
     public function save(): void
     {
-        $this->authorize($this->spaceId ? 'rentals.update' : 'rentals.create');
+        $this->authorize($this->spaceId ? 'alquiler.editar' : 'alquiler.crear');
         $this->validate([
             'formData.nombre' => 'required|string|max:120',
             'formData.capacidad' => 'nullable|integer|min:0',
@@ -111,7 +112,7 @@ class Index extends Component
 
     public function toggleEstado(RentableSpace $space): void
     {
-        $this->authorize('rentals.update');
+        $this->authorize('alquiler.editar');
         $space->update(['estado' => $space->estado === 'activo' ? 'inactivo' : 'activo']);
         $this->flashToast('success', 'Estado actualizado.');
     }

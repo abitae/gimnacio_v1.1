@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Clase extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -21,6 +23,7 @@ class Clase extends Model
         'sesiones_paquete',
         'instructor_id',
         'estado',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -29,6 +32,7 @@ class Clase extends Model
             'precio_sesion' => 'decimal:2',
             'precio_paquete' => 'decimal:2',
             'sesiones_paquete' => 'integer',
+            'sucursal_id' => 'integer',
         ];
     }
 
@@ -41,8 +45,8 @@ class Clase extends Model
     // Métodos de negocio
     public function obtenerPrecio(): float
     {
-        return $this->tipo === 'paquete' 
-            ? (float) $this->precio_paquete 
+        return $this->tipo === 'paquete'
+            ? (float) $this->precio_paquete
             : (float) $this->precio_sesion;
     }
 }

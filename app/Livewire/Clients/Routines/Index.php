@@ -11,13 +11,13 @@ class Index extends Component
 
     public function mount(Cliente $cliente): void
     {
-        $this->authorize('ejercicios-rutinas.view');
+        $this->authorize('ejercicio_rutina.ver');
         $this->cliente = $cliente->load(['clientRoutines.trainer', 'clientRoutines.routineTemplate']);
     }
 
     public function pausar(int $id): void
     {
-        $this->authorize('ejercicios-rutinas.update');
+        $this->authorize('ejercicio_rutina.editar');
         $routine = $this->cliente->clientRoutines()->find($id);
         if ($routine && $routine->estado === 'activa') {
             $routine->update(['estado' => 'pausada']);
@@ -27,7 +27,7 @@ class Index extends Component
 
     public function finalizar(int $id): void
     {
-        $this->authorize('ejercicios-rutinas.update');
+        $this->authorize('ejercicio_rutina.editar');
         $routine = $this->cliente->clientRoutines()->find($id);
         if ($routine) {
             $routine->update(['estado' => 'finalizada', 'fecha_fin' => now()->toDateString()]);

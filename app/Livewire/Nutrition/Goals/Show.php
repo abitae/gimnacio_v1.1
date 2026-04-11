@@ -18,7 +18,7 @@ class Show extends Component
 
     public function mount(NutritionGoal $goal): void
     {
-        $this->authorize('gestion-nutricional.view');
+        $this->authorize('gestion_nutricional.ver');
         $this->goal = $goal;
     }
 
@@ -29,6 +29,6 @@ class Show extends Component
 
         return view('livewire.nutrition.goals.show', [
             'progress' => $progress,
-        ])->layout('layouts.app', ['title' => 'Objetivo: ' . ($this->goal->objetivo_personalizado ?: (\App\Models\Core\NutritionGoal::OBJETIVOS[$this->goal->objetivo] ?? $this->goal->objetivo))]);
+        ])->layout('layouts.app', ['title' => 'Objetivo: '.($this->goal->objetivo_personalizado ?: (\App\Models\Core\NutritionGoal::OBJETIVOS[$this->goal->objetivo] ?? $this->goal->objetivo))]);
     }
 }

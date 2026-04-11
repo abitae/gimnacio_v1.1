@@ -13,16 +13,22 @@ class Assign extends Component
     use FlashesToast;
 
     public string $tipo_documento = 'DNI';
+
     public string $numero_documento = '';
+
     public ?Cliente $cliente = null;
+
     public ?int $routine_template_id = null;
+
     public string $fecha_inicio = '';
+
     public string $objetivo_personal = '';
+
     public string $restricciones = '';
 
     public function mount(): void
     {
-        $this->authorize('ejercicios-rutinas.create');
+        $this->authorize('ejercicio_rutina.crear');
         $this->fecha_inicio = now()->toDateString();
     }
 
@@ -44,7 +50,7 @@ class Assign extends Component
 
     public function asignar(ClientRoutineService $service): void
     {
-        $this->authorize('ejercicios-rutinas.create');
+        $this->authorize('ejercicio_rutina.crear');
         $this->validate([
             'cliente' => ['required'],
             'routine_template_id' => ['required', 'exists:routine_templates,id'],
@@ -58,6 +64,7 @@ class Assign extends Component
         $template = RoutineTemplate::find($this->routine_template_id);
         if (! $template) {
             $this->flashToast('error', 'Rutina no encontrada.');
+
             return;
         }
         $routine = $service->assignFromTemplate($this->cliente, $template, auth()->user(), [
@@ -72,6 +79,7 @@ class Assign extends Component
     public function render()
     {
         $templates = RoutineTemplate::where('estado', 'activa')->orderBy('nombre')->get();
+
         return view('livewire.clients.routines.assign', ['templates' => $templates]);
     }
 }

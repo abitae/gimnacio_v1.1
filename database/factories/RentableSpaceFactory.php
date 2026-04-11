@@ -15,7 +15,7 @@ class RentableSpaceFactory extends Factory
     public function definition(): array
     {
         return [
-            'nombre' => fake()->unique()->randomElement(['Cancha', 'Salón', 'Sala', 'Auditorio']) . ' ' . fake()->unique()->numerify('##'),
+            'nombre' => fake()->randomElement(['Cancha', 'Salón', 'Sala', 'Auditorio']).' '.fake()->unique()->numberBetween(1, 999_999_999),
             'descripcion' => fake()->sentence(),
             'capacidad' => fake()->numberBetween(4, 40),
             'estado' => 'activo',

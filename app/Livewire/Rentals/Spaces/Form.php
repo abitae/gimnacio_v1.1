@@ -22,7 +22,7 @@ class Form extends Component
 
     public function mount(?RentableSpace $space = null): void
     {
-        $this->authorize($space ? 'rentals.update' : 'rentals.create');
+        $this->authorize($space ? 'alquiler.editar' : 'alquiler.crear');
         $this->space = $space;
         if ($space) {
             $this->form = [

@@ -29,7 +29,7 @@ class Form extends Component
     public function mount(): void
     {
         $this->couponId = $this->coupon?->id;
-        $this->authorize($this->couponId ? 'cupones.update' : 'cupones.create');
+        $this->authorize($this->couponId ? 'cupon.editar' : 'cupon.crear');
         if ($this->coupon) {
             $c = $this->coupon;
             $this->form = [
@@ -51,7 +51,7 @@ class Form extends Component
 
     public function save(): void
     {
-        $this->authorize($this->couponId ? 'cupones.update' : 'cupones.create');
+        $this->authorize($this->couponId ? 'cupon.editar' : 'cupon.crear');
         $rules = [
             'form.codigo' => 'required|string|max:60',
             'form.nombre' => 'required|string|max:120',
@@ -63,7 +63,7 @@ class Form extends Component
             'form.estado' => 'required|in:activo,inactivo',
         ];
         if ($this->couponId) {
-            $rules['form.codigo'] = 'required|string|max:60|unique:discount_coupons,codigo,' . $this->couponId;
+            $rules['form.codigo'] = 'required|string|max:60|unique:discount_coupons,codigo,'.$this->couponId;
         } else {
             $rules['form.codigo'] = 'required|string|max:60|unique:discount_coupons,codigo';
         }

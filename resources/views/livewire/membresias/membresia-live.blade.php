@@ -6,7 +6,7 @@
                 <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Membresías</h1>
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">Administra los planes de membresía del gimnasio</p>
             </div>
-            @can('membresias.create')
+            @can('membresia.crear')
             <flux:button icon="plus" color="purple" variant="primary" size="xs" wire:click="openCreateModal"
                 wire:loading.attr="disabled" wire:target="openCreateModal" aria-label="Crear nueva membresía">
                 <span wire:loading.remove wire:target="openCreateModal">Nueva Membresía</span>
@@ -259,7 +259,7 @@
         </form>
     </flux:modal>
 
-    @can('membresias.delete')
+    @can('membresia.eliminar')
     <!-- Delete Modal -->
     <flux:modal name="delete-modal" wire:model="modalState.delete" focusable class="md:w-lg">
         <div class="p-4">

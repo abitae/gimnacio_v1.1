@@ -12,18 +12,19 @@ class Show extends Component
     use FlashesToast;
 
     public Cliente $cliente;
+
     public WorkoutSession $workoutSession;
 
     public function mount(Cliente $cliente, WorkoutSession $workoutSession): void
     {
-        $this->authorize('ejercicios-rutinas.view');
+        $this->authorize('ejercicio_rutina.ver');
         $this->cliente = $cliente;
         $this->workoutSession = $workoutSession->load(['sessionExercises.exercise', 'sessionExercises.sets', 'clientRoutineDay', 'clientRoutine']);
     }
 
     public function completar(): void
     {
-        $this->authorize('ejercicios-rutinas.update');
+        $this->authorize('ejercicio_rutina.editar');
         $this->workoutSession->update(['estado' => 'completada']);
         $this->workoutSession->load(['sessionExercises.exercise', 'sessionExercises.sets']);
         $this->flashToast('success', 'Sesión marcada como completada.');

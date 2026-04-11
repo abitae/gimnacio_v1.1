@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Support\PermissionCatalog;
 use Illuminate\Database\Seeder;
@@ -10,7 +11,9 @@ use Illuminate\Support\Facades\Hash;
 class AdminUserSeeder extends Seeder
 {
     public const ADMIN_EMAIL = 'abel.arana@hotmail.com';
+
     public const ADMIN_NAME = 'Administrador';
+
     public const ADMIN_PASSWORD = 'lobomalo123';
 
     public function run(): void
@@ -33,6 +36,27 @@ class AdminUserSeeder extends Seeder
 
         if (! $user->hasRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME)) {
             $user->assignRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME);
+        }
+
+        $sucursalIds = Sucursal::query()
+            ->where('estado', 'activa')
+            ->orderByDesc('es_principal')
+            ->orderBy('id')
+            ->pluck('id')
+            ->all();
+
+        if ($sucursalIds !== []) {
+            $user->sucursales()->syncWithoutDetaching($sucursalIds);
+
+            $defaultSucursalId = Sucursal::query()
+                ->whereIn('id', $sucursalIds)
+                ->orderByDesc('es_principal')
+                ->orderBy('id')
+                ->value('id');
+
+            if ($user->default_sucursal_id !== $defaultSucursalId) {
+                $user->forceFill(['default_sucursal_id' => $defaultSucursalId])->save();
+            }
         }
 
         return $user->fresh();

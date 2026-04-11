@@ -21,8 +21,6 @@ class EdgeCaseSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call([BaseCatalogSeeder::class]);
-
         $user = User::first() ?? User::factory()->create();
         Auth::login($user);
 

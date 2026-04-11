@@ -36,7 +36,7 @@ it('allows super admin to access database backups screen', function () {
 
 it('forbids non super admin users from accessing database backups screen', function () {
     $user = User::factory()->create(['estado' => 'activo']);
-    $user->assignRole('administrador');
+    $user->assignRole('administrador_sucursal');
 
     $this->actingAs($user)
         ->get(route('administracion.backups.index'))

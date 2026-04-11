@@ -13,10 +13,13 @@ class CrmTasksLive extends Component
     use FlashesToast, WithPagination;
 
     public $view = 'my-day'; // 'my-day' | 'list'
+
     public $statusFilter = '';
+
     public $perPage = 15;
 
     protected CrmTaskService $taskService;
+
     protected $paginationTheme = 'tailwind';
 
     public function boot(CrmTaskService $taskService)
@@ -26,7 +29,7 @@ class CrmTasksLive extends Component
 
     public function mount()
     {
-        $this->authorize('crm.view');
+        $this->authorize('crm.ver');
     }
 
     public function getMyDayProperty(): array
@@ -36,9 +39,9 @@ class CrmTasksLive extends Component
 
     public function completeTask(int $id)
     {
-        $this->authorize('crm.update');
+        $this->authorize('crm.editar');
         $task = CrmTask::find($id);
-        if (!$task) {
+        if (! $task) {
             return;
         }
         $this->taskService->complete($task);
@@ -57,6 +60,7 @@ class CrmTasksLive extends Component
             $filters['status'] = $this->statusFilter;
         }
         $tasks = $this->taskService->paginate($filters, $this->perPage);
+
         return view('livewire.crm.crm-tasks-live', [
             'tasks' => $tasks,
             'myDay' => null,

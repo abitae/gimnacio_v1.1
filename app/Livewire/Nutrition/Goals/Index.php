@@ -22,7 +22,7 @@ class Index extends Component
 
     public function mount(): void
     {
-        $this->authorize('gestion-nutricional.view');
+        $this->authorize('gestion_nutricional.ver');
         $this->clienteId = request()->has('cliente_id') ? (int) request()->query('cliente_id') : null;
     }
 
@@ -36,7 +36,7 @@ class Index extends Component
 
         $goals = $query->paginate($this->perPage);
         $clientes = Cliente::where('estado_cliente', 'activo')->orderBy('nombres')->get(['id', 'nombres', 'apellidos']);
-        $trainers = \App\Models\User::role(['trainer', 'nutricionista', 'administrador', PermissionCatalog::SUPER_ADMIN_ROLE_NAME])->orderBy('name')->get(['id', 'name']);
+        $trainers = \App\Models\User::role(['trainer', 'nutricionista', 'administrador_sucursal', PermissionCatalog::SUPER_ADMIN_ROLE_NAME])->orderBy('name')->get(['id', 'name']);
 
         return view('livewire.nutrition.goals.index', [
             'goals' => $goals,

@@ -8,16 +8,6 @@ class BaseCatalogSeeder extends Seeder
 {
     public function run(): void
     {
-        $this->call([
-            RoleSeeder::class,
-            GymSettingSeeder::class,
-            BiotimeSettingSeeder::class,
-            ComprobanteConfigSeeder::class,
-            PaymentMethodSeeder::class,
-            CategoriaProductoSeeder::class,
-            CategoriaServicioSeeder::class,
-            CrmStageSeeder::class,
-            LossReasonSeeder::class,
-        ]);
+        $this->command?->warn('BaseCatalogSeeder ya no orquesta seeders. Ejecuta DatabaseSeeder en entorno local.');
     }
 }

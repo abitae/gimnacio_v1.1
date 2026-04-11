@@ -9,6 +9,7 @@ use Livewire\Component;
 class CalendarioCitasLive extends Component
 {
     use FlashesToast;
+
     public $modalDetalle = false;
 
     public $citaId = null;
@@ -24,7 +25,7 @@ class CalendarioCitasLive extends Component
 
     public function mount()
     {
-        $this->authorize('gestion-nutricional.view');
+        $this->authorize('gestion_nutricional.ver');
     }
 
     public function abrirDetalleCita($id)
@@ -33,6 +34,7 @@ class CalendarioCitasLive extends Component
         $cita = $this->citaService->find($id);
         if (! $cita) {
             $this->flashToast('error', 'Cita no encontrada');
+
             return;
         }
         $this->citaId = $id;
@@ -49,7 +51,7 @@ class CalendarioCitasLive extends Component
 
     public function actualizarEstadoCita()
     {
-        $this->authorize('gestion-nutricional.update');
+        $this->authorize('gestion_nutricional.editar');
         try {
             if (! $this->citaId) {
                 return;

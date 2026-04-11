@@ -17,7 +17,7 @@
                 </div>
             </div>
             <div class="flex flex-wrap items-center justify-end gap-2.5">
-                @can('clientes.create')
+                @can('cliente.crear')
                     <flux:button
                         size="sm"
                         icon="plus"
@@ -30,7 +30,7 @@
                     </flux:button>
                 @endcan
                 @if ($selectedCliente)
-                    @can('clientes.update')
+                    @can('cliente.editar')
                         <flux:button
                             size="sm"
                             icon="pencil"
@@ -52,7 +52,7 @@
                             {{ __('Foto') }}
                         </flux:button>
                     @endcan
-                    @can('clientes.delete')
+                    @can('cliente.eliminar')
                         <flux:button
                             size="sm"
                             icon="trash"
@@ -127,7 +127,7 @@
                             {{ __('WhatsApp') }}
                         </flux:button>
                     @endif
-                    @can('cliente-matriculas.view')
+                    @can('matricula_cliente.ver')
                         <flux:button href="{{ route('cliente-matriculas.index') }}" wire:navigate variant="outline" size="xs"
                             icon="arrow-top-right-on-square" class="w-full">
                             {{ __('Módulo matrículas') }}
@@ -184,42 +184,42 @@
                     </div>
 
                     <div class="mb-4 flex flex-wrap gap-2">
-                        @can('cliente-matriculas.create')
+                        @can('matricula_cliente.crear')
                             <flux:button size="xs" icon="plus" variant="primary" type="button" wire:click="openMatriculaCreateModal">
                                 {{ __('Matricular') }}
                             </flux:button>
                         @endcan
                         
-                        @can('cliente-matriculas.view')
+                        @can('matricula_cliente.ver')
                             <flux:button size="xs" icon="calendar-days" variant="outline" type="button" wire:click="openPrimeraCuotasConPlan">
                                 {{ __('Ver cuotas') }}
                             </flux:button>
                         @endcan
-                        @can('cliente-matriculas.create')
+                        @can('matricula_cliente.crear')
                             @if ($matriculasSinCronogramaCuotas->isNotEmpty())
                                 <flux:button size="xs" icon="document-text" variant="outline" type="button" wire:click="openCrearPlanCuotasModal">
                                     {{ __('Crear plan de cuotas') }}
                                 </flux:button>
                             @endif
                         @endcan
-                        @can('rentals.create')
+                        @can('alquiler.crear')
                             <flux:button size="xs" icon="building-office-2" variant="outline" type="button" wire:click="openReservaModal">
                                 {{ __('Nueva reserva') }}
                             </flux:button>
                         @endcan
-                        @can('gestion-nutricional.update')
+                        @can('gestion_nutricional.editar')
                             <flux:button size="xs" icon="heart" variant="outline" type="button" wire:click="openSaludModal({{ $selectedCliente->id }})">
                                 {{ __('Salud') }}
                             </flux:button>
                         @else
-                            @can('gestion-nutricional.view')
+                            @can('gestion_nutricional.ver')
                                 <flux:button href="{{ route('gestion-nutricional.salud', $selectedCliente->id) }}" wire:navigate variant="outline" size="xs"
                                     icon="arrow-top-right-on-square">
                                     {{ __('Salud') }}
                                 </flux:button>
                             @endcan
                         @endcan
-                        @can('crm.view')
+                        @can('crm.ver')
                             <flux:button href="{{ route('crm.clientes.etiquetas', $selectedCliente->id) }}" wire:navigate variant="outline" size="xs"
                                 icon="tag" class="border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300">
                                 {{ __('Etiquetas CRM') }}
@@ -228,7 +228,7 @@
                     </div>
 
                     <div class="mb-4 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
-                        @can('cliente-matriculas.view')
+                        @can('matricula_cliente.ver')
                         <div class="flex flex-wrap border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/80">
                             <flux:button type="button" wire:click="$set('perfilFinanzasTab', 'pagos')" variant="ghost" size="xs"
                                 class="!rounded-none border-b-2 border-transparent px-4 py-2.5 text-xs font-semibold {{ $perfilFinanzasTab === 'pagos' ? '!border-violet-600 text-violet-700 dark:text-violet-300' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' }}">
@@ -243,7 +243,7 @@
                         <p class="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">{{ __('Pagos') }}</p>
                         @endcan
 
-                        @can('cliente-matriculas.view')
+                        @can('matricula_cliente.ver')
                             @if ($perfilFinanzasTab === 'cuotas_pendientes')
                                 <div class="overflow-x-auto">
                                     <div class="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -311,7 +311,7 @@
                                                                     </td>
                                                                     <td class="px-3 py-2 text-right">
                                                                         @if ($cuota['puede_pagar'])
-                                                                            @can('cliente-matriculas.update')
+                                                                            @can('matricula_cliente.editar')
                                                                                 <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $cuota['id'] }})" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400">
                                                                                     {{ __('Pagar') }}
                                                                                 </flux:button>
@@ -328,7 +328,7 @@
                                                     <div class="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
                                                         {{ __('Esta matrícula está en cuotas pero aún no tiene cronograma.') }}
                                                         @if ($matriculasSinCronogramaCuotas->contains('id', $matriculaCuotas['id']))
-                                                            @can('cliente-matriculas.create')
+                                                            @can('matricula_cliente.crear')
                                                                 <flux:button type="button" wire:click="openCrearPlanCuotasModal" size="xs" variant="ghost" class="ml-2 min-h-0 px-2 py-0.5 text-amber-700 hover:underline dark:text-amber-300">
                                                                     {{ __('Crear plan de cuotas') }}
                                                                 </flux:button>
@@ -355,7 +355,7 @@
                                                                     {{ __('Matrícula #:id · Total S/ :total', ['id' => $matriculaSinCronograma->id, 'total' => number_format((float) $matriculaSinCronograma->precio_final, 2)]) }}
                                                                 </p>
                                                             </div>
-                                                            @can('cliente-matriculas.create')
+                                                            @can('matricula_cliente.crear')
                                                                 <flux:button type="button" wire:click="openCrearPlanCuotasModal" size="xs" variant="outline">
                                                                     {{ __('Crear plan de cuotas') }}
                                                                 </flux:button>
@@ -370,7 +370,7 @@
                             @endif
                         @endcan
 
-                        @if (! auth()->user()->can('cliente-matriculas.view') || $perfilFinanzasTab === 'pagos')
+                        @if (! auth()->user()->can('matricula_cliente.ver') || $perfilFinanzasTab === 'pagos')
                             <div class="overflow-x-auto">
                                 <table class="min-w-full text-xs">
                                     <thead class="bg-zinc-50 dark:bg-zinc-950">
@@ -418,13 +418,13 @@
                                                 <td class="px-3 py-2 text-right">
                                                     <div class="flex flex-wrap justify-end gap-1">
                                                         @if ($matriculaFinanciera['usa_plan_cuotas'])
-                                                            @can('cliente-matriculas.view')
+                                                            @can('matricula_cliente.ver')
                                                                 <flux:button type="button" wire:click="$set('perfilFinanzasTab', 'cuotas_pendientes')" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400">
                                                                     {{ __('Cuotas') }}
                                                                 </flux:button>
                                                             @endcan
                                                         @elseif ($matriculaFinanciera['accion_cobrar_habilitada'])
-                                                            @can('cliente-matriculas.update')
+                                                            @can('matricula_cliente.editar')
                                                                 <flux:button type="button" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400" wire:click="openCobroMatriculaModal({{ $matriculaFinanciera['id'] }})">
                                                                     {{ __('Cobrar') }}
                                                                 </flux:button>
@@ -447,14 +447,14 @@
                     </div>
                 </div>
 
-                @canany(['rentals.view', 'rentals.create', 'rentals.update'])
+                @canany(['alquiler.ver', 'alquiler.crear', 'alquiler.editar'])
                     <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-zinc-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/50">
                             <div>
                                 <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-50">{{ __('Reservas de espacios') }}</h3>
                                 <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">{{ __('Próximas y recientes en un solo listado.') }}</p>
                             </div>
-                            @can('rentals.create')
+                            @can('alquiler.crear')
                                 <flux:button size="xs" icon="plus" variant="primary" type="button" wire:click="openReservaModal">{{ __('Nueva reserva') }}</flux:button>
                             @endcan
                         </div>
@@ -501,7 +501,7 @@
                                                 </span>
                                             </td>
                                             <td class="whitespace-nowrap px-4 py-2.5 text-right">
-                                                @can('rentals.update')
+                                                @can('alquiler.editar')
                                                     <flux:button size="xs" variant="ghost" type="button" wire:click="openReservaModal({{ $r->id }})">{{ __('Editar') }}</flux:button>
                                                 @endcan
                                             </td>
@@ -582,7 +582,7 @@
                             <flux:button type="button" icon="eye" variant="ghost" size="xs" wire:click="openFidelizacionHistorialModal" class="text-violet-600 dark:text-violet-400">
                                 {{ __('Ver') }}
                             </flux:button>
-                            @can('clientes.update')
+                            @can('cliente.editar')
                                 <flux:button type="button" icon="plus" variant="ghost" size="xs" wire:click="openFidelizacionNuevoModal" class="text-violet-600 dark:text-violet-400">
                                     {{ __('Agregar nuevo') }}
                                 </flux:button>
@@ -703,19 +703,19 @@
                                     <td class="px-3 py-2 text-right">
                                         @if ($mem instanceof \App\Models\Core\ClienteMatricula)
                                             <div class="flex flex-wrap justify-end gap-1">
-                                                @can('cliente-matriculas.update')
+                                                @can('matricula_cliente.editar')
                                                     @if ($saldo > 0)
                                                         <flux:button size="xs" variant="primary" type="button" wire:click="openCobroMatriculaModal({{ $mem->id }})">{{ __('Cobrar') }}</flux:button>
                                                     @endif
                                                 @endcan
-                                                @can('cliente-matriculas.view')
+                                                @can('matricula_cliente.ver')
                                                     @if ($mem->usaPlanCuotas())
                                                         <flux:button size="xs" variant="outline" type="button" wire:click="openCuotasModal({{ $mem->id }})">{{ __('Cuotas') }}</flux:button>
                                                         <flux:button href="{{ route('clientes.cuotas', ['cliente' => $mem->cliente_id, 'matricula' => $mem->id]) }}" wire:navigate size="xs" variant="outline" class="min-h-0 px-2 py-1 text-[10px] text-violet-600 dark:text-violet-400">
                                                             {{ __('Ver cuotas') }}
                                                         </flux:button>
                                                         @isset($pendienteCuotaPorMatricula[$mem->id])
-                                                            @can('cliente-matriculas.update')
+                                                            @can('matricula_cliente.editar')
                                                                 <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $pendienteCuotaPorMatricula[$mem->id]->id }})" size="xs" variant="outline" class="min-h-0 border-violet-200 bg-violet-50 px-2 py-1 text-[10px] text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">
                                                                     {{ __('Pagar cuota') }}
                                                                 </flux:button>
@@ -723,14 +723,14 @@
                                                         @endisset
                                                     @endif
                                                 @endcan
-                                                @can('cliente-matriculas.update')
+                                                @can('matricula_cliente.editar')
                                                     @if (strtolower((string) ($mem->estado ?? '')) === 'activa' && ($mem->membresia?->permite_congelacion ?? false))
                                                         <flux:button size="xs" variant="outline" type="button" icon="pause-circle"
                                                             wire:click="openCongelarMatriculaModal({{ $mem->id }})">{{ __('Congelar') }}</flux:button>
                                                     @endif
                                                     <flux:button size="xs" variant="ghost" type="button" wire:click="openMatriculaEditModal({{ $mem->id }})">{{ __('Editar') }}</flux:button>
                                                 @endcan
-                                                @can('cliente-matriculas.delete')
+                                                @can('matricula_cliente.eliminar')
                                                     <flux:button size="xs" variant="ghost" type="button" wire:click="openMatriculaDeleteModal({{ $mem->id }})">{{ __('Eliminar') }}</flux:button>
                                                 @endcan
                                             </div>
@@ -791,19 +791,19 @@
                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ strtoupper($mat->asesor->name ?? '—') }}</td>
                                     <td class="px-3 py-2 text-right">
                                         <div class="flex flex-wrap justify-end gap-1">
-                                            @can('cliente-matriculas.update')
+                                            @can('matricula_cliente.editar')
                                                 @if ($saldoMat > 0)
                                                     <flux:button size="xs" variant="primary" type="button" wire:click="openCobroMatriculaModal({{ $mat->id }})">{{ __('Cobrar') }}</flux:button>
                                                 @endif
                                             @endcan
-                                            @can('cliente-matriculas.view')
+                                            @can('matricula_cliente.ver')
                                                 @if ($mat->usaPlanCuotas())
                                                     <flux:button size="xs" variant="outline" type="button" wire:click="openCuotasModal({{ $mat->id }})">{{ __('Cuotas') }}</flux:button>
                                                     <flux:button href="{{ route('clientes.cuotas', ['cliente' => $mat->cliente_id, 'matricula' => $mat->id]) }}" wire:navigate size="xs" variant="outline" class="min-h-0 px-2 py-1 text-[10px] text-violet-600 dark:text-violet-400">
                                                         {{ __('Ver cuotas') }}
                                                     </flux:button>
                                                     @isset($pendienteCuotaPorMatricula[$mat->id])
-                                                        @can('cliente-matriculas.update')
+                                                        @can('matricula_cliente.editar')
                                                             <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $pendienteCuotaPorMatricula[$mat->id]->id }})" size="xs" variant="outline" class="min-h-0 border-violet-200 bg-violet-50 px-2 py-1 text-[10px] text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300">
                                                                 {{ __('Pagar cuota') }}
                                                             </flux:button>
@@ -811,10 +811,10 @@
                                                     @endisset
                                                 @endif
                                             @endcan
-                                            @can('cliente-matriculas.update')
+                                            @can('matricula_cliente.editar')
                                                 <flux:button size="xs" variant="ghost" type="button" wire:click="openMatriculaEditModal({{ $mat->id }})">{{ __('Editar') }}</flux:button>
                                             @endcan
-                                            @can('cliente-matriculas.delete')
+                                            @can('matricula_cliente.eliminar')
                                                 <flux:button size="xs" variant="ghost" type="button" wire:click="openMatriculaDeleteModal({{ $mat->id }})">{{ __('Eliminar') }}</flux:button>
                                             @endcan
                                         </div>

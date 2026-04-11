@@ -3,7 +3,7 @@
 @endphp
 
 {{-- Alta / edición cliente --}}
-@canany(['clientes.create', 'clientes.update'])
+@canany(['cliente.crear', 'cliente.editar'])
 <flux:modal name="cliente-crud-modal" wire:model="clienteModalState.create" focusable flyout variant="floating" class="md:max-w-xl">
     <form wire:submit.prevent="saveCliente" class="flex max-h-[85vh] flex-col">
         <div class="space-y-3 overflow-y-auto p-4">
@@ -53,7 +53,7 @@
 </flux:modal>
 @endcanany
 
-@can('clientes.delete')
+@can('cliente.eliminar')
 <flux:modal name="cliente-delete-modal" wire:model="clienteModalState.delete" focusable class="md:w-lg">
     <div class="p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Eliminar cliente') }}</h2>
@@ -66,7 +66,7 @@
 </flux:modal>
 @endcan
 
-@can('clientes.update')
+@can('cliente.editar')
 <flux:modal name="cliente-photo-modal" wire:model="clienteModalState.photo" focusable class="md:w-lg">
     <div class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Foto del cliente') }}</h2>
@@ -84,7 +84,7 @@
 </flux:modal>
 @endcan
 
-@can('gestion-nutricional.update')
+@can('gestion_nutricional.editar')
 <flux:modal name="cliente-salud-modal" wire:model="clienteModalState.salud" focusable flyout variant="floating" class="md:max-w-2xl">
     <div class="max-h-[90vh] overflow-y-auto p-2">
         @if ($saludClienteId)
@@ -97,7 +97,7 @@
 </flux:modal>
 @endcan
 
-@can('cliente-matriculas.update')
+@can('matricula_cliente.editar')
 <flux:modal name="cobro-matricula-modal" wire:model="cobroModalAbierto" focusable class="md:w-lg">
     <form wire:submit.prevent="guardarCobroMatricula" class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago (contado / sin plan de cuotas)') }}</h2>
@@ -141,7 +141,7 @@
 </flux:modal>
 @endcan
 
-@can('cliente-matriculas.create')
+@can('matricula_cliente.crear')
 <flux:modal name="crear-plan-cuotas-modal" wire:model="crearPlanCuotasModalAbierto" focusable class="md:max-w-lg">
     <form wire:submit.prevent="guardarCrearPlanCuotas" class="flex max-h-[85vh] flex-col">
         <div class="space-y-3 overflow-y-auto p-4">
@@ -178,7 +178,7 @@
 </flux:modal>
 @endcan
 
-@can('cliente-matriculas.view')
+@can('matricula_cliente.ver')
 <flux:modal name="cuotas-cronograma-modal" wire:model="cuotasModalAbierto" focusable flyout variant="floating" class="md:max-w-2xl">
     <div class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Cronograma de cuotas') }}</h2>
@@ -201,7 +201,7 @@
                             <td class="px-2 py-1.5">S/ {{ number_format((float) $cuota->monto, 2) }}</td>
                             <td class="px-2 py-1.5">{{ \App\Models\Core\EnrollmentInstallment::ESTADOS[$cuota->estado] ?? ucfirst((string) $cuota->estado) }}</td>
                             <td class="px-2 py-1.5 text-right">
-                                @can('cliente-matriculas.update')
+                                @can('matricula_cliente.editar')
                                     @if (in_array($cuota->estado, ['pendiente', 'vencida', 'parcial'], true))
                                         <flux:button size="xs" variant="primary" type="button" wire:click="openRegistrarPagoCuota({{ $cuota->id }})">{{ __('Pagar') }}</flux:button>
                                     @endif
@@ -229,7 +229,7 @@
 </flux:modal>
 @endcan
 
-@can('cliente-matriculas.update')
+@can('matricula_cliente.editar')
 <flux:modal name="pago-cuota-modal" wire:model="cuotaPagoModalAbierto" focusable class="md:w-lg">
     <form wire:submit.prevent="guardarPagoCuota" class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago de cuota') }}</h2>
@@ -256,7 +256,7 @@
 </flux:modal>
 @endcan
 
-@canany(['rentals.create', 'rentals.update'])
+@canany(['alquiler.crear', 'alquiler.editar'])
 <flux:modal name="reserva-cliente-modal" wire:model="reservaModalAbierto" focusable class="md:w-lg">
     <form wire:submit.prevent="guardarReserva" class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">
@@ -328,7 +328,7 @@
     </div>
 </flux:modal>
 
-@can('clientes.update')
+@can('cliente.editar')
 <flux:modal name="fidelizacion-nuevo-modal" wire:model="fidelizacionNuevoModalAbierto" focusable class="md:max-w-lg">
     <form wire:submit.prevent="guardarFidelizacionMensaje" class="flex max-h-[85vh] flex-col">
         <div class="space-y-3 overflow-y-auto p-4">

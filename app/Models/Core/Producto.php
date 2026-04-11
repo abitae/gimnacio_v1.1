@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Producto extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -23,6 +25,7 @@ class Producto extends Model
         'unidad_medida',
         'imagen',
         'estado',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -32,6 +35,7 @@ class Producto extends Model
             'precio_compra' => 'decimal:2',
             'stock_actual' => 'integer',
             'stock_minimo' => 'integer',
+            'sucursal_id' => 'integer',
         ];
     }
 

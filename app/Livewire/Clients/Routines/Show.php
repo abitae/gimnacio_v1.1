@@ -9,11 +9,12 @@ use Livewire\Component;
 class Show extends Component
 {
     public Cliente $cliente;
+
     public ClientRoutine $clientRoutine;
 
     public function mount(Cliente $cliente, ClientRoutine $clientRoutine): void
     {
-        $this->authorize('ejercicios-rutinas.view');
+        $this->authorize('ejercicio_rutina.ver');
         $this->cliente = $cliente;
         $this->clientRoutine = $clientRoutine->load(['days.exercises.exercise', 'routineTemplate', 'trainer']);
     }

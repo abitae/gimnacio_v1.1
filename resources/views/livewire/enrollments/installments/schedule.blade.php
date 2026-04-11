@@ -9,7 +9,7 @@
         </div>
         <div class="flex gap-2">
             <flux:button variant="ghost" size="xs" href="{{ route('cliente-matriculas.index') }}" wire:navigate>Volver</flux:button>
-            @if(auth()->user()->can('cliente-matriculas.create') && $highlightMatriculaId)
+            @if(auth()->user()->can('matricula_cliente.crear') && $highlightMatriculaId)
             <flux:button size="xs" href="{{ route('clientes.cuotas.crear', ['cliente' => $cliente->id, 'matricula' => $highlightMatriculaId]) }}" wire:navigate>
                 {{ $plan ? 'Añadir cuotas (esta matrícula)' : 'Crear plan de cuotas' }}
             </flux:button>
@@ -70,7 +70,7 @@
                             </span>
                         </td>
                         <td class="px-4 py-2">
-                            @if(in_array($cuota->estado, ['pendiente', 'vencida', 'parcial']) && auth()->user()->can('cliente-matriculas.update'))
+                            @if(in_array($cuota->estado, ['pendiente', 'vencida', 'parcial']) && auth()->user()->can('matricula_cliente.editar'))
                             <flux:button size="xs" variant="ghost" type="button" wire:click="openRegistrarPagoCuota({{ $cuota->id }})">{{ __('Pagar') }}</flux:button>
                             @else
                             —
@@ -84,7 +84,7 @@
     @else
     <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 p-6 text-center text-zinc-500">
         <p class="mb-2">Este cliente no tiene plan de cuotas.</p>
-        @can('cliente-matriculas.create')
+        @can('matricula_cliente.crear')
             @if($highlightMatriculaId)
                 <flux:button size="xs" href="{{ route('clientes.cuotas.crear', ['cliente' => $cliente->id, 'matricula' => $highlightMatriculaId]) }}" wire:navigate>Crear plan de cuotas</flux:button>
             @else
@@ -94,7 +94,7 @@
     </div>
     @endif
 
-    @can('cliente-matriculas.update')
+    @can('matricula_cliente.editar')
     <flux:modal name="schedule-pago-cuota-modal" wire:model="cuotaPagoModalAbierto" focusable class="md:w-lg">
         <form wire:submit.prevent="guardarPagoCuota" class="space-y-3 p-4">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago de cuota') }}</h2>

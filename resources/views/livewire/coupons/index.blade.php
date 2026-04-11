@@ -4,8 +4,8 @@
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Cupones de descuento</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">Gestiona cupones para POS, matrículas, membresías y clases</p>
         </div>
-        @can('cupones.create')
-        <flux:button icon="plus" color="purple" variant="primary" size="xs" href="{{ route('cupones.create') }}" wire:navigate>
+        @can('cupon.crear')
+        <flux:button icon="plus" color="purple" variant="primary" size="xs" href="{{ route('cupon.crear') }}" wire:navigate>
             Nuevo cupón
         </flux:button>
         @endcan
@@ -51,7 +51,7 @@
                         <td class="px-4 py-2.5 text-xs">
                             <div class="flex gap-2">
                                 <flux:button size="xs" variant="ghost" href="{{ route('cupones.show', $c) }}" wire:navigate>Ver</flux:button>
-                                @can('cupones.update')
+                                @can('cupon.editar')
                                 <flux:button size="xs" variant="ghost" href="{{ route('cupones.edit', $c) }}" wire:navigate>Editar</flux:button>
                                 @endcan
                             </div>

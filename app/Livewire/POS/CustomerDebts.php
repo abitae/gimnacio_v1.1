@@ -2,7 +2,6 @@
 
 namespace App\Livewire\POS;
 
-use App\Models\Core\Cliente;
 use App\Models\Core\ClientDebt;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -21,7 +20,7 @@ class CustomerDebts extends Component
 
     public function mount(): void
     {
-        if (! auth()->user()->can('pos.view') && ! auth()->user()->can('reportes.view')) {
+        if (! auth()->user()->can('punto_venta.ver') && ! auth()->user()->can('reporte.ver')) {
             abort(403);
         }
     }
@@ -34,9 +33,9 @@ class CustomerDebts extends Component
             ->orderByDesc('fecha_registro');
 
         if ($this->search) {
-            $query->whereHas('cliente', fn ($q) => $q->where('nombres', 'like', '%' . $this->search . '%')
-                ->orWhere('apellidos', 'like', '%' . $this->search . '%')
-                ->orWhere('numero_documento', 'like', '%' . $this->search . '%'));
+            $query->whereHas('cliente', fn ($q) => $q->where('nombres', 'like', '%'.$this->search.'%')
+                ->orWhere('apellidos', 'like', '%'.$this->search.'%')
+                ->orWhere('numero_documento', 'like', '%'.$this->search.'%'));
         }
 
         if ($this->estadoFilter) {

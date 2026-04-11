@@ -19,7 +19,7 @@ class Schedule extends Component
 
     public function mount(Cliente $cliente, Request $request): void
     {
-        $this->authorize('cliente-matriculas.view');
+        $this->authorize('matricula_cliente.ver');
         $this->cliente = $cliente->load([
             'enrollmentInstallmentPlan.installments.clienteMatricula.membresia',
             'enrollmentInstallmentPlan.installments.clienteMatricula.clase',

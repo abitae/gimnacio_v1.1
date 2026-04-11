@@ -83,7 +83,7 @@ trait ManagesClienteMatriculaForm
 
     public function openMatriculaCreateModal(): void
     {
-        $this->authorize('cliente-matriculas.create');
+        $this->authorize('matricula_cliente.crear');
         if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Debes seleccionar un cliente primero');
 
@@ -106,7 +106,7 @@ trait ManagesClienteMatriculaForm
 
     public function openMatriculaEditModal(int $id): void
     {
-        $this->authorize('cliente-matriculas.update');
+        $this->authorize('matricula_cliente.editar');
         $clienteMatricula = $this->matriculaService->find($id);
 
         if (! $clienteMatricula) {
@@ -122,14 +122,14 @@ trait ManagesClienteMatriculaForm
 
     public function openMatriculaDeleteModal(int $id): void
     {
-        $this->authorize('cliente-matriculas.delete');
+        $this->authorize('matricula_cliente.eliminar');
         $this->clienteMatriculaId = $id;
         $this->matriculaModalState['delete'] = true;
     }
 
     public function openRenovarMembresia(int $clienteId, int $matriculaId): void
     {
-        $this->authorize('cliente-matriculas.create');
+        $this->authorize('matricula_cliente.crear');
         $matricula = $this->matriculaService->find($matriculaId);
         if (! $matricula || $matricula->tipo !== 'membresia' || (int) $matricula->cliente_id !== $clienteId) {
             $this->flashToast('error', 'Matrícula no encontrada o no es una membresía');
@@ -310,7 +310,7 @@ trait ManagesClienteMatriculaForm
 
     public function saveMatricula(): void
     {
-        $this->authorize($this->clienteMatriculaId ? 'cliente-matriculas.update' : 'cliente-matriculas.create');
+        $this->authorize($this->clienteMatriculaId ? 'matricula_cliente.editar' : 'matricula_cliente.crear');
         try {
             if (! $this->selectedClienteId) {
                 $this->flashToast('error', 'Debes seleccionar un cliente primero');
@@ -370,7 +370,7 @@ trait ManagesClienteMatriculaForm
 
     public function deleteMatricula(): void
     {
-        $this->authorize('cliente-matriculas.delete');
+        $this->authorize('matricula_cliente.eliminar');
         try {
             $this->matriculaService->delete($this->clienteMatriculaId);
             $this->flashToast('success', 'Matrícula eliminada correctamente');
@@ -590,7 +590,7 @@ trait ManagesClienteMatriculaForm
 
     public function openCongelarMatriculaModal(int $matriculaId): void
     {
-        $this->authorize('cliente-matriculas.update');
+        $this->authorize('matricula_cliente.editar');
         if (! $this->selectedClienteId) {
             $this->flashToast('error', __('Debes seleccionar un cliente primero'));
 
@@ -631,7 +631,7 @@ trait ManagesClienteMatriculaForm
 
     public function saveCongelarMatricula(): void
     {
-        $this->authorize('cliente-matriculas.update');
+        $this->authorize('matricula_cliente.editar');
         if (! $this->selectedClienteId || ! $this->matriculaCongelarId) {
             $this->flashToast('error', __('Datos incompletos.'));
 

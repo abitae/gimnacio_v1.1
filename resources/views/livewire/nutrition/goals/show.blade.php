@@ -5,10 +5,10 @@
             <p class="text-sm text-zinc-500">{{ \App\Models\Core\NutritionGoal::OBJETIVOS[$goal->objetivo] ?? $goal->objetivo_personalizado ?? $goal->objetivo }} · Trainer: {{ $goal->trainerUser?->name }}</p>
         </div>
         <div class="flex items-center gap-2">
-            @can('gestion-nutricional.update')
+            @can('gestion_nutricional.editar')
             <flux:button size="xs" variant="ghost" href="{{ route('gestion-nutricional.objetivos.edit', $goal) }}" wire:navigate>Editar</flux:button>
             @endcan
-            @can('gestion-nutricional.create')
+            @can('gestion_nutricional.crear')
             <flux:button size="xs" href="{{ route('gestion-nutricional.objetivos.seguimiento.create', $goal) }}" wire:navigate>Registrar seguimiento</flux:button>
             @endcan
             <flux:button variant="ghost" size="xs" href="{{ route('gestion-nutricional.objetivos.index') }}" wire:navigate>Volver</flux:button>

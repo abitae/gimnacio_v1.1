@@ -16,16 +16,21 @@ class Form extends Component
     use FlashesToast;
 
     public Cliente $cliente;
+
     public ClientRoutine $clientRoutine;
+
     public ?int $client_routine_day_id = null;
+
     public string $notas = '';
+
     /** @var array<int, array{exercise_id: int, client_routine_day_exercise_id: int|null, sets: array<int, array{peso: mixed, repeticiones: mixed, rpe: mixed, notas: string}>}> */
     public array $exercises = [];
+
     public bool $saved = false;
 
     public function mount(Cliente $cliente, ClientRoutine $clientRoutine): void
     {
-        $this->authorize('ejercicios-rutinas.create');
+        $this->authorize('ejercicio_rutina.crear');
         $this->cliente = $cliente;
         $this->clientRoutine = $clientRoutine->load(['days.exercises.exercise']);
     }
@@ -78,7 +83,7 @@ class Form extends Component
 
     public function guardar(): void
     {
-        $this->authorize('ejercicios-rutinas.create');
+        $this->authorize('ejercicio_rutina.crear');
         $this->validate([
             'client_routine_day_id' => ['required', 'exists:client_routine_days,id'],
         ], [
@@ -87,6 +92,7 @@ class Form extends Component
         $day = ClientRoutineDay::where('client_routine_id', $this->clientRoutine->id)->find($this->client_routine_day_id);
         if (! $day) {
             $this->flashToast('error', 'Día no válido.');
+
             return;
         }
         $session = WorkoutSession::create([
@@ -133,6 +139,7 @@ class Form extends Component
         if ($this->client_routine_day_id && empty($this->exercises)) {
             $this->hydrateExercises();
         }
+
         return view('livewire.clients.workouts.form');
     }
 }

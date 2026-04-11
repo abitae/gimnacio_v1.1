@@ -22,7 +22,7 @@ class ReporteCuotasVencidasLive extends Component
 
     public function mount(): void
     {
-        $this->authorize('reportes.view');
+        $this->authorize('reporte.ver');
     }
 
     protected function cuotaPagoClienteIdScope(): ?int
@@ -49,7 +49,7 @@ class ReporteCuotasVencidasLive extends Component
             $query->where('estado', 'pendiente');
         }
 
-        $totalMonto = (clone $query)->get()->sum(fn ($c) => (float) $c->monto);
+        $totalMonto = (float) (clone $query)->sum('monto');
         $cuotas = $query->paginate($this->perPage);
 
         $paymentMethods = $this->cuotaPagoModalAbierto

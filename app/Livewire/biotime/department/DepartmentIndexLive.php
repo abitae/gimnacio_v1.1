@@ -59,7 +59,7 @@ class DepartmentIndexLive extends Component
 
     public function mount()
     {
-        $this->authorize('biotime.view');
+        $this->authorize('biotime.ver');
         $this->loadCompanies();
         $this->loadDepartments();
     }
@@ -121,7 +121,7 @@ class DepartmentIndexLive extends Component
             $this->total = (int) ($response['count'] ?? 0);
             $this->ensureCompaniesFromDepartments();
         } catch (\Throwable $e) {
-            $this->message = 'Error al cargar departamentos: ' . $e->getMessage();
+            $this->message = 'Error al cargar departamentos: '.$e->getMessage();
             $this->departments = [];
         }
     }
@@ -157,7 +157,7 @@ class DepartmentIndexLive extends Component
 
     public function openCreateModal()
     {
-        $this->authorize('biotime.create');
+        $this->authorize('biotime.crear');
         $this->editingId = null;
         $this->formDeptCode = '';
         $this->formDeptName = '';
@@ -170,7 +170,7 @@ class DepartmentIndexLive extends Component
 
     public function openEditModal(int $id)
     {
-        $this->authorize('biotime.update');
+        $this->authorize('biotime.editar');
         try {
             $dept = $this->client->getDepartment($id);
             $this->editingId = $id;
@@ -184,7 +184,7 @@ class DepartmentIndexLive extends Component
             $this->modalOpen = true;
             $this->resetValidation();
         } catch (\Throwable $e) {
-            $this->message = 'Error al cargar departamento: ' . $e->getMessage();
+            $this->message = 'Error al cargar departamento: '.$e->getMessage();
             $this->messageSuccess = false;
         }
     }
@@ -215,6 +215,7 @@ class DepartmentIndexLive extends Component
                     return true;
                 }
             }
+
             return false;
         } catch (\Throwable $e) {
             return false;
@@ -223,7 +224,7 @@ class DepartmentIndexLive extends Component
 
     public function saveDepartment()
     {
-        $this->authorize($this->editingId ? 'biotime.update' : 'biotime.create');
+        $this->authorize($this->editingId ? 'biotime.editar' : 'biotime.crear');
         $this->validate([
             'formDeptCode' => ['required', 'string', 'max:255'],
             'formDeptName' => ['required', 'string', 'max:255'],
@@ -236,6 +237,7 @@ class DepartmentIndexLive extends Component
 
         if ($this->deptCodeExists($this->formDeptCode, $this->editingId)) {
             $this->addError('formDeptCode', 'El código de departamento ya existe. Debe ser único.');
+
             return;
         }
 
@@ -257,7 +259,7 @@ class DepartmentIndexLive extends Component
             $this->closeModal();
             $this->loadDepartments();
         } catch (\Throwable $e) {
-            $this->message = 'Error: ' . $e->getMessage();
+            $this->message = 'Error: '.$e->getMessage();
             $this->messageSuccess = false;
         }
     }
@@ -276,7 +278,7 @@ class DepartmentIndexLive extends Component
 
     public function deleteDepartment()
     {
-        $this->authorize('biotime.delete');
+        $this->authorize('biotime.eliminar');
         if ($this->deleteId === null) {
             return;
         }
@@ -287,7 +289,7 @@ class DepartmentIndexLive extends Component
             $this->cancelDelete();
             $this->loadDepartments();
         } catch (\Throwable $e) {
-            $this->message = 'Error al eliminar: ' . $e->getMessage();
+            $this->message = 'Error al eliminar: '.$e->getMessage();
             $this->messageSuccess = false;
         }
     }

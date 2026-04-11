@@ -3,8 +3,10 @@
 namespace App\Livewire\Roles;
 
 use App\Livewire\Concerns\FlashesToast;
+use App\Support\PermissionCatalog;
 use Livewire\Component;
 use Livewire\WithPagination;
+use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
 
 class RolLive extends Component
@@ -12,6 +14,7 @@ class RolLive extends Component
     use FlashesToast, WithPagination;
 
     public $search = '';
+
     public $perPage = 15;
 
     public $modalState = [
@@ -20,6 +23,7 @@ class RolLive extends Component
     ];
 
     public $roleId = null;
+
     public $formData = [
         'name' => '',
         'guard_name' => 'web',
@@ -30,7 +34,7 @@ class RolLive extends Component
 
     public function mount()
     {
-        $this->authorize('roles.view');
+        $this->authorize('rol.ver');
     }
 
     public function updatingSearch()
@@ -40,17 +44,18 @@ class RolLive extends Component
 
     public function openCreateModal()
     {
-        $this->authorize('roles.create');
+        $this->authorize('rol.crear');
         $this->resetForm();
         $this->modalState['form'] = true;
     }
 
     public function openEditModal($id)
     {
-        $this->authorize('roles.update');
+        $this->authorize('rol.editar');
         $role = Role::with('permissions')->find($id);
         if (! $role) {
             $this->flashToast('error', 'Rol no encontrado');
+
             return;
         }
         $this->roleId = $role->id;
@@ -64,14 +69,14 @@ class RolLive extends Component
 
     public function openDeleteModal($id)
     {
-        $this->authorize('roles.delete');
+        $this->authorize('rol.eliminar');
         $this->roleId = $id;
         $this->modalState['delete'] = true;
     }
 
     public function save()
     {
-        $this->authorize($this->roleId ? 'roles.update' : 'roles.create');
+        $this->authorize($this->roleId ? 'rol.editar' : 'rol.crear');
         $this->validate([
             'formData.name' => 'required|string|max:255',
             'formData.guard_name' => 'required|string|in:web,api',
@@ -104,11 +109,12 @@ class RolLive extends Component
 
     public function delete()
     {
-        $this->authorize('roles.delete');
+        $this->authorize('rol.eliminar');
         try {
             $role = Role::withCount('users')->findOrFail($this->roleId);
             if ($role->users_count > 0) {
-                $this->flashToast('error', 'No se puede eliminar el rol: tiene ' . $role->users_count . ' usuario(s) asignado(s). Reasigna los usuarios antes de eliminar.');
+                $this->flashToast('error', 'No se puede eliminar el rol: tiene '.$role->users_count.' usuario(s) asignado(s). Reasigna los usuarios antes de eliminar.');
+
                 return;
             }
             $role->delete();
@@ -141,15 +147,31 @@ class RolLive extends Component
         $query = Role::query()->withCount(['permissions', 'users']);
 
         if ($this->search) {
-            $query->where('name', 'like', '%' . $this->search . '%');
+            $query->where('name', 'like', '%'.$this->search.'%');
         }
 
         $roles = $query->orderBy('name')->paginate($this->perPage);
-        $permissions = \Spatie\Permission\Models\Permission::orderBy('name')->get();
+        $permissions = Permission::query()->orderBy('name')->get();
+        $permissionGroups = collect(PermissionCatalog::permissions())
+            ->groupBy('group')
+            ->map(function ($items) use ($permissions) {
+                $metaByName = collect($items)->keyBy('name');
+
+                return $permissions
+                    ->filter(fn (Permission $permission) => $metaByName->has($permission->name))
+                    ->map(function (Permission $permission) use ($metaByName) {
+                        $permission->descripcion_corta = $metaByName[$permission->name]['descripcion'];
+
+                        return $permission;
+                    })
+                    ->values();
+            })
+            ->filter(fn ($items) => $items->isNotEmpty());
 
         return view('livewire.roles.rol-live', [
             'roles' => $roles,
             'permissions' => $permissions,
+            'permissionGroups' => $permissionGroups,
         ]);
     }
 }

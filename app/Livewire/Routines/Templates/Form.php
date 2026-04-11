@@ -11,6 +11,7 @@ class Form extends Component
     use FlashesToast;
 
     public ?int $templateId = null;
+
     public bool $isCreate = true;
 
     public array $form = [
@@ -41,7 +42,7 @@ class Form extends Component
 
     public function mount(?RoutineTemplate $template = null): void
     {
-        $this->authorize($template && $template->exists ? 'ejercicios-rutinas.update' : 'ejercicios-rutinas.create');
+        $this->authorize($template && $template->exists ? 'ejercicio_rutina.editar' : 'ejercicio_rutina.crear');
         if ($template && $template->exists) {
             $this->templateId = $template->id;
             $this->isCreate = false;
@@ -61,7 +62,7 @@ class Form extends Component
 
     public function save(): void
     {
-        $this->authorize($this->isCreate ? 'ejercicios-rutinas.create' : 'ejercicios-rutinas.update');
+        $this->authorize($this->isCreate ? 'ejercicio_rutina.crear' : 'ejercicio_rutina.editar');
         $this->validate();
         $parts = array_map('trim', explode(',', $this->tagsInput));
         $this->form['tags'] = array_values(array_filter($parts));

@@ -2,12 +2,14 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Membresia extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $fillable = [
@@ -25,6 +27,7 @@ class Membresia extends Model
         'permite_congelacion',
         'max_dias_congelacion',
         'estado',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -35,6 +38,7 @@ class Membresia extends Model
             'cuota_inicial_porcentaje' => 'decimal:2',
             'permite_cuotas' => 'boolean',
             'permite_congelacion' => 'boolean',
+            'sucursal_id' => 'integer',
         ];
     }
 

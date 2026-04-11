@@ -12,20 +12,22 @@ class Show extends Component
     use FlashesToast;
 
     public Exercise $exercise;
+
     public string $activeTab = 'detalle';
 
     public ?int $relatedExerciseId = null;
+
     public string $relationType = 'variation';
 
     public function mount(Exercise $exercise): void
     {
-        $this->authorize('ejercicios-rutinas.view');
+        $this->authorize('ejercicio_rutina.ver');
         $this->exercise = $exercise->load(['variations', 'substitutions']);
     }
 
     public function addRelation(string $type): void
     {
-        $this->authorize('ejercicios-rutinas.update');
+        $this->authorize('ejercicio_rutina.editar');
         if (! in_array($type, ['variation', 'substitution'], true)) {
             return;
         }
@@ -37,6 +39,7 @@ class Show extends Component
         ]);
         if ($this->relatedExerciseId == $this->exercise->id) {
             $this->flashToast('error', 'No puedes relacionar un ejercicio consigo mismo.');
+
             return;
         }
         $exists = DB::table('exercise_relations')
@@ -46,6 +49,7 @@ class Show extends Component
             ->exists();
         if ($exists) {
             $this->flashToast('error', 'Esa relación ya existe.');
+
             return;
         }
         DB::table('exercise_relations')->insert([
@@ -62,7 +66,7 @@ class Show extends Component
 
     public function removeRelation(int $relatedId, string $type): void
     {
-        $this->authorize('ejercicios-rutinas.update');
+        $this->authorize('ejercicio_rutina.editar');
         DB::table('exercise_relations')
             ->where('exercise_id', $this->exercise->id)
             ->where('related_exercise_id', $relatedId)

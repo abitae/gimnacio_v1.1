@@ -4,7 +4,7 @@
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Sesiones de entrenamiento</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">{{ $cliente->nombres }} {{ $cliente->apellidos }} · {{ $clientRoutine->routineTemplate?->nombre ?? 'Rutina' }}</p>
         </div>
-        @can('ejercicios-rutinas.create')
+        @can('ejercicio_rutina.crear')
         <flux:button href="{{ route('clientes.rutinas.sesiones.create', [$cliente, $clientRoutine]) }}" variant="primary" size="xs" wire:navigate>Registrar sesión</flux:button>
         @endcan
         <flux:button href="{{ route('clientes.rutinas.show', [$cliente, $clientRoutine]) }}" variant="ghost" size="xs" wire:navigate>Volver a rutina</flux:button>

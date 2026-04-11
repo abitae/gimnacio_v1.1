@@ -16,10 +16,13 @@ use Illuminate\Database\Seeder;
 
 class MassiveRootSeeder extends Seeder
 {
+    /**
+     * Escenarios de prueba con volumen alto (rendimiento / índices / reportes):
+     * php artisan db:seed --class=MassiveRootSeeder
+     * Ajustar SEED_MASSIVE_* en .env y medir: listado clientes, POS, reportes, exportaciones.
+     */
     public function run(): void
     {
-        $this->call([BaseCatalogSeeder::class]);
-
         $clientCount = (int) env('SEED_MASSIVE_CLIENTES', 300);
         $leadCount = (int) env('SEED_MASSIVE_LEADS', 120);
         $productCount = (int) env('SEED_MASSIVE_PRODUCTOS', 80);

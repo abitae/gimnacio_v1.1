@@ -3,7 +3,7 @@
         <a href="{{ route('crm.campaigns') }}" wire:navigate class="text-sm text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 flex items-center gap-1">
             <flux:icon name="arrow-left" class="w-4 h-4" /> Volver a campañas
         </a>
-        @can('crm.create')
+        @can('crm.crear')
         <flux:button size="sm" variant="primary" wire:click="openGenerarTargets">Generar más targets</flux:button>
         @endcan
     </div>
@@ -45,7 +45,7 @@
                         </select>
                     </td>
                     <td class="px-4 py-2">
-                        @can('crm.update')
+                        @can('crm.editar')
                         <select class="rounded border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-2 py-1 text-xs"
                             wire:model.live="targetStatuses.{{ $t->id }}">
                             @foreach(\App\Models\Crm\CampaignTarget::ESTADOS as $e)

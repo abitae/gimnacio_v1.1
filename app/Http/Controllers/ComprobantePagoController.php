@@ -15,11 +15,11 @@ class ComprobantePagoController extends Controller
     public function pdf(Request $request, Pago $pago)
     {
         if (! Gate::any([
-            'clientes.view',
-            'cliente-matriculas.view',
-            'reportes.view',
-            'cajas.view',
-            'pos.view',
+            'cliente.ver',
+            'matricula_cliente.ver',
+            'reporte.ver',
+            'caja.ver',
+            'punto_venta.ver',
         ])) {
             abort(403);
         }
