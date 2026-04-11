@@ -6,6 +6,8 @@ use App\Livewire\Concerns\FlashesToast;
 use App\Models\Core\Caja;
 use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Venta;
+use App\Models\System\Sucursal;
+use App\Models\User;
 use App\Services\CajaService;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
@@ -19,6 +21,12 @@ class CajaLive extends Component
     public $fechaDesde = '';
 
     public $fechaHasta = '';
+
+    public $usuarioFiltro = '';
+
+    public $estadoFiltro = '';
+
+    public $sucursalFiltro = '';
 
     public $perPage = 15;
 
@@ -58,6 +66,7 @@ class CajaLive extends Component
     ];
 
     public $formCierre = [
+        'saldo_contado' => '0.00',
         'observaciones_cierre' => '',
     ];
 
@@ -103,6 +112,21 @@ class CajaLive extends Component
     }
 
     public function updatingPerPage()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingUsuarioFiltro()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingEstadoFiltro()
+    {
+        $this->resetPage();
+    }
+
+    public function updatingSucursalFiltro()
     {
         $this->resetPage();
     }
@@ -155,6 +179,7 @@ class CajaLive extends Component
         $this->cajaSeleccionada = $caja;
         $this->reporteCierre = $this->service->generarReporteCierre($cajaId);
         $this->resetFormCierre();
+        $this->formCierre['saldo_contado'] = number_format((float) ($this->reporteCierre['saldo_final_esperado'] ?? 0), 2, '.', '');
         $this->mostrarModalCierre = true;
     }
 
@@ -173,6 +198,7 @@ class CajaLive extends Component
         }
 
         $this->validate([
+            'formCierre.saldo_contado' => ['required', 'numeric', 'min:0'],
             'formCierre.observaciones_cierre' => ['nullable', 'string', 'max:1000'],
         ]);
 
@@ -242,6 +268,12 @@ class CajaLive extends Component
 
     public function registrarSalidaManual()
     {
+        if (blank(trim((string) ($this->formSalidaManual['observaciones'] ?? '')))) {
+            $this->flashToast('error', 'Debes indicar el motivo de la salida manual.');
+
+            return;
+        }
+
         $this->validate([
             'formSalidaManual.caja_id' => ['required', 'exists:cajas,id'],
             'formSalidaManual.monto' => ['required', 'numeric', 'gt:0'],
@@ -343,6 +375,7 @@ class CajaLive extends Component
     protected function resetFormCierre(): void
     {
         $this->formCierre = [
+            'saldo_contado' => '0.00',
             'observaciones_cierre' => '',
         ];
     }
@@ -376,10 +409,21 @@ class CajaLive extends Component
         if ($this->fechaHasta) {
             $filtros['fecha_hasta'] = $this->fechaHasta;
         }
+        if ($this->usuarioFiltro) {
+            $filtros['usuario_id'] = $this->usuarioFiltro;
+        }
+        if ($this->estadoFiltro) {
+            $filtros['estado'] = $this->estadoFiltro;
+        }
+        if ($this->sucursalFiltro) {
+            $filtros['sucursal_id'] = $this->sucursalFiltro;
+        }
 
         $cajas = $this->service->obtenerCajas($this->perPage, $filtros);
         $cajaActiva = $this->cajaActiva;
         $resumenCaja = $cajaActiva ? $this->service->obtenerResumenCaja($cajaActiva, []) : null;
+        $usuariosCaja = User::query()->orderBy('name')->get(['id', 'name']);
+        $sucursalesFiltro = Sucursal::query()->orderByDesc('es_principal')->orderBy('nombre')->get(['id', 'nombre']);
 
         $categorias = [
             CajaMovimiento::CATEGORIA_MEMBRESIA => 'Membresías',
@@ -422,6 +466,8 @@ class CajaLive extends Component
             'labelCategoria' => $labelCategoria,
             'tabEntradaActiva' => $tabEntradaActiva,
             'tabSalidaActiva' => $tabSalidaActiva,
+            'usuariosCaja' => $usuariosCaja,
+            'sucursalesFiltro' => $sucursalesFiltro,
         ]);
     }
 }

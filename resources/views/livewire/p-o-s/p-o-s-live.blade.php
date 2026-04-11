@@ -100,6 +100,25 @@
                         <flux:button variant="ghost" size="xs" wire:click="clearClienteCobro">Cambiar</flux:button>
                     </div>
 
+                    @if (!empty($debtSummaryCobro['total_pendiente']))
+                        <div class="mb-3 grid gap-3 md:grid-cols-3">
+                            <div class="rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+                                <p class="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Saldo total</p>
+                                <p class="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">S/ {{ number_format($debtSummaryCobro['total_pendiente'] ?? 0, 2) }}</p>
+                            </div>
+                            <div class="rounded-lg border border-zinc-200 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900">
+                                <p class="text-[11px] uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Items pendientes</p>
+                                <p class="mt-1 text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ $debtSummaryCobro['cantidad_items'] ?? 0 }}</p>
+                            </div>
+                            <div class="rounded-lg border {{ !empty($debtSummaryCobro['tiene_deuda_vencida']) ? 'border-amber-300 bg-amber-50/70 dark:border-amber-900/40 dark:bg-amber-950/20' : 'border-emerald-300 bg-emerald-50/70 dark:border-emerald-900/40 dark:bg-emerald-950/20' }} px-3 py-2">
+                                <p class="text-[11px] uppercase tracking-wide {{ !empty($debtSummaryCobro['tiene_deuda_vencida']) ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300' }}">Estado</p>
+                                <p class="mt-1 text-sm font-semibold {{ !empty($debtSummaryCobro['tiene_deuda_vencida']) ? 'text-amber-900 dark:text-amber-100' : 'text-emerald-900 dark:text-emerald-100' }}">
+                                    {{ !empty($debtSummaryCobro['tiene_deuda_vencida']) ? 'Con vencidos' : 'Pendiente sin vencer' }}
+                                </p>
+                            </div>
+                        </div>
+                    @endif
+
                     @if (count($itemsConSaldo) > 0)
                         <div class="border border-zinc-200 dark:border-zinc-700 rounded-lg overflow-hidden">
                             <table class="w-full text-sm">
@@ -107,6 +126,7 @@
                                     <tr>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Concepto</th>
                                         <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Tipo</th>
+                                        <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Estado</th>
                                         <th class="px-4 py-2 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400">Saldo pendiente</th>
                                         <th class="px-4 py-2 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400">Acción</th>
                                     </tr>
@@ -122,8 +142,17 @@
                                                     Membresía
                                                 @elseif ($item['tipo'] === 'cuota')
                                                     Plan de cuotas
+                                                @elseif ($item['tipo'] === 'client_debt')
+                                                    Cuenta por cobrar
                                                 @else
                                                     —
+                                                @endif
+                                            </td>
+                                            <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">
+                                                @if (!empty($item['es_vencida']))
+                                                    <span class="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-200">Vencida</span>
+                                                @else
+                                                    <span class="rounded-full bg-zinc-100 px-2 py-1 text-[11px] font-medium text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">{{ ucfirst($item['estado'] ?? 'pendiente') }}</span>
                                                 @endif
                                             </td>
                                             <td class="px-4 py-2.5 text-right font-medium text-zinc-900 dark:text-zinc-100">S/ {{ number_format($item['saldo_pendiente'], 2) }}</td>
@@ -144,9 +173,9 @@
                             </table>
                         </div>
                     @else
-                        @if ($selectedClienteCobro->deuda_total > 0)
+                        @if (($debtSummaryCobro['total_pendiente'] ?? 0) > 0)
                             <div class="rounded-lg border border-amber-200 bg-amber-50/80 p-3 text-sm text-amber-950 dark:border-amber-900/40 dark:bg-amber-950/20 dark:text-amber-100 space-y-2">
-                                <p class="font-medium">Hay deuda registrada (S/ {{ number_format($selectedClienteCobro->deuda_total, 2) }}) pero no hay ítems cobrables desde esta pantalla (por ejemplo ventas a crédito u otros conceptos).</p>
+                                <p class="font-medium">Hay deuda registrada (S/ {{ number_format($debtSummaryCobro['total_pendiente'] ?? 0, 2) }}) pero no hay ítems cobrables desde esta pantalla.</p>
                                 <p class="text-xs text-amber-900/90 dark:text-amber-200/90">Usa la ficha del cliente o cuentas por cobrar para gestionar ese saldo.</p>
                                 <div class="flex flex-wrap gap-2 pt-1">
                                     <flux:button size="xs" variant="primary" href="{{ route('clientes.perfil', $selectedClienteCobro) }}" wire:navigate>Abrir ficha</flux:button>
@@ -181,7 +210,7 @@
                                                 <a href="{{ route('clientes.perfil', $c) }}" wire:navigate class="font-medium text-purple-700 hover:underline dark:text-purple-400">{{ $c->nombres }} {{ $c->apellidos }}</a>
                                             </td>
                                             <td class="px-3 py-1.5 text-right font-medium text-amber-600 dark:text-amber-400">
-                                                S/ {{ number_format($c->deuda_total, 2) }}
+                                                S/ {{ number_format($c->operacion_diaria_deuda_total ?? 0, 2) }}
                                             </td>
                                             <td class="px-3 py-1.5 text-right">
                                                 <div class="inline-flex flex-wrap justify-end gap-1">

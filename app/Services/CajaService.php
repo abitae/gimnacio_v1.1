@@ -7,6 +7,7 @@ use App\Models\Core\CajaMovimiento;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\Pago;
 use App\Models\Core\RentalPayment;
+use App\Support\PermissionCatalog;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -25,13 +26,26 @@ class CajaService
         $validated = $this->validateApertura($data);
 
         return DB::transaction(function () use ($validated) {
-            return Caja::create([
+            $caja = Caja::create([
                 'usuario_id' => Auth::id(),
                 'saldo_inicial' => $validated['saldo_inicial'] ?? 0,
                 'fecha_apertura' => now(),
                 'estado' => 'abierta',
                 'observaciones_apertura' => $validated['observaciones_apertura'] ?? null,
             ]);
+
+            $this->registrarMovimientoClasificado(
+                cajaId: $caja->id,
+                tipo: 'entrada',
+                categoria: CajaMovimiento::CATEGORIA_APERTURA,
+                origenModulo: CajaMovimiento::ORIGEN_CAJA,
+                monto: (float) ($validated['saldo_inicial'] ?? 0),
+                concepto: 'Apertura de caja',
+                observaciones: $validated['observaciones_apertura'] ?? null,
+                allowCrossCaja: false,
+            );
+
+            return $caja->fresh(['movimientos', 'usuario']);
         });
     }
 
@@ -50,7 +64,17 @@ class CajaService
         $validated = $this->validateCierre($data);
 
         return DB::transaction(function () use ($caja, $validated) {
-            $caja->cerrar($validated['observaciones_cierre'] ?? null);
+            $saldoEsperado = round((float) $caja->saldo_inicial + $caja->calcularTotalIngresos() - $caja->calcularTotalSalidas(), 2);
+            $saldoContado = round((float) $validated['saldo_contado'], 2);
+
+            $caja->fill([
+                'saldo_final' => $saldoEsperado,
+                'saldo_contado_cierre' => $saldoContado,
+                'diferencia_cierre' => round($saldoContado - $saldoEsperado, 2),
+                'fecha_cierre' => now(),
+                'estado' => 'cerrada',
+                'observaciones_cierre' => $validated['observaciones_cierre'] ?? null,
+            ])->save();
 
             return $caja->fresh(['usuario']);
         });
@@ -80,8 +104,14 @@ class CajaService
 
     public function obtenerCajas(int $perPage = 15, array $filtros = []): LengthAwarePaginator
     {
-        $query = Caja::with('usuario')
+        $query = Caja::query()
+            ->with(['usuario', 'sucursal'])
             ->orderBy('fecha_apertura', 'desc');
+
+        $user = Auth::user();
+        if ($user && method_exists($user, 'hasRole') && $user->hasRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME)) {
+            $query->withoutGlobalScope('active_sucursal');
+        }
 
         if (! empty($filtros['fecha_desde'])) {
             $query->whereDate('fecha_apertura', '>=', $filtros['fecha_desde']);
@@ -89,6 +119,18 @@ class CajaService
 
         if (! empty($filtros['fecha_hasta'])) {
             $query->whereDate('fecha_apertura', '<=', $filtros['fecha_hasta']);
+        }
+
+        if (! empty($filtros['usuario_id'])) {
+            $query->where('usuario_id', (int) $filtros['usuario_id']);
+        }
+
+        if (! empty($filtros['estado'])) {
+            $query->where('estado', $filtros['estado']);
+        }
+
+        if (! empty($filtros['sucursal_id'])) {
+            $query->where('sucursal_id', (int) $filtros['sucursal_id']);
         }
 
         return $query->paginate($perPage);
@@ -252,6 +294,7 @@ class CajaService
         $movimientos = $this->obtenerMovimientosNormalizados($caja, $filters);
         $agrupado = collect($movimientos)
             ->where('tipo', 'entrada')
+            ->where('categoria', '!=', CajaMovimiento::CATEGORIA_APERTURA)
             ->groupBy('categoria')
             ->map(fn ($items) => [
                 'label' => $items->first()['tipo_visual'],
@@ -261,7 +304,10 @@ class CajaService
             ->sortByDesc('total')
             ->all();
 
-        $totalIngresos = round((float) collect($movimientos)->where('tipo', 'entrada')->sum('monto'), 2);
+        $totalIngresos = round((float) collect($movimientos)
+            ->where('tipo', 'entrada')
+            ->where('categoria', '!=', CajaMovimiento::CATEGORIA_APERTURA)
+            ->sum('monto'), 2);
         $totalSalidas = round((float) collect($movimientos)->where('tipo', 'salida')->sum('monto'), 2);
 
         return [
@@ -271,6 +317,8 @@ class CajaService
             'total_salidas' => $totalSalidas,
             'saldo_actual' => round((float) $caja->saldo_inicial + $totalIngresos - $totalSalidas, 2),
             'saldo_final' => $caja->saldo_final ? (float) $caja->saldo_final : null,
+            'saldo_contado_cierre' => $caja->saldo_contado_cierre !== null ? (float) $caja->saldo_contado_cierre : null,
+            'diferencia_cierre' => $caja->diferencia_cierre !== null ? (float) $caja->diferencia_cierre : null,
             'cantidad_transacciones' => count($movimientos),
             'desglose_por_tipo' => $agrupado,
             'desglose_por_metodo' => $caja->calcularTotalPorMetodoPago(),
@@ -319,7 +367,8 @@ class CajaService
         return array_merge($resumen, [
             'usuario' => $caja->usuario,
             'saldo_final_esperado' => $resumen['saldo_actual'],
-            'diferencia' => $caja->saldo_final ? ((float) $caja->saldo_final - $resumen['saldo_actual']) : 0,
+            'saldo_contado_cierre' => $caja->saldo_contado_cierre !== null ? (float) $caja->saldo_contado_cierre : null,
+            'diferencia' => $caja->diferencia_cierre !== null ? (float) $caja->diferencia_cierre : 0,
             'fecha_apertura' => $caja->fecha_apertura,
             'fecha_cierre' => $caja->fecha_cierre,
             'observaciones_apertura' => $caja->observaciones_apertura,
@@ -392,6 +441,7 @@ class CajaService
     protected function validateCierre(array $data): array
     {
         $validator = Validator::make($data, [
+            'saldo_contado' => ['required', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'],
             'observaciones_cierre' => ['nullable', 'string', 'max:1000'],
         ]);
 

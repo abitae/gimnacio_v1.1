@@ -8,9 +8,11 @@ use App\Models\Core\PaymentMethod;
 use App\Models\Core\Producto;
 use App\Models\Core\ServicioExterno;
 use App\Services\CajaService;
+use App\Services\ClientDebtService;
 use App\Services\ClienteMatriculaService;
 use App\Services\ClienteMembresiaService;
 use App\Services\ClienteService;
+use App\Services\DailyOperationsDebtService;
 use App\Services\EnrollmentInstallmentService;
 use App\Services\ProductoService;
 use App\Services\ServicioExternoService;
@@ -122,6 +124,8 @@ class POSLive extends Component
 
     public $itemsConSaldo = [];
 
+    public $debtSummaryCobro = [];
+
     public $mostrarModalCobro = false;
 
     public $cobroItemTipo = null; // 'matricula' | 'membresia' (cuotas se cobran vía ruta cuotas.pagar)
@@ -153,6 +157,10 @@ class POSLive extends Component
 
     protected EnrollmentInstallmentService $enrollmentInstallmentService;
 
+    protected DailyOperationsDebtService $dailyOperationsDebtService;
+
+    protected ClientDebtService $clientDebtService;
+
     public function boot(
         CajaService $cajaService,
         ProductoService $productoService,
@@ -161,7 +169,9 @@ class POSLive extends Component
         ClienteService $clienteService,
         ClienteMatriculaService $clienteMatriculaService,
         ClienteMembresiaService $clienteMembresiaService,
-        EnrollmentInstallmentService $enrollmentInstallmentService
+        EnrollmentInstallmentService $enrollmentInstallmentService,
+        DailyOperationsDebtService $dailyOperationsDebtService,
+        ClientDebtService $clientDebtService
     ) {
         $this->cajaService = $cajaService;
         $this->productoService = $productoService;
@@ -171,6 +181,8 @@ class POSLive extends Component
         $this->clienteMatriculaService = $clienteMatriculaService;
         $this->clienteMembresiaService = $clienteMembresiaService;
         $this->enrollmentInstallmentService = $enrollmentInstallmentService;
+        $this->dailyOperationsDebtService = $dailyOperationsDebtService;
+        $this->clientDebtService = $clientDebtService;
     }
 
     public function mount()
@@ -752,6 +764,7 @@ class POSLive extends Component
         $this->clienteSearchCobro = '';
         $this->clientesCobro = collect([]);
         $this->itemsConSaldo = [];
+        $this->debtSummaryCobro = [];
     }
 
     public function desactivarModoCobroMembresiaClase()
@@ -761,6 +774,7 @@ class POSLive extends Component
         $this->clienteSearchCobro = '';
         $this->clientesCobro = collect([]);
         $this->itemsConSaldo = [];
+        $this->debtSummaryCobro = [];
     }
 
     public function updatedClienteSearchCobro()
@@ -797,14 +811,22 @@ class POSLive extends Component
         $this->clienteSearchCobro = '';
         $this->clientesCobro = collect([]);
         $this->itemsConSaldo = [];
+        $this->debtSummaryCobro = [];
     }
 
     public function cargarItemsConSaldo()
     {
         $this->itemsConSaldo = [];
+        $this->debtSummaryCobro = [];
         if (! $this->selectedClienteCobro) {
             return;
         }
+        $summary = $this->dailyOperationsDebtService->summarizeCliente($this->selectedClienteCobro->id);
+        $this->debtSummaryCobro = $summary;
+        $this->itemsConSaldo = $summary['items']->all();
+
+        return;
+
         $clienteId = $this->selectedClienteCobro->id;
 
         $matriculas = $this->clienteMatriculaService->getByCliente($clienteId, [], 100);
@@ -860,15 +882,17 @@ class POSLive extends Component
 
     public function openCobroModal(string $tipo, int $id)
     {
-        if (! in_array($tipo, ['matricula', 'membresia'], true)) {
+        if (! in_array($tipo, ['matricula', 'membresia', 'client_debt'], true)) {
             return;
         }
         $this->cobroItemTipo = $tipo;
         $this->cobroItemId = $id;
         if ($tipo === 'matricula') {
             $this->saldoPendienteCobro = $this->clienteMatriculaService->obtenerSaldoPendiente($id);
-        } else {
+        } elseif ($tipo === 'membresia') {
             $this->saldoPendienteCobro = $this->clienteMembresiaService->obtenerSaldoPendiente($id);
+        } else {
+            $this->saldoPendienteCobro = (float) (\App\Models\Core\ClientDebt::find($id)?->saldo_pendiente ?? 0);
         }
         $efectivo = PaymentMethod::activos()->where('nombre', 'Efectivo')->first();
         $this->cobroFormData['monto_pago'] = $this->saldoPendienteCobro;
@@ -920,9 +944,12 @@ class POSLive extends Component
                 'numero_operacion' => trim((string) ($this->cobroFormData['numero_operacion'] ?? '')) ?: null,
                 'entidad_financiera' => trim((string) ($this->cobroFormData['entidad_financiera'] ?? '')) ?: null,
             ];
-            $pago = $this->cobroItemTipo === 'matricula'
-                ? $this->clienteMatriculaService->procesarPago($this->cobroItemId, $data)
-                : $this->clienteMembresiaService->procesarPago($this->cobroItemId, $data);
+            $pago = match ($this->cobroItemTipo) {
+                'matricula' => $this->clienteMatriculaService->procesarPago($this->cobroItemId, $data),
+                'membresia' => $this->clienteMembresiaService->procesarPago($this->cobroItemId, $data),
+                'client_debt' => $this->clientDebtService->procesarPago($this->cobroItemId, $data),
+                default => throw new \InvalidArgumentException('Tipo de cobro no soportado.'),
+            };
             $this->flashToast('success', 'Cobro registrado correctamente. El pago se ha reportado a la caja abierta.');
             $this->cerrarModalCobro();
             $this->pagoIdTicketCobro = $pago->id;
@@ -963,25 +990,7 @@ class POSLive extends Component
         $clientesConDeuda = Cache::remember(
             "pos.clientes_con_deuda.{$sucursalId}",
             $deudaTtl,
-            function () {
-                $clienteIdsConSaldo = \App\Models\Core\Pago::where('saldo_pendiente', '>', 0)
-                    ->distinct()
-                    ->pluck('cliente_id')
-                    ->filter()
-                    ->unique()
-                    ->take(200)
-                    ->values();
-                if ($clienteIdsConSaldo->isEmpty()) {
-                    return collect();
-                }
-
-                return \App\Models\Core\Cliente::whereIn('id', $clienteIdsConSaldo)
-                    ->orderBy('nombres')
-                    ->limit(100)
-                    ->get()
-                    ->filter(fn ($c) => $c->deuda_total > 0)
-                    ->values();
-            }
+            fn () => $this->dailyOperationsDebtService->clientesConDeuda(100)
         );
 
         $paymentMethods = Cache::remember(

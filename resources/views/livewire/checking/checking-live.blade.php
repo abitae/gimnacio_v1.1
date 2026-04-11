@@ -201,20 +201,42 @@
                                 </div>
                             @endif
 
+                            @if (!empty($estadoOperacion))
+                                <div class="rounded-lg border {{ ($estadoOperacion['nivel'] ?? 'ok') === 'bloqueado' ? 'border-red-300 bg-red-50 dark:border-red-700 dark:bg-red-900/20' : (($estadoOperacion['nivel'] ?? 'ok') === 'alerta' ? 'border-amber-300 bg-amber-50 dark:border-amber-700 dark:bg-amber-900/20' : 'border-emerald-300 bg-emerald-50 dark:border-emerald-700 dark:bg-emerald-900/20') }} p-4">
+                                    <p class="text-xs font-semibold uppercase tracking-wide {{ ($estadoOperacion['nivel'] ?? 'ok') === 'bloqueado' ? 'text-red-600 dark:text-red-300' : (($estadoOperacion['nivel'] ?? 'ok') === 'alerta' ? 'text-amber-700 dark:text-amber-300' : 'text-emerald-700 dark:text-emerald-300') }}">
+                                        {{ $estadoOperacion['titulo'] ?? 'Estado operativo' }}
+                                    </p>
+                                    <p class="mt-1 text-sm font-medium {{ ($estadoOperacion['nivel'] ?? 'ok') === 'bloqueado' ? 'text-red-900 dark:text-red-100' : (($estadoOperacion['nivel'] ?? 'ok') === 'alerta' ? 'text-amber-900 dark:text-amber-100' : 'text-emerald-900 dark:text-emerald-100') }}">
+                                        {{ $estadoOperacion['mensaje'] ?? '' }}
+                                    </p>
+                                </div>
+                            @endif
+
                             <!-- Estado de Deudas -->
                             <div>
-                                @if ($saldoPendiente > 0)
+                                @if (($debtSummary['total_pendiente'] ?? 0) > 0)
                                     <div class="rounded-lg border-2 border-red-300 bg-gradient-to-r from-red-50 to-rose-50 p-4 dark:border-red-700 dark:from-red-900/20 dark:to-rose-900/20">
                                         <div class="flex items-center justify-between">
                                             <div>
-                                                <p class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide">Deuda Pendiente</p>
-                                                <p class="mt-1 text-2xl font-bold text-red-900 dark:text-red-100">S/ {{ number_format($saldoPendiente, 2) }}</p>
+                                                <p class="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide">Saldo operativo pendiente</p>
+                                                <p class="mt-1 text-2xl font-bold text-red-900 dark:text-red-100">S/ {{ number_format($debtSummary['total_pendiente'] ?? 0, 2) }}</p>
+                                                <p class="mt-1 text-xs text-red-800 dark:text-red-200">
+                                                    {{ $debtSummary['cantidad_items'] ?? 0 }} concepto(s)
+                                                    @if (!empty($debtSummary['proximo_vencimiento']))
+                                                        · Próximo vencimiento {{ $debtSummary['proximo_vencimiento']->format('d/m/Y') }}
+                                                    @endif
+                                                </p>
                                             </div>
-                                            <a href="{{ route('cliente-matriculas.index') }}?cliente={{ $selectedCliente->id }}" wire:navigate>
-                                                <flux:button size="sm" color="red" variant="primary" class="shadow-md">
-                                                    Pagar
-                                                </flux:button>
-                                            </a>
+                                            <div class="flex flex-col gap-2">
+                                                <a href="{{ route('pos.index', ['cobrar_cliente' => $selectedCliente->id]) }}" wire:navigate>
+                                                    <flux:button size="sm" color="red" variant="primary" class="shadow-md">
+                                                        Cobrar saldo
+                                                    </flux:button>
+                                                </a>
+                                                <a href="{{ route('clientes.perfil', $selectedCliente->id) }}" wire:navigate>
+                                                    <flux:button size="sm" variant="ghost">Ver ficha</flux:button>
+                                                </a>
+                                            </div>
                                         </div>
                                     </div>
                                 @else
@@ -226,6 +248,20 @@
                                     </div>
                                 @endif
                             </div>
+
+                            @if (!empty($debtSummary['proximo_item']) && ($debtSummary['proximo_item']['tipo'] ?? null) === 'cuota')
+                                <div class="rounded-lg border border-sky-200 bg-sky-50 p-4 dark:border-sky-800 dark:bg-sky-950/20">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div>
+                                            <p class="text-xs font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-300">Siguiente cuota</p>
+                                            <p class="mt-1 text-sm font-medium text-sky-900 dark:text-sky-100">{{ $debtSummary['proximo_item']['nombre'] }}</p>
+                                        </div>
+                                        <a href="{{ route('pos.index', ['cobrar_cliente' => $selectedCliente->id]) }}" wire:navigate>
+                                            <flux:button size="sm" variant="ghost">Ver cronograma</flux:button>
+                                        </a>
+                                    </div>
+                                </div>
+                            @endif
 
                             <!-- Información de Membresía -->
                             <div class="grid grid-cols-2 gap-3 rounded-lg bg-zinc-50 p-3 dark:bg-zinc-900/50">

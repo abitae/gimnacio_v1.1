@@ -19,6 +19,8 @@ class Caja extends Model
         'usuario_id',
         'saldo_inicial',
         'saldo_final',
+        'saldo_contado_cierre',
+        'diferencia_cierre',
         'fecha_apertura',
         'fecha_cierre',
         'estado',
@@ -32,6 +34,8 @@ class Caja extends Model
         return [
             'saldo_inicial' => 'decimal:2',
             'saldo_final' => 'decimal:2',
+            'saldo_contado_cierre' => 'decimal:2',
+            'diferencia_cierre' => 'decimal:2',
             'fecha_apertura' => 'datetime',
             'fecha_cierre' => 'datetime',
             'sucursal_id' => 'integer',
@@ -77,6 +81,7 @@ class Caja extends Model
     {
         return (float) $this->movimientosPeriodo()
             ->where('tipo', 'entrada')
+            ->where('categoria', '!=', CajaMovimiento::CATEGORIA_APERTURA)
             ->sum('monto');
     }
 

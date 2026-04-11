@@ -50,3 +50,36 @@ it('allows a user with manual cash permission to move another users open cash bo
     expect($movimiento->tipo)->toBe('salida');
     expect($movimiento->categoria)->toBe(CajaMovimiento::CATEGORIA_MANUAL_SALIDA);
 });
+
+it('registers an apertura movement and closing arqueo difference', function () {
+    $owner = User::factory()->create();
+    $this->actingAs($owner);
+
+    $caja = app(CajaService::class)->abrirCaja([
+        'saldo_inicial' => 120,
+        'observaciones_apertura' => 'Inicio de turno',
+    ]);
+
+    $apertura = CajaMovimiento::query()
+        ->where('caja_id', $caja->id)
+        ->where('categoria', CajaMovimiento::CATEGORIA_APERTURA)
+        ->first();
+
+    expect($apertura)->not->toBeNull();
+    expect((float) $apertura->monto)->toBe(120.0);
+
+    app(CajaService::class)->registrarIngresoManual($caja->id, [
+        'monto' => 30,
+        'concepto' => 'Ingreso adicional',
+        'observaciones' => 'Prueba',
+    ]);
+
+    $cerrada = app(CajaService::class)->cerrarCaja($caja->id, [
+        'saldo_contado' => 145,
+        'observaciones_cierre' => 'Arqueo final',
+    ]);
+
+    expect((float) $cerrada->saldo_final)->toBe(150.0);
+    expect((float) $cerrada->saldo_contado_cierre)->toBe(145.0);
+    expect((float) $cerrada->diferencia_cierre)->toBe(-5.0);
+});

@@ -87,7 +87,7 @@ class FortifyServiceProvider extends ServiceProvider
 
             if (($user->estado ?? 'activo') !== 'activo') {
                 throw ValidationException::withMessages([
-                    Fortify::username() => 'Tu usuario está inactivo.',
+                    Fortify::username() => __('auth.inactive_user'),
                 ]);
             }
 
@@ -106,7 +106,7 @@ class FortifyServiceProvider extends ServiceProvider
 
             if (! $sucursal) {
                 throw ValidationException::withMessages([
-                    'sucursal_id' => 'La sucursal seleccionada no está asignada a tu usuario.',
+                    'sucursal_id' => __('auth.sucursal_not_assigned'),
                 ]);
             }
 

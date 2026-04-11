@@ -6,6 +6,7 @@ use App\Livewire\Concerns\FlashesToast;
 use App\Services\AsistenciaService;
 use App\Services\ClientEnrollmentService;
 use App\Services\ClienteService;
+use App\Services\DailyOperationsDebtService;
 use Livewire\Component;
 
 class CheckingLive extends Component
@@ -32,6 +33,10 @@ class CheckingLive extends Component
 
     public $saldoPendiente = 0.00;
 
+    public $debtSummary = [];
+
+    public $estadoOperacion = [];
+
     public $historialMembresias = [];
 
     public $historialClases = [];
@@ -50,14 +55,18 @@ class CheckingLive extends Component
 
     protected ClientEnrollmentService $clientEnrollmentService;
 
+    protected DailyOperationsDebtService $dailyOperationsDebtService;
+
     public function boot(
         AsistenciaService $asistenciaService,
         ClienteService $clienteService,
-        ClientEnrollmentService $clientEnrollmentService
+        ClientEnrollmentService $clientEnrollmentService,
+        DailyOperationsDebtService $dailyOperationsDebtService
     ) {
         $this->asistenciaService = $asistenciaService;
         $this->clienteService = $clienteService;
         $this->clientEnrollmentService = $clientEnrollmentService;
+        $this->dailyOperationsDebtService = $dailyOperationsDebtService;
     }
 
     public function mount()
@@ -190,20 +199,15 @@ class CheckingLive extends Component
         $this->clearClienteSelection();
     }
 
-    protected function cargarHistorialMembresias(int $clienteId): void
+    protected function cargarHistorialComercial(int $clienteId): void
     {
         $history = $this->clientEnrollmentService->resolveCommercialHistory($clienteId);
         $this->historialMembresias = $history['memberships'];
+        $this->historialClases = $history['classes'];
 
         if (! $this->membresiaActiva && $this->historialMembresias->isNotEmpty()) {
             $this->membresiaActiva = $this->clientEnrollmentService->resolveLatestActiveEnrollmentFromHistory($this->historialMembresias);
         }
-    }
-
-    protected function cargarHistorialClases(int $clienteId): void
-    {
-        $history = $this->clientEnrollmentService->resolveCommercialHistory($clienteId);
-        $this->historialClases = $history['classes'];
     }
 
     protected function refreshSelectedClienteContext(int $clienteId): void
@@ -222,8 +226,42 @@ class CheckingLive extends Component
             $this->saldoPendiente = (float) ($activeEnrollment['saldo_pendiente'] ?? 0);
         }
 
-        $this->cargarHistorialMembresias($clienteId);
-        $this->cargarHistorialClases($clienteId);
+        $this->debtSummary = $this->dailyOperationsDebtService->summarizeCliente($clienteId);
+        $this->estadoOperacion = $this->resolverEstadoOperacion();
+        $this->cargarHistorialComercial($clienteId);
+    }
+
+    protected function resolverEstadoOperacion(): array
+    {
+        if (! $this->membresiaActiva) {
+            return [
+                'nivel' => 'bloqueado',
+                'titulo' => 'Acceso bloqueado',
+                'mensaje' => 'El cliente no tiene un plan activo para registrar ingreso.',
+            ];
+        }
+
+        if (($this->debtSummary['tiene_deuda_vencida'] ?? false) === true) {
+            return [
+                'nivel' => 'alerta',
+                'titulo' => 'Acceso permitido con alerta',
+                'mensaje' => 'Tiene deuda vencida o cuotas pendientes. Deriva a cobranza si corresponde.',
+            ];
+        }
+
+        if (($this->debtSummary['tiene_deuda'] ?? false) === true) {
+            return [
+                'nivel' => 'alerta',
+                'titulo' => 'Acceso permitido con seguimiento',
+                'mensaje' => 'Tiene saldo pendiente, pero no bloquea el acceso en la política actual.',
+            ];
+        }
+
+        return [
+            'nivel' => 'ok',
+            'titulo' => 'Acceso permitido',
+            'mensaje' => 'Cliente habilitado para ingresar.',
+        ];
     }
 
     protected function resetearSeleccion()
@@ -233,6 +271,8 @@ class CheckingLive extends Component
         $this->estadisticasAsistencia = [];
         $this->validacionAcceso = [];
         $this->saldoPendiente = 0.00;
+        $this->debtSummary = [];
+        $this->estadoOperacion = [];
         $this->historialMembresias = [];
         $this->historialClases = [];
         $this->ingresoEnCurso = null;

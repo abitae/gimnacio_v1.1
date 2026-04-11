@@ -17,6 +17,7 @@ class Pago extends Model
         'cliente_id',
         'cliente_membresia_id',
         'cliente_matricula_id',
+        'client_debt_id',
         'monto',
         'moneda',
         'metodo_pago',
@@ -56,6 +57,11 @@ class Pago extends Model
     public function clienteMatricula(): BelongsTo
     {
         return $this->belongsTo(ClienteMatricula::class);
+    }
+
+    public function clientDebt(): BelongsTo
+    {
+        return $this->belongsTo(ClientDebt::class);
     }
 
     public function registradoPor(): BelongsTo

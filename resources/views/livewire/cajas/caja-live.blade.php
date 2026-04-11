@@ -30,7 +30,7 @@
             </div>
         </div>
 
-        <div class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <div class="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
             <div class="rounded-2xl border border-zinc-200 bg-white/80 p-4 dark:border-zinc-800 dark:bg-zinc-900/70">
                 <p class="text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Caja activa</p>
                 @if ($cajaActiva)
@@ -55,6 +55,16 @@
             <div class="rounded-2xl border border-sky-200 bg-sky-50/80 p-4 dark:border-sky-900 dark:bg-sky-950/30">
                 <p class="text-xs uppercase tracking-wide text-sky-700 dark:text-sky-400">Saldo actual</p>
                 <p class="mt-2 text-xl font-semibold text-sky-800 dark:text-sky-300">S/ {{ number_format($resumenCaja['saldo_actual'] ?? 0, 2) }}</p>
+            </div>
+            <div class="rounded-2xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-900 dark:bg-amber-950/30">
+                <p class="text-xs uppercase tracking-wide text-amber-700 dark:text-amber-400">Arqueo cierre</p>
+                <p class="mt-2 text-xl font-semibold text-amber-800 dark:text-amber-300">
+                    @if (!is_null($resumenCaja['diferencia_cierre'] ?? null))
+                        {{ number_format($resumenCaja['diferencia_cierre'], 2) }}
+                    @else
+                        Pendiente
+                    @endif
+                </p>
             </div>
         </div>
     </section>
@@ -229,6 +239,13 @@
                     <div class="rounded-2xl border border-rose-200 bg-rose-50 p-4 dark:border-rose-900 dark:bg-rose-950/20"><p class="text-xs text-rose-600">Salidas</p><p class="mt-2 text-lg font-semibold text-rose-700 dark:text-rose-300">S/ {{ number_format($reporteCierre['total_salidas'], 2) }}</p></div>
                     <div class="rounded-2xl border border-sky-200 bg-sky-50 p-4 dark:border-sky-900 dark:bg-sky-950/20"><p class="text-xs text-sky-600">Esperado</p><p class="mt-2 text-lg font-semibold text-sky-700 dark:text-sky-300">S/ {{ number_format($reporteCierre['saldo_final_esperado'], 2) }}</p></div>
                 </div>
+                <div class="grid gap-3 md:grid-cols-2">
+                    <input type="number" step="0.01" wire:model="formCierre.saldo_contado" placeholder="Saldo contado real" class="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+                    <div class="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900 dark:bg-amber-950/20">
+                        <p class="text-xs font-medium text-amber-700 dark:text-amber-300">Diferencia proyectada</p>
+                        <p class="mt-1 text-lg font-semibold text-amber-900 dark:text-amber-100">S/ {{ number_format(((float) ($formCierre['saldo_contado'] ?? 0)) - (float) $reporteCierre['saldo_final_esperado'], 2) }}</p>
+                    </div>
+                </div>
                 <textarea wire:model="formCierre.observaciones_cierre" rows="3" placeholder="Observaciones de cierre" class="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"></textarea>
                 <div class="flex justify-end gap-2">
                     <flux:button variant="ghost" wire:click="cerrarModalCierre">Cancelar</flux:button>
@@ -241,16 +258,33 @@
     <flux:modal wire:model="mostrarModalHistorial" class="md:w-6xl">
         <div class="space-y-4 p-6">
             <h2 class="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Historial de cajas</h2>
-            <div class="grid gap-3 md:grid-cols-3">
+            <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
                 <input type="date" wire:model.live="fechaDesde" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
                 <input type="date" wire:model.live="fechaHasta" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+                <select wire:model.live="usuarioFiltro" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+                    <option value="">Todos los usuarios</option>
+                    @foreach ($usuariosCaja as $usuarioCaja)
+                        <option value="{{ $usuarioCaja->id }}">{{ $usuarioCaja->name }}</option>
+                    @endforeach
+                </select>
+                <select wire:model.live="estadoFiltro" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+                    <option value="">Todos los estados</option>
+                    <option value="abierta">Abierta</option>
+                    <option value="cerrada">Cerrada</option>
+                </select>
+                <select wire:model.live="sucursalFiltro" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
+                    <option value="">Todas las sucursales</option>
+                    @foreach ($sucursalesFiltro as $sucursalItem)
+                        <option value="{{ $sucursalItem->id }}">{{ $sucursalItem->nombre }}</option>
+                    @endforeach
+                </select>
                 <select wire:model.live="perPage" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"><option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="50">50</option></select>
             </div>
             <div class="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
                 <table class="min-w-full text-sm">
                     <thead class="bg-zinc-50 dark:bg-zinc-950">
                         <tr class="text-left text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                            <th class="px-4 py-3">Caja</th><th class="px-4 py-3">Usuario</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3">Apertura</th><th class="px-4 py-3 text-right">Inicial</th><th class="px-4 py-3 text-right">Ingresos</th><th class="px-4 py-3 text-right">Salidas</th><th class="px-4 py-3 text-right">Final</th><th class="px-4 py-3 text-right">Acciones</th>
+                            <th class="px-4 py-3">Caja</th><th class="px-4 py-3">Usuario</th><th class="px-4 py-3">Sucursal</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3">Apertura</th><th class="px-4 py-3 text-right">Inicial</th><th class="px-4 py-3 text-right">Ingresos</th><th class="px-4 py-3 text-right">Salidas</th><th class="px-4 py-3 text-right">Esperado</th><th class="px-4 py-3 text-right">Contado</th><th class="px-4 py-3 text-right">Dif.</th><th class="px-4 py-3 text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
@@ -258,16 +292,19 @@
                             <tr class="bg-white dark:bg-zinc-900">
                                 <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">#{{ $caja->id }}</td>
                                 <td class="px-4 py-3">{{ $caja->usuario->name }}</td>
+                                <td class="px-4 py-3">{{ $caja->sucursal->nombre ?? '—' }}</td>
                                 <td class="px-4 py-3">{{ ucfirst($caja->estado) }}</td>
                                 <td class="px-4 py-3">{{ $caja->fecha_apertura->format('d/m/Y H:i') }}</td>
                                 <td class="px-4 py-3 text-right">S/ {{ number_format($caja->saldo_inicial, 2) }}</td>
                                 <td class="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">S/ {{ number_format($caja->calcularTotalIngresos(), 2) }}</td>
                                 <td class="px-4 py-3 text-right text-rose-700 dark:text-rose-400">S/ {{ number_format($caja->calcularTotalSalidas(), 2) }}</td>
                                 <td class="px-4 py-3 text-right font-semibold">S/ {{ number_format($caja->saldo_final ?: ($caja->saldo_inicial + $caja->calcularTotalIngresos() - $caja->calcularTotalSalidas()), 2) }}</td>
+                                <td class="px-4 py-3 text-right">S/ {{ number_format($caja->saldo_contado_cierre ?? 0, 2) }}</td>
+                                <td class="px-4 py-3 text-right {{ ((float) ($caja->diferencia_cierre ?? 0)) === 0.0 ? 'text-zinc-700 dark:text-zinc-300' : 'text-amber-700 dark:text-amber-300' }}">S/ {{ number_format($caja->diferencia_cierre ?? 0, 2) }}</td>
                                 <td class="px-4 py-3 text-right"><flux:button size="xs" variant="ghost" wire:click="verReporte({{ $caja->id }})">Reporte</flux:button></td>
                             </tr>
                         @empty
-                            <tr><td colspan="9" class="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">No hay cajas para el rango seleccionado.</td></tr>
+                            <tr><td colspan="12" class="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">No hay cajas para el rango seleccionado.</td></tr>
                         @endforelse
                     </tbody>
                 </table>

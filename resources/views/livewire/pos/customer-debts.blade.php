@@ -27,6 +27,7 @@
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Saldo</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Vencimiento</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Estado</th>
+                    <th class="px-4 py-2 text-right text-xs font-medium text-zinc-700 dark:text-zinc-300">Acciones</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -43,14 +44,58 @@
                                 {{ ucfirst($d->estado) }}
                             </span>
                         </td>
+                        <td class="px-4 py-2.5 text-right">
+                            <div class="inline-flex gap-1">
+                                @if ($d->cliente)
+                                    <flux:button size="xs" variant="ghost" href="{{ route('clientes.perfil', $d->cliente) }}" wire:navigate>Ficha</flux:button>
+                                    <flux:button size="xs" variant="ghost" href="{{ route('pos.index', ['cobrar_cliente' => $d->cliente_id]) }}" wire:navigate>Cobranza</flux:button>
+                                @endif
+                                <flux:button size="xs" variant="primary" color="green" wire:click="abrirModalCobro({{ $d->id }})">Cobrar</flux:button>
+                            </div>
+                        </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="px-4 py-8 text-center text-xs text-zinc-500 dark:text-zinc-400">No hay deudas pendientes</td>
+                        <td colspan="8" class="px-4 py-8 text-center text-xs text-zinc-500 dark:text-zinc-400">No hay deudas pendientes</td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
     </div>
     <div class="mt-4 flex justify-end">{{ $debts->links() }}</div>
+
+    <flux:modal wire:model="mostrarModalCobro" class="md:w-lg">
+        <div class="space-y-4 p-6">
+            <div>
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Registrar cobro</h2>
+                <p class="text-xs text-zinc-600 dark:text-zinc-400">Este pago actualizará la cuenta por cobrar y la caja abierta.</p>
+            </div>
+            <flux:input size="xs" wire:model.live.number="cobroForm.monto_pago" label="Monto a pagar (S/)" type="number" step="0.01" min="0.01" required />
+            <flux:select size="xs" wire:model.live="cobroForm.payment_method_id" label="Método de pago">
+                @foreach ($paymentMethods as $method)
+                    <option value="{{ $method->id }}">{{ $method->nombre }}</option>
+                @endforeach
+            </flux:select>
+            @if ($selectedPaymentMethod?->requiere_numero_operacion)
+                <flux:input size="xs" wire:model.live="cobroForm.numero_operacion" label="Número de operación" />
+            @endif
+            @if ($selectedPaymentMethod?->requiere_entidad)
+                <flux:input size="xs" wire:model.live="cobroForm.entidad_financiera" label="Entidad financiera" />
+            @endif
+            <div class="flex justify-end gap-2">
+                <flux:button variant="ghost" wire:click="cerrarModalCobro">Cancelar</flux:button>
+                <flux:button variant="primary" color="green" wire:click="procesarCobro">Registrar cobro</flux:button>
+            </div>
+        </div>
+    </flux:modal>
+
+    <flux:modal wire:model="mostrarModalTicketPago" class="md:w-5xl">
+        @if ($pagoIdTicket)
+            <iframe
+                src="{{ route('pagos.ticket.pdf', ['pago' => $pagoIdTicket]) }}"
+                class="h-[70vh] w-full rounded-xl border border-zinc-200 dark:border-zinc-700"
+                title="Ticket de pago"
+            ></iframe>
+        @endif
+    </flux:modal>
 </div>

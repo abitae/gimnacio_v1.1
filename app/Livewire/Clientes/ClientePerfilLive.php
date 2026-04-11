@@ -18,6 +18,7 @@ use App\Services\AsistenciaService;
 use App\Services\ClienteMatriculaService;
 use App\Services\ClientEnrollmentService;
 use App\Services\ClienteService;
+use App\Services\DailyOperationsDebtService;
 use App\Services\ClientWellnessService;
 use App\Services\EnrollmentInstallmentService;
 use Illuminate\Support\Collection;
@@ -57,6 +58,8 @@ class ClientePerfilLive extends Component
 
     /** Suma de saldos pendientes de ventas a crédito / producto (`client_debts`). */
     public float $deudaProductoPendiente = 0.0;
+
+    public array $operacionDiariaDebtSummary = [];
 
     public array $historialMembresias = [];
 
@@ -139,13 +142,16 @@ class ClientePerfilLive extends Component
 
     protected EnrollmentInstallmentService $enrollmentInstallmentService;
 
+    protected DailyOperationsDebtService $dailyOperationsDebtService;
+
     public function boot(
         AsistenciaService $asistenciaService,
         ClienteService $clienteService,
         ClientEnrollmentService $clientEnrollmentService,
         ClienteMatriculaService $matriculaService,
         ClientWellnessService $clientWellnessService,
-        EnrollmentInstallmentService $enrollmentInstallmentService
+        EnrollmentInstallmentService $enrollmentInstallmentService,
+        DailyOperationsDebtService $dailyOperationsDebtService
     ): void {
         $this->asistenciaService = $asistenciaService;
         $this->clienteService = $clienteService;
@@ -153,6 +159,7 @@ class ClientePerfilLive extends Component
         $this->matriculaService = $matriculaService;
         $this->clientWellnessService = $clientWellnessService;
         $this->enrollmentInstallmentService = $enrollmentInstallmentService;
+        $this->dailyOperationsDebtService = $dailyOperationsDebtService;
     }
 
     public function mount(?Cliente $cliente = null): void
@@ -717,8 +724,11 @@ class ClientePerfilLive extends Component
 
         $activeEnrollment = $this->clientEnrollmentService->resolveActiveEnrollment($clienteId);
         $this->membresiaActiva = $activeEnrollment['source_model'] ?? null;
-        $this->saldoPendiente = (float) ($activeEnrollment['saldo_pendiente'] ?? 0);
-        $this->deudaProductoPendiente = (float) $this->selectedCliente->clientDebts()->pendientes()->sum('saldo_pendiente');
+        $this->operacionDiariaDebtSummary = $this->dailyOperationsDebtService->summarizeCliente($clienteId);
+        $this->saldoPendiente = (float) ($this->operacionDiariaDebtSummary['total_pendiente'] ?? 0);
+        $this->deudaProductoPendiente = (float) collect($this->operacionDiariaDebtSummary['items'] ?? [])
+            ->where('tipo', 'client_debt')
+            ->sum('saldo_pendiente');
         $this->asistenciasRecientes = $this->asistenciaService->obtenerAsistenciasRecientes($clienteId, 5)->all();
         $this->validacionAcceso = $this->membresiaActiva
             ? $this->asistenciaService->validarAccesoPorHorario($this->membresiaActiva)
@@ -781,6 +791,7 @@ class ClientePerfilLive extends Component
         $this->validacionAcceso = [];
         $this->saldoPendiente = 0.0;
         $this->deudaProductoPendiente = 0.0;
+        $this->operacionDiariaDebtSummary = [];
         $this->historialMembresias = [];
         $this->historialClases = [];
         $this->pagosRecientes = [];

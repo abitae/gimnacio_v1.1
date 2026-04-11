@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClientDebt extends Model
@@ -45,6 +46,11 @@ class ClientDebt extends Model
     public function venta(): BelongsTo
     {
         return $this->belongsTo(Venta::class);
+    }
+
+    public function pagos(): HasMany
+    {
+        return $this->hasMany(Pago::class, 'client_debt_id');
     }
 
     public function scopePendientes($query)

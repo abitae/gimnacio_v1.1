@@ -25,7 +25,7 @@ class CreditSales extends Component
     {
         $query = Venta::query()
             ->where('es_credito', true)
-            ->with(['cliente', 'usuario'])
+            ->with(['cliente', 'usuario', 'clientDebt'])
             ->orderByDesc('fecha_venta');
 
         if ($this->search) {
