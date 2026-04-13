@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="{{ $bodyAppearanceClass ?? 'dark' }} {{ $accentClass ?? 'accent-neutral' }}" data-appearance="{{ $appearanceValue ?? 'system' }}" data-appearance-sidebar="{{ $appearanceSidebarValue ?? 'system' }}" data-appearance-header="{{ $appearanceHeaderValue ?? 'system' }}" data-accent="{{ $accentValue ?? 'neutral' }}" data-sidebar-bg="{{ $sidebarBgValue ?? 'default' }}" data-header-bg="{{ $headerBgValue ?? 'default' }}" data-body-bg="{{ $bodyBgValue ?? 'default' }}" data-font-size="{{ $fontSizeValue ?? 'base' }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="{{ $bodyAppearanceClass ?? 'dark' }} {{ $accentClass ?? 'accent-red' }}" data-appearance="{{ $appearanceValue ?? 'system' }}" data-appearance-sidebar="{{ $appearanceSidebarValue ?? 'dark' }}" data-appearance-header="{{ $appearanceHeaderValue ?? 'dark' }}" data-accent="{{ $accentValue ?? 'red' }}" data-sidebar-bg="{{ $sidebarBgValue ?? 'red' }}" data-header-bg="{{ $headerBgValue ?? 'red' }}" data-body-bg="{{ $bodyBgValue ?? 'default' }}" data-font-size="{{ $fontSizeValue ?? 'base' }}">
     <head>
         @include('partials.head')
     </head>
@@ -41,7 +41,7 @@
                 </flux:sidebar.item>
 
                 @canany(['checking.ver', 'caja.ver', 'punto_venta.ver'])
-                <flux:sidebar.group expandable heading="Operación diaria" class="grid" :expanded="request()->routeIs('checking.*') || request()->routeIs('cajas.*') || request()->routeIs('pos.*')">
+                <flux:sidebar.group expandable heading="Operacion diaria" class="grid" :expanded="request()->routeIs('checking.*') || request()->routeIs('cajas.*') || request()->routeIs('pos.*')">
                     @can('checking.ver')
                     <flux:sidebar.item icon="check-circle" :href="route('checking.index')" :current="request()->routeIs('checking.*')" wire:navigate>
                         {{ __('Checking') }}
@@ -57,7 +57,7 @@
                         {{ __('Punto de venta') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="credit-card" :href="route('pos.ventas-credito')" :current="request()->routeIs('pos.ventas-credito')" wire:navigate>
-                        {{ __('Ventas a crédito') }}
+                        {{ __('Ventas a credito') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="document-text" :href="route('pos.cuentas-por-cobrar')" :current="request()->routeIs('pos.cuentas-por-cobrar')" wire:navigate>
                         {{ __('Cobros pendientes') }}
@@ -78,12 +78,12 @@
                     @endcan
                     @can('membresia.ver')
                     <flux:sidebar.item icon="identification" :href="route('membresias.index')" :current="request()->routeIs('membresias.*')" wire:navigate>
-                        {{ __('Membresías') }}
+                        {{ __('Membresias') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('matricula_cliente.ver')
                     <flux:sidebar.item icon="user-group" :href="route('cliente-matriculas.index')" :current="request()->routeIs('cliente-matriculas.*')" wire:navigate>
-                        {{ __('Matrículas') }}
+                        {{ __('Matriculas') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('clase.ver')
@@ -98,7 +98,7 @@
                 <flux:sidebar.group expandable heading="Bienestar" class="grid" :expanded="request()->routeIs('gestion-nutricional.*') || request()->routeIs('ejercicios.*') || request()->routeIs('rutinas-base.*') || request()->routeIs('clientes.rutinas.*') || request()->routeIs('clientes.sesiones.*') || request()->routeIs('ejercicios-rutinas.*')">
                     @can('gestion_nutricional.ver')
                     <flux:sidebar.item icon="clipboard-document-list" :href="route('gestion-nutricional.index')" :current="request()->routeIs('gestion-nutricional.index')" wire:navigate>
-                        {{ __('Gestión nutricional') }}
+                        {{ __('Gestion nutricional') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="flag" :href="route('gestion-nutricional.objetivos.index')" :current="request()->routeIs('gestion-nutricional.objetivos.*')" wire:navigate>
                         {{ __('Objetivos') }}
@@ -143,13 +143,13 @@
                         {{ __('Oportunidades') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="megaphone" :href="route('crm.campaigns')" :current="request()->routeIs('crm.campaigns*')" wire:navigate>
-                        {{ __('Campañas') }}
+                        {{ __('Campanas') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="tag" :href="route('crm.etiquetas')" :current="request()->routeIs('crm.etiquetas')" wire:navigate>
                         {{ __('Etiquetas') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="arrow-path" :href="route('crm.renovacion-reactivacion')" :current="request()->routeIs('crm.renovacion-reactivacion')" wire:navigate>
-                        {{ __('Renovación y reactivación') }}
+                        {{ __('Renovacion y reactivacion') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('crm_mensaje.ver')
@@ -169,7 +169,7 @@
                 <flux:sidebar.group expandable heading="Recursos" class="grid" :expanded="request()->routeIs('categorias-productos.*') || request()->routeIs('productos.*') || request()->routeIs('servicios.*') || request()->routeIs('rentals.*')">
                     @can('categoria_producto.ver')
                     <flux:sidebar.item icon="tag" :href="route('categorias-productos.index')" :current="request()->routeIs('categorias-productos.*')" wire:navigate>
-                        {{ __('Categorías de productos') }}
+                        {{ __('Categorias de productos') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('producto.ver')
@@ -197,7 +197,7 @@
                 @endcanany
 
                 @can('reporte.ver')
-                <flux:sidebar.group expandable heading="Analítica" class="grid" :expanded="request()->routeIs('reportes.*')">
+                <flux:sidebar.group expandable heading="Analitica" class="grid" :expanded="request()->routeIs('reportes.*')">
                     <flux:sidebar.item icon="document-chart-bar" :href="route('reportes.index')" :current="request()->routeIs('reportes.index')" wire:navigate>
                         {{ __('Centro de reportes') }}
                     </flux:sidebar.item>
@@ -217,7 +217,7 @@
                 @endcan
 
                 @canany(['empleado.ver', 'metodo_pago.ver', 'usuario.ver', 'rol.ver'])
-                <flux:sidebar.group expandable heading="Administración" class="grid" :expanded="request()->routeIs('employees.*') || request()->routeIs('payment-methods.*') || request()->routeIs('usuarios.*') || request()->routeIs('roles.*')">
+                <flux:sidebar.group expandable heading="Administracion" class="grid" :expanded="request()->routeIs('employees.*') || request()->routeIs('payment-methods.*') || request()->routeIs('usuarios.*') || request()->routeIs('roles.*')">
                     @can('empleado.ver')
                     <flux:sidebar.item icon="users" :href="route('employees.index')" :current="request()->routeIs('employees.index') || request()->routeIs('employees.show') || request()->routeIs('employees.edit') || request()->routeIs('empleado.crear')" wire:navigate>
                         {{ __('Empleados') }}
@@ -228,7 +228,7 @@
                     @endcan
                     @can('metodo_pago.ver')
                     <flux:sidebar.item icon="credit-card" :href="route('payment-methods.index')" :current="request()->routeIs('payment-methods.*')" wire:navigate>
-                        {{ __('Métodos de pago') }}
+                        {{ __('Metodos de pago') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('usuario.ver')
@@ -247,16 +247,16 @@
                 @can('biotime.ver')
                 <flux:sidebar.group expandable heading="Biotime" class="grid" :expanded="request()->routeIs('biotime.*')">
                     <flux:sidebar.item icon="signal" :href="route('biotime.index')" :current="request()->routeIs('biotime.index')" wire:navigate>
-                        {{ __('Integración BioTime') }}
+                        {{ __('Integracion BioTime') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="cog-6-tooth" :href="route('biotime.config')" :current="request()->routeIs('biotime.config')" wire:navigate>
-                        {{ __('Configuración') }}
+                        {{ __('Configuracion') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="arrow-path" :href="route('biotime.sync')" :current="request()->routeIs('biotime.sync')" wire:navigate>
                         {{ __('Sincronizar') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="map-pin" :href="route('biotime.areas')" :current="request()->routeIs('biotime.areas')" wire:navigate>
-                        {{ __('Áreas') }}
+                        {{ __('Areas') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="building-office-2" :href="route('biotime.departments')" :current="request()->routeIs('biotime.departments')" wire:navigate>
                         {{ __('Departamentos') }}
@@ -268,7 +268,7 @@
                 @endcan
 
                 @if (auth()->user()?->hasRole(\App\Support\PermissionCatalog::SUPER_ADMIN_ROLE_NAME))
-                <flux:sidebar.group expandable heading="Super administración" class="grid" :expanded="request()->routeIs('company-branches.*') || request()->routeIs('administracion.backups.*')">
+                <flux:sidebar.group expandable heading="Super administracion" class="grid" :expanded="request()->routeIs('company-branches.*') || request()->routeIs('administracion.backups.*')">
                     <flux:sidebar.item icon="building-storefront" :href="route('company-branches.index')" :current="request()->routeIs('company-branches.*')" wire:navigate>
                         {{ __('Empresa y sucursales') }}
                     </flux:sidebar.item>
@@ -324,7 +324,7 @@
                     <form method="POST" action="{{ route('logout') }}" class="w-full">
                         @csrf
                         <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full" data-test="logout-button">
-                            {{ __('Cerrar sesión') }}
+                            {{ __('Cerrar sesion') }}
                         </flux:menu.item>
                     </form>
                 </flux:menu>
@@ -387,7 +387,7 @@
                         <form method="POST" action="{{ route('logout') }}" class="w-full">
                             @csrf
                             <flux:menu.item as="button" type="submit" icon="arrow-right-start-on-rectangle" class="w-full" data-test="logout-button">
-                                {{ __('Cerrar sesión') }}
+                                {{ __('Cerrar sesion') }}
                             </flux:menu.item>
                         </form>
                     </flux:menu>
@@ -506,11 +506,11 @@
                 function applyAppearance(rawParams) {
                     var params = mergeAppearanceParams(rawParams);
                     var appearance = params.appearance || 'system';
-                    var appearanceSidebar = params.appearance_sidebar || 'system';
-                    var appearanceHeader = params.appearance_header || 'system';
-                    var accent = params.accent || 'neutral';
-                    var sidebarBg = params.sidebar_bg || 'default';
-                    var headerBg = params.header_bg || 'default';
+                    var appearanceSidebar = params.appearance_sidebar || 'dark';
+                    var appearanceHeader = params.appearance_header || 'dark';
+                    var accent = params.accent || 'red';
+                    var sidebarBg = params.sidebar_bg || 'red';
+                    var headerBg = params.header_bg || 'red';
                     var bodyBg = params.body_bg || 'default';
                     var fontSize = params.font_size || 'base';
                     var html = document.documentElement;
@@ -561,11 +561,11 @@
                 function getParamsFromDocument() {
                     return {
                         appearance: document.documentElement.getAttribute('data-appearance') || 'system',
-                        appearance_sidebar: document.documentElement.getAttribute('data-appearance-sidebar') || 'system',
-                        appearance_header: document.documentElement.getAttribute('data-appearance-header') || 'system',
-                        accent: document.documentElement.getAttribute('data-accent') || 'neutral',
-                        sidebar_bg: document.documentElement.getAttribute('data-sidebar-bg') || 'default',
-                        header_bg: document.documentElement.getAttribute('data-header-bg') || 'default',
+                        appearance_sidebar: document.documentElement.getAttribute('data-appearance-sidebar') || 'dark',
+                        appearance_header: document.documentElement.getAttribute('data-appearance-header') || 'dark',
+                        accent: document.documentElement.getAttribute('data-accent') || 'red',
+                        sidebar_bg: document.documentElement.getAttribute('data-sidebar-bg') || 'red',
+                        header_bg: document.documentElement.getAttribute('data-header-bg') || 'red',
                         body_bg: document.documentElement.getAttribute('data-body-bg') || 'default',
                         font_size: document.documentElement.getAttribute('data-font-size') || 'base'
                     };

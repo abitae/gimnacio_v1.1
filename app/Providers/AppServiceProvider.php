@@ -30,7 +30,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Opción B (Spatie): super_administrador pasa cualquier comprobación de autorización sin listar todos los permisos en BD.
+        // Opcion B (Spatie): super_administrador pasa cualquier comprobacion de autorizaciÃ³n sin listar todos los permisos en BD.
         Gate::before(function ($user, $ability) {
             if ($user === null || ! is_string($ability)) {
                 return null;
@@ -98,16 +98,16 @@ class AppServiceProvider extends ServiceProvider
             $bodyAppearanceClass = 'dark';
             $appearanceValue = 'system';
             $sidebarAppearanceClass = 'dark';
-            $appearanceSidebarValue = 'system';
+            $appearanceSidebarValue = 'dark';
             $headerAppearanceClass = 'dark';
-            $appearanceHeaderValue = 'system';
-            $accentClass = 'accent-neutral';
-            $sidebarBgClass = $sidebarBgClasses['default'];
-            $headerBgClass = $headerBgClasses['default'];
+            $appearanceHeaderValue = 'dark';
+            $accentClass = 'accent-red';
+            $sidebarBgClass = $sidebarBgClasses['red'];
+            $headerBgClass = $headerBgClasses['red'];
             $bodyBgClass = $bodyBgClasses['default'];
-            $accentValue = 'neutral';
-            $sidebarBgValue = 'default';
-            $headerBgValue = 'default';
+            $accentValue = 'red';
+            $sidebarBgValue = 'red';
+            $headerBgValue = 'red';
             $bodyBgValue = 'default';
             $fontSizeValue = 'base';
             $fontSizeClass = 'text-base';
@@ -116,14 +116,14 @@ class AppServiceProvider extends ServiceProvider
                 $user = Auth::user();
                 $appearanceValue = $user->appearance ?? 'system';
                 $bodyAppearanceClass = $appearanceValue === 'system' ? 'dark' : $appearanceValue;
-                $appearanceSidebarValue = $user->appearance_sidebar ?? 'system';
+                $appearanceSidebarValue = $user->appearance_sidebar ?? 'dark';
                 $sidebarAppearanceClass = $appearanceSidebarValue === 'system' ? 'dark' : $appearanceSidebarValue;
-                $appearanceHeaderValue = $user->appearance_header ?? 'system';
+                $appearanceHeaderValue = $user->appearance_header ?? 'dark';
                 $headerAppearanceClass = $appearanceHeaderValue === 'system' ? 'dark' : $appearanceHeaderValue;
-                $accentValue = $user->accent ?? 'neutral';
+                $accentValue = $user->accent ?? 'red';
                 $accentClass = 'accent-'.$accentValue;
-                $sidebarBgValue = $user->sidebar_bg ?? 'default';
-                $headerBgValue = $user->header_bg ?? 'default';
+                $sidebarBgValue = $user->sidebar_bg ?? 'red';
+                $headerBgValue = $user->header_bg ?? 'red';
                 $bodyBgValue = $user->body_bg ?? 'default';
                 $fontSizeValue = $user->font_size ?? 'base';
                 $sidebarBgClass = $sidebarBgClasses[$sidebarBgValue] ?? $sidebarBgClasses['default'];

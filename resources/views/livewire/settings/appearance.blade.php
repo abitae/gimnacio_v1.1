@@ -5,18 +5,18 @@ use Livewire\Volt\Component;
 
 new class extends Component {
     public string $appearance = 'system';
-    public string $accent = 'neutral';
-    public string $sidebar_bg = 'default';
-    public string $header_bg = 'default';
+    public string $accent = 'red';
+    public string $sidebar_bg = 'red';
+    public string $header_bg = 'red';
     public string $body_bg = 'default';
 
     public function mount(): void
     {
         $user = Auth::user();
         $this->appearance = $user->appearance ?? 'system';
-        $this->accent = $user->accent ?? 'neutral';
-        $this->sidebar_bg = $user->sidebar_bg ?? 'default';
-        $this->header_bg = $user->header_bg ?? 'default';
+        $this->accent = $user->accent ?? 'red';
+        $this->sidebar_bg = $user->sidebar_bg ?? 'red';
+        $this->header_bg = $user->header_bg ?? 'red';
         $this->body_bg = $user->body_bg ?? 'default';
     }
 
@@ -37,9 +37,9 @@ new class extends Component {
             appearance: $user->appearance ?? 'system',
             appearance_sidebar: $user->appearance_sidebar ?? 'system',
             appearance_header: $user->appearance_header ?? 'system',
-            accent: $user->accent ?? 'neutral',
-            sidebar_bg: $user->sidebar_bg ?? 'default',
-            header_bg: $user->header_bg ?? 'default',
+            accent: $user->accent ?? 'red',
+            sidebar_bg: $user->sidebar_bg ?? 'red',
+            header_bg: $user->header_bg ?? 'red',
             body_bg: $user->body_bg ?? 'default',
             font_size: $user->font_size ?? 'base',
         );

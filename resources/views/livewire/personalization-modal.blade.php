@@ -8,12 +8,12 @@ new class extends Component {
     /** Tema del cuerpo / contenido principal */
     public string $appearance = 'system';
     /** Tema del sidebar */
-    public string $appearance_sidebar = 'system';
+    public string $appearance_sidebar = 'dark';
     /** Tema del header */
-    public string $appearance_header = 'system';
-    public string $accent = 'neutral';
-    public string $sidebar_bg = 'default';
-    public string $header_bg = 'default';
+    public string $appearance_header = 'dark';
+    public string $accent = 'red';
+    public string $sidebar_bg = 'red';
+    public string $header_bg = 'red';
     public string $body_bg = 'default';
 
     public function mount(): void
@@ -35,11 +35,11 @@ new class extends Component {
     {
         $user = Auth::user();
         $this->appearance = $user->appearance ?? 'system';
-        $this->appearance_sidebar = $user->appearance_sidebar ?? 'system';
-        $this->appearance_header = $user->appearance_header ?? 'system';
-        $this->accent = $user->accent ?? 'neutral';
-        $this->sidebar_bg = $user->sidebar_bg ?? 'default';
-        $this->header_bg = $user->header_bg ?? 'default';
+        $this->appearance_sidebar = $user->appearance_sidebar ?? 'dark';
+        $this->appearance_header = $user->appearance_header ?? 'dark';
+        $this->accent = $user->accent ?? 'red';
+        $this->sidebar_bg = $user->sidebar_bg ?? 'red';
+        $this->header_bg = $user->header_bg ?? 'red';
         $this->body_bg = $user->body_bg ?? 'default';
     }
 
@@ -107,9 +107,9 @@ new class extends Component {
         $user = Auth::user();
         $this->dispatch('appearance-updated',
             appearance: $user->appearance ?? 'system',
-            appearance_sidebar: $user->appearance_sidebar ?? 'system',
-            appearance_header: $user->appearance_header ?? 'system',
-            accent: $user->accent ?? 'neutral',
+            appearance_sidebar: $user->appearance_sidebar ?? 'dark',
+            appearance_header: $user->appearance_header ?? 'dark',
+            accent: $user->accent ?? 'red',
             sidebar_bg: $this->sidebar_bg,
             header_bg: $this->header_bg,
             body_bg: $this->body_bg,
@@ -131,7 +131,7 @@ new class extends Component {
 
             <div class="mt-4 space-y-4">
                 <div>
-                    <flux:text class="mb-2 block text-sm font-medium text-zinc-900">{{ __('Theme mode') }} — {{ __('Sidebar') }}</flux:text>
+                    <flux:text class="mb-2 block text-sm font-medium text-zinc-900">{{ __('Theme mode') }} - {{ __('Sidebar') }}</flux:text>
                     <div class="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-1">
                         <button type="button" wire:click="setAppearanceSidebar('light')" class="min-w-0 flex-1 rounded-md px-2 py-2 text-xs transition @if($appearance_sidebar === 'light') bg-white shadow @else hover:bg-zinc-200 @endif text-zinc-900" title="{{ __('Light') }}">
                             <flux:icon name="sun" class="mx-auto size-4" />
@@ -145,7 +145,7 @@ new class extends Component {
                     </div>
                 </div>
                 <div>
-                    <flux:text class="mb-2 block text-sm font-medium text-zinc-900">{{ __('Theme mode') }} — {{ __('Header') }}</flux:text>
+                    <flux:text class="mb-2 block text-sm font-medium text-zinc-900">{{ __('Theme mode') }} - {{ __('Header') }}</flux:text>
                     <div class="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-1">
                         <button type="button" wire:click="setAppearanceHeader('light')" class="min-w-0 flex-1 rounded-md px-2 py-2 text-xs transition @if($appearance_header === 'light') bg-white shadow @else hover:bg-zinc-200 @endif text-zinc-900" title="{{ __('Light') }}">
                             <flux:icon name="sun" class="mx-auto size-4" />
@@ -159,7 +159,7 @@ new class extends Component {
                     </div>
                 </div>
                 <div>
-                    <flux:text class="mb-2 block text-sm font-medium text-zinc-900">{{ __('Theme mode') }} — {{ __('Body') }}</flux:text>
+                    <flux:text class="mb-2 block text-sm font-medium text-zinc-900">{{ __('Theme mode') }} - {{ __('Body') }}</flux:text>
                     <div class="flex gap-1 rounded-lg border border-zinc-200 bg-zinc-50 p-1">
                         <button type="button" wire:click="setAppearance('light')" class="min-w-0 flex-1 rounded-md px-2 py-2 text-xs transition @if($appearance === 'light') bg-white shadow @else hover:bg-zinc-200 @endif text-zinc-900" title="{{ __('Light') }}">
                             <flux:icon name="sun" class="mx-auto size-4" />

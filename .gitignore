@@ -19,3 +19,6 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+
+# >100 MB; GitHub rechaza el push. Usar versión comprimida o almacenamiento externo.
+/public/fitnescenter/LOGO FITNESS CENTER 3D - ACTUAL.png

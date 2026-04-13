@@ -1,6 +1,6 @@
 /**
- * Módulo de personalización de tema — gimnacio_v1
- * Basado en la documentación de FluxUI: https://fluxui.dev/docs/theming
+ * Modulo de personalizacion de tema - gimnacio_v1
+ * Basado en la documentacion de FluxUI: https://fluxui.dev/docs/theming
  *
  * Flux usa dos familias de color:
  * - Base: texto, fondos, bordes (por defecto zinc; se puede reasignar a slate/gray/neutral).
@@ -11,11 +11,11 @@
  */
 
 @theme {
-    /* ----- Tipografía (heredada del proyecto) ----- */
+    /* ----- Tipografia (heredada del proyecto) ----- */
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
     /* ----- Base: paleta zinc (Flux la usa por defecto) -----
-     * Para usar slate como base, reemplaza cada línea por:
+     * Para usar slate como base, reemplaza cada linea por:
      *   --color-zinc-50: var(--color-slate-50);
      *   --color-zinc-100: var(--color-slate-100);
      *   ... hasta 950 (Tailwind ya define slate/gray/neutral).
@@ -34,17 +34,17 @@
 
     /* ----- Acento (botones primarios, enlaces, etc.) -----
      * Modo claro: fondo oscuro, texto claro.
-     * Modo oscuro: se invierte en @layer theme más abajo.
+     * Modo oscuro: se invierte en @layer theme mas abajo.
      * Ejemplos de acento con paletas Tailwind:
      *   Azul:  --color-accent: var(--color-blue-600); --color-accent-content: var(--color-blue-700);
      *   Verde: --color-accent: var(--color-green-600); --color-accent-content: var(--color-green-700);
      *   Rojo:  --color-accent: var(--color-red-600);   --color-accent-content: var(--color-red-700);
      */
-    --color-accent: var(--color-neutral-800);
-    --color-accent-content: var(--color-neutral-800);
+    --color-accent: var(--color-red-600);
+    --color-accent-content: var(--color-red-700);
     --color-accent-foreground: var(--color-white);
 
-    /* ----- Colores semánticos del proyecto (opcional) -----
+    /* ----- Colores semanticos del proyecto (opcional) -----
      * Usar en vistas como: style="--state-color: var(--theme-state-programada)"
      * o en Tailwind: bg-[var(--theme-state-confirmada)]
      */
@@ -58,9 +58,9 @@
 
 @layer theme {
     .dark {
-        --color-accent: var(--color-white);
-        --color-accent-content: var(--color-white);
-        --color-accent-foreground: var(--color-neutral-800);
+        --color-accent: var(--color-red-400);
+        --color-accent-content: var(--color-red-300);
+        --color-accent-foreground: var(--color-neutral-950);
 
         /* Ajustes opcionales para acentos de color en dark (si cambias a blue/green/etc.) */
         /* --color-accent: var(--color-blue-400); */
