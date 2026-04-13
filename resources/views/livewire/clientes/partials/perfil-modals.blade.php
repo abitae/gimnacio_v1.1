@@ -11,6 +11,7 @@
                 {{ $clienteId ? __('Editar cliente') : __('Nuevo cliente') }}
             </h2>
             <div class="grid gap-2 sm:grid-cols-2">
+                <flux:input size="xs" wire:model="formData.codigo" label="{{ __('Código interno') }}" placeholder="{{ __('Opcional, único por sucursal') }}" class="sm:col-span-2" />
                 <flux:input size="xs" wire:model="formData.tipo_documento" label="{{ __('Tipo doc.') }}" />
                 <flux:input size="xs" wire:model="formData.numero_documento" label="{{ __('Número') }}" required />
                 <flux:input size="xs" wire:model="formData.nombres" label="{{ __('Nombres') }}" required class="sm:col-span-2" />

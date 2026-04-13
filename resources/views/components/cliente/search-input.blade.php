@@ -36,6 +36,10 @@
                                     {{ $cliente->nombres }} {{ $cliente->apellidos }}
                                 </div>
                                 <div class="text-zinc-500 dark:text-zinc-400">
+                                    @if (filled($cliente->codigo))
+                                        <span>{{ __('Cód.') }} {{ $cliente->codigo }}</span>
+                                        <span class="mx-1">·</span>
+                                    @endif
                                     {{ $cliente->tipo_documento }}: {{ $cliente->numero_documento }}
                                     @if ($cliente->email)
                                         <span class="ml-2">• {{ $cliente->email }}</span>

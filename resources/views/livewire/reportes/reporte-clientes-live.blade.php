@@ -100,6 +100,7 @@
             <table class="w-full text-sm">
                 <thead class="bg-indigo-100 dark:bg-indigo-900/40 text-indigo-800 dark:text-indigo-200">
                     <tr>
+                        <th class="px-3 py-2 text-left font-medium">{{ __('Código') }}</th>
                         <th class="px-3 py-2 text-left font-medium">Documento</th>
                         <th class="px-3 py-2 text-left font-medium">Nombres</th>
                         <th class="px-3 py-2 text-left font-medium">Plan actual</th>
@@ -116,6 +117,7 @@
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                     @forelse($clientes as $c)
                         <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
+                            <td class="px-3 py-2 tabular-nums">{{ $c->codigo ?? '—' }}</td>
                             <td class="px-3 py-2">{{ $c->tipo_documento }} {{ $c->numero_documento }}</td>
                             <td class="px-3 py-2">{{ $c->nombres }} {{ $c->apellidos }}</td>
                             <td class="px-3 py-2">

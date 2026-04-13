@@ -40,6 +40,7 @@ trait ManagesClienteCrudAndPhoto
     public ?string $capturedPhotoUrl = null;
 
     public array $formData = [
+        'codigo' => '',
         'tipo_documento' => 'DNI',
         'numero_documento' => '',
         'nombres' => '',
@@ -375,6 +376,7 @@ trait ManagesClienteCrudAndPhoto
     protected function mapClienteToForm(Cliente $cliente): void
     {
         $this->formData = [
+            'codigo' => $cliente->codigo ?? '',
             'tipo_documento' => $cliente->tipo_documento,
             'numero_documento' => $cliente->numero_documento,
             'nombres' => $cliente->nombres,
@@ -406,6 +408,7 @@ trait ManagesClienteCrudAndPhoto
     protected function mapFormToClienteData(): array
     {
         return [
+            'codigo' => $this->formData['codigo'] !== '' ? $this->formData['codigo'] : null,
             'tipo_documento' => $this->formData['tipo_documento'],
             'numero_documento' => $this->formData['numero_documento'],
             'nombres' => $this->formData['nombres'],
@@ -465,6 +468,7 @@ trait ManagesClienteCrudAndPhoto
         $this->capturedPhotoUrl = null;
 
         $this->formData = [
+            'codigo' => '',
             'tipo_documento' => 'DNI',
             'numero_documento' => '',
             'nombres' => '',

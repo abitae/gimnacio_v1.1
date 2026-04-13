@@ -4,17 +4,15 @@ namespace App\Services;
 
 use App\Models\Core\Asistencia;
 use App\Models\Core\Cliente;
-use App\Models\Core\ClienteMembresia;
 use App\Models\Core\ClienteMatricula;
+use App\Models\Core\ClienteMembresia;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Validator;
 
 class AsistenciaService
 {
     public function __construct(
         protected ClientEnrollmentService $clientEnrollmentService,
-    ) {
-    }
+    ) {}
 
     /**
      * Buscar cliente por documento o nombre (un solo resultado)
@@ -23,12 +21,13 @@ class AsistenciaService
     {
         return Cliente::where(function ($query) use ($termino) {
             $query->where('numero_documento', 'like', "%{$termino}%")
+                ->orWhere('codigo', 'like', "%{$termino}%")
                 ->orWhere('nombres', 'like', "%{$termino}%")
                 ->orWhere('apellidos', 'like', "%{$termino}%")
                 ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ["%{$termino}%"]);
         })
-        ->where('estado_cliente', 'activo')
-        ->first();
+            ->where('estado_cliente', 'activo')
+            ->first();
     }
 
     /**
@@ -38,14 +37,15 @@ class AsistenciaService
     {
         return Cliente::where(function ($query) use ($termino) {
             $query->where('numero_documento', 'like', "%{$termino}%")
+                ->orWhere('codigo', 'like', "%{$termino}%")
                 ->orWhere('nombres', 'like', "%{$termino}%")
                 ->orWhere('apellidos', 'like', "%{$termino}%")
                 ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ["%{$termino}%"]);
         })
-        ->where('estado_cliente', 'activo')
-        ->orderBy('nombres')
-        ->limit($limite)
-        ->get();
+            ->where('estado_cliente', 'activo')
+            ->orderBy('nombres')
+            ->limit($limite)
+            ->get();
     }
 
     /**
@@ -54,6 +54,7 @@ class AsistenciaService
     public function obtenerMembresiaActiva(int $clienteId): ?ClienteMembresia
     {
         $hoy = today();
+
         return ClienteMembresia::where('cliente_id', $clienteId)
             ->where('estado', 'activa')
             ->where('fecha_inicio', '<=', $hoy)
@@ -93,8 +94,8 @@ class AsistenciaService
     public function validarIngreso(int $clienteId): array
     {
         $cliente = Cliente::find($clienteId);
-        
-        if (!$cliente) {
+
+        if (! $cliente) {
             return [
                 'valido' => false,
                 'mensaje' => 'Cliente no encontrado.',
@@ -110,7 +111,7 @@ class AsistenciaService
 
         $membresia = $this->obtenerMembresiaActivaParaIngreso($clienteId);
 
-        if (!$membresia) {
+        if (! $membresia) {
             return [
                 'valido' => false,
                 'mensaje' => 'El cliente no tiene una membresía activa.',
@@ -143,7 +144,7 @@ class AsistenciaService
     {
         $validacion = $this->validarIngreso($clienteId);
 
-        if (!$validacion['valido']) {
+        if (! $validacion['valido']) {
             throw new \Exception($validacion['mensaje']);
         }
 
@@ -168,9 +169,10 @@ class AsistenciaService
 
         return DB::transaction(function () use ($atributos) {
             $asistencia = Asistencia::create($atributos);
-            if (!empty($atributos['cliente_matricula_id'])) {
+            if (! empty($atributos['cliente_matricula_id'])) {
                 $this->marcarMatriculaCompletadaSiCorresponde((int) $atributos['cliente_matricula_id']);
             }
+
             return $asistencia;
         });
     }
@@ -181,7 +183,7 @@ class AsistenciaService
     protected function marcarMatriculaCompletadaSiCorresponde(int $clienteMatriculaId): void
     {
         $matricula = ClienteMatricula::find($clienteMatriculaId);
-        if (!$matricula || $matricula->estado === 'completada') {
+        if (! $matricula || $matricula->estado === 'completada') {
             return;
         }
         $sesionesTotales = $matricula->sesiones_totales;
@@ -208,6 +210,7 @@ class AsistenciaService
         return DB::transaction(function () use ($asistencia) {
             $asistencia->fecha_hora_salida = now();
             $asistencia->save();
+
             return $asistencia->fresh();
         });
     }
@@ -231,7 +234,7 @@ class AsistenciaService
     public function obtenerEstadisticasAsistencia(int $clienteId, ?int $matriculaId = null): array
     {
         $query = Asistencia::where('cliente_id', $clienteId);
-        
+
         if ($matriculaId) {
             // Buscar en ambas columnas (compatibilidad)
             $query->where(function ($q) use ($matriculaId) {
@@ -267,8 +270,8 @@ class AsistenciaService
             }
         }
 
-        $porcentajeEfectividad = $totalSesiones > 0 
-            ? round(($totalAsistencias / $totalSesiones) * 100, 2) 
+        $porcentajeEfectividad = $totalSesiones > 0
+            ? round(($totalAsistencias / $totalSesiones) * 100, 2)
             : null;
 
         return [
@@ -286,7 +289,7 @@ class AsistenciaService
      */
     public function validarAccesoPorHorario($membresia): array
     {
-        if (!$membresia) {
+        if (! $membresia) {
             return [
                 'tiene_acceso' => false,
                 'mensaje' => 'No hay membresía activa.',

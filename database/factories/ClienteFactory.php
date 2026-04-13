@@ -33,6 +33,7 @@ class ClienteFactory extends Factory
         }
 
         return [
+            'codigo' => null,
             'tipo_documento' => $tipoDocumento,
             'numero_documento' => $numeroDocumento,
             'nombres' => fake()->firstName(),

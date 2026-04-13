@@ -120,7 +120,8 @@ class CustomerDebts extends Component
         if ($this->search) {
             $query->whereHas('cliente', fn ($q) => $q->where('nombres', 'like', '%'.$this->search.'%')
                 ->orWhere('apellidos', 'like', '%'.$this->search.'%')
-                ->orWhere('numero_documento', 'like', '%'.$this->search.'%'));
+                ->orWhere('numero_documento', 'like', '%'.$this->search.'%')
+                ->orWhere('codigo', 'like', '%'.$this->search.'%'));
         }
 
         if ($this->estadoFilter) {

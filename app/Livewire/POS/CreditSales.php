@@ -33,7 +33,8 @@ class CreditSales extends Component
                 $q->where('numero_venta', 'like', '%'.$this->search.'%')
                     ->orWhereHas('cliente', fn ($c) => $c->where('nombres', 'like', '%'.$this->search.'%')
                         ->orWhere('apellidos', 'like', '%'.$this->search.'%')
-                        ->orWhere('numero_documento', 'like', '%'.$this->search.'%'));
+                        ->orWhere('numero_documento', 'like', '%'.$this->search.'%')
+                        ->orWhere('codigo', 'like', '%'.$this->search.'%'));
             });
         }
 

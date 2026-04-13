@@ -39,6 +39,7 @@ class ClienteService
                 $q->where('nombres', 'like', "%{$search}%")
                     ->orWhere('apellidos', 'like', "%{$search}%")
                     ->orWhere('numero_documento', 'like', "%{$search}%")
+                    ->orWhere('codigo', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
         }
@@ -55,7 +56,7 @@ class ClienteService
 
     /**
      * Búsqueda rápida para autocompletado (optimizada)
-     * Busca por: código (numero_documento), nombre completo, email
+     * Busca por: documento, código interno, nombre completo, email
      */
     public function quickSearch(string $search, int $limit = 10): Collection
     {
@@ -66,32 +67,44 @@ class ClienteService
         }
 
         return Cliente::query()
-            ->select(['id', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'email', 'estado_cliente'])
+            ->select(['id', 'codigo', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'email', 'estado_cliente'])
             ->where(function ($q) use ($searchTerm) {
-                // Prioridad 1: Coincidencia exacta o que empiece con el documento
+                // Prioridad 1: Documento o código que empiecen con el término
                 $q->where('numero_documento', 'like', "{$searchTerm}%")
+                    ->orWhere('codigo', 'like', "{$searchTerm}%")
                     // Prioridad 2: Nombres o apellidos que empiecen con el término
                     ->orWhere(function ($subQ) use ($searchTerm) {
                         $subQ->where('nombres', 'like', "{$searchTerm}%")
                             ->orWhere('apellidos', 'like', "{$searchTerm}%")
                             ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ["{$searchTerm}%"]);
                     })
-                    // Prioridad 3: Coincidencias parciales en nombres, apellidos o email
+                    // Prioridad 3: Coincidencias parciales en nombres, apellidos, código o email
                     ->orWhere(function ($subQ) use ($searchTerm) {
                         $subQ->where('nombres', 'like', "%{$searchTerm}%")
                             ->orWhere('apellidos', 'like', "%{$searchTerm}%")
                             ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ["%{$searchTerm}%"])
+                            ->orWhere('codigo', 'like', "%{$searchTerm}%")
                             ->orWhere('email', 'like', "%{$searchTerm}%");
                     });
             })
-            ->orderByRaw("
-                CASE 
+            ->orderByRaw('
+                CASE
                     WHEN numero_documento = ? THEN 1
+                    WHEN codigo = ? THEN 1
                     WHEN numero_documento LIKE ? THEN 2
-                    WHEN nombres LIKE ? OR apellidos LIKE ? OR CONCAT(nombres, ' ', apellidos) LIKE ? THEN 3
+                    WHEN codigo LIKE ? THEN 2
+                    WHEN nombres LIKE ? OR apellidos LIKE ? OR CONCAT(nombres, \' \', apellidos) LIKE ? THEN 3
                     ELSE 4
                 END
-            ", [$searchTerm, "{$searchTerm}%", "{$searchTerm}%", "{$searchTerm}%", "{$searchTerm}%"])
+            ', [
+                $searchTerm,
+                $searchTerm,
+                "{$searchTerm}%",
+                "{$searchTerm}%",
+                "{$searchTerm}%",
+                "{$searchTerm}%",
+                "{$searchTerm}%",
+            ])
             ->limit($limit)
             ->get();
     }
@@ -218,6 +231,28 @@ class ClienteService
             'updated_by' => ['nullable', 'exists:users,id'],
             'trainer_user_id' => ['nullable', 'exists:users,id'],
             'sucursal_id' => ['nullable', 'exists:sucursales,id'],
+            'codigo' => [
+                'sometimes',
+                'nullable',
+                'string',
+                'max:50',
+                function ($attribute, $value, $fail) use ($data, $id) {
+                    if ($value === null || trim((string) $value) === '') {
+                        return;
+                    }
+                    $codigo = trim((string) $value);
+                    $sucursalId = $data['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
+                    $exists = Cliente::query()
+                        ->where('sucursal_id', $sucursalId)
+                        ->where('codigo', $codigo)
+                        ->when($id, fn ($q) => $q->where('id', '!=', $id))
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('Ya existe un cliente con este código en la sucursal.');
+                    }
+                },
+            ],
         ];
 
         $validator = Validator::make($data, $rules);
@@ -226,7 +261,15 @@ class ClienteService
             throw new \Illuminate\Validation\ValidationException($validator);
         }
 
-        return $validator->validated();
+        $validated = $validator->validated();
+
+        if (array_key_exists('codigo', $validated)) {
+            $validated['codigo'] = isset($validated['codigo']) && trim((string) $validated['codigo']) !== ''
+                ? trim((string) $validated['codigo'])
+                : null;
+        }
+
+        return $validated;
     }
 
     /**

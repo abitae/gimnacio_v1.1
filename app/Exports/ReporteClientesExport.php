@@ -18,8 +18,10 @@ class ReporteClientesExport implements FromCollection, WithHeadings, WithTitle
     public function collection()
     {
         $clientes = $this->data['clientes'] ?? collect();
+
         return $clientes->map(function ($c) {
             return [
+                $c->codigo ?? '',
                 $c->tipo_documento ?? '',
                 $c->numero_documento ?? '',
                 $c->nombres ?? '',
@@ -44,6 +46,7 @@ class ReporteClientesExport implements FromCollection, WithHeadings, WithTitle
     public function headings(): array
     {
         return [
+            'Código',
             'Tipo documento',
             'Nº Documento',
             'Nombres',

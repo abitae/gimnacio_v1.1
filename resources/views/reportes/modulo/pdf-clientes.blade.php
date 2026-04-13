@@ -29,6 +29,7 @@
     <table>
         <tr>
             <th>#</th>
+            <th>Código</th>
             <th>Tipo Doc.</th>
             <th>Nº Documento</th>
             <th>Nombres</th>
@@ -49,6 +50,7 @@
         @foreach($clientes as $c)
             <tr>
                 <td>{{ $loop->iteration }}</td>
+                <td>{{ $c->codigo ?? '—' }}</td>
                 <td>{{ $c->tipo_documento ?? '-' }}</td>
                 <td>{{ $c->numero_documento ?? '-' }}</td>
                 <td>{{ $c->nombres ?? '-' }}</td>
