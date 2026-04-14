@@ -11,6 +11,7 @@ class EnrollmentInstallment extends Model
 
     protected $fillable = [
         'enrollment_installment_plan_id',
+        'client_debt_id',
         'cliente_matricula_id',
         'numero_cuota',
         'monto',
@@ -41,6 +42,11 @@ class EnrollmentInstallment extends Model
     public function plan(): BelongsTo
     {
         return $this->belongsTo(EnrollmentInstallmentPlan::class, 'enrollment_installment_plan_id');
+    }
+
+    public function clientDebt(): BelongsTo
+    {
+        return $this->belongsTo(ClientDebt::class, 'client_debt_id');
     }
 
     public function clienteMatricula(): BelongsTo

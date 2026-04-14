@@ -27,6 +27,8 @@ class Cliente extends Model
         'telefono',
         'email',
         'direccion',
+        'origen',
+        'observaciones',
         'ocupacion',
         'fecha_nacimiento',
         'lugar_nacimiento',

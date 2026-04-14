@@ -207,6 +207,7 @@ class ClienteService
             'telefono' => ['nullable', 'string', 'max:20'],
             'email' => ['nullable', 'email', 'max:255', Rule::unique('clientes', 'email')->ignore($id)],
             'direccion' => ['nullable', 'string'],
+            'observaciones' => ['nullable', 'string'],
             'ocupacion' => ['nullable', 'string', 'max:80'],
             'fecha_nacimiento' => ['nullable', 'date'],
             'lugar_nacimiento' => ['nullable', 'string', 'max:120'],

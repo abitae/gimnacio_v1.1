@@ -4,6 +4,7 @@ namespace App\Services\Imports;
 
 use App\DataTransferObjects\Imports\SocioActivoRowData;
 use App\Models\User;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
@@ -12,11 +13,14 @@ class SellerUserResolver
 {
     private const FALLBACK_EMAIL = 'import.fallback@local.test';
 
+    /** @var Collection<int, User>|null */
+    private static ?Collection $usersForNameMatchCache = null;
+
     /**
      * @param  list<SocioActivoRowData>  $rows
      * @return array<string, mixed>
      */
-    public function syncUsers(array $rows, bool $execute = false): array
+    public function syncUsers(array $rows, bool $execute = false, ?int $sucursalId = null): array
     {
         $identities = $this->collectIdentities($rows);
         $report = [
@@ -41,16 +45,19 @@ class SellerUserResolver
         foreach ($identities as $normalized => $displayName) {
             if ($this->isIgnoredName($normalized)) {
                 $report['ignored']++;
+
                 continue;
             }
 
             $existing = $this->findExistingUser($normalized);
             if ($existing) {
                 if ($execute) {
-                    $this->ensureVendedorRole($existing);
+                    $this->ensureConfiguredSellerRole($existing);
+                    $this->attachSucursal($existing, $sucursalId);
                 }
                 $report['existing']++;
                 $report['users'][] = ['name' => $displayName, 'action' => 'existing'];
+
                 continue;
             }
 
@@ -59,12 +66,14 @@ class SellerUserResolver
                     ['email' => $this->syntheticEmail($normalized)],
                     [
                         'name' => $displayName,
-                        'password' => Hash::make(Str::random(32)),
+                        'password' => $this->importedSellerPlainPassword(),
                         'estado' => 'activo',
                         'email_verified_at' => now(),
                     ]
                 );
-                $this->ensureVendedorRole($user);
+                $this->ensureConfiguredSellerRole($user);
+                $this->attachSucursal($user, $sucursalId);
+                self::$usersForNameMatchCache = null;
             }
 
             $report['created']++;
@@ -72,6 +81,47 @@ class SellerUserResolver
         }
 
         return $report;
+    }
+
+    /**
+     * @param  list<array{fila: int, nombre: string}>  $entries
+     * @return array{created: bool, existing: bool, user_id: ?int}
+     */
+    public function syncSingleVendedorEntry(string $displayName, int $sucursalId, bool $execute): array
+    {
+        $normalized = SocioActivoRowData::normalizeComparable($displayName);
+        if ($this->isIgnoredName($normalized)) {
+            return ['created' => false, 'existing' => false, 'user_id' => null];
+        }
+
+        $existing = $this->findExistingUser($normalized);
+        if ($existing) {
+            if ($execute) {
+                $this->ensureConfiguredSellerRole($existing);
+                $this->attachSucursal($existing, $sucursalId);
+                self::$usersForNameMatchCache = null;
+            }
+
+            return ['created' => false, 'existing' => true, 'user_id' => $existing->id];
+        }
+
+        if (! $execute) {
+            return ['created' => false, 'existing' => false, 'user_id' => null];
+        }
+
+        $user = User::query()->create([
+            'name' => trim($displayName),
+            'email' => $this->syntheticEmail($normalized),
+            'password' => $this->importedSellerPlainPassword(),
+            'estado' => 'activo',
+            'email_verified_at' => now(),
+            'default_sucursal_id' => $sucursalId > 0 ? $sucursalId : null,
+        ]);
+        $this->ensureConfiguredSellerRole($user);
+        $this->attachSucursal($user, $sucursalId);
+        self::$usersForNameMatchCache = null;
+
+        return ['created' => true, 'existing' => false, 'user_id' => $user->id];
     }
 
     public function resolveOrFallback(?string $displayName): User
@@ -90,13 +140,14 @@ class SellerUserResolver
             ['email' => self::FALLBACK_EMAIL],
             [
                 'name' => 'Importación Excel',
-                'password' => Hash::make(Str::random(32)),
+                'password' => Str::random(32),
                 'estado' => 'activo',
                 'email_verified_at' => now(),
             ]
         );
 
-        $this->ensureVendedorRole($user);
+        $this->ensureConfiguredSellerRole($user);
+        self::$usersForNameMatchCache = null;
 
         return $user;
     }
@@ -143,9 +194,18 @@ class SellerUserResolver
             return $bySyntheticEmail;
         }
 
-        return User::query()
-            ->get()
+        return $this->usersForNameMatch()
             ->first(fn (User $user) => SocioActivoRowData::normalizeComparable($user->name) === $normalizedName);
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function usersForNameMatch(): Collection
+    {
+        return self::$usersForNameMatchCache ??= User::query()
+            ->select(['id', 'name', 'email'])
+            ->get();
     }
 
     private function createUser(string $displayName): User
@@ -155,13 +215,14 @@ class SellerUserResolver
             ['email' => $this->syntheticEmail($normalized)],
             [
                 'name' => trim($displayName),
-                'password' => Hash::make(Str::random(32)),
+                'password' => $this->importedSellerPlainPassword(),
                 'estado' => 'activo',
                 'email_verified_at' => now(),
             ]
         );
 
-        $this->ensureVendedorRole($user);
+        $this->ensureConfiguredSellerRole($user);
+        self::$usersForNameMatchCache = null;
 
         return $user;
     }
@@ -173,13 +234,33 @@ class SellerUserResolver
             $slug = 'usuario';
         }
 
-        return sprintf('import.%s.%s@local.test', $slug, substr(md5($normalizedName), 0, 8));
+        $domain = (string) config('importacion.seller_email_domain', 'empresa.test');
+
+        return sprintf('%s.%s@%s', $slug, substr(md5($normalizedName), 0, 8), $domain);
     }
 
-    private function ensureVendedorRole(User $user): void
+    private function importedSellerPlainPassword(): string
     {
+        return (string) config('importacion.default_import_user_password', 'user123');
+    }
+
+    private function attachSucursal(User $user, ?int $sucursalId): void
+    {
+        if ($sucursalId === null || $sucursalId <= 0) {
+            return;
+        }
+
+        $user->sucursales()->syncWithoutDetaching([$sucursalId]);
+        if (! $user->default_sucursal_id) {
+            $user->forceFill(['default_sucursal_id' => $sucursalId])->save();
+        }
+    }
+
+    private function ensureConfiguredSellerRole(User $user): void
+    {
+        $roleName = (string) config('importacion.seller_role', 'vendedor');
         $role = Role::firstOrCreate([
-            'name' => 'vendedor',
+            'name' => $roleName,
             'guard_name' => config('auth.defaults.guard'),
         ]);
 

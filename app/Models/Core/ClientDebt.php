@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\System\Sucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,9 +16,14 @@ class ClientDebt extends Model
 
     protected $fillable = [
         'cliente_id',
+        'sucursal_id',
         'venta_id',
         'origen_tipo',
         'origen_id',
+        'tipo_deuda',
+        'referencia',
+        'plan_fecha_inicio',
+        'plan_fecha_fin',
         'monto_total',
         'monto_pagado',
         'saldo_pendiente',
@@ -35,12 +41,19 @@ class ClientDebt extends Model
             'saldo_pendiente' => 'decimal:2',
             'fecha_registro' => 'date',
             'fecha_vencimiento' => 'date',
+            'plan_fecha_inicio' => 'date',
+            'plan_fecha_fin' => 'date',
         ];
     }
 
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    public function sucursal(): BelongsTo
+    {
+        return $this->belongsTo(Sucursal::class);
     }
 
     public function venta(): BelongsTo
@@ -51,6 +64,11 @@ class ClientDebt extends Model
     public function pagos(): HasMany
     {
         return $this->hasMany(Pago::class, 'client_debt_id');
+    }
+
+    public function enrollmentInstallments(): HasMany
+    {
+        return $this->hasMany(EnrollmentInstallment::class, 'client_debt_id');
     }
 
     public function scopePendientes($query)

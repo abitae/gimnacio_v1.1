@@ -42,6 +42,16 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     Route::get('clientes/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:cliente.ver')->name('clientes.perfil.index');
     Route::get('clientes/{cliente}/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:cliente.ver')->name('clientes.perfil');
     Route::get('clientes', \App\Livewire\Clientes\ClienteLive::class)->middleware('permission:cliente.ver')->name('clientes.index');
+
+    Route::prefix('importaciones')->name('importaciones.')->middleware('role:super_administrador')->group(function () {
+        Route::get('plantilla/{tipo}', [\App\Http\Controllers\ImportacionPlantillaController::class, 'download'])
+            ->where('tipo', '[a-z_]+')
+            ->name('plantilla');
+        Route::get('historial', \App\Livewire\Imports\History::class)->name('historial');
+        Route::get('/', \App\Livewire\Imports\Dashboard::class)->name('index');
+        Route::get('{import}/errores', [\App\Http\Controllers\ImportacionErroresExportController::class, 'excel'])->name('errores.excel');
+        Route::get('{import}', \App\Livewire\Imports\Show::class)->name('show');
+    });
     Route::get('clientes/rutinas/asignar', \App\Livewire\Clients\Routines\Assign::class)->middleware('permission:ejercicio_rutina.ver')->name('clientes.rutinas.asignar');
     Route::prefix('clientes/{cliente}')->name('clientes.rutinas.')->middleware('permission:ejercicio_rutina.ver')->group(function () {
         Route::get('rutinas', \App\Livewire\Clients\Routines\Index::class)->name('index');

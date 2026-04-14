@@ -120,6 +120,10 @@ final class PermissionCatalog
                 'label' => 'Asistencia de empleados',
                 'actions' => self::crudDescriptions('asistencia de empleados'),
             ],
+            'importacion' => [
+                'label' => 'Importación de datos',
+                'actions' => self::crudDescriptions('importación Excel legacy'),
+            ],
         ];
     }
 
