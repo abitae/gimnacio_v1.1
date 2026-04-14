@@ -18,8 +18,10 @@
         <div class="flex flex-wrap items-center justify-end gap-3">
             <div class="w-full min-w-[12rem] sm:w-48">
                 <flux:input icon="magnifying-glass" type="search" size="xs"
-                    wire:model.live.debounce.300ms="search" placeholder="{{ __('Buscar…') }}" class="w-full"
-                    aria-label="{{ __('Buscar clientes') }}" />
+                    wire:model.live.debounce.300ms="search"
+                    placeholder="{{ __('Nombre, apellidos, código, documento o correo…') }}"
+                    class="w-full"
+                    aria-label="{{ __('Buscar clientes por nombre, código, documento o email') }}" />
             </div>
             <div class="w-32">
                 <select wire:model.live="estadoFilter"

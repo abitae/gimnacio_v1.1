@@ -7,6 +7,14 @@
                 </div>
                 <div class="min-w-0">
                     <h1 class="text-2xl font-bold text-white">{{ __('Perfil de cliente') }}</h1>
+                    @if ($selectedCliente)
+                        <p class="mt-1 text-sm font-medium text-white">
+                            {{ $selectedCliente->nombres }} {{ $selectedCliente->apellidos }}
+                            <span class="ml-2 inline-flex items-center rounded-md bg-white/15 px-2 py-0.5 text-xs font-semibold tabular-nums text-white">
+                                {{ __('Cód.') }} {{ filled($selectedCliente->codigo) ? $selectedCliente->codigo : '—' }}
+                            </span>
+                        </p>
+                    @endif
                     <p class="flex flex-wrap items-center gap-x-1 text-sm text-white/90">
                         <span>{{ __('Busca un cliente y gestiona ficha, matrículas y reservas.') }}</span>
                         <flux:button href="{{ route('clientes.index') }}" wire:navigate variant="ghost" size="sm"

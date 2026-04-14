@@ -49,10 +49,8 @@
                     {{ $cliente->nombres }} {{ $cliente->apellidos }}
                 </p>
                 <p class="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
-                    @if (filled($cliente->codigo))
-                        <span class="font-medium text-zinc-600 dark:text-zinc-300">{{ __('Cód.') }} {{ $cliente->codigo }}</span>
-                        <span class="mx-0.5">·</span>
-                    @endif
+                    <span class="font-medium text-zinc-600 dark:text-zinc-300">{{ __('Cód.') }} {{ filled($cliente->codigo) ? $cliente->codigo : '—' }}</span>
+                    <span class="mx-0.5">·</span>
                     {{ $cliente->tipo_documento }}: {{ $cliente->numero_documento }}
                 </p>
                 <div class="flex flex-wrap items-center gap-1.5">
@@ -104,18 +102,18 @@
             </div>
 
             <div>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Código') }}</p>
+                <p class="text-xs font-semibold tabular-nums text-violet-700 dark:text-violet-300">
+                    {{ filled($cliente->codigo) ? $cliente->codigo : '—' }}
+                </p>
+            </div>
+
+            <div>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">Documento</p>
                 <p class="text-xs text-zinc-900 dark:text-zinc-100">
                     {{ $cliente->tipo_documento }}: {{ $cliente->numero_documento }}
                 </p>
             </div>
-
-            @if (filled($cliente->codigo))
-                <div>
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Código interno') }}</p>
-                    <p class="text-xs font-medium text-zinc-900 dark:text-zinc-100">{{ $cliente->codigo }}</p>
-                </div>
-            @endif
 
             <div>
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Estado') }}</p>

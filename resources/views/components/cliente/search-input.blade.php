@@ -8,15 +8,15 @@
 <div class="space-y-2">
     <div class="flex items-center justify-between">
         <label class="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-            Buscar Cliente
+            {{ __('Buscar cliente') }}
         </label>
     </div>
     <div class="relative">
         <div class="relative">
             <flux:input icon="magnifying-glass" type="search" size="xs"
                 wire:model.live.debounce.300ms="clienteSearch" 
-                placeholder="Buscar: código, nombre..."
-                class="w-full" aria-label="Buscar cliente" />
+                placeholder="{{ __('Código, nombre, documento o correo…') }}"
+                class="w-full" aria-label="{{ __('Buscar por código, nombre, documento o email') }}" />
             
             @if ($isSearching)
                 <div class="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400">
