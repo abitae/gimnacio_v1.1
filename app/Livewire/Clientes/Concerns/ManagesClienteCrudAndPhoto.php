@@ -408,7 +408,6 @@ trait ManagesClienteCrudAndPhoto
     protected function mapFormToClienteData(): array
     {
         return [
-            'codigo' => $this->formData['codigo'] !== '' ? $this->formData['codigo'] : null,
             'tipo_documento' => $this->formData['tipo_documento'],
             'numero_documento' => $this->formData['numero_documento'],
             'nombres' => $this->formData['nombres'],

@@ -38,8 +38,8 @@
     x-ref="dashboardPanel"
     @fullscreenchange.window="fullscreen = !!document.fullscreenElement"
     :class="fullscreen ? 'space-y-6 bg-white min-h-screen p-4' : 'space-y-6'">
-    {{-- Header mismo estilo que Checking --}}
-    <div class="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 p-6 shadow-lg">
+    {{-- Cabecera: gradiente según color de encabezado (users.header_bg) --}}
+    <div data-app-page-header class="rounded-xl p-6 shadow-lg {{ $pageHeaderGradientClass }}">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
@@ -55,7 +55,7 @@
                     <flux:icon name="speaker-wave" class="h-5 w-5 text-white" x-show="soundEnabled" />
                     <flux:icon name="speaker-x-mark" class="h-5 w-5 text-white" x-show="!soundEnabled" x-cloak />
                     <span class="text-xs font-medium text-white">Sonido deuda</span>
-                    <input type="checkbox" class="rounded border-white/30 bg-white/20 text-purple-600 focus:ring-white/50" x-model="soundEnabled" @change="toggleDebtSound()" />
+                    <input type="checkbox" class="rounded border-white/30 bg-white/20 accent-white focus:ring-white/50" x-model="soundEnabled" @change="toggleDebtSound()" />
                 </label>
                 <flux:button
                     variant="ghost"

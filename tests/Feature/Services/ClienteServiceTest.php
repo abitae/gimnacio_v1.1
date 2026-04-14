@@ -4,6 +4,8 @@ use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\HealthRecord;
 use App\Models\Core\Membresia;
+use App\Models\System\Empresa;
+use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\ClienteService;
 
@@ -11,7 +13,20 @@ it('persists the full cliente contract including personal and emergency fields',
     $user = User::factory()->create();
     $this->actingAs($user);
 
+    $empresa = Empresa::query()->create([
+        'nombre' => 'Empresa test CS',
+        'estado' => 'activa',
+    ]);
+    $sucursal = Sucursal::query()->create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'S-CS-'.substr(md5((string) microtime(true)), 0, 8),
+        'nombre' => 'Sucursal test ClienteService',
+        'estado' => 'activa',
+        'es_principal' => true,
+    ]);
+
     $cliente = app(ClienteService::class)->create([
+        'sucursal_id' => $sucursal->id,
         'tipo_documento' => 'DNI',
         'numero_documento' => '70000009',
         'nombres' => 'Elena',
@@ -38,6 +53,26 @@ it('persists the full cliente contract including personal and emergency fields',
             'fecha_consentimiento' => now()->toDateString(),
         ],
     ]);
+
+    expect($cliente->codigo)->toBe('10000');
+    expect($cliente->sucursal_id)->toBe($sucursal->id);
+
+    $cliente2 = app(ClienteService::class)->create([
+        'sucursal_id' => $sucursal->id,
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000008',
+        'nombres' => 'Otro',
+        'apellidos' => 'Cliente',
+        'estado_cliente' => 'inactivo',
+    ]);
+    expect($cliente2->codigo)->toBe('10001');
+
+    $codigoAntes = $cliente->codigo;
+    app(ClienteService::class)->update($cliente->id, [
+        'nombres' => 'Elena María',
+        'codigo' => '99999',
+    ]);
+    expect($cliente->fresh()->codigo)->toBe($codigoAntes);
 
     expect($cliente->ocupacion)->toBe('Arquitecta');
     expect($cliente->lugar_nacimiento)->toBe('Lima');

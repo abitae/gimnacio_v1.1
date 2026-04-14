@@ -3,8 +3,8 @@
 @endphp
 
 <div class="space-y-6">
-    <!-- Header Profesional -->
-    <div class="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 p-6 shadow-lg">
+    <!-- Cabecera: color de encabezado (personalización) -->
+    <div data-app-page-header class="rounded-xl p-6 shadow-lg {{ $pageHeaderGradientClass }}">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-4">
                 <div class="flex h-12 w-12 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">

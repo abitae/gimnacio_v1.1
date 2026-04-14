@@ -444,14 +444,24 @@
                     indigo: 'bg-indigo-50 dark:bg-indigo-950 border-r border-indigo-200 dark:border-indigo-800'
                 };
                 var headerBgClasses = {
-                    default: 'bg-white lg:bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700',
-                    slate: 'bg-white lg:bg-slate-50 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800',
-                    blue: 'bg-white lg:bg-blue-50 dark:bg-blue-950 border-b border-blue-200 dark:border-blue-800',
-                    green: 'bg-white lg:bg-green-50 dark:bg-green-950 border-b border-green-200 dark:border-green-800',
-                    amber: 'bg-white lg:bg-amber-50 dark:bg-amber-950 border-b border-amber-200 dark:border-amber-800',
-                    red: 'bg-white lg:bg-red-50 dark:bg-red-950 border-b border-red-200 dark:border-red-800',
-                    violet: 'bg-white lg:bg-violet-50 dark:bg-violet-950 border-b border-violet-200 dark:border-violet-800',
-                    indigo: 'bg-white lg:bg-indigo-50 dark:bg-indigo-950 border-b border-indigo-200 dark:border-indigo-800'
+                    default: 'bg-white lg:bg-zinc-100 dark:bg-zinc-900 border-b-2 border-zinc-300 dark:border-zinc-600',
+                    slate: 'bg-white lg:bg-slate-100 dark:bg-slate-950 border-b-2 border-slate-300 dark:border-slate-700',
+                    blue: 'bg-white lg:bg-blue-100 dark:bg-blue-950 border-b-2 border-blue-300 dark:border-blue-700',
+                    green: 'bg-white lg:bg-green-100 dark:bg-green-950 border-b-2 border-green-300 dark:border-green-700',
+                    amber: 'bg-white lg:bg-amber-100 dark:bg-amber-950 border-b-2 border-amber-300 dark:border-amber-700',
+                    red: 'bg-white lg:bg-red-100 dark:bg-red-950 border-b-2 border-red-300 dark:border-red-700',
+                    violet: 'bg-white lg:bg-violet-100 dark:bg-violet-950 border-b-2 border-violet-300 dark:border-violet-700',
+                    indigo: 'bg-white lg:bg-indigo-100 dark:bg-indigo-950 border-b-2 border-indigo-300 dark:border-indigo-700'
+                };
+                var pageHeaderGradientClasses = {
+                    default: 'bg-gradient-to-r from-zinc-600 to-zinc-700 dark:from-zinc-700 dark:to-zinc-800',
+                    slate: 'bg-gradient-to-r from-slate-600 to-slate-700 dark:from-slate-700 dark:to-slate-800',
+                    blue: 'bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800',
+                    green: 'bg-gradient-to-r from-green-600 to-green-700 dark:from-green-700 dark:to-green-800',
+                    amber: 'bg-gradient-to-r from-amber-600 to-amber-700 dark:from-amber-700 dark:to-amber-800',
+                    red: 'bg-gradient-to-r from-red-600 to-red-700 dark:from-red-700 dark:to-red-800',
+                    violet: 'bg-gradient-to-r from-violet-600 to-violet-700 dark:from-violet-700 dark:to-violet-800',
+                    indigo: 'bg-gradient-to-r from-indigo-600 to-indigo-700 dark:from-indigo-700 dark:to-indigo-800'
                 };
                 var bodyBgClasses = {
                     default: 'bg-white dark:bg-zinc-800',
@@ -548,6 +558,10 @@
                         });
                         bodyEl.className = (bodyParts.join(' ') + ' ' + (fontSizeClasses[fontSize] || fontSizeClasses.base) + ' ' + (bodyBgClasses[bodyBg] || bodyBgClasses.default)).trim();
                     }
+                    var grad = pageHeaderGradientClasses[headerBg] || pageHeaderGradientClasses.default;
+                    document.querySelectorAll('[data-app-page-header]').forEach(function(el) {
+                        el.className = 'rounded-xl p-6 shadow-lg ' + grad;
+                    });
                     try {
                         localStorage.setItem(STORAGE_KEY, JSON.stringify({
                             appearance: appearance,

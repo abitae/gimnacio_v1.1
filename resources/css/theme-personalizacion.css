@@ -139,3 +139,5 @@ html.dark.accent-amber {
 html.accent-neutral {
     /* Por defecto ya definido en @theme; no sobrescribir */
 }
+
+/* Cabeceras de módulo (gradiente): clases Tailwind en vistas + AppServiceProvider::pageHeaderGradientClasses */

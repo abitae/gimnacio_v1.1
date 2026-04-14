@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <div class="rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 p-6 shadow-lg">
+    <div data-app-page-header class="rounded-xl p-6 shadow-lg {{ $pageHeaderGradientClass }}">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div class="flex items-start gap-4">
                 <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-white/15">

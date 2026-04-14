@@ -11,7 +11,18 @@
                 {{ $clienteId ? __('Editar cliente') : __('Nuevo cliente') }}
             </h2>
             <div class="grid gap-2 sm:grid-cols-2">
-                <flux:input size="xs" wire:model="formData.codigo" label="{{ __('Código interno') }}" placeholder="{{ __('Opcional, único por sucursal') }}" class="sm:col-span-2" />
+                @if ($clienteId)
+                    <div class="rounded-lg border border-zinc-200 bg-zinc-50/90 px-3 py-2 text-xs text-zinc-800 dark:border-zinc-600 dark:bg-zinc-900/50 dark:text-zinc-100 sm:col-span-2">
+                        <p class="font-medium">{{ __('Código de cliente') }}</p>
+                        <p class="mt-0.5 font-mono text-sm tracking-tight">{{ filled($formData['codigo'] ?? null) ? $formData['codigo'] : '—' }}</p>
+                        <p class="mt-1 text-zinc-500 dark:text-zinc-400">{{ __('No se puede modificar; es único por sucursal.') }}</p>
+                    </div>
+                @else
+                    <div class="rounded-lg border border-violet-200 bg-violet-50/80 px-3 py-2 text-xs text-violet-900 dark:border-violet-800 dark:bg-violet-950/40 dark:text-violet-100 sm:col-span-2">
+                        <p class="font-medium">{{ __('Código de cliente') }}</p>
+                        <p class="mt-0.5 text-violet-800/90 dark:text-violet-200/90">{{ __('Se asignará automáticamente al guardar (numérico, desde 10000 por sucursal).') }}</p>
+                    </div>
+                @endif
                 <flux:input size="xs" wire:model="formData.tipo_documento" label="{{ __('Tipo doc.') }}" />
                 <flux:input size="xs" wire:model="formData.numero_documento" label="{{ __('Número') }}" required />
                 <flux:input size="xs" wire:model="formData.nombres" label="{{ __('Nombres') }}" required class="sm:col-span-2" />

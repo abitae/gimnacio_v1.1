@@ -12,6 +12,9 @@ use Illuminate\Validation\Rule;
 
 class ClienteService
 {
+    /** Primer código numérico autoasignado por sucursal (siguientes: 10001, 10002, …). */
+    private const CODIGO_CLIENTE_INICIAL = 10000;
+
     public function __construct(
         protected SucursalContext $sucursalContext
     ) {}
@@ -127,8 +130,45 @@ class ClienteService
         $validated['sucursal_id'] = $validated['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
 
         return DB::transaction(function () use ($validated) {
+            $sucursalId = (int) $validated['sucursal_id'];
+            if ($sucursalId <= 0) {
+                throw new \InvalidArgumentException('sucursal_id es obligatorio para crear un cliente.');
+            }
+
+            // Código único por sucursal, solo asignado por el sistema (no se acepta valor manual).
+            unset($validated['codigo']);
+            $validated['codigo'] = $this->nextCodigoNumericoParaSucursal($sucursalId);
+
             return Cliente::create($validated);
         });
+    }
+
+    /**
+     * Siguiente código numérico único en la sucursal (solo considera códigos compuestos solo por dígitos).
+     */
+    public function nextCodigoNumericoParaSucursal(int $sucursalId): string
+    {
+        $driver = Schema::getConnection()->getDriverName();
+
+        $query = Cliente::query()->where('sucursal_id', $sucursalId);
+
+        if ($driver === 'mysql') {
+            $query->whereRaw("codigo REGEXP '^[0-9]+$'");
+            $orderExpr = 'CAST(codigo AS UNSIGNED)';
+        } else {
+            $query->whereRaw("codigo GLOB '[0-9]*'")->where('codigo', '!=', '');
+            $orderExpr = 'CAST(codigo AS INTEGER)';
+        }
+
+        $lastCodigo = $query->orderByRaw($orderExpr.' DESC')->lockForUpdate()->value('codigo');
+
+        $ultimo = $lastCodigo !== null && $lastCodigo !== ''
+            ? (int) $lastCodigo
+            : (self::CODIGO_CLIENTE_INICIAL - 1);
+
+        $siguiente = max(self::CODIGO_CLIENTE_INICIAL, $ultimo + 1);
+
+        return (string) $siguiente;
     }
 
     /**
@@ -145,6 +185,7 @@ class ClienteService
         $validated = $this->validate($data, $id);
 
         return DB::transaction(function () use ($cliente, $validated) {
+            unset($validated['codigo']);
             $validated['biotime_update'] = true;
             $validated['updated_by'] = auth()->id();
             $validated['sucursal_id'] = $cliente->sucursal_id;
@@ -232,28 +273,6 @@ class ClienteService
             'updated_by' => ['nullable', 'exists:users,id'],
             'trainer_user_id' => ['nullable', 'exists:users,id'],
             'sucursal_id' => ['nullable', 'exists:sucursales,id'],
-            'codigo' => [
-                'sometimes',
-                'nullable',
-                'string',
-                'max:50',
-                function ($attribute, $value, $fail) use ($data, $id) {
-                    if ($value === null || trim((string) $value) === '') {
-                        return;
-                    }
-                    $codigo = trim((string) $value);
-                    $sucursalId = $data['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
-                    $exists = Cliente::query()
-                        ->where('sucursal_id', $sucursalId)
-                        ->where('codigo', $codigo)
-                        ->when($id, fn ($q) => $q->where('id', '!=', $id))
-                        ->exists();
-
-                    if ($exists) {
-                        $fail('Ya existe un cliente con este código en la sucursal.');
-                    }
-                },
-            ],
         ];
 
         $validator = Validator::make($data, $rules);
@@ -262,15 +281,7 @@ class ClienteService
             throw new \Illuminate\Validation\ValidationException($validator);
         }
 
-        $validated = $validator->validated();
-
-        if (array_key_exists('codigo', $validated)) {
-            $validated['codigo'] = isset($validated['codigo']) && trim((string) $validated['codigo']) !== ''
-                ? trim((string) $validated['codigo'])
-                : null;
-        }
-
-        return $validated;
+        return $validator->validated();
     }
 
     /**
