@@ -41,7 +41,7 @@
                 </flux:sidebar.item>
 
                 @canany(['checking.ver', 'caja.ver', 'punto_venta.ver'])
-                <flux:sidebar.group expandable heading="Operacion diaria" class="grid" :expanded="request()->routeIs('checking.*') || request()->routeIs('cajas.*') || request()->routeIs('pos.*')">
+                <flux:sidebar.group expandable heading="Operaciones" class="grid" :expanded="request()->routeIs('checking.*') || request()->routeIs('cajas.*') || request()->routeIs('pos.*')">
                     @can('checking.ver')
                     <flux:sidebar.item icon="check-circle" :href="route('checking.index')" :current="request()->routeIs('checking.*')" wire:navigate>
                         {{ __('Checking') }}
