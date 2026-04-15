@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Exports\ImportPlantillaExport;
-use App\Services\Imports\ExcelCuotasLegacyReader;
 use App\Services\Imports\ExcelDeudasReader;
 use App\Services\Imports\ExcelSociosReader;
 use App\Support\Imports\ImportType;
@@ -33,27 +32,21 @@ class ImportacionPlantillaController extends Controller
             ],
             ImportType::CLIENTES => [
                 'Clientes',
-                'Socios activos — primera fila título; segunda fila encabezados (exportación legacy).',
+                'Socios activos - primera fila titulo; segunda fila encabezados (exportacion legacy).',
                 ExcelSociosReader::EXPECTED_HEADERS,
                 'plantilla-clientes-socios-activos.xlsx',
             ],
             ImportType::MEMBRESIAS_MATRICULAS => [
                 'Membresias',
-                'Mismo Excel que clientes; solo se importan filas de venta membresía.',
+                'Mismo Excel que clientes; aqui se importan membresias y matriculas.',
                 ExcelSociosReader::EXPECTED_HEADERS,
                 'plantilla-membresias-socios-activos.xlsx',
             ],
             ImportType::DEUDAS => [
                 'Deudas',
-                'Deudas clientes — primera fila título; segunda fila encabezados.',
+                'Deudas clientes - primera fila titulo; segunda fila encabezados.',
                 ExcelDeudasReader::EXPECTED_HEADERS,
                 'plantilla-deudas-clientes.xlsx',
-            ],
-            ImportType::CUOTAS => [
-                'Cuotas',
-                'Deudas cuotas clientes — primera fila título; segunda fila encabezados.',
-                ExcelCuotasLegacyReader::EXPECTED_HEADERS,
-                'plantilla-cuotas.xlsx',
             ],
             default => throw new NotFoundHttpException,
         };

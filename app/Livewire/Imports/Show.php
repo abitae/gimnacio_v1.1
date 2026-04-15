@@ -13,6 +13,10 @@ class Show extends Component
 
     public Import $import;
 
+    public string $phaseFilter = 'all';
+
+    public string $stateFilter = 'all';
+
     public function mount(Import $import): void
     {
         $this->authorize('importacion.ver');
@@ -21,11 +25,20 @@ class Show extends Component
 
     public function render()
     {
-        $rows = $this->import->rows()->orderBy('fila_numero')->paginate(50);
+        $query = $this->import->rows()->orderBy('fila_numero');
+
+        if ($this->stateFilter !== 'all') {
+            $query->where('estado', $this->stateFilter);
+        }
+
+        if ($this->phaseFilter !== 'all') {
+            $query->where('data_json->phase', $this->phaseFilter);
+        }
 
         return view('livewire.imports.show', [
-            'rows' => $rows,
+            'rows' => $query->paginate(50),
             'tipoLabel' => ImportType::labels()[$this->import->tipo_importacion] ?? $this->import->tipo_importacion,
-        ])->layout('layouts.app', ['title' => 'Importación #'.$this->import->id]);
+            'phaseSummaries' => $this->import->opciones['phase_summaries'] ?? [],
+        ])->layout('layouts.app', ['title' => 'Importacion #'.$this->import->id]);
     }
 }

@@ -194,6 +194,7 @@ class ClienteImportProcessor
         $email = $this->resolveClienteEmail($row->correo);
 
         return Cliente::create([
+            'codigo' => filled($row->codigo) ? trim((string) $row->codigo) : null,
             'tipo_documento' => 'DNI',
             'numero_documento' => $row->dni,
             'nombres' => $row->nombres,
@@ -213,6 +214,7 @@ class ClienteImportProcessor
         $updates = [];
 
         foreach ([
+            'codigo' => filled($row->codigo) ? trim((string) $row->codigo) : null,
             'nombres' => $row->nombres,
             'apellidos' => $row->apellidos,
             'telefono' => $row->celular,

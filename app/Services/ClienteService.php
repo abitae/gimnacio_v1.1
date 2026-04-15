@@ -136,8 +136,8 @@ class ClienteService
             }
 
             // Código único por sucursal, solo asignado por el sistema (no se acepta valor manual).
-            unset($validated['codigo']);
-            $validated['codigo'] = $this->nextCodigoNumericoParaSucursal($sucursalId);
+            $validated['codigo'] = $this->normalizeCodigo($validated['codigo'] ?? null)
+                ?? $this->nextCodigoNumericoParaSucursal($sucursalId);
 
             return Cliente::create($validated);
         });
@@ -185,7 +185,9 @@ class ClienteService
         $validated = $this->validate($data, $id);
 
         return DB::transaction(function () use ($cliente, $validated) {
-            unset($validated['codigo']);
+            if (array_key_exists('codigo', $validated)) {
+                $validated['codigo'] = $this->normalizeCodigo($validated['codigo']);
+            }
             $validated['biotime_update'] = true;
             $validated['updated_by'] = auth()->id();
             $validated['sucursal_id'] = $cliente->sucursal_id;
@@ -223,6 +225,32 @@ class ClienteService
         $isUpdate = $id !== null;
 
         $rules = [
+            'codigo' => [
+                'nullable',
+                'string',
+                'max:50',
+                function ($attribute, $value, $fail) use ($data, $id) {
+                    $codigo = $this->normalizeCodigo($value);
+                    if ($codigo === null) {
+                        return;
+                    }
+
+                    $sucursalId = $this->resolveSucursalIdForCodigoValidation($data, $id);
+                    if ($sucursalId <= 0) {
+                        return;
+                    }
+
+                    $exists = Cliente::query()
+                        ->where('sucursal_id', $sucursalId)
+                        ->where('codigo', $codigo)
+                        ->when($id, fn ($q) => $q->where('id', '!=', $id))
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('Ya existe un cliente con este codigo en la sucursal.');
+                    }
+                },
+            ],
             'tipo_documento' => [$isUpdate ? 'sometimes' : 'required', 'in:DNI,CE'],
             'numero_documento' => [
                 $isUpdate ? 'sometimes' : 'required',
@@ -282,6 +310,30 @@ class ClienteService
         }
 
         return $validator->validated();
+    }
+
+    private function normalizeCodigo(mixed $codigo): ?string
+    {
+        if ($codigo === null) {
+            return null;
+        }
+
+        $codigo = trim((string) $codigo);
+
+        return $codigo !== '' ? $codigo : null;
+    }
+
+    private function resolveSucursalIdForCodigoValidation(array $data, ?int $id): int
+    {
+        if (! empty($data['sucursal_id'])) {
+            return (int) $data['sucursal_id'];
+        }
+
+        if ($id !== null) {
+            return (int) (Cliente::query()->whereKey($id)->value('sucursal_id') ?? 0);
+        }
+
+        return (int) ($this->sucursalContext->getFallbackSucursalId() ?? 0);
     }
 
     /**

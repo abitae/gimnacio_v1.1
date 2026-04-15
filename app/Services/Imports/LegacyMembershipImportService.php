@@ -35,9 +35,12 @@ class LegacyMembershipImportService
             'errores' => 0,
             'importadas' => 0,
             'omitidas' => 0,
+            'catalogo_a_crear' => 0,
+            'catalogo_creadas' => 0,
         ];
+        $catalogPending = [];
 
-        $fallbackUser = $this->sellerUserResolver->fallbackUser();
+        $this->sellerUserResolver->fallbackUser();
         $cashMethod = PaymentMethod::withTrashed()->firstOrCreate(
             ['nombre' => 'Efectivo'],
             [
@@ -50,12 +53,8 @@ class LegacyMembershipImportService
 
         foreach ($rows as $row) {
             if (! $row->soportaImportacionMembresia()) {
-                $rowResults[] = [
-                    'fila' => $row->rowNumber,
-                    'estado' => 'skipped',
-                    'errores' => ['TIPO DE VENTA no es membresía; omitido para este import.'],
-                    'modelo_id' => null,
-                ];
+                $summary['omitidas']++;
+                $rowResults[] = $this->rowResult($row, 'skipped', ['TIPO DE VENTA no es membresia; omitido para este import.'], null);
 
                 continue;
             }
@@ -63,7 +62,7 @@ class LegacyMembershipImportService
             $errors = $this->validateRow($row);
             if ($errors !== []) {
                 $summary['errores']++;
-                $rowResults[] = ['fila' => $row->rowNumber, 'estado' => 'error', 'errores' => $errors, 'modelo_id' => null];
+                $rowResults[] = $this->rowResult($row, 'error', $errors, null);
                 if ($stopOnAnyError) {
                     break;
                 }
@@ -74,7 +73,7 @@ class LegacyMembershipImportService
             $cliente = $this->resolver->resolverClientePorCodigoODocumento($row->codigo, $row->dni, $sucursalId, 'DNI');
             if (! $cliente) {
                 $summary['errores']++;
-                $rowResults[] = ['fila' => $row->rowNumber, 'estado' => 'error', 'errores' => ['No existe cliente con ese CODIGO/DNI en la sucursal. Importe clientes primero.'], 'modelo_id' => null];
+                $rowResults[] = $this->rowResult($row, 'error', ['No existe cliente con ese CODIGO/DNI en la sucursal. Importe clientes primero.'], null);
                 if ($stopOnAnyError) {
                     break;
                 }
@@ -83,8 +82,15 @@ class LegacyMembershipImportService
             }
 
             $allowCreate = (bool) config('importacion.allow_create_membership_on_import', false);
-
             $membership = $this->resolver->resolverMembresiaPorNombre((string) $row->paquete, $sucursalId);
+
+            if (! $membership && ! $execute && $allowCreate) {
+                $packageKey = SocioActivoRowData::normalizeComparable($row->paquete);
+                if ($packageKey !== '' && ! isset($catalogPending[$packageKey])) {
+                    $catalogPending[$packageKey] = true;
+                    $summary['catalogo_a_crear']++;
+                }
+            }
 
             if (! $membership && $allowCreate && $execute) {
                 $duracion = $row->duracionDias() ?? 30;
@@ -94,16 +100,12 @@ class LegacyMembershipImportService
                     $duracion,
                     (float) $row->costo
                 );
+                $summary['catalogo_creadas']++;
             }
 
             if (! $membership && ! $allowCreate) {
                 $summary['errores']++;
-                $rowResults[] = [
-                    'fila' => $row->rowNumber,
-                    'estado' => 'error',
-                    'errores' => ['No existe membresía en catálogo para el PAQUETE. Cree el paquete o active allow_create_membership_on_import en config/importacion.php.'],
-                    'modelo_id' => null,
-                ];
+                $rowResults[] = $this->rowResult($row, 'error', ['No existe membresia en catalogo para el PAQUETE. Cree el paquete o active allow_create_membership_on_import en config/importacion.php.'], null);
                 if ($stopOnAnyError) {
                     break;
                 }
@@ -114,13 +116,13 @@ class LegacyMembershipImportService
             if ($membership) {
                 if ($this->findDuplicateMatricula($cliente, $membership->id, $row->fechaInicio, $row->fechaFin)) {
                     $summary['omitidas']++;
-                    $rowResults[] = ['fila' => $row->rowNumber, 'estado' => 'skipped', 'errores' => ['Matrícula duplicada (mismo plan y fechas).'], 'modelo_id' => null];
+                    $rowResults[] = $this->rowResult($row, 'skipped', ['Matricula duplicada (mismo plan y fechas).'], null);
 
                     continue;
                 }
             } elseif ($this->findDuplicateMatriculaPorNombrePaquete($cliente, (string) $row->paquete, $row->fechaInicio, $row->fechaFin)) {
                 $summary['omitidas']++;
-                $rowResults[] = ['fila' => $row->rowNumber, 'estado' => 'skipped', 'errores' => ['Matrícula duplicada (mismo plan y fechas).'], 'modelo_id' => null];
+                $rowResults[] = $this->rowResult($row, 'skipped', ['Matricula duplicada (mismo plan y fechas).'], null);
 
                 continue;
             }
@@ -129,22 +131,18 @@ class LegacyMembershipImportService
 
             if (! $execute) {
                 $summary['importadas']++;
-                $rowResults[] = [
-                    'fila' => $row->rowNumber,
-                    'estado' => 'valid',
-                    'errores' => [],
-                    'modelo_id' => null,
-                    'info' => $membership === null && $allowCreate
-                        ? 'Se creará la membresía en catálogo al confirmar (paquete nuevo).'
-                        : null,
-                ];
+                $result = $this->rowResult($row, 'valid', [], null);
+                if ($membership === null && $allowCreate) {
+                    $result['info'] = 'Se creara la membresia en catalogo al confirmar (paquete nuevo).';
+                }
+                $rowResults[] = $result;
 
                 continue;
             }
 
             if (! $membership) {
                 $summary['errores']++;
-                $rowResults[] = ['fila' => $row->rowNumber, 'estado' => 'error', 'errores' => ['No se pudo crear u obtener la membresía para el paquete.'], 'modelo_id' => null];
+                $rowResults[] = $this->rowResult($row, 'error', ['No se pudo crear u obtener la membresia para el paquete.'], null);
                 if ($stopOnAnyError) {
                     break;
                 }
@@ -188,11 +186,11 @@ class LegacyMembershipImportService
                     ]);
 
                     $summary['importadas']++;
-                    $rowResults[] = ['fila' => $row->rowNumber, 'estado' => 'imported', 'errores' => [], 'modelo_id' => $matricula->id];
+                    $rowResults[] = $this->rowResult($row, 'imported', [], $matricula->id);
                 });
             } catch (\Throwable $e) {
                 $summary['errores']++;
-                $rowResults[] = ['fila' => $row->rowNumber, 'estado' => 'error', 'errores' => [$e->getMessage()], 'modelo_id' => null];
+                $rowResults[] = $this->rowResult($row, 'error', [$e->getMessage()], null);
                 if ($stopOnAnyError) {
                     throw $e;
                 }
@@ -212,7 +210,7 @@ class LegacyMembershipImportService
             $errors[] = 'PAQUETE obligatorio.';
         }
         if ($row->costo === null || $row->costo < 0) {
-            $errors[] = 'COSTO inválido.';
+            $errors[] = 'COSTO invalido.';
         }
         if (! $row->fechaInicio || ! $row->fechaFin) {
             $errors[] = 'FECHA INICIO/FIN obligatorias.';
@@ -238,9 +236,6 @@ class LegacyMembershipImportService
         return $query->first();
     }
 
-    /**
-     * Vista previa (sin crear membresía en BD): detecta matrícula duplicada por nombre de paquete.
-     */
     private function findDuplicateMatriculaPorNombrePaquete(Cliente $cliente, string $nombrePaquete, ?CarbonImmutable $fechaInicio, ?CarbonImmutable $fechaFin): bool
     {
         $nombrePaquete = trim($nombrePaquete);
@@ -274,5 +269,24 @@ class LegacyMembershipImportService
         }
 
         return $fechaFin->startOfDay()->lt(now()->startOfDay()) ? 'vencida' : 'activa';
+    }
+
+    /**
+     * @param  list<string>  $errors
+     * @return array<string, mixed>
+     */
+    private function rowResult(SocioActivoRowData $row, string $estado, array $errors, ?int $modeloId): array
+    {
+        return [
+            'fila' => $row->rowNumber,
+            'phase' => 'membresias',
+            'estado' => $estado,
+            'errores' => $errors,
+            'modelo_id' => $modeloId,
+            'codigo' => $row->codigo,
+            'dni' => $row->dni,
+            'paquete' => $row->paquete,
+            'vendedor' => $row->vendedor,
+        ];
     }
 }

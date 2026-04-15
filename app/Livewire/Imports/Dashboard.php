@@ -17,7 +17,7 @@ class Dashboard extends Component
 
     public ?int $sucursalId = null;
 
-    public string $tipo = ImportType::CLIENTES;
+    public string $tipo = ImportType::USUARIOS;
 
     public $archivo = null;
 
@@ -29,6 +29,10 @@ class Dashboard extends Component
 
     /** @var array<string, mixed>|null */
     public ?array $resultadoPreview = null;
+
+    public string $phaseFilter = 'all';
+
+    public string $stateFilter = 'all';
 
     public function mount(): void
     {
@@ -58,6 +62,8 @@ class Dashboard extends Component
             ]);
             $this->importActual = $out['import'];
             $this->resultadoPreview = $out['result'];
+            $this->phaseFilter = 'all';
+            $this->stateFilter = 'all';
             $this->flashToast('success', 'Vista previa generada. Revisa filas y confirma la importación.');
         } catch (\Throwable $e) {
             $this->flashToast('error', $e->getMessage());

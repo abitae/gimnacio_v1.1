@@ -2,7 +2,7 @@
 
 return [
     'temporary_file_upload' => [
-        'disk' => 'local',
+        'disk' => env('LIVEWIRE_TMP_DISK', env('FILESYSTEM_DISK', 'public')),
         'rules' => ['required', 'file', 'mimes:zip,sql,txt,xlsx,xls,csv', 'max:512000'],
         'directory' => 'livewire-tmp',
         'middleware' => null,

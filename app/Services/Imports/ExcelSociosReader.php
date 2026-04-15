@@ -38,6 +38,7 @@ class ExcelSociosReader
     ];
 
     private const HEADER_ALIASES = [
+        'f inscripcion' => 'F. INSCRIPCIÃ“N',
         'f inscripcin' => 'F. INSCRIPCIÓN',
         'f inscripcia3n' => 'F. INSCRIPCIÓN',
     ];

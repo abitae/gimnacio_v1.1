@@ -15,12 +15,11 @@ class ImportManagerService
     public function __construct(
         private readonly ExcelSociosReader $sociosReader,
         private readonly ExcelDeudasReader $deudasReader,
-        private readonly ExcelCuotasLegacyReader $cuotasReader,
         private readonly ExcelVendedorColumnReader $vendedorReader,
+        private readonly LegacySociosActivosOrchestrator $sociosActivosOrchestrator,
         private readonly LegacyClientImportService $clientImport,
         private readonly LegacyMembershipImportService $membershipImport,
         private readonly LegacyDebtImportService $debtImport,
-        private readonly LegacyInstallmentImportService $installmentImport,
         private readonly UserImportService $userImport,
     ) {}
 
@@ -99,6 +98,13 @@ class ImportManagerService
         $stopOnError = (bool) ($options['stop_on_error'] ?? false);
 
         return match ($import->tipo_importacion) {
+            ImportType::SOCIOS_ACTIVOS_INTEGRAL => $this->sociosActivosOrchestrator->process(
+                $path,
+                $sucursalId,
+                $userId,
+                $execute,
+                $options
+            ),
             ImportType::CLIENTES => $this->clientImport->process(
                 $this->sociosReader->read($path),
                 $sucursalId,
@@ -121,13 +127,6 @@ class ImportManagerService
                 $execute,
                 $stopOnError
             ),
-            ImportType::CUOTAS => $this->installmentImport->process(
-                $this->cuotasReader->read($path),
-                $sucursalId,
-                $userId,
-                $execute,
-                $stopOnError
-            ),
             ImportType::USUARIOS => $this->userImport->process(
                 $this->vendedorReader->read($path),
                 $sucursalId,
@@ -145,6 +144,11 @@ class ImportManagerService
     private function finalizeImportRecord(Import $import, array $result, bool $isCommit): void
     {
         $summary = $result['summary'] ?? [];
+        if (isset($result['phase_summaries']) && is_array($result['phase_summaries'])) {
+            $import->opciones = array_merge($import->opciones ?? [], [
+                'phase_summaries' => $result['phase_summaries'],
+            ]);
+        }
         $import->total_filas = (int) ($summary['total'] ?? 0);
         $import->filas_validas = (int) ($summary['validas'] ?? 0);
         $import->filas_error = (int) ($summary['errores'] ?? 0);

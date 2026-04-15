@@ -226,12 +226,15 @@ class LegacyClientImportService
     {
         return [
             'fila' => $row->rowNumber,
+            'phase' => 'clientes',
             'estado' => $estado,
             'errores' => $errors,
             'modelo_id' => $modeloId,
             'codigo' => $row->codigo,
             'dni' => $row->dni,
             'nombres' => $row->nombres,
+            'paquete' => $row->paquete,
+            'vendedor' => $row->vendedor,
         ];
     }
 }

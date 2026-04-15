@@ -4,6 +4,8 @@ namespace App\Support\Imports;
 
 final class ImportType
 {
+    public const SOCIOS_ACTIVOS_INTEGRAL = 'socios_activos_integral';
+
     public const CLIENTES = 'clientes';
 
     public const MEMBRESIAS_MATRICULAS = 'membresias_matriculas';
@@ -21,10 +23,9 @@ final class ImportType
     {
         return [
             self::USUARIOS => 'Vendedores / usuarios (columna VENDEDOR en cualquier Excel legacy)',
+            self::MEMBRESIAS_MATRICULAS => 'Membresias / Matriculas (Socios activos.xlsx)',
             self::CLIENTES => 'Clientes (Socios activos.xlsx)',
-            self::MEMBRESIAS_MATRICULAS => 'Membresías / Matrículas (Socios activos.xlsx)',
             self::DEUDAS => 'Deudas (Deudas Clientes.xlsx)',
-            self::CUOTAS => 'Cuotas (Deudas Cuotas Clientes.xlsx)',
         ];
     }
 
@@ -35,10 +36,9 @@ final class ImportType
     {
         return [
             self::USUARIOS,
-            self::CLIENTES,
             self::MEMBRESIAS_MATRICULAS,
+            self::CLIENTES,
             self::DEUDAS,
-            self::CUOTAS,
         ];
     }
 }
