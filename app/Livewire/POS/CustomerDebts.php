@@ -18,6 +18,10 @@ class CustomerDebts extends Component
 
     public string $estadoFilter = '';
 
+    public string $fechaInicio = '';
+
+    public string $fechaFin = '';
+
     public int $perPage = 15;
 
     public bool $mostrarModalCobro = false;
@@ -35,6 +39,10 @@ class CustomerDebts extends Component
 
     public ?int $pagoIdTicket = null;
 
+    public bool $mostrarModalPagoCliente = false;
+
+    public ?int $clienteIdSeleccionado = null;
+
     protected $paginationTheme = 'tailwind';
 
     protected ClientDebtService $clientDebtService;
@@ -49,6 +57,9 @@ class CustomerDebts extends Component
         if (! auth()->user()->can('punto_venta.ver') && ! auth()->user()->can('reporte.ver')) {
             abort(403);
         }
+
+        $this->fechaInicio = now()->startOfMonth()->format('Y-m-d');
+        $this->fechaFin = now()->format('Y-m-d');
     }
 
     public function abrirModalCobro(int $debtId): void
@@ -108,6 +119,83 @@ class CustomerDebts extends Component
         $this->pagoIdTicket = null;
     }
 
+    public function abrirModalPagoCliente(int $clienteId): void
+    {
+        $cliente = \App\Models\Core\Cliente::query()->find($clienteId);
+        if (! $cliente) {
+            $this->flashToast('error', 'Cliente no encontrado.');
+
+            return;
+        }
+
+        $debts = $this->clientDebtService->deudasPendientesPorCliente($clienteId);
+        if ($debts->isEmpty()) {
+            $this->flashToast('info', 'El cliente no tiene deudas pendientes.');
+
+            return;
+        }
+
+        $efectivo = PaymentMethod::activos()->where('nombre', 'Efectivo')->first();
+        $this->clienteIdSeleccionado = $clienteId;
+        $this->cobroForm = [
+            'monto_pago' => (float) $debts->sum('saldo_pendiente'),
+            'payment_method_id' => $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id,
+            'numero_operacion' => '',
+            'entidad_financiera' => '',
+        ];
+        $this->mostrarModalPagoCliente = true;
+    }
+
+    public function cerrarModalPagoCliente(): void
+    {
+        $this->mostrarModalPagoCliente = false;
+        $this->clienteIdSeleccionado = null;
+    }
+
+    public function procesarPagoCliente(): void
+    {
+        if (! $this->clienteIdSeleccionado) {
+            $this->flashToast('error', 'No hay cliente seleccionado.');
+
+            return;
+        }
+
+        try {
+            $pagos = $this->clientDebtService->procesarPagoTotalCliente($this->clienteIdSeleccionado, $this->cobroForm);
+            $this->cerrarModalPagoCliente();
+            $this->pagoIdTicket = $pagos->last()?->id;
+            $this->mostrarModalTicketPago = $this->pagoIdTicket !== null;
+            $this->flashToast('success', 'Se registró el pago total de la deuda del cliente.');
+        } catch (\Throwable $e) {
+            $this->flashToast('error', $e->getMessage());
+        }
+    }
+
+    public function updatingSearch(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingEstadoFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingFechaInicio(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingFechaFin(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingPerPage(): void
+    {
+        $this->resetPage();
+    }
+
     public function render()
     {
         $this->clientDebtService->markOverdueDebts();
@@ -121,11 +209,20 @@ class CustomerDebts extends Component
             $query->whereHas('cliente', fn ($q) => $q->where('nombres', 'like', '%'.$this->search.'%')
                 ->orWhere('apellidos', 'like', '%'.$this->search.'%')
                 ->orWhere('numero_documento', 'like', '%'.$this->search.'%')
-                ->orWhere('codigo', 'like', '%'.$this->search.'%'));
+                ->orWhere('codigo', 'like', '%'.$this->search.'%')
+                ->orWhere('telefono', 'like', '%'.$this->search.'%'));
         }
 
         if ($this->estadoFilter) {
             $query->where('estado', $this->estadoFilter);
+        }
+
+        if ($this->fechaInicio) {
+            $query->whereDate('fecha_registro', '>=', $this->fechaInicio);
+        }
+
+        if ($this->fechaFin) {
+            $query->whereDate('fecha_registro', '<=', $this->fechaFin);
         }
 
         $debts = $query->paginate($this->perPage);
@@ -133,11 +230,19 @@ class CustomerDebts extends Component
         $selectedPaymentMethod = ! empty($this->cobroForm['payment_method_id'])
             ? PaymentMethod::find($this->cobroForm['payment_method_id'])
             : null;
+        $clienteSeleccionado = $this->clienteIdSeleccionado
+            ? \App\Models\Core\Cliente::query()->find($this->clienteIdSeleccionado)
+            : null;
+        $totalClienteSeleccionado = $this->clienteIdSeleccionado
+            ? (float) $this->clientDebtService->deudasPendientesPorCliente($this->clienteIdSeleccionado)->sum('saldo_pendiente')
+            : 0.0;
 
         return view('livewire.pos.customer-debts', [
             'debts' => $debts,
             'paymentMethods' => $paymentMethods,
             'selectedPaymentMethod' => $selectedPaymentMethod,
+            'clienteSeleccionado' => $clienteSeleccionado,
+            'totalClienteSeleccionado' => $totalClienteSeleccionado,
         ])->layout('layouts.app', ['title' => 'Estado de cuenta - Deudas']);
     }
 }

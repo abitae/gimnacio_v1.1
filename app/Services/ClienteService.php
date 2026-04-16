@@ -70,11 +70,12 @@ class ClienteService
         }
 
         return Cliente::query()
-            ->select(['id', 'codigo', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'email', 'estado_cliente'])
+            ->select(['id', 'codigo', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono', 'email', 'estado_cliente'])
             ->where(function ($q) use ($searchTerm) {
                 // Prioridad 1: Documento o código que empiecen con el término
                 $q->where('numero_documento', 'like', "{$searchTerm}%")
                     ->orWhere('codigo', 'like', "{$searchTerm}%")
+                    ->orWhere('telefono', 'like', "{$searchTerm}%")
                     // Prioridad 2: Nombres o apellidos que empiecen con el término
                     ->orWhere(function ($subQ) use ($searchTerm) {
                         $subQ->where('nombres', 'like', "{$searchTerm}%")
@@ -87,6 +88,7 @@ class ClienteService
                             ->orWhere('apellidos', 'like', "%{$searchTerm}%")
                             ->orWhereRaw("CONCAT(nombres, ' ', apellidos) LIKE ?", ["%{$searchTerm}%"])
                             ->orWhere('codigo', 'like', "%{$searchTerm}%")
+                            ->orWhere('telefono', 'like', "%{$searchTerm}%")
                             ->orWhere('email', 'like', "%{$searchTerm}%");
                     });
             })
@@ -94,14 +96,18 @@ class ClienteService
                 CASE
                     WHEN numero_documento = ? THEN 1
                     WHEN codigo = ? THEN 1
+                    WHEN telefono = ? THEN 1
                     WHEN numero_documento LIKE ? THEN 2
                     WHEN codigo LIKE ? THEN 2
+                    WHEN telefono LIKE ? THEN 2
                     WHEN nombres LIKE ? OR apellidos LIKE ? OR CONCAT(nombres, \' \', apellidos) LIKE ? THEN 3
                     ELSE 4
                 END
             ', [
                 $searchTerm,
                 $searchTerm,
+                $searchTerm,
+                "{$searchTerm}%",
                 "{$searchTerm}%",
                 "{$searchTerm}%",
                 "{$searchTerm}%",
@@ -256,6 +262,18 @@ class ClienteService
                 $isUpdate ? 'sometimes' : 'required',
                 'string',
                 'max:20',
+                function ($attribute, $value, $fail) use ($data) {
+                    $tipoDocumento = strtoupper((string) ($data['tipo_documento'] ?? ''));
+                    $numeroDocumento = preg_replace('/\s+/', '', (string) $value);
+
+                    if ($tipoDocumento === 'DNI' && ! preg_match('/^\d{8}$/', $numeroDocumento)) {
+                        $fail('El DNI debe tener exactamente 8 dígitos.');
+                    }
+
+                    if ($tipoDocumento === 'CE' && ! preg_match('/^[A-Za-z0-9]{9,20}$/', $numeroDocumento)) {
+                        $fail('El CE debe tener entre 9 y 20 caracteres alfanuméricos.');
+                    }
+                },
                 function ($attribute, $value, $fail) use ($data, $id) {
                     if (! isset($data['tipo_documento']) || ! isset($value)) {
                         return;

@@ -19,11 +19,24 @@ class ReporteModuloPdfService
         ];
     }
 
+    protected function configTicketMpdf(): array
+    {
+        return [
+            'mode' => 'utf-8',
+            'format' => [80, 220],
+            'margin_left' => 4,
+            'margin_right' => 4,
+            'margin_top' => 4,
+            'margin_bottom' => 6,
+        ];
+    }
+
     public function generarPdfVentas(array $data): string
     {
         $html = view('reportes.modulo.pdf-ventas', $data)->render();
         $mpdf = new Mpdf($this->configMpdf('L'));
         $mpdf->WriteHTML($html);
+
         return $mpdf->Output('', 'S');
     }
 
@@ -32,6 +45,7 @@ class ReporteModuloPdfService
         $html = view('reportes.modulo.pdf-matriculas', $data)->render();
         $mpdf = new Mpdf($this->configMpdf('L'));
         $mpdf->WriteHTML($html);
+
         return $mpdf->Output('', 'S');
     }
 
@@ -40,6 +54,7 @@ class ReporteModuloPdfService
         $html = view('reportes.modulo.pdf-financiero', $data)->render();
         $mpdf = new Mpdf($this->configMpdf('L'));
         $mpdf->WriteHTML($html);
+
         return $mpdf->Output('', 'S');
     }
 
@@ -48,6 +63,7 @@ class ReporteModuloPdfService
         $html = view('reportes.modulo.pdf-clientes', $data)->render();
         $mpdf = new Mpdf($this->configMpdf('L'));
         $mpdf->WriteHTML($html);
+
         return $mpdf->Output('', 'S');
     }
 
@@ -56,6 +72,7 @@ class ReporteModuloPdfService
         $html = view('reportes.modulo.pdf-clientes-membresia-clases', $data)->render();
         $mpdf = new Mpdf($this->configMpdf('L'));
         $mpdf->WriteHTML($html);
+
         return $mpdf->Output('', 'S');
     }
 
@@ -64,14 +81,17 @@ class ReporteModuloPdfService
         $html = view('reportes.modulo.pdf-usuarios', $data)->render();
         $mpdf = new Mpdf($this->configMpdf());
         $mpdf->WriteHTML($html);
+
         return $mpdf->Output('', 'S');
     }
 
     public function generarPdfCajas(array $data): string
     {
-        $html = view('reportes.modulo.pdf-cajas', $data)->render();
-        $mpdf = new Mpdf($this->configMpdf('L'));
+        $esTicket = ($data['formato'] ?? null) === 'ticket';
+        $html = view($esTicket ? 'reportes.modulo.pdf-cajas-ticket' : 'reportes.modulo.pdf-cajas', $data)->render();
+        $mpdf = new Mpdf($esTicket ? $this->configTicketMpdf() : $this->configMpdf('L'));
         $mpdf->WriteHTML($html);
+
         return $mpdf->Output('', 'S');
     }
 
@@ -80,6 +100,7 @@ class ReporteModuloPdfService
         $html = view('reportes.modulo.pdf-productos-servicios', $data)->render();
         $mpdf = new Mpdf($this->configMpdf('L'));
         $mpdf->WriteHTML($html);
+
         return $mpdf->Output('', 'S');
     }
 
@@ -88,6 +109,7 @@ class ReporteModuloPdfService
         $html = view('reportes.modulo.pdf-gimnasio', $data)->render();
         $mpdf = new Mpdf($this->configMpdf());
         $mpdf->WriteHTML($html);
+
         return $mpdf->Output('', 'S');
     }
 }

@@ -52,6 +52,8 @@ class CajaLive extends Component
 
     public bool $mostrarModalTicketPago = false;
 
+    public bool $mostrarModalReporteEntradas = false;
+
     public ?int $pagoIdTicketCaja = null;
 
     public $cajaSeleccionada = null;
@@ -294,8 +296,7 @@ class CajaLive extends Component
     public function verReporte($cajaId)
     {
         try {
-            $this->cajaSeleccionada = Caja::with('usuario')->findOrFail($cajaId);
-            $this->reporteCierre = $this->service->generarReporteCierre($cajaId);
+            $this->cajaSeleccionada = Caja::with(['usuario', 'sucursal'])->findOrFail($cajaId);
             $this->mostrarModalReporte = true;
         } catch (\Throwable $e) {
             $this->flashToast('error', $e->getMessage());
@@ -306,7 +307,22 @@ class CajaLive extends Component
     {
         $this->mostrarModalReporte = false;
         $this->cajaSeleccionada = null;
-        $this->reporteCierre = null;
+    }
+
+    public function getReporteCajaPdfUrlProperty(): ?string
+    {
+        if (! $this->cajaSeleccionada) {
+            return null;
+        }
+
+        return route('reportes.cajas.exportar.pdf', [
+            'fecha_desde' => $this->fechaDesde ?: null,
+            'fecha_hasta' => $this->fechaHasta ?: null,
+            'usuario_id' => $this->usuarioFiltro ?: null,
+            'sucursal_id' => $this->sucursalFiltro ?: null,
+            'caja_id' => $this->cajaSeleccionada->id,
+            'inline' => 1,
+        ]);
     }
 
     public function abrirModalHistorial()
@@ -337,6 +353,22 @@ class CajaLive extends Component
         $this->ventaDetalle = null;
     }
 
+    public function abrirModalReporteEntradas(): void
+    {
+        if (! $this->cajaActiva) {
+            $this->flashToast('error', 'Debes tener una caja abierta para ver el reporte de entradas.');
+
+            return;
+        }
+
+        $this->mostrarModalReporteEntradas = true;
+    }
+
+    public function cerrarModalReporteEntradas(): void
+    {
+        $this->mostrarModalReporteEntradas = false;
+    }
+
     public function abrirTicketPagoCaja(int $pagoId): void
     {
         $this->pagoIdTicketCaja = $pagoId;
@@ -362,6 +394,15 @@ class CajaLive extends Component
     public function getCajaActivaProperty(): ?Caja
     {
         return $this->service->obtenerCajaAbiertaPorUsuario(Auth::id());
+    }
+
+    public function getReporteEntradasTicketUrlProperty(): ?string
+    {
+        if (! $this->cajaActiva) {
+            return null;
+        }
+
+        return route('cajas.entradas-ticket.pdf', ['caja' => $this->cajaActiva->id]);
     }
 
     protected function resetFormApertura(): void

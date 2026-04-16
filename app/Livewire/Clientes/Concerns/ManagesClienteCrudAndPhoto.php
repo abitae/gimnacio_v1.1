@@ -375,10 +375,15 @@ trait ManagesClienteCrudAndPhoto
 
     protected function mapClienteToForm(Cliente $cliente): void
     {
+        $sexo = strtolower((string) ($cliente->sexo ?? ''));
+        if (! in_array($sexo, ['masculino', 'femenino'], true)) {
+            $sexo = '';
+        }
+
         $this->formData = [
             'codigo' => $cliente->codigo ?? '',
-            'tipo_documento' => $cliente->tipo_documento,
-            'numero_documento' => $cliente->numero_documento,
+            'tipo_documento' => in_array((string) $cliente->tipo_documento, ['DNI', 'CE'], true) ? (string) $cliente->tipo_documento : 'DNI',
+            'numero_documento' => (string) $cliente->numero_documento,
             'nombres' => $cliente->nombres,
             'apellidos' => $cliente->apellidos,
             'telefono' => $cliente->telefono ?? '',
@@ -390,7 +395,7 @@ trait ManagesClienteCrudAndPhoto
             'estado_civil' => $cliente->estado_civil ?? '',
             'numero_hijos' => $cliente->numero_hijos !== null ? (string) $cliente->numero_hijos : '',
             'placa_carro' => $cliente->placa_carro ?? '',
-            'sexo' => $cliente->sexo ?? '',
+            'sexo' => $sexo,
             'biotime_state' => (bool) $cliente->biotime_state,
             'biotime_update' => (bool) $cliente->biotime_update,
             'datos_emergencia' => [
@@ -407,9 +412,19 @@ trait ManagesClienteCrudAndPhoto
 
     protected function mapFormToClienteData(): array
     {
+        $tipoDocumento = strtoupper(trim((string) ($this->formData['tipo_documento'] ?? 'DNI')));
+        if (! in_array($tipoDocumento, ['DNI', 'CE'], true)) {
+            $tipoDocumento = 'DNI';
+        }
+
+        $sexo = trim((string) ($this->formData['sexo'] ?? ''));
+        if (! in_array($sexo, ['masculino', 'femenino'], true)) {
+            $sexo = null;
+        }
+
         return [
-            'tipo_documento' => $this->formData['tipo_documento'],
-            'numero_documento' => $this->formData['numero_documento'],
+            'tipo_documento' => $tipoDocumento,
+            'numero_documento' => strtoupper(trim((string) $this->formData['numero_documento'])),
             'nombres' => $this->formData['nombres'],
             'apellidos' => $this->formData['apellidos'],
             'telefono' => $this->formData['telefono'] ?: null,
@@ -421,7 +436,7 @@ trait ManagesClienteCrudAndPhoto
             'estado_civil' => $this->formData['estado_civil'] ?: null,
             'numero_hijos' => $this->formData['numero_hijos'] !== '' ? (int) $this->formData['numero_hijos'] : null,
             'placa_carro' => $this->formData['placa_carro'] ?: null,
-            'sexo' => $this->formData['sexo'] ?: null,
+            'sexo' => $sexo,
             'biotime_state' => (bool) ($this->formData['biotime_state'] ?? false),
             'biotime_update' => (bool) ($this->formData['biotime_update'] ?? false),
             'datos_emergencia' => [

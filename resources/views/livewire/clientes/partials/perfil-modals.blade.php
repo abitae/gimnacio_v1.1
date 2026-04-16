@@ -23,7 +23,10 @@
                         <p class="mt-0.5 text-violet-800/90 dark:text-violet-200/90">{{ __('Se asignará automáticamente al guardar (numérico, desde 10000 por sucursal).') }}</p>
                     </div>
                 @endif
-                <flux:input size="xs" wire:model="formData.tipo_documento" label="{{ __('Tipo doc.') }}" />
+                <flux:select size="xs" wire:model="formData.tipo_documento" label="{{ __('Tipo doc.') }}">
+                    <option value="DNI">DNI</option>
+                    <option value="CE">CE</option>
+                </flux:select>
                 <flux:input size="xs" wire:model="formData.numero_documento" label="{{ __('Número') }}" required />
                 <flux:input size="xs" wire:model="formData.nombres" label="{{ __('Nombres') }}" required class="sm:col-span-2" />
                 <flux:input size="xs" wire:model="formData.apellidos" label="{{ __('Apellidos') }}" required class="sm:col-span-2" />
@@ -31,7 +34,11 @@
                 <flux:input size="xs" type="email" wire:model="formData.email" label="{{ __('Email') }}" />
                 <flux:input size="xs" wire:model="formData.direccion" label="{{ __('Dirección') }}" class="sm:col-span-2" />
                 <flux:input size="xs" type="date" wire:model="formData.fecha_nacimiento" label="{{ __('Nacimiento') }}" />
-                <flux:input size="xs" wire:model="formData.sexo" label="{{ __('Sexo') }}" />
+                <flux:select size="xs" wire:model="formData.sexo" label="{{ __('Sexo') }}">
+                    <option value="">{{ __('Seleccionar') }}</option>
+                    <option value="masculino">{{ __('Masculino') }}</option>
+                    <option value="femenino">{{ __('Femenino') }}</option>
+                </flux:select>
                 <flux:input size="xs" wire:model="formData.ocupacion" label="{{ __('Ocupación') }}" />
                 <flux:input size="xs" wire:model="formData.lugar_nacimiento" label="{{ __('Lugar nac.') }}" />
                 <flux:input size="xs" wire:model="formData.estado_civil" label="{{ __('Estado civil') }}" />

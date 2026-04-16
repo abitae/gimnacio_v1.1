@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="color-scheme" content="light">
 
-    <title>{{ config('app.name') }}</title>
+    <title>{{ $appBrandName ?? config('app.name') }}</title>
 
     <link rel="icon" href="{{ asset('Open9/logo.ico') }}" sizes="any">
     <link rel="apple-touch-icon" href="{{ asset('Open9/logo_completo_sin_fondo.png') }}">
@@ -31,9 +31,13 @@
         <header class="w-full px-4 sm:px-6 lg:px-8 py-5">
             <div class="max-w-7xl mx-auto flex items-center justify-between gap-4">
                 <a href="{{ url('/') }}" class="flex items-center gap-3 min-w-0">
-                    <img src="{{ asset('Open9/logo_completo_sin_fondo.png') }}" alt="{{ config('app.name') }}" class="h-10 w-auto object-contain" />
+                    @if (!empty($appBrandLogoUrl))
+                        <img src="{{ $appBrandLogoUrl }}" alt="{{ $appBrandName ?? config('app.name') }}" class="h-10 w-auto object-contain" />
+                    @else
+                        <span class="inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-zinc-900 text-sm font-bold tracking-[0.22em] text-white">F</span>
+                    @endif
                     <div class="hidden sm:block">
-                        <div class="text-sm font-semibold text-zinc-900">{{ config('app.name') }}</div>
+                        <div class="text-sm font-semibold text-zinc-900">{{ $appBrandName ?? config('app.name') }}</div>
                         <div class="text-xs text-zinc-500">Gestión integral para gimnasios</div>
                     </div>
                 </a>

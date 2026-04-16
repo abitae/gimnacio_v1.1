@@ -399,6 +399,70 @@ class CajaService
         ]);
     }
 
+    public function obtenerReporteEntradasDetallado(Caja $caja): array
+    {
+        $resumen = $this->obtenerResumenCaja($caja, ['tipo' => 'entrada']);
+        $movimientos = collect($resumen['movimientos'])
+            ->sortBy('fecha')
+            ->values();
+
+        $porTipo = $movimientos
+            ->groupBy('categoria')
+            ->map(function ($items) {
+                $primero = $items->first();
+
+                return [
+                    'categoria' => $primero['categoria'],
+                    'label' => $primero['tipo_visual'] ?? ucfirst(str_replace('_', ' ', (string) $primero['categoria'])),
+                    'cantidad' => $items->count(),
+                    'total' => round((float) $items->sum('monto'), 2),
+                    'metodos' => $items
+                        ->groupBy(fn ($item) => filled($item['metodo_pago'] ?? null) ? (string) $item['metodo_pago'] : 'Sin método')
+                        ->map(fn ($metodoItems, $metodo) => [
+                            'metodo' => $metodo,
+                            'cantidad' => $metodoItems->count(),
+                            'total' => round((float) $metodoItems->sum('monto'), 2),
+                        ])
+                        ->sortByDesc('total')
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $porMetodo = $movimientos
+            ->groupBy(fn ($item) => filled($item['metodo_pago'] ?? null) ? (string) $item['metodo_pago'] : 'Sin método')
+            ->map(fn ($items, $metodo) => [
+                'metodo' => $metodo,
+                'cantidad' => $items->count(),
+                'total' => round((float) $items->sum('monto'), 2),
+                'tipos' => $items
+                    ->groupBy('categoria')
+                    ->map(fn ($tipoItems) => [
+                        'label' => $tipoItems->first()['tipo_visual'] ?? ucfirst(str_replace('_', ' ', (string) $tipoItems->first()['categoria'])),
+                        'cantidad' => $tipoItems->count(),
+                        'total' => round((float) $tipoItems->sum('monto'), 2),
+                    ])
+                    ->sortByDesc('total')
+                    ->values()
+                    ->all(),
+            ])
+            ->sortByDesc('total')
+            ->values();
+
+        return [
+            'caja' => $caja->loadMissing(['usuario', 'sucursal']),
+            'resumen' => [
+                'cantidad' => $movimientos->count(),
+                'total' => round((float) $movimientos->sum('monto'), 2),
+                'tipos' => $porTipo->all(),
+                'metodos' => $porMetodo->all(),
+            ],
+            'movimientos' => $movimientos->all(),
+        ];
+    }
+
     public function validarCajaAbierta(?int $usuarioId = null): bool
     {
         if ($usuarioId) {

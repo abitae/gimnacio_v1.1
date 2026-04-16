@@ -46,8 +46,8 @@
                     <flux:icon name="home" class="h-6 w-6 text-white" />
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold text-white">Dashboard</h1>
-                    <p class="text-sm text-white/90">Resumen del cliente seleccionado e historial de ingresos y salidas</p>
+                    <h1 class="text-2xl font-bold text-white">{{ $appBrandName ?? 'Firnetness' }}</h1>
+                    <p class="text-sm text-white/90">Panel inicial con resumen del cliente seleccionado, ingresos y salidas.</p>
                 </div>
             </div>
             <div class="flex items-center gap-2">

@@ -9,6 +9,7 @@ use App\Models\Core\Membresia;
 use App\Models\Core\Pago;
 use App\Models\User;
 use App\Services\ClienteMatriculaService;
+use App\Services\EnrollmentInstallmentService;
 
 it('registers a caja movement when a matricula payment is processed', function () {
     $user = User::factory()->create();
@@ -180,17 +181,41 @@ it('creates installment plans automatically for financed memberships without dup
     expect($matricula->modalidad_pago)->toBe('cuotas');
     expect($matricula->requiere_plan_cuotas)->toBeTrue();
     expect((float) $matricula->cuota_inicial_monto)->toBe(30.0);
-    expect($matricula->pagos)->toHaveCount(1);
-    expect((float) $matricula->pagos->first()->monto)->toBe(30.0);
-    expect((float) $matricula->pagos->first()->saldo_pendiente)->toBe(150.0);
+    expect($matricula->pagos)->toHaveCount(0);
     expect($matricula->installmentPlan)->not->toBeNull();
     expect((int) $matricula->installmentPlan->cliente_id)->toBe((int) $cliente->id);
     expect($matricula->installmentPlan->numero_cuotas)->toBe(3);
-    expect((float) $matricula->installmentPlan->monto_total)->toBe(150.0);
+    expect((float) $matricula->installmentPlan->monto_total)->toBe(180.0);
     expect($matricula->installmentPlan->installments)->toHaveCount(3);
-    expect((float) $matricula->installmentPlan->installments->sum('monto'))->toBe(150.0);
+    expect((float) $matricula->installmentPlan->installments->sum('monto'))->toBe(180.0);
+    expect((float) $matricula->installmentPlan->installments->first()->monto)->toBe(30.0);
     expect((int) $matricula->installmentPlan->installments->first()->cliente_matricula_id)->toBe((int) $matricula->id);
-    expect($cliente->fresh()->deuda_total)->toBe(150.0);
+    expect($cliente->fresh()->deuda_total)->toBe(180.0);
+});
+
+it('generates monthly installment dates on the same day of the next month or end of month', function () {
+    $schedule = app(EnrollmentInstallmentService::class)->previewSchedule([
+        'monto_total' => 300,
+        'cuota_inicial_monto' => 0,
+        'numero_cuotas' => 3,
+        'frecuencia' => 'mensual',
+        'fecha_inicio' => '2026-04-16',
+    ]);
+
+    expect($schedule[0]['fecha_vencimiento'])->toBe('2026-04-16');
+    expect($schedule[1]['fecha_vencimiento'])->toBe('2026-05-16');
+    expect($schedule[2]['fecha_vencimiento'])->toBe('2026-06-16');
+
+    $endOfMonthSchedule = app(EnrollmentInstallmentService::class)->previewSchedule([
+        'monto_total' => 200,
+        'cuota_inicial_monto' => 0,
+        'numero_cuotas' => 2,
+        'frecuencia' => 'mensual',
+        'fecha_inicio' => '2026-01-31',
+    ]);
+
+    expect($endOfMonthSchedule[0]['fecha_vencimiento'])->toBe('2026-01-31');
+    expect($endOfMonthSchedule[1]['fecha_vencimiento'])->toBe('2026-02-28');
 });
 
 it('rejects financed memberships when quota fields are missing', function () {

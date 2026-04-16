@@ -11,8 +11,8 @@
                     <flux:icon name="check-circle" class="h-6 w-6 text-white" />
                 </div>
                 <div>
-                    <h1 class="text-2xl font-bold text-white">Control de Acceso</h1>
-                    <p class="text-sm text-white/90">Registro de ingresos y salidas de clientes</p>
+                    <h1 class="text-2xl font-bold text-white">Checking {{ $appBrandName ?? 'Firnetness' }}</h1>
+                    <p class="text-sm text-white/90">Registro seguro de ingresos y salidas de clientes.</p>
                 </div>
             </div>
             <div class="hidden md:flex items-center gap-2 rounded-lg bg-white/10 backdrop-blur-sm px-4 py-2">
