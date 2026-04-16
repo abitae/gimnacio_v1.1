@@ -3,7 +3,7 @@
 namespace App\Livewire\Rentals\Spaces;
 
 use App\Livewire\Concerns\FlashesToast;
-use App\Models\Core\RentableSpace;
+use App\Services\RentableSpaceService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -27,6 +27,13 @@ class Index extends Component
 
     protected $paginationTheme = 'tailwind';
 
+    protected RentableSpaceService $service;
+
+    public function boot(RentableSpaceService $service): void
+    {
+        $this->service = $service;
+    }
+
     public function mount(): void
     {
         $this->authorize('alquiler.ver');
@@ -43,7 +50,7 @@ class Index extends Component
     public function openEditModal(int $id): void
     {
         $this->authorize('alquiler.editar');
-        $space = RentableSpace::find($id);
+        $space = $this->service->find($id);
         if (! $space) {
             $this->flashToast('error', 'Espacio no encontrado.');
 
@@ -78,11 +85,10 @@ class Index extends Component
                 'color_calendario' => $this->formData['color_calendario'] ?: null,
             ];
             if ($this->spaceId) {
-                $space = RentableSpace::findOrFail($this->spaceId);
-                $space->update($data);
+                $this->service->update($this->spaceId, $data);
                 $this->flashToast('success', 'Espacio actualizado.');
             } else {
-                RentableSpace::create($data);
+                $this->service->create($data);
                 $this->flashToast('success', 'Espacio creado.');
             }
             $this->closeModal();
@@ -110,16 +116,16 @@ class Index extends Component
         ];
     }
 
-    public function toggleEstado(RentableSpace $space): void
+    public function toggleEstado(int $spaceId): void
     {
         $this->authorize('alquiler.editar');
-        $space->update(['estado' => $space->estado === 'activo' ? 'inactivo' : 'activo']);
+        $this->service->toggleEstado($spaceId);
         $this->flashToast('success', 'Estado actualizado.');
     }
 
     public function render()
     {
-        $spaces = RentableSpace::query()->orderBy('nombre')->paginate($this->perPage);
+        $spaces = $this->service->paginate($this->perPage);
 
         return view('livewire.rentals.spaces.index', ['spaces' => $spaces])
             ->layout('layouts.app', ['title' => 'Espacios para alquiler']);

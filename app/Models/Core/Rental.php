@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Rental extends Model
 {
+    use BelongsToSucursal;
     use SoftDeletes;
 
     protected $table = 'rentals';
@@ -28,6 +30,7 @@ class Rental extends Model
         'discount_coupon_id',
         'observaciones',
         'registrado_por',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -38,6 +41,7 @@ class Rental extends Model
             'hora_fin' => 'datetime:H:i',
             'precio' => 'decimal:2',
             'descuento' => 'decimal:2',
+            'sucursal_id' => 'integer',
         ];
     }
 

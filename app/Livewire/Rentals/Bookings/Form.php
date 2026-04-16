@@ -5,7 +5,7 @@ namespace App\Livewire\Rentals\Bookings;
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Core\RentableSpace;
 use App\Models\Core\Rental;
-use Carbon\Carbon;
+use App\Services\RentalService;
 use Livewire\Component;
 
 class Form extends Component
@@ -30,6 +30,13 @@ class Form extends Component
         'observaciones' => '',
         'estado' => 'reservado',
     ];
+
+    protected RentalService $service;
+
+    public function boot(RentalService $service): void
+    {
+        $this->service = $service;
+    }
 
     public function mount(?Rental $rental = null): void
     {
@@ -66,31 +73,6 @@ class Form extends Component
             'form.estado' => 'required|in:reservado,confirmado,pagado,cancelado,finalizado',
         ]);
 
-        $horaInicio = Carbon::parse($this->form['fecha'].' '.$this->form['hora_inicio']);
-        $horaFin = Carbon::parse($this->form['fecha'].' '.$this->form['hora_fin']);
-        if ($horaFin <= $horaInicio) {
-            $this->addError('form.hora_fin', 'La hora fin debe ser posterior a la hora de inicio.');
-
-            return;
-        }
-
-        $solapado = Rental::where('rentable_space_id', $this->form['rentable_space_id'])
-            ->whereDate('fecha', $this->form['fecha'])
-            ->whereNotIn('estado', ['cancelado'])
-            ->when($this->rental, fn ($q) => $q->where('id', '!=', $this->rental->id))
-            ->where(function ($q) use ($horaInicio, $horaFin) {
-                $q->where(function ($q2) use ($horaInicio, $horaFin) {
-                    $q2->where('hora_inicio', '<', $horaFin->format('H:i:s'))
-                        ->where('hora_fin', '>', $horaInicio->format('H:i:s'));
-                });
-            })
-            ->exists();
-        if ($solapado) {
-            $this->flashToast('error', 'El horario se solapa con otra reserva.');
-
-            return;
-        }
-
         try {
             $data = [
                 'rentable_space_id' => $this->form['rentable_space_id'],
@@ -106,13 +88,15 @@ class Form extends Component
                 'registrado_por' => auth()->id(),
             ];
             if ($this->rental) {
-                $this->rental->update($data);
+                $this->rental = $this->service->update($this->rental->id, $data);
                 $this->flashToast('success', 'Reserva actualizada.');
             } else {
-                Rental::create($data);
+                $this->rental = $this->service->create($data);
                 $this->flashToast('success', 'Reserva creada.');
             }
             $this->redirectRoute('rentals.calendar.index', ['fecha' => $this->form['fecha']], navigate: true);
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());
         }

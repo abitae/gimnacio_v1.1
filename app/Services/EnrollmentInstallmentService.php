@@ -3,11 +3,13 @@
 namespace App\Services;
 
 use App\Models\Core\CajaMovimiento;
+use App\Models\Core\Caja;
 use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\EnrollmentInstallment;
 use App\Models\Core\EnrollmentInstallmentPlan;
 use App\Models\Core\Pago;
+use App\Models\Core\PaymentMethod;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -250,13 +252,15 @@ class EnrollmentInstallmentService
             $caja = ! empty($data['caja_id'])
                 ? \App\Models\Core\Caja::findOrFail((int) $data['caja_id'])
                 : $cajaService->obtenerOCrearCajaAbierta();
+            $this->assertCajaSucursal($caja->id, (int) $matricula->sucursal_id);
             $saldoPendienteActual = app(ClienteMatriculaService::class)->obtenerSaldoPendiente($matricula->id);
             $saldoPendienteNuevo = max(0, $saldoPendienteActual - $monto);
 
             $metodoPago = $data['metodo_pago'] ?? ('Cuota '.$installment->numero_cuota);
             $paymentMethodId = $data['payment_method_id'] ?? null;
             if ($paymentMethodId) {
-                $pm = \App\Models\Core\PaymentMethod::find($paymentMethodId);
+                $this->assertPaymentMethodSucursal((int) $paymentMethodId, (int) $matricula->sucursal_id);
+                $pm = PaymentMethod::find($paymentMethodId);
                 if ($pm) {
                     $metodoPago = $pm->nombre;
                 }
@@ -283,6 +287,7 @@ class EnrollmentInstallmentService
                 'comprobante_numero' => $cobro['numero'],
                 'caja_id' => $caja->id,
                 'registrado_por' => auth()->id(),
+                'sucursal_id' => $matricula->sucursal_id,
             ]);
 
             $obsCaja = 'Método de pago: '.$metodoPago;
@@ -375,6 +380,24 @@ class EnrollmentInstallmentService
         $plan = EnrollmentInstallmentPlan::query()->where('cliente_id', $matricula->cliente_id)->first();
         if ($plan) {
             $this->syncPlanHeaderFromInstallments($plan);
+        }
+    }
+
+    private function assertCajaSucursal(int $cajaId, int $sucursalId): void
+    {
+        $caja = Caja::findOrFail($cajaId);
+
+        if ((int) $caja->sucursal_id !== $sucursalId) {
+            throw new \InvalidArgumentException('La caja seleccionada no pertenece a la sucursal de la matricula.');
+        }
+    }
+
+    private function assertPaymentMethodSucursal(int $paymentMethodId, int $sucursalId): void
+    {
+        $paymentMethod = PaymentMethod::find($paymentMethodId);
+
+        if (! $paymentMethod || (int) $paymentMethod->sucursal_id !== $sucursalId) {
+            throw new \InvalidArgumentException('El metodo de pago seleccionado no pertenece a la sucursal de la matricula.');
         }
     }
 }

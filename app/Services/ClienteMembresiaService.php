@@ -3,10 +3,12 @@
 namespace App\Services;
 
 use App\Models\Core\CajaMovimiento;
+use App\Models\Core\Caja;
 use App\Models\Core\ClienteMembresia;
 use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Membresia;
 use App\Models\Core\Pago;
+use App\Models\Core\PaymentMethod;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -87,6 +89,7 @@ class ClienteMembresiaService
             'comprobante_tipo' => $cobro['tipo'],
             'comprobante_numero' => $cobro['numero'],
             'registrado_por' => Auth::user()->id,
+            'sucursal_id' => $clienteMembresia->sucursal_id,
         ]);
     }
 
@@ -109,6 +112,7 @@ class ClienteMembresiaService
 
         // Obtener o crear caja abierta para el usuario actual
         $caja = $cajaService->obtenerOCrearCajaAbierta();
+        $this->assertCajaSucursal($caja->id, (int) $clienteMembresia->sucursal_id);
 
         $saldoPendiente = $this->obtenerSaldoPendiente($clienteMembresiaId);
         $montoPago = (float) ($data['monto_pago'] ?? 0);
@@ -129,6 +133,7 @@ class ClienteMembresiaService
             $metodoPago = $data['metodo_pago'] ?? 'efectivo';
             $paymentMethodId = $data['payment_method_id'] ?? null;
             if ($paymentMethodId) {
+                $this->assertPaymentMethodSucursal((int) $paymentMethodId, (int) $clienteMembresia->sucursal_id);
                 $pm = \App\Models\Core\PaymentMethod::find($paymentMethodId);
                 if ($pm) {
                     $metodoPago = $pm->nombre;
@@ -157,6 +162,7 @@ class ClienteMembresiaService
                 'comprobante_numero' => $cobro['numero'],
                 'registrado_por' => Auth::user()->id,
                 'caja_id' => $caja->id,
+                'sucursal_id' => $clienteMembresia->sucursal_id,
             ]);
 
             $cajaService = app(CajaService::class);
@@ -324,5 +330,23 @@ class ClienteMembresiaService
     public function getMembresiasActivas(): Collection
     {
         return Membresia::where('estado', 'activa')->get();
+    }
+
+    private function assertCajaSucursal(int $cajaId, int $sucursalId): void
+    {
+        $caja = Caja::findOrFail($cajaId);
+
+        if ((int) $caja->sucursal_id !== $sucursalId) {
+            throw new \InvalidArgumentException('La caja seleccionada no pertenece a la sucursal de la membresia.');
+        }
+    }
+
+    private function assertPaymentMethodSucursal(int $paymentMethodId, int $sucursalId): void
+    {
+        $paymentMethod = PaymentMethod::find($paymentMethodId);
+
+        if (! $paymentMethod || (int) $paymentMethod->sucursal_id !== $sucursalId) {
+            throw new \InvalidArgumentException('El metodo de pago seleccionado no pertenece a la sucursal de la membresia.');
+        }
     }
 }

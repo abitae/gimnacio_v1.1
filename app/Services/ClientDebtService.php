@@ -3,8 +3,10 @@
 namespace App\Services;
 
 use App\Models\Core\CajaMovimiento;
+use App\Models\Core\Caja;
 use App\Models\Core\ClientDebt;
 use App\Models\Core\Pago;
+use App\Models\Core\PaymentMethod;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
@@ -33,6 +35,7 @@ class ClientDebtService
         }
 
         $caja = $cajaService->obtenerOCrearCajaAbierta();
+        $this->assertCajaSucursal($caja->id, (int) $debt->sucursal_id);
 
         return DB::transaction(function () use ($data, $debt, $montoPago, $caja, $cajaService) {
             $saldoNuevo = round((float) $debt->saldo_pendiente - $montoPago, 2);
@@ -42,7 +45,8 @@ class ClientDebtService
             $paymentMethodId = $data['payment_method_id'] ?? null;
             $metodoPago = $data['metodo_pago'] ?? 'efectivo';
             if ($paymentMethodId) {
-                $paymentMethod = \App\Models\Core\PaymentMethod::find($paymentMethodId);
+                $this->assertPaymentMethodSucursal((int) $paymentMethodId, (int) $debt->sucursal_id);
+                $paymentMethod = PaymentMethod::find($paymentMethodId);
                 if ($paymentMethod) {
                     $metodoPago = $paymentMethod->nombre;
                 }
@@ -69,6 +73,7 @@ class ClientDebtService
                 'comprobante_numero' => $cobro['numero'],
                 'registrado_por' => Auth::id(),
                 'caja_id' => $caja->id,
+                'sucursal_id' => $debt->sucursal_id,
             ]);
 
             $debt->update([
@@ -102,5 +107,23 @@ class ClientDebtService
             ->whereIn('estado', ['pendiente', 'parcial'])
             ->whereDate('fecha_vencimiento', '<', today())
             ->update(['estado' => 'vencido']);
+    }
+
+    private function assertCajaSucursal(int $cajaId, int $sucursalId): void
+    {
+        $caja = Caja::findOrFail($cajaId);
+
+        if ((int) $caja->sucursal_id !== $sucursalId) {
+            throw new \InvalidArgumentException('La caja seleccionada no pertenece a la sucursal de la deuda.');
+        }
+    }
+
+    private function assertPaymentMethodSucursal(int $paymentMethodId, int $sucursalId): void
+    {
+        $paymentMethod = PaymentMethod::find($paymentMethodId);
+
+        if (! $paymentMethod || (int) $paymentMethod->sucursal_id !== $sucursalId) {
+            throw new \InvalidArgumentException('El metodo de pago seleccionado no pertenece a la sucursal de la deuda.');
+        }
     }
 }

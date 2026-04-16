@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Validator;
 
 class ProductoService
 {
+    public function __construct(
+        protected SucursalContext $sucursalContext
+    ) {}
+
     /**
      * Obtener productos con paginación
      */
@@ -70,6 +74,7 @@ class ProductoService
     public function create(array $data): Producto
     {
         $validated = $this->validate($data);
+        $validated['sucursal_id'] = $validated['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
 
         return DB::transaction(function () use ($validated) {
             return Producto::create($validated);
@@ -90,6 +95,7 @@ class ProductoService
         $validated = $this->validate($data, $id);
 
         return DB::transaction(function () use ($producto, $validated) {
+            $validated['sucursal_id'] = $producto->sucursal_id;
             $producto->update($validated);
             return $producto->fresh(['categoria']);
         });
@@ -119,10 +125,48 @@ class ProductoService
         $isUpdate = $id !== null;
 
         $rules = [
-            'codigo' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:50', 'unique:productos,codigo' . ($id ? ",{$id}" : '')],
+            'codigo' => [
+                $isUpdate ? 'sometimes' : 'required',
+                'string',
+                'max:50',
+                function ($attribute, $value, $fail) use ($data, $id) {
+                    $sucursalId = $this->resolveSucursalId($data, $id, Producto::class);
+                    if ($sucursalId <= 0) {
+                        return;
+                    }
+
+                    $exists = Producto::query()
+                        ->where('codigo', trim((string) $value))
+                        ->where('sucursal_id', $sucursalId)
+                        ->when($id, fn ($q) => $q->where('id', '!=', $id))
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('Ya existe un producto con este codigo en la sucursal.');
+                    }
+                },
+            ],
             'nombre' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
             'descripcion' => ['nullable', 'string'],
-            'categoria_id' => ['nullable', 'exists:categorias_productos,id'],
+            'categoria_id' => [
+                'nullable',
+                'integer',
+                function ($attribute, $value, $fail) use ($data, $id) {
+                    if (! $value) {
+                        return;
+                    }
+
+                    $sucursalId = $this->resolveSucursalId($data, $id, Producto::class);
+                    $exists = \App\Models\Core\CategoriaProducto::query()
+                        ->whereKey($value)
+                        ->where('sucursal_id', $sucursalId)
+                        ->exists();
+
+                    if (! $exists) {
+                        $fail('La categoria seleccionada no pertenece a la sucursal activa.');
+                    }
+                },
+            ],
             'precio_venta' => [$isUpdate ? 'sometimes' : 'required', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'],
             'precio_compra' => ['nullable', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'],
             'stock_actual' => ['nullable', 'integer', 'min:0'],
@@ -130,6 +174,7 @@ class ProductoService
             'unidad_medida' => ['nullable', 'string', 'max:20'],
             'imagen' => ['nullable', 'string'],
             'estado' => ['nullable', 'string', 'in:activo,inactivo'],
+            'sucursal_id' => ['nullable', 'exists:sucursales,id'],
         ];
 
         $validator = Validator::make($data, $rules);
@@ -139,5 +184,18 @@ class ProductoService
         }
 
         return $validator->validated();
+    }
+
+    private function resolveSucursalId(array $data, ?int $id, string $modelClass): int
+    {
+        if (! empty($data['sucursal_id'])) {
+            return (int) $data['sucursal_id'];
+        }
+
+        if ($id !== null) {
+            return (int) ($modelClass::query()->whereKey($id)->value('sucursal_id') ?? 0);
+        }
+
+        return (int) ($this->sucursalContext->getFallbackSucursalId() ?? 0);
     }
 }

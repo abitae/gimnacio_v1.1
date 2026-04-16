@@ -2,11 +2,14 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RentalPayment extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'rental_payments';
 
     protected $fillable = [
@@ -17,6 +20,7 @@ class RentalPayment extends Model
         'entidad_financiera',
         'fecha_pago',
         'caja_id',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -24,6 +28,7 @@ class RentalPayment extends Model
         return [
             'monto' => 'decimal:2',
             'fecha_pago' => 'date',
+            'sucursal_id' => 'integer',
         ];
     }
 

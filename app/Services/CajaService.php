@@ -16,6 +16,10 @@ use Illuminate\Support\Facades\Validator;
 
 class CajaService
 {
+    public function __construct(
+        protected SucursalContext $sucursalContext
+    ) {}
+
     public function abrirCaja(array $data): Caja
     {
         $cajaAbierta = $this->obtenerCajaAbiertaPorUsuario(Auth::id());
@@ -32,6 +36,7 @@ class CajaService
                 'fecha_apertura' => now(),
                 'estado' => 'abierta',
                 'observaciones_apertura' => $validated['observaciones_apertura'] ?? null,
+                'sucursal_id' => $this->sucursalContext->getFallbackSucursalId(),
             ]);
 
             $this->registrarMovimientoClasificado(
@@ -214,9 +219,14 @@ class CajaService
             throw new \Exception('No se pueden registrar movimientos en una caja cerrada.');
         }
 
+        if (! $caja->sucursal_id) {
+            throw new \Exception('La caja no tiene sucursal asignada.');
+        }
+
         $this->autorizarMovimiento($caja, $allowCrossCaja);
 
         return DB::transaction(function () use (
+            $caja,
             $cajaId,
             $tipo,
             $categoria,
@@ -239,6 +249,7 @@ class CajaService
                 'usuario_id' => Auth::id(),
                 'observaciones' => $observaciones,
                 'fecha_movimiento' => now(),
+                'sucursal_id' => $caja->sucursal_id,
             ]);
         });
     }
@@ -254,6 +265,11 @@ class CajaService
     ): CajaMovimiento {
         if (! $pago->caja_id) {
             throw new \InvalidArgumentException('El pago debe estar asociado a una caja abierta.');
+        }
+
+        $caja = Caja::query()->findOrFail($pago->caja_id);
+        if ((int) $caja->sucursal_id !== (int) $pago->sucursal_id) {
+            throw new \InvalidArgumentException('El pago y la caja deben pertenecer a la misma sucursal.');
         }
 
         return $this->registrarIngresoAutomatico(
@@ -275,6 +291,11 @@ class CajaService
     ): CajaMovimiento {
         if (! $payment->caja_id) {
             throw new \InvalidArgumentException('El pago de alquiler debe estar asociado a una caja abierta.');
+        }
+
+        $caja = Caja::query()->findOrFail($payment->caja_id);
+        if ((int) $caja->sucursal_id !== (int) $payment->sucursal_id) {
+            throw new \InvalidArgumentException('El pago de alquiler y la caja deben pertenecer a la misma sucursal.');
         }
 
         return $this->registrarIngresoAutomatico(

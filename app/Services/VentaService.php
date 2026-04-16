@@ -3,21 +3,25 @@
 namespace App\Services;
 
 use App\Models\Core\Caja;
+use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Clase;
+use App\Models\Core\Cliente;
 use App\Models\Core\ClientDebt;
+use App\Models\Core\CouponUsage;
+use App\Models\Core\Employee;
 use App\Models\Core\EmployeeDebt;
+use App\Models\Core\PaymentMethod;
 use App\Models\Core\Producto;
 use App\Models\Core\ServicioExterno;
-use App\Models\Core\CouponUsage;
 use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
-use App\Models\Core\CajaMovimiento;
 use App\Models\System\ComprobanteConfig;
 use Illuminate\Support\Facades\DB;
 
 class VentaService
 {
     protected CajaService $cajaService;
+
     protected InventarioService $inventarioService;
 
     public function __construct(CajaService $cajaService, InventarioService $inventarioService)
@@ -31,62 +35,52 @@ class VentaService
      */
     public function procesarVenta(array $data): Venta
     {
-        // Validar caja abierta
         $caja = $this->cajaService->obtenerCajaAbiertaPorUsuario(auth()->id());
-        if (!$caja) {
+        if (! $caja) {
             throw new \Exception('No hay una caja abierta. Por favor, abra una caja antes de procesar ventas.');
         }
 
-        // Validar items
         $items = $data['items'] ?? [];
         if (empty($items)) {
             throw new \Exception('La venta debe tener al menos un item.');
         }
 
         return DB::transaction(function () use ($data, $caja, $items) {
-            // Validar stock y preparar items
-            $itemsValidados = $this->validarItems($items);
+            $sucursalId = (int) $caja->sucursal_id;
+            $itemsValidados = $this->validarItems($items, $sucursalId);
 
-            // Calcular totales
-            // Nota: El precio de venta ya incluye IGV
             $subtotal = $this->calcularSubtotal($itemsValidados);
             $descuento = $data['descuento'] ?? 0;
             $montoDescuentoCupon = (float) ($data['monto_descuento_cupon'] ?? 0);
             $baseConIgv = $subtotal - $descuento - $montoDescuentoCupon;
-            // IGV incluido: calcular el IGV del monto que ya lo incluye
-            // IGV = base * 18/118
             $igv = round($baseConIgv * 18 / 118, 2);
-            // El total es el subtotal menos descuentos (ya incluye IGV)
             $total = max(0, $baseConIgv);
 
-            // Generar número de venta
             $numeroVenta = $this->generarNumeroVenta();
-
-            // Generar comprobante
             $comprobante = $this->generarComprobante($data['tipo_comprobante'] ?? 'ticket');
 
             $paymentMethodId = $data['payment_method_id'] ?? null;
             $metodoPago = $data['metodo_pago'] ?? 'efectivo';
             if ($paymentMethodId) {
-                $pm = \App\Models\Core\PaymentMethod::find($paymentMethodId);
-                if ($pm) {
-                    $metodoPago = $pm->nombre;
-                }
+                $pm = $this->resolvePaymentMethod((int) $paymentMethodId, $sucursalId);
+                $metodoPago = $pm->nombre;
             }
 
             $tipoComprador = $data['tipo_comprador'] ?? 'cliente';
-            $clienteId = ($tipoComprador === 'cliente') ? ($data['cliente_id'] ?? null) : null;
-            $employeeId = ($tipoComprador === 'empleado') ? ($data['employee_id'] ?? null) : null;
-            $clienteVentaNombre = ($tipoComprador === 'cliente_solo_venta') ? ($data['cliente_venta_nombre'] ?? null) : null;
-            $clienteVentaDocumento = ($tipoComprador === 'cliente_solo_venta') ? ($data['cliente_venta_documento'] ?? null) : null;
-            $clienteVentaTelefono = ($tipoComprador === 'cliente_solo_venta') ? ($data['cliente_venta_telefono'] ?? null) : null;
+            $clienteId = $tipoComprador === 'cliente' ? ($data['cliente_id'] ?? null) : null;
+            $employeeId = $tipoComprador === 'empleado' ? ($data['employee_id'] ?? null) : null;
+            $this->assertCompradorSucursal($tipoComprador, $clienteId, $employeeId, $sucursalId);
 
-            $esCredito = !empty($data['es_credito']) && ($clienteId || $employeeId);
+            $clienteVentaNombre = $tipoComprador === 'cliente_solo_venta' ? ($data['cliente_venta_nombre'] ?? null) : null;
+            $clienteVentaDocumento = $tipoComprador === 'cliente_solo_venta' ? ($data['cliente_venta_documento'] ?? null) : null;
+            $clienteVentaTelefono = $tipoComprador === 'cliente_solo_venta' ? ($data['cliente_venta_telefono'] ?? null) : null;
+
+            $esCredito = ! empty($data['es_credito']) && ($clienteId || $employeeId);
             $montoInicial = $esCredito ? (float) ($data['monto_inicial'] ?? 0) : 0;
-            $fechaVencimientoDeuda = $esCredito && !empty($data['fecha_vencimiento_deuda'])
-                ? $data['fecha_vencimiento_deuda'] : null;
+            $fechaVencimientoDeuda = $esCredito && ! empty($data['fecha_vencimiento_deuda'])
+                ? $data['fecha_vencimiento_deuda']
+                : null;
 
-            // Crear venta
             $venta = Venta::create([
                 'numero_venta' => $numeroVenta,
                 'cliente_id' => $clienteId,
@@ -115,9 +109,9 @@ class VentaService
                 'estado' => 'completada',
                 'fecha_venta' => now(),
                 'observaciones' => $data['observaciones'] ?? null,
+                'sucursal_id' => $sucursalId,
             ]);
 
-            // Crear items de venta y actualizar inventario
             foreach ($itemsValidados as $item) {
                 VentaItem::create([
                     'venta_id' => $venta->id,
@@ -128,9 +122,9 @@ class VentaService
                     'precio_unitario' => $item['precio'],
                     'descuento' => $item['descuento'] ?? 0,
                     'subtotal' => $item['subtotal'],
+                    'sucursal_id' => $sucursalId,
                 ]);
 
-                // Actualizar inventario si es producto
                 if ($item['tipo'] === 'producto') {
                     $this->inventarioService->registrarSalidaVenta($item['id'], $item['cantidad'], $venta->id);
                 }
@@ -155,6 +149,7 @@ class VentaService
                 $estado = $saldoPendiente <= 0 ? 'pagado' : ($montoInicial > 0 ? 'parcial' : 'pendiente');
                 ClientDebt::create([
                     'cliente_id' => $venta->cliente_id,
+                    'sucursal_id' => $sucursalId,
                     'venta_id' => $venta->id,
                     'origen_tipo' => 'Pos',
                     'origen_id' => $venta->id,
@@ -164,7 +159,7 @@ class VentaService
                     'fecha_registro' => now()->toDateString(),
                     'fecha_vencimiento' => $fechaVencimientoDeuda,
                     'estado' => $estado,
-                    'observaciones' => 'Venta a crédito POS - ' . $venta->numero_venta,
+                    'observaciones' => 'Venta a credito POS - '.$venta->numero_venta,
                 ]);
                 $montoARegistrar = $montoInicial;
             } elseif ($esCredito && $venta->employee_id) {
@@ -178,14 +173,13 @@ class VentaService
                     'saldo_pendiente' => $saldoPendiente,
                     'fecha_vencimiento' => $fechaVencimientoDeuda,
                     'estado' => $estado,
-                    'observaciones' => 'Venta a crédito POS - ' . $venta->numero_venta,
+                    'observaciones' => 'Venta a credito POS - '.$venta->numero_venta,
                 ]);
                 $montoARegistrar = $montoInicial;
             } else {
                 $montoARegistrar = $total;
             }
 
-            // Registrar pago en caja (monto inicial si es crédito, o total si es contado)
             $this->registrarPagoEnCaja($venta, $caja, $montoARegistrar);
 
             return $venta->fresh(['cliente', 'caja', 'usuario', 'items']);
@@ -195,7 +189,7 @@ class VentaService
     /**
      * Validar items de venta
      */
-    protected function validarItems(array $items): array
+    protected function validarItems(array $items, int $sucursalId): array
     {
         $itemsValidados = [];
 
@@ -204,19 +198,20 @@ class VentaService
             $id = $item['id'] ?? null;
             $cantidad = (int) ($item['cantidad'] ?? 1);
 
-            if (!$tipo || !$id || $cantidad <= 0) {
-                throw new \Exception('Item inválido en la venta.');
+            if (! $tipo || ! $id || $cantidad <= 0) {
+                throw new \Exception('Item invalido en la venta.');
             }
 
             if ($tipo === 'producto') {
                 $producto = Producto::find($id);
-                if (!$producto) {
+                if (! $producto) {
                     throw new \Exception("Producto con ID {$id} no encontrado.");
                 }
+                $this->assertSucursalMatch((int) $producto->sucursal_id, $sucursalId, "El producto {$producto->nombre} no pertenece a la sucursal activa.");
                 if ($producto->estado !== 'activo') {
-                    throw new \Exception("El producto {$producto->nombre} no está activo.");
+                    throw new \Exception("El producto {$producto->nombre} no esta activo.");
                 }
-                if (!$producto->tieneStockSuficiente($cantidad)) {
+                if (! $producto->tieneStockSuficiente($cantidad)) {
                     throw new \Exception("Stock insuficiente para el producto {$producto->nombre}. Stock disponible: {$producto->stock_actual}");
                 }
 
@@ -235,11 +230,12 @@ class VentaService
                 ];
             } elseif ($tipo === 'servicio') {
                 $servicio = ServicioExterno::find($id);
-                if (!$servicio) {
+                if (! $servicio) {
                     throw new \Exception("Servicio con ID {$id} no encontrado.");
                 }
+                $this->assertSucursalMatch((int) $servicio->sucursal_id, $sucursalId, "El servicio {$servicio->nombre} no pertenece a la sucursal activa.");
                 if ($servicio->estado !== 'activo') {
-                    throw new \Exception("El servicio {$servicio->nombre} no está activo.");
+                    throw new \Exception("El servicio {$servicio->nombre} no esta activo.");
                 }
 
                 $precio = (float) $servicio->precio;
@@ -257,11 +253,12 @@ class VentaService
                 ];
             } elseif ($tipo === 'clase') {
                 $clase = Clase::find($id);
-                if (!$clase) {
+                if (! $clase) {
                     throw new \Exception("Clase con ID {$id} no encontrada.");
                 }
+                $this->assertSucursalMatch((int) $clase->sucursal_id, $sucursalId, "La clase {$clase->nombre} no pertenece a la sucursal activa.");
                 if ($clase->estado !== 'activo') {
-                    throw new \Exception("La clase {$clase->nombre} no está activa.");
+                    throw new \Exception("La clase {$clase->nombre} no esta activa.");
                 }
 
                 $precio = (float) $clase->obtenerPrecio();
@@ -278,32 +275,23 @@ class VentaService
                     'subtotal' => $subtotal,
                 ];
             } else {
-                throw new \Exception("Tipo de item inválido: {$tipo}");
+                throw new \Exception("Tipo de item invalido: {$tipo}");
             }
         }
 
         return $itemsValidados;
     }
 
-    /**
-     * Calcular subtotal
-     */
     protected function calcularSubtotal(array $items): float
     {
         return array_sum(array_column($items, 'subtotal'));
     }
 
-    /**
-     * Calcular IGV (18%)
-     */
     protected function calcularIGV(float $base): float
     {
         return round($base * 0.18, 2);
     }
 
-    /**
-     * Generar número de venta único
-     */
     protected function generarNumeroVenta(): string
     {
         $fecha = now()->format('Ymd');
@@ -313,26 +301,23 @@ class VentaService
 
         $numero = $ultimaVenta ? ((int) substr($ultimaVenta->numero_venta, -4)) + 1 : 1;
 
-        return 'V-' . $fecha . '-' . str_pad($numero, 4, '0', STR_PAD_LEFT);
+        return 'V-'.$fecha.'-'.str_pad($numero, 4, '0', STR_PAD_LEFT);
     }
 
-    /**
-     * Generar comprobante
-     */
     protected function generarComprobante(string $tipo): array
     {
         $config = ComprobanteConfig::where('tipo', $tipo)
             ->where('estado', 'activo')
             ->first();
 
-        if (!$config) {
-            // Si no hay configuración, usar valores por defecto
-            $serie = match($tipo) {
+        if (! $config) {
+            $serie = match ($tipo) {
                 'factura' => 'F001',
                 'boleta' => 'B001',
                 'ticket' => 'T001',
                 default => 'T001',
             };
+
             return [
                 'serie' => $serie,
                 'numero' => '000001',
@@ -348,20 +333,19 @@ class VentaService
         ];
     }
 
-    /**
-     * Registrar movimiento de caja para la venta
-     */
     protected function registrarPagoEnCaja(Venta $venta, Caja $caja, ?float $monto = null): void
     {
         $monto = $monto ?? $venta->total;
         if ($monto <= 0) {
             return;
         }
+
         $concepto = "Venta POS - {$venta->numero_venta}";
         if ($venta->es_credito && $monto < $venta->total) {
-            $concepto .= ' (anticipo a crédito)';
+            $concepto .= ' (anticipo a credito)';
         }
-        $observaciones = "Método de pago: {$venta->metodo_pago}, Comprobante: " . strtoupper($venta->tipo_comprobante) . " {$venta->serie_comprobante}-{$venta->numero_comprobante}";
+
+        $observaciones = "Metodo de pago: {$venta->metodo_pago}, Comprobante: ".strtoupper($venta->tipo_comprobante)." {$venta->serie_comprobante}-{$venta->numero_comprobante}";
 
         $this->cajaService->registrarMovimientoClasificado(
             cajaId: $caja->id,
@@ -374,5 +358,57 @@ class VentaService
             referenciaId: $venta->id,
             observaciones: $observaciones
         );
+    }
+
+    protected function resolvePaymentMethod(int $paymentMethodId, int $sucursalId): PaymentMethod
+    {
+        $paymentMethod = PaymentMethod::find($paymentMethodId);
+        if (! $paymentMethod) {
+            throw new \Exception('El metodo de pago seleccionado no existe en la sucursal activa.');
+        }
+
+        $this->assertSucursalMatch(
+            (int) $paymentMethod->sucursal_id,
+            $sucursalId,
+            'El metodo de pago seleccionado no pertenece a la sucursal activa.'
+        );
+
+        return $paymentMethod;
+    }
+
+    protected function assertCompradorSucursal(string $tipoComprador, ?int $clienteId, ?int $employeeId, int $sucursalId): void
+    {
+        if ($tipoComprador === 'cliente' && $clienteId) {
+            $cliente = Cliente::find($clienteId);
+            if (! $cliente) {
+                throw new \Exception('El cliente seleccionado no existe en la sucursal activa.');
+            }
+
+            $this->assertSucursalMatch(
+                (int) $cliente->sucursal_id,
+                $sucursalId,
+                'El cliente seleccionado no pertenece a la sucursal activa.'
+            );
+        }
+
+        if ($tipoComprador === 'empleado' && $employeeId) {
+            $employee = Employee::find($employeeId);
+            if (! $employee) {
+                throw new \Exception('El empleado seleccionado no existe en la sucursal activa.');
+            }
+
+            $this->assertSucursalMatch(
+                (int) $employee->sucursal_id,
+                $sucursalId,
+                'El empleado seleccionado no pertenece a la sucursal activa.'
+            );
+        }
+    }
+
+    protected function assertSucursalMatch(?int $resourceSucursalId, int $expectedSucursalId, string $message): void
+    {
+        if ($resourceSucursalId !== $expectedSucursalId) {
+            throw new \Exception($message);
+        }
     }
 }

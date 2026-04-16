@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\System\Sucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ClientDebt extends Model
 {
+    use BelongsToSucursal;
     use SoftDeletes;
 
     protected $table = 'client_debts';
@@ -43,6 +45,7 @@ class ClientDebt extends Model
             'fecha_vencimiento' => 'date',
             'plan_fecha_inicio' => 'date',
             'plan_fecha_fin' => 'date',
+            'sucursal_id' => 'integer',
         ];
     }
 

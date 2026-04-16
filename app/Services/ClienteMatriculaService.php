@@ -215,6 +215,7 @@ class ClienteMatriculaService
 
         // Obtener o crear caja abierta para el usuario actual
         $caja = $cajaService->obtenerOCrearCajaAbierta();
+        $this->assertCajaSucursal($caja->id, (int) $clienteMatricula->sucursal_id);
 
         $saldoPendiente = $this->obtenerSaldoPendiente($clienteMatriculaId);
         $montoPago = (float) ($data['monto_pago'] ?? 0);
@@ -235,6 +236,7 @@ class ClienteMatriculaService
             $metodoPago = $data['metodo_pago'] ?? 'efectivo';
             $paymentMethodId = $data['payment_method_id'] ?? null;
             if ($paymentMethodId) {
+                $this->assertPaymentMethodSucursal((int) $paymentMethodId, (int) $clienteMatricula->sucursal_id);
                 $pm = \App\Models\Core\PaymentMethod::find($paymentMethodId);
                 if ($pm) {
                     $metodoPago = $pm->nombre;
@@ -263,6 +265,7 @@ class ClienteMatriculaService
                 'comprobante_numero' => $cobro['numero'],
                 'registrado_por' => Auth::user()->id,
                 'caja_id' => $caja->id,
+                'sucursal_id' => $clienteMatricula->sucursal_id,
             ]);
 
             $cajaService = app(CajaService::class);
@@ -672,5 +675,21 @@ class ClienteMatriculaService
     public function getClasesActivas(): Collection
     {
         return Clase::where('estado', 'activo')->get();
+    }
+
+    private function assertCajaSucursal(int $cajaId, int $sucursalId): void
+    {
+        $caja = \App\Models\Core\Caja::query()->findOrFail($cajaId);
+        if ((int) $caja->sucursal_id !== $sucursalId) {
+            throw new \InvalidArgumentException('La caja seleccionada no pertenece a la misma sucursal de la matricula.');
+        }
+    }
+
+    private function assertPaymentMethodSucursal(int $paymentMethodId, int $sucursalId): void
+    {
+        $paymentMethod = \App\Models\Core\PaymentMethod::query()->find($paymentMethodId);
+        if (! $paymentMethod || (int) $paymentMethod->sucursal_id !== $sucursalId) {
+            throw new \InvalidArgumentException('El metodo de pago seleccionado no pertenece a la misma sucursal.');
+        }
     }
 }

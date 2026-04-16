@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,6 +12,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
+    use BelongsToSucursal;
     use HasFactory, SoftDeletes;
 
     protected $table = 'employees';
@@ -25,12 +27,14 @@ class Employee extends Model
         'telefono',
         'fecha_ingreso',
         'estado',
+        'sucursal_id',
     ];
 
     protected function casts(): array
     {
         return [
             'fecha_ingreso' => 'date',
+            'sucursal_id' => 'integer',
         ];
     }
 

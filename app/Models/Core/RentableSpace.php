@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,17 +10,28 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RentableSpace extends Model
 {
+    use BelongsToSucursal;
     use HasFactory, SoftDeletes;
 
     protected $table = 'rentable_spaces';
 
     protected $fillable = [
         'nombre',
+        'tipo',
         'descripcion',
         'capacidad',
         'estado',
         'color_calendario',
+        'sucursal_id',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'capacidad' => 'integer',
+            'sucursal_id' => 'integer',
+        ];
+    }
 
     /** Colores para el calendario (valor => etiqueta) */
     public const COLORES_CALENDARIO = [

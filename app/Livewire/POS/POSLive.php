@@ -18,6 +18,7 @@ use App\Services\ProductoService;
 use App\Services\ServicioExternoService;
 use App\Services\SucursalContext;
 use App\Services\VentaService;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 
@@ -194,7 +195,7 @@ class POSLive extends Component
         $efectivo = PaymentMethod::activos()->where('nombre', 'Efectivo')->first();
         $this->paymentMethodId = $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id;
         // Validar que haya caja abierta
-        if (! $this->cajaService->validarCajaAbierta(auth()->id())) {
+        if (! $this->cajaService->validarCajaAbierta(Auth::id())) {
             $this->flashToast('error', 'No hay una caja abierta. Por favor, abra una caja antes de usar el punto de venta.');
         }
 

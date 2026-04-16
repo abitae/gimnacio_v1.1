@@ -2,11 +2,14 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RentableSpaceRate extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'rentable_space_rates';
 
     protected $fillable = [
@@ -19,6 +22,7 @@ class RentableSpaceRate extends Model
         'dia_semana',
         'fecha_especial',
         'sede_id',
+        'sucursal_id',
     ];
 
     protected function casts(): array
@@ -28,6 +32,7 @@ class RentableSpaceRate extends Model
             'hora_inicio' => 'datetime:H:i',
             'hora_fin' => 'datetime:H:i',
             'fecha_especial' => 'date',
+            'sucursal_id' => 'integer',
         ];
     }
 

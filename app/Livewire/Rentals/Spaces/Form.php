@@ -4,6 +4,7 @@ namespace App\Livewire\Rentals\Spaces;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Core\RentableSpace;
+use App\Services\RentableSpaceService;
 use Livewire\Component;
 
 class Form extends Component
@@ -19,6 +20,13 @@ class Form extends Component
         'estado' => 'activo',
         'color_calendario' => '#3B82F6',
     ];
+
+    protected RentableSpaceService $service;
+
+    public function boot(RentableSpaceService $service): void
+    {
+        $this->service = $service;
+    }
 
     public function mount(?RentableSpace $space = null): void
     {
@@ -52,10 +60,10 @@ class Form extends Component
                 'color_calendario' => $this->form['color_calendario'] ?: null,
             ];
             if ($this->space) {
-                $this->space->update($data);
+                $this->space = $this->service->update($this->space->id, $data);
                 $this->flashToast('success', 'Espacio actualizado.');
             } else {
-                RentableSpace::create($data);
+                $this->space = $this->service->create($data);
                 $this->flashToast('success', 'Espacio creado.');
             }
             $this->redirectRoute('rentals.spaces.index', navigate: true);

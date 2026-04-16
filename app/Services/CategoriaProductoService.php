@@ -9,6 +9,10 @@ use Illuminate\Support\Facades\Validator;
 
 class CategoriaProductoService
 {
+    public function __construct(
+        protected SucursalContext $sucursalContext
+    ) {}
+
     /**
      * Obtener categorías con paginación
      */
@@ -45,6 +49,7 @@ class CategoriaProductoService
     public function create(array $data): CategoriaProducto
     {
         $validated = $this->validate($data);
+        $validated['sucursal_id'] = $validated['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
 
         return DB::transaction(function () use ($validated) {
             return CategoriaProducto::create($validated);
@@ -65,6 +70,7 @@ class CategoriaProductoService
         $validated = $this->validate($data, $id);
 
         return DB::transaction(function () use ($categoria, $validated) {
+            $validated['sucursal_id'] = $categoria->sucursal_id;
             $categoria->update($validated);
             return $categoria->fresh();
         });
@@ -99,9 +105,30 @@ class CategoriaProductoService
         $isUpdate = $id !== null;
 
         $rules = [
-            'nombre' => [$isUpdate ? 'sometimes' : 'required', 'string', 'max:255'],
+            'nombre' => [
+                $isUpdate ? 'sometimes' : 'required',
+                'string',
+                'max:255',
+                function ($attribute, $value, $fail) use ($data, $id) {
+                    $sucursalId = $this->resolveSucursalId($data, $id);
+                    if ($sucursalId <= 0) {
+                        return;
+                    }
+
+                    $exists = CategoriaProducto::query()
+                        ->whereRaw('LOWER(TRIM(nombre)) = ?', [mb_strtolower(trim((string) $value))])
+                        ->where('sucursal_id', $sucursalId)
+                        ->when($id, fn ($q) => $q->where('id', '!=', $id))
+                        ->exists();
+
+                    if ($exists) {
+                        $fail('Ya existe una categoria con ese nombre en la sucursal.');
+                    }
+                },
+            ],
             'descripcion' => ['nullable', 'string'],
             'estado' => ['nullable', 'string', 'in:activa,inactiva'],
+            'sucursal_id' => ['nullable', 'exists:sucursales,id'],
         ];
 
         $validator = Validator::make($data, $rules);
@@ -111,5 +138,18 @@ class CategoriaProductoService
         }
 
         return $validator->validated();
+    }
+
+    private function resolveSucursalId(array $data, ?int $id): int
+    {
+        if (! empty($data['sucursal_id'])) {
+            return (int) $data['sucursal_id'];
+        }
+
+        if ($id !== null) {
+            return (int) (CategoriaProducto::query()->whereKey($id)->value('sucursal_id') ?? 0);
+        }
+
+        return (int) ($this->sucursalContext->getFallbackSucursalId() ?? 0);
     }
 }
