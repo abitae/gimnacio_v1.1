@@ -6,6 +6,7 @@ use App\Livewire\Concerns\FlashesToast;
 use App\Services\AsistenciaService;
 use App\Services\ClientEnrollmentService;
 use App\Services\ClienteService;
+use App\Services\ClienteMatriculaService;
 use App\Services\DailyOperationsDebtService;
 use Livewire\Component;
 
@@ -55,17 +56,21 @@ class CheckingLive extends Component
 
     protected ClientEnrollmentService $clientEnrollmentService;
 
+    protected ClienteMatriculaService $clienteMatriculaService;
+
     protected DailyOperationsDebtService $dailyOperationsDebtService;
 
     public function boot(
         AsistenciaService $asistenciaService,
         ClienteService $clienteService,
         ClientEnrollmentService $clientEnrollmentService,
+        ClienteMatriculaService $clienteMatriculaService,
         DailyOperationsDebtService $dailyOperationsDebtService
     ) {
         $this->asistenciaService = $asistenciaService;
         $this->clienteService = $clienteService;
         $this->clientEnrollmentService = $clientEnrollmentService;
+        $this->clienteMatriculaService = $clienteMatriculaService;
         $this->dailyOperationsDebtService = $dailyOperationsDebtService;
     }
 
