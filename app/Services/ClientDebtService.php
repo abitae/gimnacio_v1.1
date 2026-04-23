@@ -2,16 +2,29 @@
 
 namespace App\Services;
 
-use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Caja;
+use App\Models\Core\CajaMovimiento;
 use App\Models\Core\ClientDebt;
+use App\Models\Core\Cliente;
 use App\Models\Core\Pago;
 use App\Models\Core\PaymentMethod;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 
 class ClientDebtService
 {
+    public function deudasPendientesPorCliente(int $clienteId): Collection
+    {
+        return ClientDebt::query()
+            ->with(['cliente', 'venta'])
+            ->where('cliente_id', $clienteId)
+            ->pendientes()
+            ->orderBy('fecha_registro')
+            ->orderBy('id')
+            ->get();
+    }
+
     public function procesarPago(int $clientDebtId, array $data): Pago
     {
         $debt = ClientDebt::query()->with(['cliente', 'venta'])->findOrFail($clientDebtId);
@@ -107,6 +120,32 @@ class ClientDebtService
             ->whereIn('estado', ['pendiente', 'parcial'])
             ->whereDate('fecha_vencimiento', '<', today())
             ->update(['estado' => 'vencido']);
+    }
+
+    public function procesarPagoTotalCliente(int $clienteId, array $data): Collection
+    {
+        $cliente = Cliente::query()->findOrFail($clienteId);
+        $debts = $this->deudasPendientesPorCliente($cliente->id);
+
+        if ($debts->isEmpty()) {
+            throw new \InvalidArgumentException('El cliente no tiene deudas pendientes.');
+        }
+
+        return DB::transaction(function () use ($debts, $data) {
+            $pagos = collect();
+
+            foreach ($debts as $debt) {
+                if ((float) $debt->saldo_pendiente <= 0) {
+                    continue;
+                }
+
+                $pagos->push($this->procesarPago($debt->id, array_merge($data, [
+                    'monto_pago' => (float) $debt->saldo_pendiente,
+                ])));
+            }
+
+            return $pagos;
+        });
     }
 
     private function assertCajaSucursal(int $cajaId, int $sucursalId): void

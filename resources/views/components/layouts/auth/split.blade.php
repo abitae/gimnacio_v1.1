@@ -33,8 +33,13 @@
             <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
                 <a href="{{ route('home') }}" class="z-20 flex flex-col items-center gap-2 font-medium"
                     wire:navigate>
-                    <img src="{{ asset('Open9/logo_completo_sin_fondo.png') }}" alt="{{ config('app.name', 'Open9') }}"
-                        class="h-9 object-contain" />
+                    @if (!empty($appBrandLogoUrl))
+                        <img src="{{ $appBrandLogoUrl }}" alt="{{ $appBrandName ?? config('app.name', 'Firnetness') }}"
+                            class="h-9 object-contain" />
+                    @else
+                        <span class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-zinc-900 text-lg font-bold tracking-[0.22em] text-white">F</span>
+                    @endif
+                    <span class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ $appBrandName ?? config('app.name', 'Firnetness') }}</span>
                 </a>
                 {{ $slot }}
             </div>

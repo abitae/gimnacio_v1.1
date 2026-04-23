@@ -77,6 +77,9 @@
                     <h2 class="text-lg font-semibold text-emerald-900 dark:text-emerald-100">Entradas</h2>
                     <p class="text-sm text-emerald-800/80 dark:text-emerald-300/80">S/ {{ number_format($resumenCaja['total_ingresos'] ?? 0, 2) }} total</p>
                 </div>
+                <flux:button icon="receipt-percent" variant="outline" size="sm" wire:click="abrirModalReporteEntradas" :disabled="!$cajaActiva">
+                    Reporte ticket
+                </flux:button>
             </div>
             @if ($cajaActiva && $entradasPorCategoria->isNotEmpty())
                 <div class="mt-3 flex gap-1 overflow-x-auto border-b border-zinc-100 pb-2 dark:border-zinc-800 scrollbar-thin">
@@ -255,53 +258,45 @@
         @endif
     </flux:modal>
 
-    <flux:modal wire:model="mostrarModalHistorial" class="md:w-6xl">
+    <flux:modal wire:model="mostrarModalHistorial" flyout variant="floating" class="md:w-6xl">
         <div class="space-y-4 p-6">
             <h2 class="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Historial de cajas</h2>
-            <div class="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <input type="date" wire:model.live="fechaDesde" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
                 <input type="date" wire:model.live="fechaHasta" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
-                <select wire:model.live="usuarioFiltro" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
-                    <option value="">Todos los usuarios</option>
-                    @foreach ($usuariosCaja as $usuarioCaja)
-                        <option value="{{ $usuarioCaja->id }}">{{ $usuarioCaja->name }}</option>
-                    @endforeach
-                </select>
                 <select wire:model.live="estadoFiltro" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
                     <option value="">Todos los estados</option>
                     <option value="abierta">Abierta</option>
                     <option value="cerrada">Cerrada</option>
                 </select>
-                <select wire:model.live="sucursalFiltro" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100">
-                    <option value="">Todas las sucursales</option>
-                    @foreach ($sucursalesFiltro as $sucursalItem)
-                        <option value="{{ $sucursalItem->id }}">{{ $sucursalItem->nombre }}</option>
-                    @endforeach
-                </select>
                 <select wire:model.live="perPage" class="rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"><option value="10">10</option><option value="15">15</option><option value="20">20</option><option value="50">50</option></select>
             </div>
             <div class="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
-                <table class="min-w-full text-sm">
+                <table class="min-w-full text-xs">
                     <thead class="bg-zinc-50 dark:bg-zinc-950">
                         <tr class="text-left text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                            <th class="px-4 py-3">Caja</th><th class="px-4 py-3">Usuario</th><th class="px-4 py-3">Sucursal</th><th class="px-4 py-3">Estado</th><th class="px-4 py-3">Apertura</th><th class="px-4 py-3 text-right">Inicial</th><th class="px-4 py-3 text-right">Ingresos</th><th class="px-4 py-3 text-right">Salidas</th><th class="px-4 py-3 text-right">Esperado</th><th class="px-4 py-3 text-right">Contado</th><th class="px-4 py-3 text-right">Dif.</th><th class="px-4 py-3 text-right">Acciones</th>
+                            <th class="px-3 py-2">Caja</th><th class="px-3 py-2">Usuario</th><th class="px-3 py-2">Sucursal</th><th class="px-3 py-2">Estado</th><th class="px-3 py-2">Apertura</th><th class="px-3 py-2 text-right">Inicial</th><th class="px-3 py-2 text-right">Ingresos</th><th class="px-3 py-2 text-right">Salidas</th><th class="px-3 py-2 text-right">Esperado</th><th class="px-3 py-2 text-right">Contado</th><th class="px-3 py-2 text-right">Dif.</th><th class="px-3 py-2 text-right">Acciones</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
                         @forelse ($cajas as $caja)
                             <tr class="bg-white dark:bg-zinc-900">
-                                <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">#{{ $caja->id }}</td>
-                                <td class="px-4 py-3">{{ $caja->usuario->name }}</td>
-                                <td class="px-4 py-3">{{ $caja->sucursal->nombre ?? '—' }}</td>
-                                <td class="px-4 py-3">{{ ucfirst($caja->estado) }}</td>
-                                <td class="px-4 py-3">{{ $caja->fecha_apertura->format('d/m/Y H:i') }}</td>
-                                <td class="px-4 py-3 text-right">S/ {{ number_format($caja->saldo_inicial, 2) }}</td>
-                                <td class="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">S/ {{ number_format($caja->calcularTotalIngresos(), 2) }}</td>
-                                <td class="px-4 py-3 text-right text-rose-700 dark:text-rose-400">S/ {{ number_format($caja->calcularTotalSalidas(), 2) }}</td>
-                                <td class="px-4 py-3 text-right font-semibold">S/ {{ number_format($caja->saldo_final ?: ($caja->saldo_inicial + $caja->calcularTotalIngresos() - $caja->calcularTotalSalidas()), 2) }}</td>
-                                <td class="px-4 py-3 text-right">S/ {{ number_format($caja->saldo_contado_cierre ?? 0, 2) }}</td>
-                                <td class="px-4 py-3 text-right {{ ((float) ($caja->diferencia_cierre ?? 0)) === 0.0 ? 'text-zinc-700 dark:text-zinc-300' : 'text-amber-700 dark:text-amber-300' }}">S/ {{ number_format($caja->diferencia_cierre ?? 0, 2) }}</td>
-                                <td class="px-4 py-3 text-right"><flux:button size="xs" variant="ghost" wire:click="verReporte({{ $caja->id }})">Reporte</flux:button></td>
+                                <td class="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">#{{ $caja->id }}</td>
+                                <td class="px-3 py-2">{{ $caja->usuario->name }}</td>
+                                <td class="px-3 py-2">{{ $caja->sucursal->nombre ?? '—' }}</td>
+                                <td class="px-3 py-2">
+                                    <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $caja->estado === 'abierta' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' }}">
+                                        {{ ucfirst($caja->estado) }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 whitespace-nowrap">{{ $caja->fecha_apertura->format('d/m/Y H:i') }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums">S/ {{ number_format($caja->saldo_inicial, 2) }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-emerald-700 dark:text-emerald-400">S/ {{ number_format($caja->calcularTotalIngresos(), 2) }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums text-rose-700 dark:text-rose-400">S/ {{ number_format($caja->calcularTotalSalidas(), 2) }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums font-semibold">S/ {{ number_format($caja->saldo_final ?: ($caja->saldo_inicial + $caja->calcularTotalIngresos() - $caja->calcularTotalSalidas()), 2) }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums">S/ {{ number_format($caja->saldo_contado_cierre ?? 0, 2) }}</td>
+                                <td class="px-3 py-2 text-right tabular-nums {{ ((float) ($caja->diferencia_cierre ?? 0)) === 0.0 ? 'text-zinc-700 dark:text-zinc-300' : 'text-amber-700 dark:text-amber-300' }}">S/ {{ number_format($caja->diferencia_cierre ?? 0, 2) }}</td>
+                                <td class="px-3 py-2 text-right"><flux:button size="xs" variant="ghost" wire:click="verReporte({{ $caja->id }})">PDF</flux:button></td>
                             </tr>
                         @empty
                             <tr><td colspan="12" class="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">No hay cajas para el rango seleccionado.</td></tr>
@@ -313,26 +308,48 @@
         </div>
     </flux:modal>
 
-    <flux:modal wire:model="mostrarModalReporte" class="md:w-5xl">
-        @if ($reporteCierre)
-            <div class="space-y-5 p-6">
-                <h2 class="text-lg font-semibold text-zinc-950 dark:text-zinc-50">Reporte de caja #{{ $reporteCierre['caja']->id }}</h2>
-                <div class="overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800">
-                    <table class="min-w-full text-sm">
-                        <thead class="bg-zinc-50 dark:bg-zinc-950">
-                            <tr class="text-left text-xs uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                                <th class="px-4 py-3">Fecha</th><th class="px-4 py-3">Tipo</th><th class="px-4 py-3">Concepto</th><th class="px-4 py-3">Usuario</th><th class="px-4 py-3 text-right">Monto</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
-                            @foreach ($reporteCierre['movimientos'] as $movimiento)
-                                <tr><td class="px-4 py-3">{{ $movimiento['fecha']->format('d/m/Y H:i') }}</td><td class="px-4 py-3">{{ $movimiento['tipo_visual'] }}</td><td class="px-4 py-3">{{ $movimiento['concepto'] }}</td><td class="px-4 py-3">{{ $movimiento['usuario'] ?: '—' }}</td><td class="px-4 py-3 text-right">{{ $movimiento['tipo'] === 'entrada' ? '+' : '-' }} S/ {{ number_format($movimiento['monto'], 2) }}</td></tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+    <flux:modal wire:model="mostrarModalReporte" focusable class="md:max-w-6xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between gap-3">
+                <div>
+                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
+                        Reporte PDF de caja
+                        @if ($cajaSeleccionada)
+                            #{{ $cajaSeleccionada->id }}
+                        @endif
+                    </h2>
+                    @if ($cajaSeleccionada)
+                        <p class="text-sm text-zinc-500 dark:text-zinc-400">
+                            {{ $cajaSeleccionada->usuario?->name ?? 'Sin usuario' }}
+                            ·
+                            {{ $cajaSeleccionada->sucursal?->nombre ?? 'Sin sucursal' }}
+                        </p>
+                    @endif
+                </div>
+                <div class="flex gap-2">
+                    @if ($this->reporteCajaPdfUrl)
+                        <a href="{{ $this->reporteCajaPdfUrl }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestaña
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarModalReporte">Cerrar</flux:button>
                 </div>
             </div>
-        @endif
+
+            @if ($this->reporteCajaPdfUrl)
+                <iframe
+                    src="{{ $this->reporteCajaPdfUrl }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 78vh; min-height: 420px;"
+                    title="Reporte PDF de caja">
+                </iframe>
+            @else
+                <div class="rounded-2xl border border-dashed border-zinc-300 px-6 py-12 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                    No se pudo preparar el reporte de caja.
+                </div>
+            @endif
+        </div>
     </flux:modal>
 
     <flux:modal wire:model="mostrarModalDetalleVenta" class="md:w-4xl">
@@ -355,6 +372,40 @@
                 </div>
             </div>
         @endif
+    </flux:modal>
+
+    <flux:modal wire:model="mostrarModalReporteEntradas" focusable class="md:max-w-4xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Reporte detallado de entradas</h2>
+                    @if ($cajaActiva)
+                        <p class="text-sm text-zinc-500 dark:text-zinc-400">Caja #{{ $cajaActiva->id }} · Ticket imprimible por tipo y método de pago</p>
+                    @endif
+                </div>
+                <div class="flex gap-2">
+                    @if ($this->reporteEntradasTicketUrl)
+                        <a href="{{ $this->reporteEntradasTicketUrl }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestaña
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarModalReporteEntradas">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($this->reporteEntradasTicketUrl)
+                <iframe
+                    src="{{ $this->reporteEntradasTicketUrl }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Reporte detallado de entradas">
+                </iframe>
+            @else
+                <div class="rounded-2xl border border-dashed border-zinc-300 px-6 py-12 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
+                    No se pudo preparar el reporte de entradas.
+                </div>
+            @endif
+        </div>
     </flux:modal>
 
     <flux:modal wire:model="mostrarModalTicketPago" focusable class="md:max-w-4xl">

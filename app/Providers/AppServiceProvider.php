@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Services\SucursalContext;
 use App\Services\WhatsApp\MockWhatsAppService;
 use App\Services\WhatsApp\WhatsAppServiceInterface;
+use App\Support\BrandingResolver;
 use App\Support\PermissionCatalog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -23,6 +24,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->bind(WhatsAppServiceInterface::class, MockWhatsAppService::class);
         $this->app->singleton(SucursalContext::class);
+        $this->app->singleton(BrandingResolver::class);
     }
 
     /**
@@ -98,10 +100,14 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('*', function ($view) use ($pageHeaderGradientClasses) {
             $key = Auth::check() ? (Auth::user()->header_bg ?? 'red') : 'red';
+            $branding = app(BrandingResolver::class)->resolve();
             $view->with(
                 'pageHeaderGradientClass',
                 $pageHeaderGradientClasses[$key] ?? $pageHeaderGradientClasses['default']
             );
+            $view->with('appBrandName', $branding['name']);
+            $view->with('appBrandLogoUrl', $branding['logo_url']);
+            $view->with('appBrandHasLogo', $branding['has_logo']);
         });
         $bodyBgClasses = [
             'default' => 'bg-white dark:bg-zinc-800',

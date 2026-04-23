@@ -60,7 +60,22 @@
                             @endif
                         </td>
                         <td class="px-4 py-2">{{ $cuota->fecha_vencimiento->format('d/m/Y') }}</td>
-                        <td class="px-4 py-2">S/ {{ number_format($cuota->monto, 2) }}</td>
+                        <td class="px-4 py-2">
+                            @if($cuota->estado === 'pendiente' && auth()->user()->can('matricula_cliente.editar'))
+                                <div class="flex max-w-[9rem] flex-col gap-0.5">
+                                    <div class="flex items-center gap-1">
+                                        <span class="shrink-0 text-zinc-500">S/</span>
+                                        <input type="number" step="0.01" min="0.01"
+                                            class="w-full min-w-0 rounded border border-zinc-300 bg-white px-1.5 py-0.5 text-xs text-zinc-900 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                                            wire:model="cuotaMontos.{{ $cuota->id }}"
+                                            wire:blur="actualizarMontoCuota({{ $cuota->id }})" />
+                                    </div>
+                                    <span class="text-[10px] leading-tight text-zinc-500 dark:text-zinc-400">{{ __('Al salir del campo se reparte el saldo en las pendientes posteriores (misma matrícula).') }}</span>
+                                </div>
+                            @else
+                                S/ {{ number_format($cuota->monto, 2) }}
+                            @endif
+                        </td>
                         <td class="px-4 py-2">
                             <span class="rounded-full px-1.5 py-0.5 text-xs
                                 @if($cuota->estado === 'pagada') bg-green-100 dark:bg-green-900/30

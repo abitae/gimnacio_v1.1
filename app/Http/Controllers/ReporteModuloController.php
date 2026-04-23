@@ -190,14 +190,22 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteCajas($fechaDesde, $fechaHasta);
+        $data = $this->reporteService->datosReporteCajas(
+            $fechaDesde,
+            $fechaHasta,
+            $request->integer('sucursal_id') ?: null,
+            $request->integer('usuario_id') ?: null,
+            $request->integer('caja_id') ?: null,
+        );
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
+        $data['formato'] = $request->filled('caja_id') ? 'ticket' : 'reporte';
         $pdf = $this->pdfService->generarPdfCajas($data);
+        $disposition = $request->boolean('inline') ? 'inline' : 'attachment';
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => 'attachment; filename="reporte_cajas_'.now()->format('Y-m-d_His').'.pdf"',
+            'Content-Disposition' => $disposition.'; filename="reporte_cajas_'.now()->format('Y-m-d_His').'.pdf"',
         ]);
     }
 
@@ -329,7 +337,13 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteCajas($fechaDesde, $fechaHasta);
+        $data = $this->reporteService->datosReporteCajas(
+            $fechaDesde,
+            $fechaHasta,
+            $request->integer('sucursal_id') ?: null,
+            $request->integer('usuario_id') ?: null,
+            $request->integer('caja_id') ?: null,
+        );
 
         return (new ReporteCajasExport($data))->download('reporte_cajas_'.now()->format('Y-m-d_His').'.xlsx');
     }

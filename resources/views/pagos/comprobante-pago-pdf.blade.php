@@ -1,13 +1,12 @@
 @php
-    $clienteNombre = $pago->cliente
-        ? trim($pago->cliente->nombres.' '.$pago->cliente->apellidos)
-        : '—';
+    $clienteNombre = $pago->cliente ? trim($pago->cliente->nombres.' '.$pago->cliente->apellidos) : '—';
     $concepto = 'Cobro';
     if ($pago->clienteMatricula) {
-        $m = $pago->clienteMatricula;
-        $concepto = ucfirst((string) $m->tipo).' — '.$m->nombre;
+        $concepto = ucfirst((string) $pago->clienteMatricula->tipo).' — '.$pago->clienteMatricula->nombre;
     } elseif ($pago->clienteMembresia) {
         $concepto = 'Membresía — '.($pago->clienteMembresia->membresia->nombre ?? 'N/A');
+    } elseif ($pago->clientDebt?->venta) {
+        $concepto = 'Venta crédito — '.$pago->clientDebt->venta->numero_venta;
     }
 @endphp
 <!DOCTYPE html>
@@ -21,22 +20,27 @@
         .text-center { text-align: center; }
         .font-bold { font-weight: 700; }
         .line { border-bottom: 1px dashed #000; margin: 4px 0; }
+        .brand-logo { max-width: 80px; max-height: 40px; margin: 0 auto 4px; display: block; }
+        .muted { font-size: 7pt; color: #444; }
     </style>
 </head>
 <body>
-    <p class="text-center font-bold" style="font-size: 10pt; margin-bottom: 4px;">TICKET DE COBRO</p>
-    <p class="text-center" style="font-size: 7pt; margin-bottom: 6px;">
-        {{ strtoupper((string) ($pago->comprobante_tipo ?? 'ticket')) }} {{ $pago->comprobante_numero ?? '—' }}
-        &nbsp;|&nbsp; Pago #{{ $pago->id }}
-        &nbsp;|&nbsp; {{ $pago->fecha_pago?->format('d/m/Y H:i') }}
+    @if(!empty($appBrandLogoUrl))
+        <img src="{{ $appBrandLogoUrl }}" alt="{{ $appBrandName ?? config('app.name') }}" class="brand-logo">
+    @endif
+    <p class="text-center font-bold" style="font-size: 10pt; margin-bottom: 2px;">{{ $appBrandName ?? config('app.name') }}</p>
+    <p class="text-center muted" style="margin-bottom: 6px;">{{ $pago->sucursal?->nombre ?? 'Sucursal principal' }}</p>
+    <p class="text-center font-bold" style="font-size: 9pt; margin-bottom: 4px;">TICKET DE COBRO</p>
+    <p class="text-center muted" style="margin-bottom: 6px;">
+        {{ strtoupper((string) ($pago->comprobante_tipo ?? 'ticket')) }} {{ $pago->comprobante_numero ?? '—' }} · Pago #{{ $pago->id }} · {{ $pago->fecha_pago?->format('d/m/Y H:i') }}
     </p>
     <div class="line"></div>
 
     <p style="margin: 2px 0;"><strong>Cliente:</strong> {{ $clienteNombre }}</p>
     <p style="margin: 2px 0;"><strong>Concepto:</strong> {{ $concepto }}</p>
-    <p style="margin: 2px 0;"><strong>Pago:</strong> {{ $pago->paymentMethod?->nombre ?? $pago->metodo_pago }}</p>
+    <p style="margin: 2px 0;"><strong>Método:</strong> {{ $pago->paymentMethod?->nombre ?? $pago->metodo_pago }}</p>
     @if($pago->numero_operacion)
-        <p style="margin: 2px 0;"><strong>Nº oper.:</strong> {{ $pago->numero_operacion }}</p>
+        <p style="margin: 2px 0;"><strong>N° oper.:</strong> {{ $pago->numero_operacion }}</p>
     @endif
     @if($pago->entidad_financiera)
         <p style="margin: 2px 0;"><strong>Entidad:</strong> {{ $pago->entidad_financiera }}</p>

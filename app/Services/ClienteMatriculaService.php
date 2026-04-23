@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Validator;
 class ClienteMatriculaService
 {
     /**
-     * Obtener todas las matrículas de un cliente con paginación
+     * Obtener todas las matrÃ­culas de un cliente con paginaciÃ³n
      */
     public function getByCliente(int $clienteId, array $filtros = [], int $perPage = 15): LengthAwarePaginator
     {
@@ -41,11 +41,11 @@ class ClienteMatriculaService
     }
 
     /**
-     * Matrículas de tipo membresía (activas) cuya fecha_fin está próxima.
-     * Útil para mostrar avisos de renovación.
+     * MatrÃ­culas de tipo membresÃ­a (activas) cuya fecha_fin estÃ¡ prÃ³xima.
+     * Ãštil para mostrar avisos de renovaciÃ³n.
      *
-     * @param  int  $dias  Ventana en días (por defecto 30: vencen desde hoy hasta hoy + 30)
-     * @param  int  $limit  Cantidad máxima a devolver
+     * @param  int  $dias  Ventana en dÃ­as (por defecto 30: vencen desde hoy hasta hoy + 30)
+     * @param  int  $limit  Cantidad mÃ¡xima a devolver
      */
     public function getMembresiasProximasAVencer(int $dias = 30, int $limit = 20): \Illuminate\Database\Eloquent\Collection
     {
@@ -65,7 +65,7 @@ class ClienteMatriculaService
     }
 
     /**
-     * Obtener una matrícula por ID
+     * Obtener una matrÃ­cula por ID
      */
     public function find(int $id): ?ClienteMatricula
     {
@@ -73,7 +73,7 @@ class ClienteMatriculaService
     }
 
     /**
-     * Crear una nueva matrícula para un cliente
+     * Crear una nueva matrÃ­cula para un cliente
      */
     public function create(array $data): ClienteMatricula
     {
@@ -83,7 +83,7 @@ class ClienteMatriculaService
             $membresia = null;
             $installmentConfig = null;
 
-            // Para membresía: fecha inicio por defecto hoy y fecha fin según duración de la membresía
+            // Para membresÃ­a: fecha inicio por defecto hoy y fecha fin segÃºn duraciÃ³n de la membresÃ­a
             if ($validated['tipo'] === 'membresia') {
                 $validated['fecha_inicio'] = isset($validated['fecha_inicio'])
                     ? Carbon::parse($validated['fecha_inicio'])->toDateString()
@@ -97,7 +97,7 @@ class ClienteMatriculaService
                 ? Carbon::parse($validated['fecha_matricula'])->toDateString()
                 : Carbon::today()->toDateString();
 
-            // Calcular precio_final si no está presente
+            // Calcular precio_final si no estÃ¡ presente
             if (! isset($validated['precio_final'])) {
                 $precioLista = $validated['precio_lista'] ?? 0;
                 $descuento = $validated['descuento_monto'] ?? 0;
@@ -122,13 +122,12 @@ class ClienteMatriculaService
                     'numero_cuotas',
                     'frecuencia_cuotas',
                     'fecha_inicio_plan_cuotas',
-                    'personalizado_por',
-                    'monto_cuota_personalizado',
                     'monto_pago_inicial',
+                    'installment_schedule',
                 ])
             );
 
-            // El cliente solo puede tener una membresía activa: las demás pasan a congelada
+            // El cliente solo puede tener una membresÃ­a activa: las demÃ¡s pasan a congelada
             if ($validated['tipo'] === 'membresia' && ($validated['estado'] ?? '') === 'activa') {
                 ClienteMatricula::where('cliente_id', $clienteMatricula->cliente_id)
                     ->where('tipo', 'membresia')
@@ -139,14 +138,18 @@ class ClienteMatriculaService
 
             if ($clienteMatricula->usaPlanCuotas() && $installmentConfig) {
                 $cliente = $clienteMatricula->cliente ?? Cliente::findOrFail($clienteMatricula->cliente_id);
-                app(EnrollmentInstallmentService::class)->addFinancing($cliente, $clienteMatricula, [
+                $payload = [
                     'monto_total' => (float) $clienteMatricula->precio_final,
                     'cuota_inicial_monto' => $installmentConfig['cuota_inicial_monto'],
                     'numero_cuotas' => $installmentConfig['numero_cuotas'],
                     'frecuencia' => $installmentConfig['frecuencia'],
                     'fecha_inicio' => $validated['fecha_inicio_plan_cuotas'] ?? $validated['fecha_matricula'],
-                    'observaciones' => 'Plan generado automáticamente al registrar la membresía (sin cobro en alta).',
-                ]);
+                    'observaciones' => 'Plan generado automÃ¡ticamente al registrar la membresÃ­a (sin cobro en alta).',
+                ];
+                if (! empty($validated['installment_schedule']) && is_array($validated['installment_schedule'])) {
+                    $payload['schedule'] = $validated['installment_schedule'];
+                }
+                app(EnrollmentInstallmentService::class)->addFinancing($cliente, $clienteMatricula, $payload);
             }
 
             return $clienteMatricula->fresh(['pagos', 'installmentPlan.installments']);
@@ -169,19 +172,8 @@ class ClienteMatriculaService
 
         $numeroCuotas = (int) ($validated['numero_cuotas'] ?? 0);
 
-        if ($frecuencia === 'personalizado' && ($validated['personalizado_por'] ?? 'numero_cuotas') === 'monto_cuota') {
-            $montoObj = round((float) ($validated['monto_cuota_personalizado'] ?? 0), 2);
-            if ($montoObj <= 0) {
-                throw new \InvalidArgumentException('Indica un monto por cuota mayor a cero.');
-            }
-            if ($montoObj > $saldoFinanciado) {
-                throw new \InvalidArgumentException('El monto por cuota no puede superar el saldo a financiar.');
-            }
-            $numeroCuotas = max(2, min(60, (int) ceil($saldoFinanciado / $montoObj)));
-        }
-
         if ($numeroCuotas < 2) {
-            throw new \InvalidArgumentException('Debes indicar un número de cuotas válido (mínimo 2).');
+            throw new \InvalidArgumentException('Debes indicar un nÃºmero de cuotas vÃ¡lido (mÃ­nimo 2).');
         }
 
         return [
@@ -193,18 +185,18 @@ class ClienteMatriculaService
     }
 
     /**
-     * Procesar un pago para una matrícula
+     * Procesar un pago para una matrÃ­cula
      */
     public function procesarPago(int $clienteMatriculaId, array $data): Pago
     {
         $clienteMatricula = $this->find($clienteMatriculaId);
 
         if (! $clienteMatricula) {
-            throw new \Exception('Matrícula no encontrada');
+            throw new \Exception('MatrÃ­cula no encontrada');
         }
 
         if ($clienteMatricula->usaPlanCuotas()) {
-            throw new \Exception('Esta matrícula se cobra por cronograma de cuotas. Registre el pago desde el módulo de cuotas.');
+            throw new \Exception('Esta matrÃ­cula se cobra por cronograma de cuotas. Registre el pago desde el mÃ³dulo de cuotas.');
         }
 
         // Validar que exista una caja abierta
@@ -289,7 +281,7 @@ class ClienteMatriculaService
     }
 
     /**
-     * Obtener el saldo pendiente de una matrícula
+     * Obtener el saldo pendiente de una matrÃ­cula
      */
     public function obtenerSaldoPendiente(int $clienteMatriculaId): float
     {
@@ -311,7 +303,7 @@ class ClienteMatriculaService
             return round($clienteMatricula->monto_financiado, 2);
         }
 
-        // Obtener el último pago para ver el saldo pendiente actual
+        // Obtener el Ãºltimo pago para ver el saldo pendiente actual
         $ultimoPago = Pago::where('cliente_matricula_id', $clienteMatriculaId)
             ->orderBy('created_at', 'desc')
             ->first();
@@ -325,18 +317,18 @@ class ClienteMatriculaService
     }
 
     /**
-     * Actualizar una matrícula de cliente
+     * Actualizar una matrÃ­cula de cliente
      */
     public function update(int $id, array $data): ClienteMatricula
     {
         $clienteMatricula = $this->find($id);
 
         if (! $clienteMatricula) {
-            throw new \Exception('Matrícula no encontrada');
+            throw new \Exception('MatrÃ­cula no encontrada');
         }
 
         if ($clienteMatricula->estado === 'completada') {
-            throw new \Exception('No se puede editar una matrícula completada.');
+            throw new \Exception('No se puede editar una matrÃ­cula completada.');
         }
 
         if (
@@ -349,7 +341,7 @@ class ClienteMatriculaService
                 || (array_key_exists('cuota_inicial_monto', $data) && (float) ($data['cuota_inicial_monto'] ?? 0) !== (float) ($clienteMatricula->cuota_inicial_monto ?? 0))
             )
         ) {
-            throw new \Exception('No se puede modificar el precio o modalidad de una matrícula que ya tiene plan de cuotas.');
+            throw new \Exception('No se puede modificar el precio o modalidad de una matrÃ­cula que ya tiene plan de cuotas.');
         }
 
         $cambiaPrecio = array_key_exists('precio_lista', $data)
@@ -361,7 +353,7 @@ class ClienteMatriculaService
             && ! $clienteMatricula->usaPlanCuotas()
             && $cambiaPrecio
         ) {
-            throw new \Exception('No se puede modificar el precio: esta matrícula tiene cuotas registradas. Use la pantalla de cuotas del cliente.');
+            throw new \Exception('No se puede modificar el precio: esta matrÃ­cula tiene cuotas registradas. Use la pantalla de cuotas del cliente.');
         }
 
         $validated = $this->validate($data, $id);
@@ -371,14 +363,16 @@ class ClienteMatriculaService
             || array_key_exists('descuento_monto', $data)
             || array_key_exists('precio_final', $data);
 
-        return DB::transaction(function () use ($clienteMatricula, $validated, $precioFinalAntes, $cambioPrecioOFinanzas) {
+        $fechaInicioMatriculaAntes = $clienteMatricula->fecha_inicio?->format('Y-m-d');
+
+        return DB::transaction(function () use ($clienteMatricula, $validated, $precioFinalAntes, $cambioPrecioOFinanzas, $fechaInicioMatriculaAntes) {
             $planAnteriorTipo = $clienteMatricula->tipo === 'membresia' ? 'membresia' : 'clase';
             $planAnteriorId = $clienteMatricula->tipo === 'membresia'
                 ? $clienteMatricula->membresia_id
                 : $clienteMatricula->clase_id;
             $nuevoEstado = $validated['estado'] ?? $clienteMatricula->estado;
 
-            // Si pasa de congelada a activa (membresía), el cliente solo puede tener una activa
+            // Si pasa de congelada a activa (membresÃ­a), el cliente solo puede tener una activa
             if ($clienteMatricula->tipo === 'membresia' && $clienteMatricula->estado === 'congelada' && $nuevoEstado === 'activa') {
                 $otraActiva = ClienteMatricula::where('cliente_id', $clienteMatricula->cliente_id)
                     ->where('tipo', 'membresia')
@@ -386,7 +380,7 @@ class ClienteMatriculaService
                     ->where('id', '!=', $clienteMatricula->id)
                     ->exists();
                 if ($otraActiva) {
-                    throw new \Exception('El cliente ya tiene una membresía activa.');
+                    throw new \Exception('El cliente ya tiene una membresÃ­a activa.');
                 }
                 $membresia = Membresia::find($clienteMatricula->membresia_id);
                 $dias = $membresia && $membresia->duracion_dias ? (int) $membresia->duracion_dias : 30;
@@ -412,6 +406,22 @@ class ClienteMatriculaService
             $clienteMatricula->refresh();
 
             if (
+                $clienteMatricula->usaPlanCuotas()
+                && $fechaInicioMatriculaAntes !== null
+                && isset($validated['fecha_inicio'])
+            ) {
+                $nuevaInicio = Carbon::parse($validated['fecha_inicio'])->startOfDay();
+                $antiguaInicio = Carbon::parse($fechaInicioMatriculaAntes)->startOfDay();
+                if ($nuevaInicio->toDateString() !== $antiguaInicio->toDateString()) {
+                    $dias = (int) floor(($nuevaInicio->timestamp - $antiguaInicio->timestamp) / 86400);
+                    if ($dias !== 0) {
+                        app(\App\Services\EnrollmentInstallmentService::class)
+                            ->shiftPendingInstallmentsForMatricula($clienteMatricula->fresh(), $dias);
+                    }
+                }
+            }
+
+            if (
                 $cambioPrecioOFinanzas
                 && ! $clienteMatricula->usaPlanCuotas()
                 && ! $clienteMatricula->enrollmentInstallments()->exists()
@@ -420,7 +430,7 @@ class ClienteMatriculaService
                 $this->sincronizarPagoUnicoMatriculaContado($clienteMatricula, $precioFinalAntes);
             }
 
-            // El cliente solo puede tener una membresía activa: las demás pasan a congelada (al crear o activar otra)
+            // El cliente solo puede tener una membresÃ­a activa: las demÃ¡s pasan a congelada (al crear o activar otra)
             if ($clienteMatricula->tipo === 'membresia' && $nuevoEstado === 'activa') {
                 ClienteMatricula::where('cliente_id', $clienteMatricula->cliente_id)
                     ->where('tipo', 'membresia')
@@ -453,7 +463,7 @@ class ClienteMatriculaService
     }
 
     /**
-     * Ajusta el único pago de alta de una matrícula al contado (sin plan de cuotas) tras cambiar precio_final.
+     * Ajusta el Ãºnico pago de alta de una matrÃ­cula al contado (sin plan de cuotas) tras cambiar precio_final.
      *
      * @throws \Exception
      */
@@ -469,13 +479,13 @@ class ClienteMatriculaService
         }
 
         if ($pagos->count() > 1) {
-            throw new \Exception('No se puede sincronizar el precio: existen varios pagos registrados para esta matrícula.');
+            throw new \Exception('No se puede sincronizar el precio: existen varios pagos registrados para esta matrÃ­cula.');
         }
 
         $pago = $pagos->first();
 
         if ($pago->caja_id !== null) {
-            throw new \Exception('No se puede modificar el precio: ya hay cobros asociados a caja en esta matrícula.');
+            throw new \Exception('No se puede modificar el precio: ya hay cobros asociados a caja en esta matrÃ­cula.');
         }
 
         $nuevoPrecio = (float) $clienteMatricula->precio_final;
@@ -483,7 +493,7 @@ class ClienteMatriculaService
         $saldoAnterior = (float) $pago->saldo_pendiente;
 
         if (abs(($montoRegistrado + $saldoAnterior) - $precioFinalAnterior) > 0.02) {
-            throw new \Exception('No se puede ajustar el precio automáticamente: el pago registrado no coincide con el precio anterior.');
+            throw new \Exception('No se puede ajustar el precio automÃ¡ticamente: el pago registrado no coincide con el precio anterior.');
         }
 
         if (abs($saldoAnterior) < 0.004) {
@@ -509,18 +519,18 @@ class ClienteMatriculaService
     }
 
     /**
-     * Eliminar una matrícula de cliente
+     * Eliminar una matrÃ­cula de cliente
      */
     public function delete(int $id): bool
     {
         $clienteMatricula = $this->find($id);
 
         if (! $clienteMatricula) {
-            throw new \Exception('Matrícula no encontrada');
+            throw new \Exception('MatrÃ­cula no encontrada');
         }
 
         if ($clienteMatricula->estado === 'completada') {
-            throw new \Exception('No se puede eliminar una matrícula completada.');
+            throw new \Exception('No se puede eliminar una matrÃ­cula completada.');
         }
 
         // Verificar si tiene relaciones
@@ -532,7 +542,7 @@ class ClienteMatriculaService
     }
 
     /**
-     * Validar datos de la matrícula
+     * Validar datos de la matrÃ­cula
      */
     protected function validate(array $data, ?int $id = null): array
     {
@@ -562,11 +572,12 @@ class ClienteMatriculaService
             'modalidad_pago' => ['nullable', 'string', 'in:contado,cuotas'],
             'cuota_inicial_monto' => ['nullable', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'],
             'numero_cuotas' => ['nullable', 'integer', 'min:2', 'max:60'],
-            'frecuencia_cuotas' => ['nullable', 'string', 'in:semanal,quincenal,mensual,anual,personalizado'],
+            'frecuencia_cuotas' => ['nullable', 'string', 'in:quincenal,mensual'],
             'fecha_inicio_plan_cuotas' => ['nullable', 'date'],
-            'personalizado_por' => ['nullable', 'string', 'in:numero_cuotas,monto_cuota'],
-            'monto_cuota_personalizado' => ['nullable', 'numeric', 'min:0.01', 'regex:/^\d+(\.\d{1,2})?$/'],
             'monto_pago_inicial' => ['nullable', 'numeric', 'min:0', 'regex:/^\d+(\.\d{1,2})?$/'],
+            'installment_schedule' => ['nullable', 'array'],
+            'installment_schedule.*.monto' => ['nullable', 'numeric', 'min:0'],
+            'installment_schedule.*.fecha_vencimiento' => ['nullable', 'date'],
         ];
 
         if ($tipo === 'membresia') {
@@ -612,26 +623,22 @@ class ClienteMatriculaService
                 $validator->errors()->add('frecuencia_cuotas', 'Debes indicar la frecuencia de cuotas.');
             }
 
-            $frec = $data['frecuencia_cuotas'] ?? '';
-            $porPersonalizado = $data['personalizado_por'] ?? 'numero_cuotas';
-
-            if ($frec === 'personalizado' && $porPersonalizado === 'monto_cuota') {
-                $m = $data['monto_cuota_personalizado'] ?? null;
-                if ($m === null || $m === '') {
-                    $validator->errors()->add('monto_cuota_personalizado', 'Indica el monto a pagar por cuota.');
-                } else {
-                    $cuotaIni = $cuotaInicialMonto ?? 0.0;
-                    $saldo = round($precioFinal - (float) $cuotaIni, 2);
-                    if ($saldo > 0 && (float) $m > $saldo) {
-                        $validator->errors()->add('monto_cuota_personalizado', 'El monto por cuota no puede superar el saldo a financiar.');
-                    }
-                }
-            } elseif (($data['numero_cuotas'] ?? null) === null) {
-                $validator->errors()->add('numero_cuotas', 'Debes indicar el número de cuotas.');
+            if (($data['numero_cuotas'] ?? null) === null) {
+                $validator->errors()->add('numero_cuotas', 'Debes indicar el numero de cuotas.');
             }
-
             if ($cuotaInicialMonto !== null && $cuotaInicialMonto >= $precioFinal && $precioFinal > 0) {
                 $validator->errors()->add('cuota_inicial_monto', 'La cuota inicial debe ser menor al precio final.');
+            }
+
+            $schedule = $data['installment_schedule'] ?? null;
+            if (is_array($schedule) && $schedule !== []) {
+                $suma = round((float) collect($schedule)->sum(fn ($row) => (float) ($row['monto'] ?? 0)), 2);
+                if (abs($suma - round($precioFinal, 2)) > 0.02) {
+                    $validator->errors()->add('installment_schedule', 'La suma de las cuotas del cronograma debe igualar el precio final.');
+                }
+                if (count($schedule) < 2) {
+                    $validator->errors()->add('installment_schedule', 'El cronograma debe tener al menos dos cuotas.');
+                }
             }
         });
 
@@ -657,12 +664,12 @@ class ClienteMatriculaService
         $hasAsistencias = $clienteMatricula->asistencias()->exists();
 
         if ($hasPagos || $hasAsistencias) {
-            throw new \Exception('No se puede eliminar la matrícula porque tiene pagos o asistencias asociadas.');
+            throw new \Exception('No se puede eliminar la matrÃ­cula porque tiene pagos o asistencias asociadas.');
         }
     }
 
     /**
-     * Obtener todas las membresías activas
+     * Obtener todas las membresÃ­as activas
      */
     public function getMembresiasActivas(): Collection
     {

@@ -1,7 +1,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<title>{{ $title ?? config('app.name') }}</title>
+<title>{{ $title ?? ($appBrandName ?? config('app.name')) }}</title>
 
 <link rel="icon" href="{{ asset('Open9/logo.ico') }}" sizes="any">
 <link rel="apple-touch-icon" href="{{ asset('Open9/logo_completo_sin_fondo.png') }}">

@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Caja;
+use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\EnrollmentInstallment;
@@ -26,14 +26,12 @@ class EnrollmentInstallmentService
     public function addFinancing(Cliente $cliente, ClienteMatricula $origen, array $data): EnrollmentInstallmentPlan
     {
         $montoFinanciado = round((float) ($data['monto_total'] ?? 0), 2);
-        $numeroCuotas = (int) ($data['numero_cuotas'] ?? 0);
+        $scheduleInput = $this->normalizeScheduleRows($data['schedule'] ?? []);
+        $sumInput = round((float) collect($scheduleInput)->sum('monto'), 2);
         $cuotaInicialMonto = round((float) ($data['cuota_inicial_monto'] ?? 0), 2);
 
-        if ($montoFinanciado <= 0 || $numeroCuotas < 2) {
+        if ($montoFinanciado <= 0) {
             throw new \InvalidArgumentException('Monto financiado y número de cuotas no son válidos.');
-        }
-        if ($cuotaInicialMonto < 0 || $cuotaInicialMonto >= $montoFinanciado) {
-            throw new \InvalidArgumentException('La cuota inicial debe ser mayor o igual a 0 y menor al monto total.');
         }
 
         if ((int) $origen->cliente_id !== (int) $cliente->id) {
@@ -47,9 +45,40 @@ class EnrollmentInstallmentService
         ];
 
         $saldoProgramado = round($montoFinanciado - $cuotaInicialMonto, 2);
-        $montosCuotas = $this->distribuirMontosExactos($saldoProgramado, $numeroCuotas);
 
-        return DB::transaction(function () use ($cliente, $origen, $numeroCuotas, $cuotaInicialMonto, $montosCuotas, $validated) {
+        if ($scheduleInput !== [] && $this->scheduleAmountsEqual($sumInput, $montoFinanciado)) {
+            $schedule = $this->validateFullScheduleRows($scheduleInput, $montoFinanciado);
+        } elseif ($scheduleInput !== []) {
+            if ($cuotaInicialMonto < 0 || $cuotaInicialMonto >= $montoFinanciado) {
+                throw new \InvalidArgumentException('La cuota inicial debe ser mayor o igual a 0 y menor al monto total.');
+            }
+            if (! $this->scheduleAmountsEqual($sumInput, $saldoProgramado)) {
+                throw new \InvalidArgumentException('La suma del cronograma debe coincidir con el saldo pendiente (precio menos cuota inicial).');
+            }
+            $schedule = $this->validateScheduleRows($scheduleInput, $saldoProgramado);
+        } else {
+            $numeroCuotas = (int) ($data['numero_cuotas'] ?? 0);
+            if ($numeroCuotas < 2) {
+                throw new \InvalidArgumentException('Monto financiado y número de cuotas no son válidos.');
+            }
+            if ($cuotaInicialMonto < 0 || $cuotaInicialMonto >= $montoFinanciado) {
+                throw new \InvalidArgumentException('La cuota inicial debe ser mayor o igual a 0 y menor al monto total.');
+            }
+            $schedule = $this->previewSchedule([
+                'monto_total' => $montoFinanciado,
+                'numero_cuotas' => $numeroCuotas,
+                'frecuencia' => $validated['frecuencia'],
+                'fecha_inicio' => $validated['fecha_inicio']->toDateString(),
+                'cuota_inicial_monto' => $cuotaInicialMonto,
+            ]);
+        }
+
+        $numeroCuotas = count($schedule);
+        if ($numeroCuotas < 2) {
+            throw new \InvalidArgumentException('Monto financiado y número de cuotas no son válidos.');
+        }
+
+        return DB::transaction(function () use ($cliente, $origen, $schedule, $validated) {
             $plan = EnrollmentInstallmentPlan::query()
                 ->where('cliente_id', $cliente->id)
                 ->lockForUpdate()
@@ -68,31 +97,13 @@ class EnrollmentInstallmentService
                 ]);
             }
 
-            $fechas = $this->generarFechasVencimiento(
-                $validated['fecha_inicio'],
-                $numeroCuotas,
-                $validated['frecuencia'],
-                $cuotaInicialMonto > 0
-            );
-
-            if ($cuotaInicialMonto > 0) {
+            foreach ($schedule as $i => $row) {
                 EnrollmentInstallment::create([
                     'enrollment_installment_plan_id' => $plan->id,
                     'cliente_matricula_id' => $origen->id,
                     'numero_cuota' => 0,
-                    'monto' => $cuotaInicialMonto,
-                    'fecha_vencimiento' => $validated['fecha_inicio'],
-                    'estado' => 'pendiente',
-                ]);
-            }
-
-            foreach ($fechas as $i => $fecha) {
-                EnrollmentInstallment::create([
-                    'enrollment_installment_plan_id' => $plan->id,
-                    'cliente_matricula_id' => $origen->id,
-                    'numero_cuota' => 0,
-                    'monto' => $montosCuotas[$i],
-                    'fecha_vencimiento' => $fecha,
+                    'monto' => $row['monto'],
+                    'fecha_vencimiento' => $row['fecha_vencimiento'],
                     'estado' => 'pendiente',
                 ]);
             }
@@ -120,6 +131,56 @@ class EnrollmentInstallmentService
             'monto_total' => (float) ($data['monto_total'] ?? $clienteMatricula->precio_final),
             'fecha_inicio' => $data['fecha_inicio'] ?? $clienteMatricula->fecha_matricula?->format('Y-m-d') ?? now()->format('Y-m-d'),
         ]));
+    }
+
+    public function previewSchedule(array $data): array
+    {
+        $montoTotal = round((float) ($data['monto_total'] ?? 0), 2);
+        $cuotaInicialMonto = round((float) ($data['cuota_inicial_monto'] ?? 0), 2);
+        $numeroCuotas = (int) ($data['numero_cuotas'] ?? 0);
+        $frecuencia = (string) ($data['frecuencia'] ?? 'mensual');
+        $fechaInicio = isset($data['fecha_inicio']) ? Carbon::parse($data['fecha_inicio']) : Carbon::today();
+
+        if ($montoTotal <= 0 || $numeroCuotas <= 0) {
+            return [];
+        }
+
+        $saldoProgramado = round($montoTotal - $cuotaInicialMonto, 2);
+        if ($saldoProgramado < 0) {
+            throw new \InvalidArgumentException('La cuota inicial no puede ser mayor al monto total.');
+        }
+
+        if ($cuotaInicialMonto > 0 && $numeroCuotas < 2) {
+            throw new \InvalidArgumentException('Debes indicar al menos 2 cuotas cuando la primera cuota es manual.');
+        }
+
+        $schedule = [];
+
+        if ($cuotaInicialMonto > 0) {
+            $schedule[] = [
+                'numero_cuota' => 1,
+                'fecha_vencimiento' => $fechaInicio->copy()->toDateString(),
+                'monto' => $cuotaInicialMonto,
+            ];
+        }
+
+        $cuotasRestantes = $numeroCuotas - count($schedule);
+        if ($cuotasRestantes <= 0) {
+            return $schedule;
+        }
+
+        $montosCuotas = $this->distribuirMontosExactos($saldoProgramado, $cuotasRestantes);
+        $fechas = $this->generarFechasVencimiento($fechaInicio, $cuotasRestantes, $frecuencia, $cuotaInicialMonto > 0);
+
+        foreach (collect($fechas)->values() as $index => $fecha) {
+            $schedule[] = [
+                'numero_cuota' => count($schedule) + 1,
+                'fecha_vencimiento' => $fecha->copy()->toDateString(),
+                'monto' => round((float) ($montosCuotas[$index] ?? 0), 2),
+            ];
+        }
+
+        return $schedule;
     }
 
     public function syncPlanHeaderFromInstallments(EnrollmentInstallmentPlan $plan): void
@@ -159,19 +220,10 @@ class EnrollmentInstallmentService
         if ($desdeSiguienteIntervalo) {
             $current = $this->sumarIntervaloSegunFrecuencia($current, $frecuencia);
         }
-        $dias = match ($frecuencia) {
-            'semanal' => 7,
-            'quincenal' => 15,
-            'mensual' => 30,
-            'anual' => 360,
-            'personalizado' => 30,
-            default => 30,
-        };
-
         for ($i = 0; $i < $numeroCuotas; $i++) {
             $fechas[] = $current->copy();
             if ($i < $numeroCuotas - 1) {
-                $current->addDays($dias);
+                $current = $this->sumarIntervaloSegunFrecuencia($current, $frecuencia);
             }
         }
 
@@ -204,16 +256,155 @@ class EnrollmentInstallmentService
 
     private function sumarIntervaloSegunFrecuencia(Carbon $fecha, string $frecuencia): Carbon
     {
-        $dias = match ($frecuencia) {
-            'semanal' => 7,
-            'quincenal' => 15,
-            'mensual' => 30,
-            'anual' => 360,
-            'personalizado' => 30,
-            default => 30,
+        return match ($frecuencia) {
+            'semanal' => $fecha->copy()->addDays(7),
+            'quincenal' => $fecha->copy()->addDays(15),
+            'mensual' => $this->sumarMesMismoDiaOFinDeMes($fecha),
+            'anual' => $fecha->copy()->addDays(360),
+            'personalizado' => $fecha->copy()->addDays(30),
+            default => $fecha->copy()->addDays(30),
         };
+    }
 
-        return $fecha->addDays($dias);
+    private function sumarMesMismoDiaOFinDeMes(Carbon $fecha): Carbon
+    {
+        $fecha = $fecha->copy()->startOfDay();
+        $diaObjetivo = (int) $fecha->day;
+        $siguienteMes = $fecha->copy()->addMonthNoOverflow()->startOfMonth();
+        $ultimoDia = (int) $siguienteMes->copy()->endOfMonth()->day;
+
+        return $siguienteMes->copy()->day(min($diaObjetivo, $ultimoDia));
+    }
+
+    private function normalizeScheduleRows(array $rows): array
+    {
+        return collect($rows)
+            ->map(function ($row) {
+                return [
+                    'fecha_vencimiento' => isset($row['fecha_vencimiento']) ? Carbon::parse($row['fecha_vencimiento'])->toDateString() : null,
+                    'monto' => round((float) ($row['monto'] ?? 0), 2),
+                ];
+            })
+            ->filter(fn ($row) => filled($row['fecha_vencimiento']) && $row['monto'] > 0)
+            ->values()
+            ->all();
+    }
+
+    private function validateScheduleRows(array $schedule, float $saldoProgramado): array
+    {
+        $suma = round((float) collect($schedule)->sum('monto'), 2);
+        if (round($suma, 2) !== round($saldoProgramado, 2)) {
+            throw new \InvalidArgumentException('La suma del cronograma debe coincidir con el saldo pendiente.');
+        }
+
+        return array_values(array_map(function ($row, $index) {
+            return [
+                'numero_cuota' => $index + 1,
+                'fecha_vencimiento' => $row['fecha_vencimiento'],
+                'monto' => round((float) $row['monto'], 2),
+            ];
+        }, $schedule, array_keys($schedule)));
+    }
+
+    /**
+     * Cronograma completo enviado desde la UI (suma de montos = precio final de la matrícula).
+     *
+     * @param  array<int, array{fecha_vencimiento: string|null, monto: float}>  $schedule
+     * @return array<int, array{numero_cuota: int, fecha_vencimiento: string, monto: float}>
+     */
+    private function validateFullScheduleRows(array $schedule, float $montoTotal): array
+    {
+        $suma = round((float) collect($schedule)->sum('monto'), 2);
+        if (! $this->scheduleAmountsEqual($suma, $montoTotal)) {
+            throw new \InvalidArgumentException('La suma del cronograma debe coincidir con el monto total.');
+        }
+
+        return array_values(array_map(function ($row, $index) {
+            return [
+                'numero_cuota' => $index + 1,
+                'fecha_vencimiento' => $row['fecha_vencimiento'],
+                'monto' => round((float) $row['monto'], 2),
+            ];
+        }, $schedule, array_keys($schedule)));
+    }
+
+    private function scheduleAmountsEqual(float $a, float $b): bool
+    {
+        return abs(round($a, 2) - round($b, 2)) < 0.009;
+    }
+
+    /**
+     * Reparte un monto en N partes con suma exacta en centavos (misma lógica que el cronograma automático).
+     *
+     * @return array<int, float>
+     */
+    public function distribuirMontoEnPartesIguales(float $montoTotal, int $partes): array
+    {
+        return $this->distribuirMontosExactos($montoTotal, $partes);
+    }
+
+    /**
+     * Cambia el monto de una cuota en estado pendiente y reparte el saldo entre las cuotas pendientes posteriores
+     * (misma matrícula y plan), manteniendo la suma del bloque desde esa cuota en adelante.
+     */
+    public function updatePendienteMontoRedistributeTail(EnrollmentInstallment $installment, float $nuevoMonto): void
+    {
+        $nuevoMonto = round($nuevoMonto, 2);
+        if ($nuevoMonto < 0.01) {
+            throw new \InvalidArgumentException(__('El monto debe ser al menos 0.01.'));
+        }
+
+        DB::transaction(function () use ($installment, $nuevoMonto) {
+            $row = EnrollmentInstallment::query()->whereKey($installment->id)->lockForUpdate()->first();
+            if (! $row || $row->estado !== 'pendiente') {
+                throw new \InvalidArgumentException(__('Solo se puede modificar el monto de cuotas en estado pendiente.'));
+            }
+
+            $planId = (int) $row->enrollment_installment_plan_id;
+            $matriculaId = $row->cliente_matricula_id;
+            if (! $matriculaId) {
+                throw new \InvalidArgumentException(__('La cuota no está asociada a una matrícula.'));
+            }
+
+            $pendientes = EnrollmentInstallment::query()
+                ->where('enrollment_installment_plan_id', $planId)
+                ->where('cliente_matricula_id', $matriculaId)
+                ->where('estado', 'pendiente')
+                ->orderBy('fecha_vencimiento')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $index = $pendientes->search(fn ($i) => (int) $i->id === (int) $row->id);
+            if ($index === false) {
+                throw new \InvalidArgumentException(__('Cuota no encontrada en el grupo de pendientes.'));
+            }
+
+            $oldSumFrom = round((float) $pendientes->slice($index)->sum('monto'), 2);
+            $tail = $pendientes->slice($index + 1);
+            if ($tail->isEmpty()) {
+                throw new \InvalidArgumentException(__('No hay cuotas pendientes posteriores para redistribuir el saldo. Ajuste el monto total desde matrícula o use el flujo de pago.'));
+            }
+
+            $newTailSum = round($oldSumFrom - $nuevoMonto, 2);
+            $nTail = $tail->count();
+            $minTail = round(0.01 * $nTail, 2);
+            if ($newTailSum < $minTail) {
+                throw new \InvalidArgumentException(__('El monto deja un saldo insuficiente para las cuotas posteriores (mín. :min).', ['min' => number_format($minTail, 2)]));
+            }
+
+            $montos = $this->distribuirMontosExactos($newTailSum, $nTail);
+
+            $row->update(['monto' => $nuevoMonto]);
+            foreach ($tail->values() as $i => $t) {
+                $t->update(['monto' => $montos[$i]]);
+            }
+
+            $plan = EnrollmentInstallmentPlan::query()->whereKey($planId)->lockForUpdate()->first();
+            if ($plan) {
+                $this->syncPlanHeaderFromInstallments($plan);
+            }
+        });
     }
 
     public function pagarCuota(EnrollmentInstallment $installment, array $data): Pago
@@ -361,7 +552,7 @@ class EnrollmentInstallmentService
      */
     public function shiftPendingInstallmentsForMatricula(ClienteMatricula $matricula, int $dias): void
     {
-        if ($dias <= 0) {
+        if ($dias === 0) {
             return;
         }
 

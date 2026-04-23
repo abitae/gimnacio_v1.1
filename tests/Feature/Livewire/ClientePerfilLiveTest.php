@@ -287,6 +287,38 @@ it('recalcula la cuota estimada al cambiar la frecuencia en una nueva matricula 
         ->assertSee('S/ 50.00');
 });
 
+it('muestra vista previa del cronograma al cambiar cuota inicial y fecha inicio en nueva matricula', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver', 'matricula_cliente.crear']);
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $membresia = Membresia::factory()->conCuotas()->create([
+        'nombre' => 'Plan Calendario',
+        'duracion_dias' => 90,
+        'precio_base' => 300,
+        'cuota_inicial_monto' => 0,
+        'frecuencia_cuotas_default' => 'mensual',
+    ]);
+
+    Livewire::test(ClientePerfilLive::class)
+        ->call('selectCliente', $cliente->id)
+        ->call('openMatriculaCreateModal')
+        ->set('matriculaForm.tipo', 'membresia')
+        ->set('matriculaForm.membresia_id', (string) $membresia->id)
+        ->set('matriculaForm.modalidad_pago', 'cuotas')
+        ->set('matriculaForm.cuota_inicial_monto', 100)
+        ->set('matriculaForm.fecha_inicio_plan_cuotas', '2026-04-16')
+        ->assertSet('matriculaForm.frecuencia_cuotas', 'mensual')
+        ->assertSet('matriculaSchedulePreview.0.fecha_vencimiento', '2026-04-16')
+        ->assertSet('matriculaSchedulePreview.1.fecha_vencimiento', '2026-05-16')
+        ->assertSet('matriculaSchedulePreview.2.fecha_vencimiento', '2026-06-16')
+        ->assertSet('matriculaSchedulePreview.0.monto', 100.0)
+        ->assertSee('16/05/2026')
+        ->assertSee('16/06/2026')
+        ->assertSee('S/ 200.00');
+});
+
 it('muestra en el resumen la suma de saldos de planes y membresias del cliente', function () {
     $user = User::factory()->create();
     $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver', 'matricula_cliente.editar']);

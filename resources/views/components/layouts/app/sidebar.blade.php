@@ -7,7 +7,15 @@
         <flux:sidebar id="app-sidebar" sticky collapsible class="{{ $sidebarAppearanceClass ?? 'dark' }} {{ $sidebarBgClass ?? 'bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700' }}">
             <flux:sidebar.header>
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-2 px-2 py-2 min-w-0" wire:navigate>
-                    <img src="{{ asset('Open9/logo_completo_sin_fondo.png') }}" alt="{{ config('app.name', 'Open9') }}" class="h-8 max-h-8 w-auto object-contain" />
+                    @if (!empty($appBrandLogoUrl))
+                        <img src="{{ $appBrandLogoUrl }}" alt="{{ $appBrandName ?? config('app.name', 'Firnetness') }}" class="h-8 max-h-8 w-auto object-contain" />
+                    @else
+                        <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-zinc-900 text-xs font-bold tracking-[0.2em] text-white dark:bg-white dark:text-zinc-900">F</span>
+                    @endif
+                    <div class="min-w-0">
+                        <div class="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">{{ $appBrandName ?? config('app.name', 'Firnetness') }}</div>
+                        <div class="truncate text-[11px] text-zinc-500 dark:text-zinc-400">Fitness, cobranza y operación</div>
+                    </div>
                 </a>
 
                 <flux:sidebar.collapse />

@@ -8,6 +8,7 @@ use App\Services\ClientEnrollmentService;
 use App\Services\ClienteService;
 use App\Services\ClienteMatriculaService;
 use App\Services\DailyOperationsDebtService;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 
 class CheckingLive extends Component
@@ -115,16 +116,38 @@ class CheckingLive extends Component
 
     public function selectCliente($clienteId)
     {
-        $this->selectedClienteId = $clienteId;
-        $this->selectedCliente = $this->clienteService->find($clienteId);
+        try {
+            $clienteId = (int) $clienteId;
 
-        if ($this->selectedCliente) {
-            $this->clienteSearch = $this->selectedCliente->nombres.' '.$this->selectedCliente->apellidos;
+            if ($clienteId <= 0) {
+                $this->flashToast('error', 'Cliente no válido.');
+                $this->clearClienteSelection();
+
+                return;
+            }
+
+            $cliente = $this->clienteService->find($clienteId);
+            if (! $cliente) {
+                $this->flashToast('error', 'Cliente no encontrado.');
+                $this->clearClienteSelection();
+
+                return;
+            }
+
+            $this->selectedClienteId = $clienteId;
+            $this->selectedCliente = $cliente;
+            $this->clienteSearch = trim($cliente->nombres.' '.$cliente->apellidos);
+            $this->clientes = collect([]);
+            $this->isSearching = false;
+            $this->refreshSelectedClienteContext($clienteId);
+        } catch (\Throwable $e) {
+            Log::error('Error al seleccionar cliente en checking.', [
+                'cliente_id' => $clienteId ?? null,
+                'exception' => $e,
+            ]);
+            $this->flashToast('error', 'No se pudo cargar el cliente seleccionado.');
+            $this->clearClienteSelection();
         }
-
-        $this->clientes = collect([]);
-        $this->isSearching = false;
-        $this->refreshSelectedClienteContext((int) $clienteId);
     }
 
     public function clearClienteSelection()
@@ -207,33 +230,51 @@ class CheckingLive extends Component
     protected function cargarHistorialComercial(int $clienteId): void
     {
         $history = $this->clientEnrollmentService->resolveCommercialHistory($clienteId);
-        $this->historialMembresias = $history['memberships'];
-        $this->historialClases = $history['classes'];
+        $this->historialMembresias = $history['memberships'] ?? collect([]);
+        $this->historialClases = $history['classes'] ?? collect([]);
 
-        if (! $this->membresiaActiva && $this->historialMembresias->isNotEmpty()) {
+        if (! $this->membresiaActiva && method_exists($this->historialMembresias, 'isNotEmpty') && $this->historialMembresias->isNotEmpty()) {
             $this->membresiaActiva = $this->clientEnrollmentService->resolveLatestActiveEnrollmentFromHistory($this->historialMembresias);
         }
     }
 
     protected function refreshSelectedClienteContext(int $clienteId): void
     {
-        $activeEnrollment = $this->clientEnrollmentService->resolveActiveEnrollment($clienteId);
-        $this->membresiaActiva = $activeEnrollment['source_model'] ?? null;
-        $this->asistenciasRecientes = $this->asistenciaService->obtenerAsistenciasRecientes($clienteId, 5);
-        $this->ingresoEnCurso = $this->asistenciaService->obtenerIngresoEnCurso($clienteId);
-        $this->estadisticasAsistencia = [];
-        $this->validacionAcceso = [];
-        $this->saldoPendiente = 0.00;
+        try {
+            $cliente = $this->clienteService->find($clienteId);
+            if (! $cliente) {
+                $this->clearClienteSelection();
+                $this->flashToast('error', 'Cliente no encontrado.');
 
-        if ($this->membresiaActiva) {
-            $this->estadisticasAsistencia = $this->asistenciaService->obtenerEstadisticasAsistencia($clienteId, $this->membresiaActiva->id);
-            $this->validacionAcceso = $this->asistenciaService->validarAccesoPorHorario($this->membresiaActiva);
-            $this->saldoPendiente = (float) ($activeEnrollment['saldo_pendiente'] ?? 0);
+                return;
+            }
+
+            $this->selectedCliente = $cliente;
+            $activeEnrollment = $this->clientEnrollmentService->resolveActiveEnrollment($clienteId);
+            $this->membresiaActiva = $activeEnrollment['source_model'] ?? null;
+            $this->asistenciasRecientes = $this->asistenciaService->obtenerAsistenciasRecientes($clienteId, 5) ?? [];
+            $this->ingresoEnCurso = $this->asistenciaService->obtenerIngresoEnCurso($clienteId);
+            $this->estadisticasAsistencia = [];
+            $this->validacionAcceso = [];
+            $this->saldoPendiente = 0.00;
+
+            if ($this->membresiaActiva && isset($this->membresiaActiva->id)) {
+                $this->estadisticasAsistencia = $this->asistenciaService->obtenerEstadisticasAsistencia($clienteId, $this->membresiaActiva->id) ?? [];
+                $this->validacionAcceso = $this->asistenciaService->validarAccesoPorHorario($this->membresiaActiva) ?? [];
+                $this->saldoPendiente = (float) ($activeEnrollment['saldo_pendiente'] ?? 0);
+            }
+
+            $this->debtSummary = $this->dailyOperationsDebtService->summarizeCliente($clienteId) ?? [];
+            $this->estadoOperacion = $this->resolverEstadoOperacion();
+            $this->cargarHistorialComercial($clienteId);
+        } catch (\Throwable $e) {
+            Log::error('Error al refrescar el contexto del cliente en checking.', [
+                'cliente_id' => $clienteId,
+                'exception' => $e,
+            ]);
+            $this->resetearSeleccion();
+            $this->flashToast('error', 'No se pudo cargar la información del cliente.');
         }
-
-        $this->debtSummary = $this->dailyOperationsDebtService->summarizeCliente($clienteId);
-        $this->estadoOperacion = $this->resolverEstadoOperacion();
-        $this->cargarHistorialComercial($clienteId);
     }
 
     protected function resolverEstadoOperacion(): array

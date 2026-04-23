@@ -2,13 +2,12 @@
 
 namespace App\Services;
 
-use App\Models\Core\Caja;
-use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Asistencia;
+use App\Models\Core\Caja;
 use App\Models\Core\Cita;
 use App\Models\Core\Cliente;
-use App\Models\Core\ClienteMembresia;
 use App\Models\Core\ClienteMatricula;
+use App\Models\Core\ClienteMembresia;
 use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Pago;
 use App\Models\Core\Producto;
@@ -31,7 +30,7 @@ class ReporteModuloService
             $query->where('fecha_venta', '>=', $fechaDesde);
         }
         if ($fechaHasta) {
-            $query->where('fecha_venta', '<=', $fechaHasta . ' 23:59:59');
+            $query->where('fecha_venta', '<=', $fechaHasta.' 23:59:59');
         }
         $ventas = $query->orderBy('fecha_venta', 'desc')->get();
 
@@ -102,7 +101,7 @@ class ReporteModuloService
             $pagosQuery->where('fecha_pago', '>=', $fechaDesde);
         }
         if ($fechaHasta) {
-            $pagosQuery->where('fecha_pago', '<=', $fechaHasta . ' 23:59:59');
+            $pagosQuery->where('fecha_pago', '<=', $fechaHasta.' 23:59:59');
         }
         $pagos = $pagosQuery->orderBy('fecha_pago', 'desc')->get();
 
@@ -454,7 +453,7 @@ class ReporteModuloService
             $ventasQuery->where('fecha_venta', '>=', $fechaDesde);
         }
         if ($fechaHasta) {
-            $ventasQuery->where('fecha_venta', '<=', $fechaHasta . ' 23:59:59');
+            $ventasQuery->where('fecha_venta', '<=', $fechaHasta.' 23:59:59');
         }
         $porUsuario = $ventasQuery->get();
 
@@ -477,14 +476,23 @@ class ReporteModuloService
     /**
      * Datos para reporte de cajas (aperturas/cierres, movimientos).
      */
-    public function datosReporteCajas(?string $fechaDesde, ?string $fechaHasta): array
+    public function datosReporteCajas(?string $fechaDesde, ?string $fechaHasta, ?int $sucursalId = null, ?int $usuarioId = null, ?int $cajaId = null): array
     {
-        $query = Caja::with(['usuario']);
+        $query = Caja::with(['usuario', 'sucursal', 'movimientos.usuario', 'movimientos.referencia']);
         if ($fechaDesde) {
             $query->where('fecha_apertura', '>=', $fechaDesde);
         }
         if ($fechaHasta) {
-            $query->where('fecha_apertura', '<=', $fechaHasta . ' 23:59:59');
+            $query->where('fecha_apertura', '<=', $fechaHasta.' 23:59:59');
+        }
+        if ($sucursalId) {
+            $query->where('sucursal_id', $sucursalId);
+        }
+        if ($usuarioId) {
+            $query->where('usuario_id', $usuarioId);
+        }
+        if ($cajaId) {
+            $query->whereKey($cajaId);
         }
         $cajas = $query->orderBy('fecha_apertura', 'desc')->get();
 
@@ -492,10 +500,34 @@ class ReporteModuloService
         $cerradas = $cajas->where('estado', 'cerrada')->count();
         $totalIngresos = 0;
         $totalSalidas = 0;
+        $totalVendido = 0;
+        $totalesPorMetodo = [];
+        $totalesPorUsuario = [];
+        $detalleMovimientos = collect();
         /** @var \App\Models\Core\Caja $caja */
         foreach ($cajas as $caja) {
             $totalIngresos += $caja->calcularTotalIngresos();
             $totalSalidas += $caja->calcularTotalSalidas();
+            $resumenCaja = app(CajaService::class)->obtenerResumenCaja($caja, []);
+            $totalVendido += collect($resumenCaja['movimientos'])
+                ->where('categoria', \App\Models\Core\CajaMovimiento::CATEGORIA_POS)
+                ->where('tipo', 'entrada')
+                ->sum('monto');
+
+            foreach (($resumenCaja['desglose_por_metodo'] ?? []) as $metodo => $row) {
+                $totalesPorMetodo[$metodo] = round(($totalesPorMetodo[$metodo] ?? 0) + (float) ($row['total'] ?? 0), 2);
+            }
+
+            $usuarioNombre = $caja->usuario?->name ?? 'Sin usuario';
+            $totalesPorUsuario[$usuarioNombre] = round(($totalesPorUsuario[$usuarioNombre] ?? 0) + (float) ($resumenCaja['total_ingresos'] ?? 0), 2);
+
+            $detalleMovimientos = $detalleMovimientos->concat(collect($resumenCaja['movimientos'] ?? [])->map(function (array $movimiento) use ($caja) {
+                $movimiento['caja_id'] = $caja->id;
+                $movimiento['usuario_caja'] = $caja->usuario?->name;
+                $movimiento['sucursal_caja'] = $caja->sucursal?->nombre;
+
+                return $movimiento;
+            }));
         }
 
         return [
@@ -506,7 +538,11 @@ class ReporteModuloService
                 'cerradas' => $cerradas,
                 'total_ingresos' => (float) $totalIngresos,
                 'total_salidas' => (float) $totalSalidas,
+                'total_vendido' => (float) $totalVendido,
+                'por_metodo_pago' => $totalesPorMetodo,
+                'por_usuario' => $totalesPorUsuario,
             ],
+            'detalle_movimientos' => $detalleMovimientos->sortByDesc('fecha')->values(),
         ];
     }
 
@@ -520,7 +556,7 @@ class ReporteModuloService
             $ventasQuery->where('fecha_venta', '>=', $fechaDesde);
         }
         if ($fechaHasta) {
-            $ventasQuery->where('fecha_venta', '<=', $fechaHasta . ' 23:59:59');
+            $ventasQuery->where('fecha_venta', '<=', $fechaHasta.' 23:59:59');
         }
         $ventaIds = $ventasQuery->pluck('id');
 
