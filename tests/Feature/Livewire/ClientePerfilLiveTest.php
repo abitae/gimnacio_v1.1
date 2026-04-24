@@ -10,6 +10,8 @@ use App\Models\Core\EnrollmentInstallmentPlan;
 use App\Models\Core\Membresia;
 use App\Models\Core\Pago;
 use App\Models\User;
+use App\Support\PermissionCatalog;
+use Database\Seeders\RoleSeeder;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 
@@ -58,6 +60,28 @@ it('abre modal de nuevo cliente con permiso cliente.crear', function () {
     Livewire::test(ClientePerfilLive::class)
         ->call('openClienteCreateModal')
         ->assertSet('clienteModalState.create', true);
+});
+
+it('super administrador puede abrir el modal de nueva matrícula sin permisos explícitos de matrícula', function () {
+    $this->seed(RoleSeeder::class);
+
+    $user = User::factory()->create();
+    $user->assignRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME);
+    $this->actingAs($user);
+
+    $cliente = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '90000099',
+        'nombres' => 'Super',
+        'apellidos' => 'Admin',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    Livewire::test(ClientePerfilLive::class)
+        ->call('selectCliente', $cliente->id)
+        ->call('openMatriculaCreateModal')
+        ->assertSet('matriculaModalState.create', true);
 });
 
 it('renderiza el componente listado secundario', function () {

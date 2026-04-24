@@ -89,7 +89,8 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
         ->name('cajas.entradas-ticket.pdf');
 
     // Checking - Registro de Ingreso
-    Route::get('checking', \App\Livewire\Checking\CheckingLive::class)->middleware('permission:checking.ver')->name('checking.index');
+    // Checking: acceso para cualquier usuario autenticado (recepción / operación diaria).
+    Route::get('checking', \App\Livewire\Checking\CheckingLive::class)->name('checking.index');
 
     // Punto de Venta
     Route::get('pos', \App\Livewire\POS\POSLive::class)->middleware('permission:punto_venta.ver')->name('pos.index');

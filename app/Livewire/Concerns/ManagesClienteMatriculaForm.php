@@ -207,10 +207,7 @@ trait ManagesClienteMatriculaForm
                 }
                 $this->matriculaForm['fecha_inicio_plan_cuotas'] = $this->matriculaForm['fecha_inicio'] ?: now()->format('Y-m-d');
 
-                if ($this->matriculaForm['fecha_inicio']) {
-                    $fechaInicio = Carbon::parse($this->matriculaForm['fecha_inicio']);
-                    $this->matriculaForm['fecha_fin'] = $fechaInicio->copy()->addDays($membresia->duracion_dias ?? 30)->format('Y-m-d');
-                }
+                $this->applyMatriculaFechaFinFromPlan();
             }
         } else {
             $this->resetMatriculaQuotaFormData();
@@ -310,14 +307,7 @@ trait ManagesClienteMatriculaForm
         if ($this->matriculaForm['fecha_inicio']) {
             if ($this->matriculaForm['tipo'] === 'membresia') {
                 $this->matriculaForm['fecha_inicio_plan_cuotas'] = $this->matriculaForm['fecha_inicio'];
-            }
-
-            if ($this->matriculaForm['tipo'] === 'membresia' && $this->matriculaForm['membresia_id']) {
-                $membresia = \App\Models\Core\Membresia::find($this->matriculaForm['membresia_id']);
-                if ($membresia) {
-                    $fechaInicio = Carbon::parse($this->matriculaForm['fecha_inicio']);
-                    $this->matriculaForm['fecha_fin'] = $fechaInicio->copy()->addDays($membresia->duracion_dias)->format('Y-m-d');
-                }
+                $this->applyMatriculaFechaFinFromPlan();
             } elseif ($this->matriculaForm['tipo'] === 'clase') {
                 $this->matriculaForm['fecha_fin'] = '';
             }
@@ -459,6 +449,10 @@ trait ManagesClienteMatriculaForm
 
     protected function mapMatriculaFormToData(): array
     {
+        if (($this->matriculaForm['tipo'] ?? '') === 'membresia') {
+            $this->applyMatriculaFechaFinFromPlan();
+        }
+
         $data = [
             'tipo' => $this->matriculaForm['tipo'],
             'fecha_matricula' => $this->matriculaForm['fecha_matricula'],
@@ -504,6 +498,23 @@ trait ManagesClienteMatriculaForm
         }
 
         return $data;
+    }
+
+    /** Calcula fecha_fin de membresía a partir de fecha_inicio + duracion_dias del plan. */
+    protected function applyMatriculaFechaFinFromPlan(): void
+    {
+        if (($this->matriculaForm['tipo'] ?? '') !== 'membresia') {
+            return;
+        }
+        if (! filled($this->matriculaForm['membresia_id'] ?? null) || ! filled($this->matriculaForm['fecha_inicio'] ?? null)) {
+            return;
+        }
+        $membresia = \App\Models\Core\Membresia::find($this->matriculaForm['membresia_id']);
+        if (! $membresia) {
+            return;
+        }
+        $dias = max(1, (int) ($membresia->duracion_dias ?? 30));
+        $this->matriculaForm['fecha_fin'] = Carbon::parse($this->matriculaForm['fecha_inicio'])->copy()->addDays($dias)->format('Y-m-d');
     }
 
     protected function resetMatriculaForm(): void

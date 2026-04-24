@@ -48,13 +48,11 @@
                     {{ __('Inicio') }}
                 </flux:sidebar.item>
 
-                @canany(['checking.ver', 'caja.ver', 'punto_venta.ver'])
+                @auth
                 <flux:sidebar.group expandable heading="Operaciones" class="grid" :expanded="request()->routeIs('checking.*') || request()->routeIs('cajas.*') || request()->routeIs('pos.*')">
-                    @can('checking.ver')
                     <flux:sidebar.item icon="check-circle" :href="route('checking.index')" :current="request()->routeIs('checking.*')" wire:navigate>
                         {{ __('Checking') }}
                     </flux:sidebar.item>
-                    @endcan
                     @can('caja.ver')
                     <flux:sidebar.item icon="banknotes" :href="route('cajas.index')" :current="request()->routeIs('cajas.*')" wire:navigate>
                         {{ __('Caja') }}
@@ -72,7 +70,7 @@
                     </flux:sidebar.item>
                     @endcan
                 </flux:sidebar.group>
-                @endcanany
+                @endauth
 
                 @canany(['cliente.ver', 'membresia.ver', 'matricula_cliente.ver', 'clase.ver'])
                 <flux:sidebar.group expandable heading="Clientes" class="grid" :expanded="request()->routeIs('clientes.*') || request()->routeIs('membresias.*') || request()->routeIs('cliente-matriculas.*') || request()->routeIs('clases.*')">
@@ -414,11 +412,11 @@
                         {{ __('Sucursal:') }} {{ $activeSucursal->nombre }}
                     </flux:navbar.item>
                 @endif
-                @can('checking.ver')
+                @auth
                 <flux:navbar.item :href="route('checking.index')" :current="request()->routeIs('checking.*')" wire:navigate>
                     {{ __('Checking') }}
                 </flux:navbar.item>
-                @endcan
+                @endauth
                 @can('punto_venta.ver')
                 <flux:navbar.item :href="route('pos.index')" :current="request()->routeIs('pos.*')" wire:navigate>
                     {{ __('Punto de venta') }}

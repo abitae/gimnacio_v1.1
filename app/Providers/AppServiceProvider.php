@@ -25,14 +25,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(WhatsAppServiceInterface::class, MockWhatsAppService::class);
         $this->app->singleton(SucursalContext::class);
         $this->app->singleton(BrandingResolver::class);
-    }
 
-    /**
-     * Bootstrap any application services.
-     */
-    public function boot(): void
-    {
-        // Opcion B (Spatie): super_administrador pasa cualquier comprobacion de autorizaciÃ³n sin listar todos los permisos en BD.
+        // Registrar antes del boot de Spatie (p. ej. PermissionRegistrar::registerPermissions) para que el super
+        // administrador se resuelva en el primer Gate::before y no dependa del orden respecto a checkPermissionTo.
         Gate::before(function ($user, $ability) {
             if ($user === null || ! is_string($ability)) {
                 return null;
@@ -42,7 +37,13 @@ class AppServiceProvider extends ServiceProvider
                 ? true
                 : null;
         });
+    }
 
+    /**
+     * Bootstrap any application services.
+     */
+    public function boot(): void
+    {
         Gate::policy(\App\Models\Crm\Lead::class, \App\Policies\Crm\LeadPolicy::class);
 
         $slowMs = (int) env('DB_SLOW_QUERY_LOG_MS', 0);

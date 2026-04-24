@@ -398,13 +398,15 @@
                         <flux:error name="formData.fecha_matricula" />
                     </div>
                     <div>
-                        <flux:input size="xs" wire:model="formData.fecha_inicio" label="Fecha Inicio" type="date"
+                        <flux:input size="xs" wire:model.live="formData.fecha_inicio" label="Fecha Inicio" type="date"
                             required />
                         <flux:error name="formData.fecha_inicio" />
                     </div>
 
                     <div>
-                        <flux:input size="xs" wire:model="formData.fecha_fin" label="Fecha Fin" type="date" required />
+                        <flux:input size="xs" wire:model="formData.fecha_fin" label="{{ __('Fecha fin (según plan)') }}"
+                            type="date" readonly class="cursor-not-allowed opacity-90" />
+                        <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">{{ __('Según los días del plan desde la fecha de inicio.') }}</p>
                         <flux:error name="formData.fecha_fin" />
                     </div>
                 </div>

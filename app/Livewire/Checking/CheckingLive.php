@@ -4,9 +4,9 @@ namespace App\Livewire\Checking;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Services\AsistenciaService;
+use App\Services\ClienteMatriculaService;
 use App\Services\ClientEnrollmentService;
 use App\Services\ClienteService;
-use App\Services\ClienteMatriculaService;
 use App\Services\DailyOperationsDebtService;
 use Illuminate\Support\Facades\Log;
 use Livewire\Component;
@@ -77,7 +77,6 @@ class CheckingLive extends Component
 
     public function mount()
     {
-        $this->authorize('checking.ver');
         $this->clientes = collect([]);
     }
 

@@ -68,7 +68,7 @@
                     @enderror
                 </div>
                 <div>
-                    <flux:input size="xs" wire:model="matriculaForm.fecha_inicio" label="Fecha Inicio" type="date"
+                    <flux:input size="xs" wire:model.live="matriculaForm.fecha_inicio" label="Fecha Inicio" type="date"
                         required />
                     @error('matriculaForm.fecha_inicio')
                         <p class="mt-0.5 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
@@ -77,7 +77,10 @@
 
                 @if ($matriculaForm['tipo'] === 'membresia')
                     <div>
-                        <flux:input size="xs" wire:model="matriculaForm.fecha_fin" label="Fecha Fin" type="date" required />
+                        <flux:input size="xs" wire:model="matriculaForm.fecha_fin" label="{{ __('Fecha fin (según plan)') }}"
+                            type="date" readonly
+                            class="cursor-not-allowed opacity-90" />
+                        <p class="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">{{ __('Se calcula con los días del plan a partir de la fecha de inicio.') }}</p>
                         <flux:error name="matriculaForm.fecha_fin" />
                     </div>
                 @else

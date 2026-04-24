@@ -7,8 +7,6 @@ use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMembresia;
 use App\Services\ClienteMembresiaService;
 use App\Services\ClienteService;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Collection as SupportCollection;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -18,12 +16,16 @@ class ClienteMembresiaLive extends Component
 
     // Cliente search
     public $clienteSearch = '';
+
     public $clientes;
+
     public $selectedClienteId = null;
+
     public $selectedCliente = null;
 
     // Membresías filters
     public $estadoFilter = '';
+
     public $perPage = 15;
 
     // Modal state
@@ -54,6 +56,7 @@ class ClienteMembresiaLive extends Component
     protected $paginationTheme = 'tailwind';
 
     protected ClienteMembresiaService $service;
+
     protected ClienteService $clienteService;
 
     public function boot(ClienteMembresiaService $service, ClienteService $clienteService)
@@ -90,13 +93,13 @@ class ClienteMembresiaLive extends Component
     public function searchClientes()
     {
         $searchTerm = trim($this->clienteSearch);
-        
+
         if (strlen($searchTerm) >= 2) {
             $this->clientes = $this->clienteService->quickSearch($searchTerm, 10);
         } else {
             $this->clientes = collect([]);
         }
-        
+
         $this->isSearching = false;
     }
 
@@ -104,7 +107,7 @@ class ClienteMembresiaLive extends Component
     {
         $this->selectedClienteId = $clienteId;
         $this->selectedCliente = $this->clienteService->find($clienteId);
-        $this->clienteSearch = $this->selectedCliente->nombres . ' ' . $this->selectedCliente->apellidos;
+        $this->clienteSearch = $this->selectedCliente->nombres.' '.$this->selectedCliente->apellidos;
         $this->clientes = collect([]);
         $this->resetPage();
     }
@@ -120,8 +123,9 @@ class ClienteMembresiaLive extends Component
 
     public function openCreateModal()
     {
-        if (!$this->selectedClienteId) {
+        if (! $this->selectedClienteId) {
             $this->flashToast('error', 'Debes seleccionar un cliente primero');
+
             return;
         }
 
@@ -133,8 +137,9 @@ class ClienteMembresiaLive extends Component
     {
         $clienteMembresia = $this->service->find($id);
 
-        if (!$clienteMembresia) {
+        if (! $clienteMembresia) {
             $this->flashToast('error', 'Membresía no encontrada');
+
             return;
         }
 
@@ -165,6 +170,7 @@ class ClienteMembresiaLive extends Component
             if ($membresia) {
                 $this->formData['precio_lista'] = $membresia->precio_base;
                 $this->calculatePrecioFinal();
+                $this->applyFormDataFechaFinFromPlan();
             }
         }
     }
@@ -188,20 +194,28 @@ class ClienteMembresiaLive extends Component
 
     public function updatedFormDataFechaInicio()
     {
-        if ($this->formData['fecha_inicio'] && $this->formData['membresia_id']) {
-            $membresia = \App\Models\Core\Membresia::find($this->formData['membresia_id']);
-            if ($membresia) {
-                $fechaInicio = \Carbon\Carbon::parse($this->formData['fecha_inicio']);
-                $this->formData['fecha_fin'] = $fechaInicio->copy()->addDays($membresia->duracion_dias)->format('Y-m-d');
-            }
+        $this->applyFormDataFechaFinFromPlan();
+    }
+
+    protected function applyFormDataFechaFinFromPlan(): void
+    {
+        if (! filled($this->formData['membresia_id'] ?? null) || ! filled($this->formData['fecha_inicio'] ?? null)) {
+            return;
         }
+        $membresia = \App\Models\Core\Membresia::find($this->formData['membresia_id']);
+        if (! $membresia) {
+            return;
+        }
+        $dias = max(1, (int) ($membresia->duracion_dias ?? 30));
+        $this->formData['fecha_fin'] = \Carbon\Carbon::parse($this->formData['fecha_inicio'])->copy()->addDays($dias)->format('Y-m-d');
     }
 
     public function save()
     {
         try {
-            if (!$this->selectedClienteId) {
+            if (! $this->selectedClienteId) {
                 $this->flashToast('error', 'Debes seleccionar un cliente primero');
+
                 return;
             }
 
@@ -259,6 +273,8 @@ class ClienteMembresiaLive extends Component
 
     protected function mapFormToData(): array
     {
+        $this->applyFormDataFechaFinFromPlan();
+
         return [
             'membresia_id' => $this->formData['membresia_id'],
             'fecha_matricula' => $this->formData['fecha_matricula'],
