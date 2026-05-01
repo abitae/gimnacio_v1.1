@@ -27,6 +27,34 @@
     </dl>
 
     @if($phaseSummaries !== [])
+        @if(isset($phaseSummaries['clientes_agrupados']))
+            <div class="grid gap-3 md:grid-cols-3">
+                <div class="rounded-lg border border-zinc-200 p-4 text-xs dark:border-zinc-700">
+                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Clientes agrupados') }}</h3>
+                    <dl class="mt-2 space-y-1">
+                        <div><span class="text-zinc-500">{{ __('Clientes creados') }}:</span> {{ $phaseSummaries['clientes_agrupados']['clientes_creados'] ?? 0 }}</div>
+                        <div><span class="text-zinc-500">{{ __('Clientes actualizados') }}:</span> {{ $phaseSummaries['clientes_agrupados']['clientes_actualizados'] ?? 0 }}</div>
+                        <div><span class="text-zinc-500">{{ __('Membresias creadas') }}:</span> {{ $phaseSummaries['clientes_agrupados']['membresias_creadas'] ?? 0 }}</div>
+                    </dl>
+                </div>
+                <div class="rounded-lg border border-zinc-200 p-4 text-xs dark:border-zinc-700">
+                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Contratos') }}</h3>
+                    <dl class="mt-2 space-y-1">
+                        <div><span class="text-zinc-500">{{ __('Matriculas creadas') }}:</span> {{ $phaseSummaries['clientes_agrupados']['matriculas_creadas'] ?? 0 }}</div>
+                        <div><span class="text-zinc-500">{{ __('Matriculas actualizadas') }}:</span> {{ $phaseSummaries['clientes_agrupados']['matriculas_actualizadas'] ?? 0 }}</div>
+                        <div><span class="text-zinc-500">{{ __('Pagos historicos') }}:</span> {{ $phaseSummaries['clientes_agrupados']['pagos_historicos'] ?? 0 }}</div>
+                    </dl>
+                </div>
+                <div class="rounded-lg border border-zinc-200 p-4 text-xs dark:border-zinc-700">
+                    <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Cuotas') }}</h3>
+                    <dl class="mt-2 space-y-1">
+                        <div><span class="text-zinc-500">{{ __('Cuotas generadas') }}:</span> {{ $phaseSummaries['clientes_agrupados']['cuotas_generadas'] ?? 0 }}</div>
+                        <div><span class="text-zinc-500">{{ __('Advertencias') }}:</span> {{ $phaseSummaries['clientes_agrupados']['advertencias'] ?? 0 }}</div>
+                        <div><span class="text-zinc-500">{{ __('Errores') }}:</span> {{ $phaseSummaries['clientes_agrupados']['errores'] ?? 0 }}</div>
+                    </dl>
+                </div>
+            </div>
+        @else
         <div class="grid gap-3 md:grid-cols-3">
             <div class="rounded-lg border border-zinc-200 p-4 text-xs dark:border-zinc-700">
                 <h3 class="font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Usuarios') }}</h3>
@@ -58,6 +86,7 @@
                 </dl>
             </div>
         </div>
+        @endif
     @endif
 
     @if($import->filas_error > 0)
@@ -74,12 +103,14 @@
             <option value="usuarios">{{ __('Usuarios') }}</option>
             <option value="clientes">{{ __('Clientes') }}</option>
             <option value="membresias">{{ __('Membresias') }}</option>
+            <option value="clientes_agrupados">{{ __('Clientes agrupados') }}</option>
         </flux:select>
 
         <flux:select wire:model.live="stateFilter" label="{{ __('Filtrar por estado') }}" size="sm">
             <option value="all">{{ __('Todos') }}</option>
             <option value="valid">{{ __('Valid') }}</option>
             <option value="imported">{{ __('Imported') }}</option>
+            <option value="warning">{{ __('Warning') }}</option>
             <option value="skipped">{{ __('Skipped') }}</option>
             <option value="error">{{ __('Error') }}</option>
         </flux:select>
@@ -119,6 +150,8 @@
                                 {{ implode('; ', $row->errores_json) }}
                             @elseif(is_array($row->data_json) && !empty($row->data_json['errores']))
                                 {{ implode('; ', $row->data_json['errores']) }}
+                            @elseif(!empty($row->data_json['warnings']))
+                                {{ implode('; ', $row->data_json['warnings']) }}
                             @elseif(!empty($row->data_json['info']))
                                 {{ $row->data_json['info'] }}
                             @else

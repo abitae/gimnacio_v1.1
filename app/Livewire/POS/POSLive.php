@@ -60,6 +60,10 @@ class POSLive extends Component
 
     public $clienteSoloVentaTelefono = '';
 
+    private const CLIENTE_SOLO_VENTA_NOMBRE_DEFAULT = 'ninguno';
+
+    private const CLIENTE_SOLO_VENTA_DOCUMENTO_DEFAULT = '00000000';
+
     /** Búsqueda en modal Procesar venta (por nombre o documento) */
     public $clienteSearchProcesar = '';
 
@@ -473,15 +477,6 @@ class POSLive extends Component
 
             return;
         }
-        if ($this->tipoComprador === 'cliente_solo_venta') {
-            $nombre = trim((string) $this->clienteSoloVentaNombre);
-            $doc = trim((string) $this->clienteSoloVentaDocumento);
-            if ($nombre === '' || $doc === '') {
-                $this->flashToast('error', 'Ingrese nombre y documento del cliente solo venta.');
-
-                return;
-            }
-        }
         if (! $this->paymentMethodId) {
             $this->flashToast('error', 'Seleccione un método de pago.');
 
@@ -624,8 +619,8 @@ class POSLive extends Component
                 'tipo_comprador' => $this->tipoComprador,
                 'cliente_id' => $this->tipoComprador === 'cliente' ? $this->clienteId : null,
                 'employee_id' => $this->tipoComprador === 'empleado' ? $this->employeeId : null,
-                'cliente_venta_nombre' => $this->tipoComprador === 'cliente_solo_venta' ? trim((string) $this->clienteSoloVentaNombre) : null,
-                'cliente_venta_documento' => $this->tipoComprador === 'cliente_solo_venta' ? trim((string) $this->clienteSoloVentaDocumento) : null,
+                'cliente_venta_nombre' => $this->tipoComprador === 'cliente_solo_venta' ? $this->clienteSoloVentaNombreParaVenta() : null,
+                'cliente_venta_documento' => $this->tipoComprador === 'cliente_solo_venta' ? $this->clienteSoloVentaDocumentoParaVenta() : null,
                 'cliente_venta_telefono' => $this->tipoComprador === 'cliente_solo_venta' ? trim((string) $this->clienteSoloVentaTelefono) : null,
                 'tipo_comprobante' => 'ticket',
                 'payment_method_id' => $this->paymentMethodId,
@@ -651,6 +646,20 @@ class POSLive extends Component
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());
         }
+    }
+
+    public function clienteSoloVentaNombreParaVenta(): string
+    {
+        $nombre = trim((string) $this->clienteSoloVentaNombre);
+
+        return $nombre !== '' ? $nombre : self::CLIENTE_SOLO_VENTA_NOMBRE_DEFAULT;
+    }
+
+    public function clienteSoloVentaDocumentoParaVenta(): string
+    {
+        $documento = trim((string) $this->clienteSoloVentaDocumento);
+
+        return $documento !== '' ? $documento : self::CLIENTE_SOLO_VENTA_DOCUMENTO_DEFAULT;
     }
 
     /**

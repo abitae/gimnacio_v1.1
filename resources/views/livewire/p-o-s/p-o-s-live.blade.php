@@ -616,8 +616,8 @@
 
             @if ($tipoComprador === 'cliente_solo_venta')
                 <div class="grid grid-cols-1 gap-2">
-                    <flux:input wire:model="clienteSoloVentaNombre" label="Nombre completo" placeholder="Obligatorio" required />
-                    <flux:input wire:model="clienteSoloVentaDocumento" label="Documento" placeholder="Obligatorio" required />
+                    <flux:input wire:model="clienteSoloVentaNombre" label="Nombre completo" placeholder="ninguno" />
+                    <flux:input wire:model="clienteSoloVentaDocumento" label="Documento" placeholder="00000000" />
                     <flux:input wire:model="clienteSoloVentaTelefono" label="Teléfono (opcional)" placeholder="Opcional" />
                 </div>
             @endif
@@ -697,7 +697,7 @@
                         @elseif($tipoComprador === 'empleado' && $employeeSeleccionado)
                             {{ $employeeSeleccionado->nombre_completo }}
                         @elseif($tipoComprador === 'cliente_solo_venta')
-                            {{ $clienteSoloVentaNombre }} · {{ $clienteSoloVentaDocumento }}
+                            {{ $this->clienteSoloVentaNombreParaVenta() }} · {{ $this->clienteSoloVentaDocumentoParaVenta() }}
                         @else
                             —
                         @endif

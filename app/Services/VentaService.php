@@ -20,6 +20,10 @@ use Illuminate\Support\Facades\DB;
 
 class VentaService
 {
+    private const CLIENTE_SOLO_VENTA_NOMBRE_DEFAULT = 'ninguno';
+
+    private const CLIENTE_SOLO_VENTA_DOCUMENTO_DEFAULT = '00000000';
+
     protected CajaService $cajaService;
 
     protected InventarioService $inventarioService;
@@ -71,9 +75,15 @@ class VentaService
             $employeeId = $tipoComprador === 'empleado' ? ($data['employee_id'] ?? null) : null;
             $this->assertCompradorSucursal($tipoComprador, $clienteId, $employeeId, $sucursalId);
 
-            $clienteVentaNombre = $tipoComprador === 'cliente_solo_venta' ? ($data['cliente_venta_nombre'] ?? null) : null;
-            $clienteVentaDocumento = $tipoComprador === 'cliente_solo_venta' ? ($data['cliente_venta_documento'] ?? null) : null;
-            $clienteVentaTelefono = $tipoComprador === 'cliente_solo_venta' ? ($data['cliente_venta_telefono'] ?? null) : null;
+            $clienteVentaNombre = $tipoComprador === 'cliente_solo_venta'
+                ? $this->valueOrDefault($data['cliente_venta_nombre'] ?? null, self::CLIENTE_SOLO_VENTA_NOMBRE_DEFAULT)
+                : null;
+            $clienteVentaDocumento = $tipoComprador === 'cliente_solo_venta'
+                ? $this->valueOrDefault($data['cliente_venta_documento'] ?? null, self::CLIENTE_SOLO_VENTA_DOCUMENTO_DEFAULT)
+                : null;
+            $clienteVentaTelefono = $tipoComprador === 'cliente_solo_venta'
+                ? (trim((string) ($data['cliente_venta_telefono'] ?? '')) ?: null)
+                : null;
 
             $esCredito = ! empty($data['es_credito']) && ($clienteId || $employeeId);
             $montoInicial = $esCredito ? (float) ($data['monto_inicial'] ?? 0) : 0;
@@ -410,5 +420,12 @@ class VentaService
         if ($resourceSucursalId !== $expectedSucursalId) {
             throw new \Exception($message);
         }
+    }
+
+    private function valueOrDefault(mixed $value, string $default): string
+    {
+        $value = trim((string) $value);
+
+        return $value !== '' ? $value : $default;
     }
 }

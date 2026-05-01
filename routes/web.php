@@ -47,6 +47,7 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
         Route::get('plantilla/{tipo}', [\App\Http\Controllers\ImportacionPlantillaController::class, 'download'])
             ->where('tipo', '[a-z_]+')
             ->name('plantilla');
+        Route::get('clientes-agrupados', \App\Livewire\Imports\ClientesAgrupados::class)->name('clientes-agrupados');
         Route::get('historial', \App\Livewire\Imports\History::class)->name('historial');
         Route::get('/', \App\Livewire\Imports\Dashboard::class)->name('index');
         Route::get('{import}/errores', [\App\Http\Controllers\ImportacionErroresExportController::class, 'excel'])->name('errores.excel');

@@ -16,6 +16,8 @@ final class ImportType
 
     public const USUARIOS = 'usuarios';
 
+    public const CLIENTES_AGRUPADOS = 'clientes_agrupados';
+
     /**
      * @return array<string, string>
      */
@@ -26,6 +28,7 @@ final class ImportType
             self::MEMBRESIAS_MATRICULAS => 'Membresias / Matriculas (Socios activos.xlsx)',
             self::CLIENTES => 'Clientes (Socios activos.xlsx)',
             self::DEUDAS => 'Deudas (Deudas Clientes.xlsx)',
+            self::CLIENTES_AGRUPADOS => 'Actualizacion especial Clientes Agrupados.xlsx',
         ];
     }
 

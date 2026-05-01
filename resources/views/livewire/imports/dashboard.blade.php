@@ -137,12 +137,14 @@
                 <option value="usuarios">{{ __('Usuarios') }}</option>
                 <option value="clientes">{{ __('Clientes') }}</option>
                 <option value="membresias">{{ __('Membresias') }}</option>
+                <option value="clientes_agrupados">{{ __('Clientes agrupados') }}</option>
             </flux:select>
 
             <flux:select wire:model.live="stateFilter" label="{{ __('Filtrar por estado') }}" size="sm">
                 <option value="all">{{ __('Todos') }}</option>
                 <option value="valid">{{ __('Valid') }}</option>
                 <option value="imported">{{ __('Imported') }}</option>
+                <option value="warning">{{ __('Warning') }}</option>
                 <option value="skipped">{{ __('Skipped') }}</option>
                 <option value="error">{{ __('Error') }}</option>
             </flux:select>
@@ -180,6 +182,8 @@
                             <td class="px-2 py-1.5 text-zinc-600 dark:text-zinc-400">
                                 @if(!empty($r['errores']))
                                     {{ implode('; ', $r['errores']) }}
+                                @elseif(!empty($r['warnings']))
+                                    {{ implode('; ', $r['warnings']) }}
                                 @elseif(!empty($r['info']))
                                     {{ $r['info'] }}
                                 @else

@@ -21,6 +21,7 @@ class ImportManagerService
         private readonly LegacyMembershipImportService $membershipImport,
         private readonly LegacyDebtImportService $debtImport,
         private readonly UserImportService $userImport,
+        private readonly ClientesAgrupadosImportService $clientesAgrupadosImport,
     ) {}
 
     /**
@@ -129,6 +130,13 @@ class ImportManagerService
             ),
             ImportType::USUARIOS => $this->userImport->process(
                 $this->vendedorReader->read($path),
+                $sucursalId,
+                $userId,
+                $execute,
+                $stopOnError
+            ),
+            ImportType::CLIENTES_AGRUPADOS => $this->clientesAgrupadosImport->process(
+                $path,
                 $sucursalId,
                 $userId,
                 $execute,
