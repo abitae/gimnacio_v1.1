@@ -258,8 +258,24 @@ class GroupedInstallmentImportService
         $sorted = $groupRows;
         usort($sorted, fn (CuotaClienteRowData $a, CuotaClienteRowData $b): int => ($a->fechaCuota?->timestamp ?? 0) <=> ($b->fechaCuota?->timestamp ?? 0));
 
+        $scheduleTotal = round((float) collect($sorted)->sum(fn (CuotaClienteRowData $row) => (float) ($row->montoCuota ?? 0)), 2);
+        $scheduleMatchesFinancedBalance = $this->amountsEqual($scheduleTotal, $saldo)
+            && $this->amountsEqual($scheduleTotal + $montoPagado, $montoTotal);
+
+        $installmentStatuses = $scheduleMatchesFinancedBalance
+            ? $this->resolveInstallmentStatusesWithoutAppliedPayments($sorted)
+            : $this->resolveInstallmentStatuses($sorted, $montoPagado);
+
         $minCuota = $sorted[0]->fechaCuota ?? CarbonImmutable::now();
         $maxCuota = $sorted[array_key_last($sorted)]->fechaCuota ?? $minCuota;
+
+        $matricula->update([
+            'precio_lista' => $montoTotal,
+            'precio_final' => $montoTotal,
+            'modalidad_pago' => 'cuotas',
+            'requiere_plan_cuotas' => true,
+            'cuota_inicial_monto' => $scheduleMatchesFinancedBalance ? $montoPagado : 0,
+        ]);
 
         if (! $debt) {
             $debt = ClientDebt::query()->create([
@@ -322,7 +338,7 @@ class GroupedInstallmentImportService
             }
 
             $numero = $idx + 1;
-            $estado = $this->resolveInstallmentEstado($row);
+            $estado = $installmentStatuses[$idx] ?? $this->resolveInstallmentEstadoFallback($row);
 
             $inst = EnrollmentInstallment::query()
                 ->where('client_debt_id', $debt->id)
@@ -340,7 +356,7 @@ class GroupedInstallmentImportService
                 'payment_method_id' => null,
                 'numero_operacion' => null,
                 'pago_id' => null,
-                'fecha_pago' => $estado === 'pagada' ? $row->fechaCuota->toDateString() : null,
+                'fecha_pago' => in_array($estado, ['pagada', 'parcial'], true) ? $row->fechaCuota->toDateString() : null,
             ];
 
             if ($inst) {
@@ -592,20 +608,63 @@ class GroupedInstallmentImportService
         ]);
     }
 
-    private function resolveInstallmentEstado(CuotaClienteRowData $row): string
+    /**
+     * @param  list<CuotaClienteRowData>  $sortedRows
+     * @return list<string>
+     */
+    private function resolveInstallmentStatuses(array $sortedRows, float $montoPagado): array
     {
-        $monto = (float) ($row->montoCuota ?? 0);
-        $pago = (float) ($row->pago ?? 0);
-        if ($monto > 0 && $pago >= $monto) {
-            return 'pagada';
+        $statuses = [];
+        $remaining = round(max(0, $montoPagado), 2);
+
+        foreach ($sortedRows as $row) {
+            $monto = round((float) ($row->montoCuota ?? 0), 2);
+            if ($monto <= 0) {
+                $statuses[] = $this->resolveInstallmentEstadoFallback($row);
+
+                continue;
+            }
+
+            if ($remaining >= $monto - 0.009) {
+                $statuses[] = 'pagada';
+                $remaining = round(max(0, $remaining - $monto), 2);
+
+                continue;
+            }
+
+            if ($remaining > 0.009) {
+                $statuses[] = 'parcial';
+                $remaining = 0.0;
+
+                continue;
+            }
+
+            $statuses[] = $this->resolveInstallmentEstadoFallback($row);
         }
-        if ($pago > 0) {
-            return 'parcial';
-        }
+
+        return $statuses;
+    }
+
+    private function resolveInstallmentEstadoFallback(CuotaClienteRowData $row): string
+    {
         if ($row->fechaCuota && $row->fechaCuota->isPast()) {
             return 'vencida';
         }
 
         return 'pendiente';
+    }
+
+    /**
+     * @param  list<CuotaClienteRowData>  $sortedRows
+     * @return list<string>
+     */
+    private function resolveInstallmentStatusesWithoutAppliedPayments(array $sortedRows): array
+    {
+        return array_map(fn (CuotaClienteRowData $row): string => $this->resolveInstallmentEstadoFallback($row), $sortedRows);
+    }
+
+    private function amountsEqual(float $left, float $right): bool
+    {
+        return abs(round($left, 2) - round($right, 2)) <= 0.02;
     }
 }

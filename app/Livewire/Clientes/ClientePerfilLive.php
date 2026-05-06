@@ -1029,7 +1029,7 @@ class ClientePerfilLive extends Component
 
     protected function buildFinancialMatriculaRow(ClienteMatricula $matricula): array
     {
-        $pagadoTotal = round((float) $matricula->pagos->sum('monto'), 2);
+        $pagadoTotal = round((float) $matricula->monto_pagado_actual, 2);
         $saldoTotal = round((float) $matricula->saldo_pendiente_actual, 2);
         $precioTotal = round((float) $matricula->precio_final, 2);
 

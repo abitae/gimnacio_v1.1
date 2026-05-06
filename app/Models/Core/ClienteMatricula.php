@@ -130,12 +130,16 @@ class ClienteMatricula extends Model
     public function getSaldoPendienteActualAttribute(): float
     {
         if ($this->usaPlanCuotas()) {
-            $sum = $this->relationLoaded('enrollmentInstallments')
-                ? (float) $this->enrollmentInstallments->whereIn('estado', ['pendiente', 'vencida'])->sum('monto')
-                : (float) $this->enrollmentInstallments()->whereIn('estado', ['pendiente', 'vencida'])->sum('monto');
+            $hasInstallments = $this->relationLoaded('enrollmentInstallments')
+                ? $this->enrollmentInstallments->isNotEmpty()
+                : $this->enrollmentInstallments()->exists();
 
-            if ($sum > 0) {
-                return round($sum, 2);
+            if ($hasInstallments) {
+                $sum = $this->relationLoaded('enrollmentInstallments')
+                    ? (float) $this->enrollmentInstallments->whereIn('estado', ['pendiente', 'vencida', 'parcial'])->sum('monto')
+                    : (float) $this->enrollmentInstallments()->whereIn('estado', ['pendiente', 'vencida', 'parcial'])->sum('monto');
+
+                return round(max(0, $sum), 2);
             }
 
             return round($this->monto_financiado, 2);
@@ -146,6 +150,11 @@ class ClienteMatricula extends Model
             : $this->pagos()->latest('created_at')->first();
 
         return $ultimoPago ? (float) $ultimoPago->saldo_pendiente : (float) $this->precio_final;
+    }
+
+    public function getMontoPagadoActualAttribute(): float
+    {
+        return round(max(0, (float) $this->precio_final - $this->saldo_pendiente_actual), 2);
     }
 
     public function getNombreAttribute(): string

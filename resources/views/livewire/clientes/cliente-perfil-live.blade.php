@@ -679,10 +679,10 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
-                            @forelse ($historialMembresias as $mem)
+                                @forelse ($historialMembresias as $mem)
                                 @php
-                                    $pagados = $mem->pagos->sum('monto');
-                                    $saldo = max(0, (float) ($mem->precio_final ?? 0) - (float) $pagados);
+                                    $pagados = (float) ($mem->monto_pagado_actual ?? 0);
+                                    $saldo = (float) ($mem->saldo_pendiente_actual ?? max(0, (float) ($mem->precio_final ?? 0) - $pagados));
                                     $estado = strtolower((string) ($mem->estado ?? ''));
                                     $estadoClass = match ($estado) {
                                         'activa', 'activo' => 'bg-emerald-100 text-emerald-700',
@@ -776,8 +776,8 @@
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
                             @forelse ($historialClases as $mat)
                                 @php
-                                    $pagadosMat = $mat->pagos->sum('monto');
-                                    $saldoMat = max(0, (float) ($mat->precio_final ?? 0) - (float) $pagadosMat);
+                                    $pagadosMat = (float) ($mat->monto_pagado_actual ?? 0);
+                                    $saldoMat = (float) ($mat->saldo_pendiente_actual ?? max(0, (float) ($mat->precio_final ?? 0) - (float) $pagadosMat));
                                     $estadoMat = strtolower((string) ($mat->estado ?? ''));
                                     $estadoClassMat = match ($estadoMat) {
                                         'activa', 'activo' => 'bg-emerald-100 text-emerald-700',
