@@ -49,7 +49,7 @@
             'rentals.bookings.show' => __('Detalle reserva'),
             'rentals.report' => __('Ingresos por alquiler'),
             'employees.index' => __('Empleados'),
-            'empleado.crear' => __('Crear empleado'),
+            'employees.create' => __('Crear empleado'),
             'employees.edit' => __('Editar empleado'),
             'employees.show' => __('Detalle empleado'),
             'employees.attendances.index' => __('Asistencia del personal'),

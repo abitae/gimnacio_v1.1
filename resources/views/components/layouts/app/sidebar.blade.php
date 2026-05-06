@@ -225,7 +225,7 @@
                 @canany(['empleado.ver', 'metodo_pago.ver', 'usuario.ver', 'rol.ver'])
                 <flux:sidebar.group expandable heading="Administracion" class="grid" :expanded="request()->routeIs('employees.*') || request()->routeIs('payment-methods.*') || request()->routeIs('usuarios.*') || request()->routeIs('roles.*')">
                     @can('empleado.ver')
-                    <flux:sidebar.item icon="users" :href="route('employees.index')" :current="request()->routeIs('employees.index') || request()->routeIs('employees.show') || request()->routeIs('employees.edit') || request()->routeIs('empleado.crear')" wire:navigate>
+                    <flux:sidebar.item icon="users" :href="route('employees.index')" :current="request()->routeIs('employees.index') || request()->routeIs('employees.show') || request()->routeIs('employees.edit') || request()->routeIs('employees.create')" wire:navigate>
                         {{ __('Empleados') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="clipboard-document-check" :href="route('employees.attendances.index')" :current="request()->routeIs('employees.attendances.*')" wire:navigate>

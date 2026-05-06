@@ -2,7 +2,7 @@
     <div class="flex items-center justify-between">
         <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Personal</h1>
         @can('empleado.crear')
-        <flux:button size="xs" href="{{ route('empleado.crear') }}" wire:navigate>Nuevo empleado</flux:button>
+        <flux:button size="xs" href="{{ route('employees.create') }}" wire:navigate>Nuevo empleado</flux:button>
         @endcan
     </div>
     <div class="flex gap-2">

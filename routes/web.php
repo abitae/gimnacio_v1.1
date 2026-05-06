@@ -137,13 +137,13 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     Route::prefix('empleados')->name('employees.')->middleware('permission:empleado.ver')->group(function () {
         Route::get('/', \App\Livewire\Employees\Index::class)->name('index');
         Route::get('crear', \App\Livewire\Employees\Form::class)->name('create')->middleware('permission:empleado.crear');
-        Route::get('{employee}/editar', \App\Livewire\Employees\Form::class)->name('edit')->middleware('permission:empleado.editar');
-        Route::get('{employee}', \App\Livewire\Employees\Show::class)->name('show');
         Route::get('asistencia/listado', \App\Livewire\Employees\Attendances\Index::class)->name('attendances.index');
         Route::get('asistencia/registrar', \App\Livewire\Employees\Attendances\Form::class)->name('attendances.create')->middleware('permission:asistencia_empleado.crear');
         Route::get('asistencia/reporte', \App\Livewire\Employees\Attendances\Report::class)
             ->name('attendances.report')
             ->middleware('permission:asistencia_empleado.ver');
+        Route::get('{employee}/editar', \App\Livewire\Employees\Form::class)->name('edit')->middleware('permission:empleado.editar');
+        Route::get('{employee}', \App\Livewire\Employees\Show::class)->name('show');
     });
 
     // Módulo de Reportes (índice, reportes por tipo y exportación PDF/Excel)
