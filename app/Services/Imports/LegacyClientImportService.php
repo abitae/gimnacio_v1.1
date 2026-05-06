@@ -99,18 +99,23 @@ class LegacyClientImportService
                             'direccion' => $row->direccion,
                             'origen' => $row->origen !== null && trim((string) $row->origen) !== '' ? trim((string) $row->origen) : $existing->origen,
                             'observaciones' => $this->mergeObservaciones($existing->observaciones, $observaciones),
+                            'estado_cliente' => $this->resolveEstadoCliente($row),
                             'updated_by' => $userId,
                             'sucursal_id' => $sucursalId,
                         ];
+
                         if ($row->codigo) {
                             $updates['codigo'] = trim((string) $row->codigo);
                         }
+
                         if ($email = $this->resolveEmail($row->correo, $existing->id)) {
                             $updates['email'] = $email;
                         }
+
                         if ($row->fechaNacimiento) {
                             $updates['fecha_nacimiento'] = $row->fechaNacimiento->toDateString();
                         }
+
                         $existing->update($updates);
                         $summary['actualizadas']++;
                         $rowResults[] = $this->rowResult($row, 'imported', [], $existing->id);
@@ -131,7 +136,7 @@ class LegacyClientImportService
                         'direccion' => $row->direccion,
                         'origen' => $row->origen !== null && trim((string) $row->origen) !== '' ? trim((string) $row->origen) : null,
                         'fecha_nacimiento' => $row->fechaNacimiento?->toDateString(),
-                        'estado_cliente' => 'activo',
+                        'estado_cliente' => $this->resolveEstadoCliente($row),
                         'observaciones' => $observaciones,
                         'created_by' => $fallbackUser->id,
                         'updated_by' => $userId,
@@ -182,9 +187,16 @@ class LegacyClientImportService
         $parts = array_filter([
             $row->origen ? 'Origen: '.$row->origen : null,
             $row->vendedor ? 'Vendedor: '.$row->vendedor : null,
+            $row->genero ? 'Genero: '.$row->genero : null,
+            $row->estado ? 'Estado origen: '.$row->estado : null,
+            $row->estadoFinal ? 'Estado final: '.$row->estadoFinal : null,
             $row->repartido ? 'Repartido: '.$row->repartido : null,
             $row->tipoVenta ? 'Tipo venta: '.$row->tipoVenta : null,
-            $row->fechaInscripcion ? 'F. inscripción: '.$row->fechaInscripcion->toDateString() : null,
+            $row->paquete ? 'Ultima membresia: '.$row->paquete : null,
+            $row->fechaCreacion ? 'F. creacion: '.$row->fechaCreacion->toDateString() : ($row->fechaInscripcion ? 'F. inscripcion: '.$row->fechaInscripcion->toDateString() : null),
+            $row->precioTotal !== null ? 'Precio total legado: '.$row->precioTotal : null,
+            $row->pagadoTotal !== null ? 'Pagado total legado: '.$row->pagadoTotal : null,
+            $row->deudaTotal !== null ? 'Deuda total legado: '.$row->deudaTotal : null,
         ]);
 
         return $parts !== [] ? implode(' | ', $parts) : null;
@@ -205,18 +217,30 @@ class LegacyClientImportService
         return $existing.' | '.$incoming;
     }
 
+    private function resolveEstadoCliente(SocioActivoRowData $row): string
+    {
+        $estado = Str::lower(trim((string) ($row->estadoFinal ?? $row->estado ?? '')));
+
+        if ($estado === '') {
+            return 'activo';
+        }
+
+        return $estado === 'activo' ? 'activo' : 'inactivo';
+    }
+
     private function resolveEmail(?string $email, ?int $ignoreClienteId): ?string
     {
         if ($email === null || trim($email) === '') {
             return null;
         }
+
         $email = Str::lower(trim($email));
-        $q = Cliente::query()->where('email', $email);
+        $query = Cliente::query()->where('email', $email);
         if ($ignoreClienteId) {
-            $q->where('id', '!=', $ignoreClienteId);
+            $query->where('id', '!=', $ignoreClienteId);
         }
 
-        return $q->exists() ? null : $email;
+        return $query->exists() ? null : $email;
     }
 
     /**

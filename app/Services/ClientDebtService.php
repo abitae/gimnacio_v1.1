@@ -100,11 +100,23 @@ class ClientDebtService
                 $observaciones .= ', Comprobante: '.strtoupper((string) $pago->comprobante_tipo).' '.$pago->comprobante_numero;
             }
 
+            $isMembershipDebt = $debt->isMembershipDebt();
+            $isMatriculaDebt = str_contains($debt->normalizedOrigenTipo(), 'matricula');
+            $cajaCategoria = $isMembershipDebt
+                ? CajaMovimiento::CATEGORIA_MEMBRESIA
+                : CajaMovimiento::CATEGORIA_POS;
+            $cajaOrigen = $isMembershipDebt
+                ? ($isMatriculaDebt ? CajaMovimiento::ORIGEN_CLIENTE_MATRICULAS : CajaMovimiento::ORIGEN_CLIENTE_MEMBRESIAS)
+                : CajaMovimiento::ORIGEN_VENTAS;
+            $concepto = $isMembershipDebt
+                ? 'Cobro de deuda de membresia - '.($debt->referencia ?: 'Deuda #'.$debt->id)
+                : 'Cobro de cuenta por cobrar - '.($debt->venta?->numero_venta ?? 'Deuda #'.$debt->id);
+
             $cajaService->registrarIngresoPorPago(
                 $pago,
-                'Cobro de cuenta por cobrar - '.($debt->venta?->numero_venta ?? 'Deuda #'.$debt->id),
-                CajaMovimiento::CATEGORIA_POS,
-                CajaMovimiento::ORIGEN_VENTAS,
+                $concepto,
+                $cajaCategoria,
+                $cajaOrigen,
                 null,
                 null,
                 $observaciones

@@ -278,14 +278,8 @@
                     <flux:sidebar.item icon="building-storefront" :href="route('company-branches.index')" :current="request()->routeIs('company-branches.*')" wire:navigate>
                         {{ __('Empresa y sucursales') }}
                     </flux:sidebar.item>
-                    <flux:sidebar.item icon="archive-box-arrow-down" :href="route('administracion.backups.index')" :current="request()->routeIs('administracion.backups.*')" wire:navigate>
-                        {{ __('Backups BD') }}
-                    </flux:sidebar.item>
                     <flux:sidebar.item icon="arrow-up-tray" :href="route('importaciones.index')" :current="request()->routeIs('importaciones.index') || request()->routeIs('importaciones.historial') || request()->routeIs('importaciones.show')" wire:navigate>
-                        {{ __('Importacion Excel') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="document-arrow-up" :href="route('importaciones.clientes-agrupados')" :current="request()->routeIs('importaciones.clientes-agrupados')" wire:navigate>
-                        {{ __('Clientes agrupados') }}
+                        {{ __('Carga inicial Excel') }}
                     </flux:sidebar.item>
                 </flux:sidebar.group>
                 @endif

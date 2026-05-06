@@ -64,3 +64,51 @@ it('registers a payment for a client debt and reports it to caja', function () {
     expect($movimiento->categoria)->toBe(CajaMovimiento::CATEGORIA_POS);
     expect((float) $movimiento->monto)->toBe(35.0);
 });
+
+it('registers a membership debt payment under membership category in caja', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $paymentMethod = PaymentMethod::factory()->create([
+        'nombre' => 'Efectivo',
+        'requiere_numero_operacion' => false,
+        'requiere_entidad' => false,
+    ]);
+
+    $caja = Caja::create([
+        'usuario_id' => $user->id,
+        'saldo_inicial' => 50,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    $debt = ClientDebt::create([
+        'cliente_id' => $cliente->id,
+        'origen_tipo' => 'MEMBRESIA',
+        'origen_id' => 10,
+        'referencia' => 'Plan Legacy',
+        'monto_total' => 120,
+        'monto_pagado' => 20,
+        'saldo_pendiente' => 100,
+        'fecha_registro' => now()->toDateString(),
+        'fecha_vencimiento' => now()->addDays(5)->toDateString(),
+        'estado' => 'parcial',
+    ]);
+
+    $pago = app(ClientDebtService::class)->procesarPago($debt->id, [
+        'monto_pago' => 35,
+        'payment_method_id' => $paymentMethod->id,
+        'fecha_pago' => now(),
+    ]);
+
+    $movimiento = CajaMovimiento::query()
+        ->where('referencia_tipo', Pago::class)
+        ->where('referencia_id', $pago->id)
+        ->first();
+
+    expect($movimiento)->not->toBeNull();
+    expect($movimiento->categoria)->toBe(CajaMovimiento::CATEGORIA_MEMBRESIA);
+    expect($movimiento->origen_modulo)->toBe(CajaMovimiento::ORIGEN_CLIENTE_MEMBRESIAS);
+    expect($movimiento->caja_id)->toBe($caja->id);
+});

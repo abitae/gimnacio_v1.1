@@ -56,6 +56,8 @@ class ClientePerfilLive extends Component
 
     public float $saldoPendiente = 0.0;
 
+    public float $deudaMembresiaPendiente = 0.0;
+
     /** Suma de saldos pendientes de ventas a crédito / producto (`client_debts`). */
     public float $deudaProductoPendiente = 0.0;
 
@@ -729,6 +731,9 @@ class ClientePerfilLive extends Component
         $this->deudaProductoPendiente = (float) collect($this->operacionDiariaDebtSummary['items'] ?? [])
             ->where('tipo', 'client_debt')
             ->sum('saldo_pendiente');
+        $this->deudaMembresiaPendiente = (float) collect($this->operacionDiariaDebtSummary['items'] ?? [])
+            ->where('tipo', 'client_debt_membership')
+            ->sum('saldo_pendiente');
         $this->asistenciasRecientes = $this->asistenciaService->obtenerAsistenciasRecientes($clienteId, 5)->all();
         $this->validacionAcceso = $this->membresiaActiva
             ? $this->asistenciaService->validarAccesoPorHorario($this->membresiaActiva)
@@ -791,6 +796,7 @@ class ClientePerfilLive extends Component
         $this->validacionAcceso = [];
         $this->saldoPendiente = 0.0;
         $this->deudaProductoPendiente = 0.0;
+        $this->deudaMembresiaPendiente = 0.0;
         $this->operacionDiariaDebtSummary = [];
         $this->historialMembresias = [];
         $this->historialClases = [];

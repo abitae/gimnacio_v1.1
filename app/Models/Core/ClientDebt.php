@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Str;
 
 class ClientDebt extends Model
 {
@@ -77,5 +78,49 @@ class ClientDebt extends Model
     public function scopePendientes($query)
     {
         return $query->whereIn('estado', ['pendiente', 'parcial', 'vencido']);
+    }
+
+    public function normalizedOrigenTipo(): string
+    {
+        return Str::lower(Str::ascii(trim((string) $this->origen_tipo)));
+    }
+
+    public function isMembershipDebt(): bool
+    {
+        $origin = $this->normalizedOrigenTipo();
+
+        return str_contains($origin, 'membresia') || str_contains($origin, 'matricula');
+    }
+
+    public function isPosDebt(): bool
+    {
+        $origin = $this->normalizedOrigenTipo();
+
+        return $origin === '' || str_contains($origin, 'pos') || str_contains($origin, 'venta');
+    }
+
+    public function operationalBucket(): string
+    {
+        return $this->isMembershipDebt() ? 'membresia' : 'producto';
+    }
+
+    public function operationalOriginLabel(): string
+    {
+        $origin = $this->normalizedOrigenTipo();
+
+        return match (true) {
+            str_contains($origin, 'matricula') => 'Matricula',
+            str_contains($origin, 'membresia') => 'Membresia',
+            str_contains($origin, 'alquiler') => 'Alquiler',
+            $this->isPosDebt() => 'POS',
+            default => $this->origen_tipo ? Str::title((string) $this->origen_tipo) : 'Cuenta por cobrar',
+        };
+    }
+
+    public function operationalDetailLabel(): string
+    {
+        return $this->isMembershipDebt()
+            ? 'Cuenta por cobrar de membresia'
+            : 'Cuenta por cobrar POS';
     }
 }

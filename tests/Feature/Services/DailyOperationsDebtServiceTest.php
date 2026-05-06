@@ -99,12 +99,27 @@ it('builds a unified operational debt summary for the cliente', function () {
         'estado' => 'vencido',
     ]);
 
+    ClientDebt::create([
+        'cliente_id' => $cliente->id,
+        'origen_tipo' => 'MEMBRESIA',
+        'origen_id' => 2,
+        'referencia' => 'Plan 12 meses',
+        'monto_total' => 70,
+        'monto_pagado' => 40,
+        'saldo_pendiente' => 30,
+        'fecha_registro' => now()->toDateString(),
+        'fecha_vencimiento' => now()->addDays(4)->toDateString(),
+        'estado' => 'pendiente',
+    ]);
+
     $summary = app(DailyOperationsDebtService::class)->summarizeCliente($cliente->id);
 
-    expect($summary['cantidad_items'])->toBe(4);
-    expect($summary['total_pendiente'])->toBe(340.0);
+    expect($summary['cantidad_items'])->toBe(5);
+    expect($summary['total_pendiente'])->toBe(370.0);
     expect($summary['tiene_deuda'])->toBeTrue();
     expect($summary['tiene_deuda_vencida'])->toBeTrue();
     expect(collect($summary['items'])->pluck('tipo')->all())
-        ->toContain('matricula', 'membresia', 'cuota', 'client_debt');
+        ->toContain('matricula', 'membresia', 'cuota', 'client_debt', 'client_debt_membership');
+    expect(collect($summary['items'])->where('tipo', 'client_debt_membership')->sum('saldo_pendiente'))
+        ->toBe(30.0);
 });

@@ -14,12 +14,16 @@ class ImportManagerService
 {
     public function __construct(
         private readonly ExcelSociosReader $sociosReader,
+        private readonly ExcelClientesMaestroReader $clientesMaestroReader,
+        private readonly ExcelContratosDeudaReader $contratosDeudaReader,
         private readonly ExcelDeudasReader $deudasReader,
+        private readonly ExcelCuotasLegacyReader $cuotasReader,
         private readonly ExcelVendedorColumnReader $vendedorReader,
         private readonly LegacySociosActivosOrchestrator $sociosActivosOrchestrator,
         private readonly LegacyClientImportService $clientImport,
         private readonly LegacyMembershipImportService $membershipImport,
         private readonly LegacyDebtImportService $debtImport,
+        private readonly LegacyInstallmentImportService $installmentImport,
         private readonly UserImportService $userImport,
         private readonly ClientesAgrupadosImportService $clientesAgrupadosImport,
     ) {}
@@ -107,7 +111,7 @@ class ImportManagerService
                 $options
             ),
             ImportType::CLIENTES => $this->clientImport->process(
-                $this->sociosReader->read($path),
+                $this->clientesMaestroReader->read($path),
                 $sucursalId,
                 $userId,
                 $execute,
@@ -115,7 +119,7 @@ class ImportManagerService
                 $stopOnError
             ),
             ImportType::MEMBRESIAS_MATRICULAS => $this->membershipImport->process(
-                $this->sociosReader->read($path),
+                $this->contratosDeudaReader->read($path),
                 $sucursalId,
                 $userId,
                 $execute,
@@ -123,6 +127,13 @@ class ImportManagerService
             ),
             ImportType::DEUDAS => $this->debtImport->process(
                 $this->deudasReader->read($path),
+                $sucursalId,
+                $userId,
+                $execute,
+                $stopOnError
+            ),
+            ImportType::CUOTAS => $this->installmentImport->process(
+                $this->cuotasReader->read($path),
                 $sucursalId,
                 $userId,
                 $execute,

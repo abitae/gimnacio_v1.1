@@ -110,7 +110,7 @@
                 default => 'zinc',
             };
             $nombrePlanActivo = $membresiaActiva->membresia->nombre ?? $membresiaActiva->nombre ?? $membresiaActiva->clase->nombre ?? 'Sin plan';
-            $deudaMembresiaResumen = max(0, round((float) ($deudaPlanesPendiente ?? 0), 2));
+            $deudaMembresiaResumen = max(0, round((float) (($deudaPlanesPendiente ?? 0) + ($deudaMembresiaPendiente ?? 0)), 2));
             $stats = $estadisticasAsistencia;
             $efectividad = (float) ($stats['porcentaje_efectividad'] ?? 0);
             $totalSesiones = (int) ($stats['total_sesiones'] ?? 0);

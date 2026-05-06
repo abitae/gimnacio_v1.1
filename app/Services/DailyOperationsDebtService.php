@@ -101,16 +101,17 @@ class DailyOperationsDebtService
 
         foreach ($clientDebts as $debt) {
             $isOverdue = $debt->fecha_vencimiento?->isPast() ?? false;
+            $bucket = $debt->operationalBucket();
 
             $items->push([
-                'tipo' => 'client_debt',
+                'tipo' => $bucket === 'membresia' ? 'client_debt_membership' : 'client_debt',
                 'id' => $debt->id,
-                'nombre' => trim(($debt->origen_tipo ?: 'Deuda POS').' '.($debt->venta?->numero_venta ?? '')),
+                'nombre' => trim($debt->operationalOriginLabel().' '.($debt->venta?->numero_venta ?? '')),
                 'saldo_pendiente' => round((float) $debt->saldo_pendiente, 2),
                 'estado' => $debt->estado,
                 'es_vencida' => $isOverdue || $debt->estado === 'vencido',
                 'fecha_vencimiento' => $debt->fecha_vencimiento,
-                'detalle' => 'Cuenta por cobrar POS',
+                'detalle' => $debt->operationalDetailLabel(),
             ]);
         }
 

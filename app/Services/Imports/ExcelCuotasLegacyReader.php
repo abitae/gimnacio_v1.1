@@ -10,19 +10,21 @@ use RuntimeException;
 
 class ExcelCuotasLegacyReader
 {
+    public const SHEET_NAME = 'Detalle Cuotas';
+
     public const EXPECTED_HEADERS = [
         'CODIGO',
-        'NOMBRES',
+        'CLIENTE',
         'CELULAR',
         'MEMBRESIA',
-        'FECHA INICIO',
-        'FECHA FIN',
+        'FECHA_INICIO',
+        'FECHA_FIN',
         'VENDEDOR',
         'PRECIO',
         'PAGO',
-        'FECHA CUOTA',
+        'FECHA_CUOTA',
         'DEBE',
-        'M. CUOTA',
+        'M_CUOTA',
     ];
 
     public function __construct(
@@ -35,10 +37,10 @@ class ExcelCuotasLegacyReader
     public function read(string $filePath): array
     {
         if (! File::exists($filePath)) {
-            throw new RuntimeException("No se encontró el archivo: {$filePath}");
+            throw new RuntimeException("No se encontro el archivo: {$filePath}");
         }
 
-        $sheet = Excel::toArray(new RawExcelArrayImport, $filePath)[0] ?? [];
+        $sheet = $this->readSheet($filePath);
         if ($sheet === []) {
             throw new RuntimeException('El archivo no contiene datos.');
         }
@@ -60,6 +62,36 @@ class ExcelCuotasLegacyReader
     }
 
     /**
+     * @return list<list<mixed>>
+     */
+    private function readSheet(string $filePath): array
+    {
+        $sheets = Excel::toArray(new RawExcelArrayImport, $filePath);
+        try {
+            $sheetNames = Excel::sheetNames($filePath);
+        } catch (\Throwable) {
+            $sheetNames = [];
+        }
+
+        foreach ($sheetNames as $index => $name) {
+            if ($this->normalizeHeader($name) === $this->normalizeHeader(self::SHEET_NAME)) {
+                return $sheets[$index] ?? [];
+            }
+        }
+
+        foreach ($sheets as $sheet) {
+            try {
+                $this->resolveHeaders($sheet);
+
+                return $sheet;
+            } catch (\Throwable) {
+            }
+        }
+
+        return $sheets[0] ?? [];
+    }
+
+    /**
      * @param  list<list<mixed>>  $sheet
      * @return array{0: int, 1: list<string>}
      */
@@ -69,22 +101,19 @@ class ExcelCuotasLegacyReader
             if (! is_array($row)) {
                 continue;
             }
-            $normalized = [];
-            foreach ($row as $cell) {
-                $normalized[] = is_string($cell) ? trim($cell) : $cell;
-            }
-            $joined = implode('|', array_map(fn ($c) => (string) $c, $normalized));
-            if (str_contains($joined, 'CODIGO') && str_contains($joined, 'FECHA CUOTA')) {
-                $headers = [];
-                foreach ($normalized as $cell) {
-                    $headers[] = is_string($cell) ? trim($cell) : '';
-                }
 
+            $headers = [];
+            foreach ($row as $cell) {
+                $headers[] = is_string($cell) ? trim($cell) : (string) $cell;
+            }
+
+            $normalized = array_map(fn (string $header): string => $this->normalizeHeader($header), $headers);
+            if (in_array('codigo', $normalized, true) && in_array('fecha cuota', $normalized, true) && (in_array('m cuota', $normalized, true) || in_array('monto cuota', $normalized, true))) {
                 return [$idx, $headers];
             }
         }
 
-        throw new RuntimeException('No se encontró la fila de encabezados esperada (CODIGO, FECHA CUOTA, …).');
+        throw new RuntimeException('No se encontro la fila de encabezados esperada para Detalle Cuotas.');
     }
 
     /**
@@ -99,5 +128,15 @@ class ExcelCuotasLegacyReader
         }
 
         return true;
+    }
+
+    private function normalizeHeader(string $header): string
+    {
+        $header = str_replace(["\xc2\xa0", "\xe2\x80\xaf"], ' ', $header);
+        $header = mb_strtoupper(trim($header), 'UTF-8');
+        $header = str_replace(['_', '.'], ' ', $header);
+        $header = preg_replace('/\s+/u', ' ', $header) ?? $header;
+
+        return mb_strtolower(trim($header), 'UTF-8');
     }
 }

@@ -3,9 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Exports\ImportPlantillaExport;
-use App\Services\Imports\ExcelDeudasReader;
-use App\Services\Imports\ExcelSociosReader;
-use App\Support\Imports\ImportType;
+use App\Support\Imports\InitialLoadCatalog;
 use Illuminate\Support\Facades\Gate;
 use Maatwebsite\Excel\Facades\Excel;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
@@ -19,41 +17,15 @@ class ImportacionPlantillaController extends Controller
             abort(403);
         }
 
-        if (! in_array($tipo, ImportType::implemented(), true)) {
+        if (! in_array($tipo, InitialLoadCatalog::implemented(), true)) {
             throw new NotFoundHttpException;
         }
 
-        [$sheetTitle, $titleRow, $headers, $filename] = match ($tipo) {
-            ImportType::USUARIOS => [
-                'Vendedores',
-                'Cualquier Excel legacy con columna VENDEDOR en la segunda fila de encabezados.',
-                ['VENDEDOR'],
-                'plantilla-vendedores-columna-vendedor.xlsx',
-            ],
-            ImportType::CLIENTES => [
-                'Clientes',
-                'Socios activos - primera fila titulo; segunda fila encabezados (exportacion legacy).',
-                ExcelSociosReader::EXPECTED_HEADERS,
-                'plantilla-clientes-socios-activos.xlsx',
-            ],
-            ImportType::MEMBRESIAS_MATRICULAS => [
-                'Membresias',
-                'Mismo Excel que clientes; aqui se importan membresias y matriculas.',
-                ExcelSociosReader::EXPECTED_HEADERS,
-                'plantilla-membresias-socios-activos.xlsx',
-            ],
-            ImportType::DEUDAS => [
-                'Deudas',
-                'Deudas clientes - primera fila titulo; segunda fila encabezados.',
-                ExcelDeudasReader::EXPECTED_HEADERS,
-                'plantilla-deudas-clientes.xlsx',
-            ],
-            default => throw new NotFoundHttpException,
-        };
+        $config = InitialLoadCatalog::for($tipo);
 
         return Excel::download(
-            new ImportPlantillaExport($sheetTitle, $titleRow, $headers),
-            $filename
+            new ImportPlantillaExport($config['sheet_title'], $config['title_row'], $config['headers']),
+            $config['filename']
         );
     }
 }

@@ -227,7 +227,7 @@ class GroupedInstallmentImportService
             throw new \RuntimeException('Cliente no encontrado.');
         }
 
-        $matricula = $this->findMatricula($cliente->id, (string) $first->membresia, $first->fechaInicio, $first->fechaFin);
+        $matricula = $this->findMatriculaOrCreateFallback($cliente, $first, $sucursalId, true);
         if (! $matricula) {
             throw new \RuntimeException('Matrícula no encontrada.');
         }
@@ -376,7 +376,7 @@ class GroupedInstallmentImportService
             return ['Cliente no encontrado por CODIGO/DNI.'];
         }
 
-        $matricula = $this->findMatricula($cliente->id, (string) $first->membresia, $first->fechaInicio, $first->fechaFin);
+        $matricula = $this->findMatriculaOrCreateFallback($cliente, $first, $sucursalId, true);
         if (! $matricula) {
             return ['No hay matrícula/membresía compatible para este cliente y fechas.'];
         }
@@ -452,21 +452,123 @@ class GroupedInstallmentImportService
 
     private function findMatricula(int $clienteId, string $membresiaNombre, ?CarbonImmutable $fechaInicio, ?CarbonImmutable $fechaFin): ?ClienteMatricula
     {
-        $q = ClienteMatricula::query()
+        $normalized = mb_strtolower(trim($membresiaNombre));
+
+        $baseQuery = ClienteMatricula::query()
             ->where('cliente_id', $clienteId)
             ->where('tipo', 'membresia')
             ->whereHas('membresia', function ($q) use ($membresiaNombre): void {
                 $q->whereRaw('LOWER(TRIM(nombre)) = ?', [mb_strtolower(trim($membresiaNombre))]);
             });
 
+        $exactQuery = (clone $baseQuery);
         if ($fechaInicio) {
-            $q->whereDate('fecha_inicio', $fechaInicio->toDateString());
+            $exactQuery->whereDate('fecha_inicio', $fechaInicio->toDateString());
         }
         if ($fechaFin) {
-            $q->whereDate('fecha_fin', $fechaFin->toDateString());
+            $exactQuery->whereDate('fecha_fin', $fechaFin->toDateString());
         }
 
-        return $q->orderByDesc('id')->first();
+        $exact = $exactQuery->orderByDesc('id')->first();
+        if ($exact) {
+            return $exact;
+        }
+
+        $candidates = (clone $baseQuery)
+            ->orderByDesc('fecha_inicio')
+            ->orderByDesc('id')
+            ->get();
+
+        if ($candidates->isEmpty()) {
+            return null;
+        }
+
+        if ($fechaInicio || $fechaFin) {
+            $overlap = $candidates->first(function (ClienteMatricula $matricula) use ($fechaInicio, $fechaFin): bool {
+                $inicio = $matricula->fecha_inicio?->startOfDay();
+                $fin = $matricula->fecha_fin?->startOfDay();
+
+                if (! $inicio || ! $fin) {
+                    return false;
+                }
+
+                $targetInicio = $fechaInicio?->startOfDay() ?? $inicio;
+                $targetFin = $fechaFin?->startOfDay() ?? $fin;
+
+                return $inicio->lte($targetFin) && $fin->gte($targetInicio);
+            });
+
+            if ($overlap) {
+                return $overlap;
+            }
+        }
+
+        $nearest = $candidates
+            ->map(function (ClienteMatricula $matricula) use ($fechaInicio, $fechaFin): array {
+                $score = 0;
+                if ($fechaInicio && $matricula->fecha_inicio) {
+                    $score += abs($matricula->fecha_inicio->startOfDay()->diffInDays($fechaInicio->startOfDay(), false));
+                }
+                if ($fechaFin && $matricula->fecha_fin) {
+                    $score += abs($matricula->fecha_fin->startOfDay()->diffInDays($fechaFin->startOfDay(), false));
+                }
+
+                return ['matricula' => $matricula, 'score' => $score];
+            })
+            ->sortBy('score')
+            ->first();
+
+        if ($nearest && ($nearest['score'] ?? 9999) <= 7) {
+            return $nearest['matricula'];
+        }
+
+        return $candidates->count() === 1 ? $candidates->first() : null;
+    }
+
+    private function findMatriculaOrCreateFallback(Cliente $cliente, CuotaClienteRowData $row, int $sucursalId, bool $allowCreate): ?ClienteMatricula
+    {
+        $matricula = $this->findMatricula($cliente->id, (string) $row->membresia, $row->fechaInicio, $row->fechaFin);
+        if ($matricula || ! $allowCreate) {
+            return $matricula;
+        }
+
+        $membershipName = trim((string) $row->membresia);
+        if ($membershipName === '') {
+            return null;
+        }
+
+        $membership = $this->resolver->resolverMembresiaPorNombre($membershipName, $sucursalId);
+        if (! $membership) {
+            $duracionDias = $row->fechaInicio && $row->fechaFin
+                ? max(1, $row->fechaInicio->startOfDay()->diffInDays($row->fechaFin->startOfDay()))
+                : 30;
+
+            $membership = $this->resolver->crearMembresiaDesdeImportLegacy(
+                $membershipName,
+                $sucursalId,
+                $duracionDias,
+                (float) ($row->precio ?? $row->debe ?? 0)
+            );
+        }
+
+        return ClienteMatricula::query()->create([
+            'cliente_id' => $cliente->id,
+            'tipo' => 'membresia',
+            'membresia_id' => $membership->id,
+            'fecha_matricula' => $row->fechaInicio?->toDateString(),
+            'fecha_inicio' => $row->fechaInicio?->toDateString(),
+            'fecha_fin' => $row->fechaFin?->toDateString(),
+            'estado' => ($row->fechaFin && $row->fechaFin->startOfDay()->lt(now()->startOfDay())) ? 'vencida' : 'activa',
+            'precio_lista' => (float) ($row->precio ?? 0),
+            'descuento_monto' => 0,
+            'precio_final' => (float) ($row->precio ?? 0),
+            'modalidad_pago' => 'cuotas',
+            'requiere_plan_cuotas' => true,
+            'cuota_inicial_monto' => (float) ($row->pago ?? 0),
+            'asesor_id' => null,
+            'canal_venta' => 'Importacion cuotas',
+            'sucursal_id' => $sucursalId,
+        ]);
     }
 
     private function createMinimalPlanForLegacyImport(Cliente $cliente, ClienteMatricula $matricula, CuotaClienteRowData $row): EnrollmentInstallmentPlan

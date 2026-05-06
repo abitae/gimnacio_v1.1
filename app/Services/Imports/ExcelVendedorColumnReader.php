@@ -10,18 +10,32 @@ use RuntimeException;
 
 class ExcelVendedorColumnReader
 {
+    public const SHEET_NAME = 'Usuarios Vendedores';
+
+    public const EXPECTED_HEADERS = [
+        'VENDEDOR',
+        'CLIENTES',
+        'ACTIVOS',
+        'INACTIVOS',
+        'DEUDA_CLIENTES',
+        'PRECIO_TOTAL',
+        'PAGADO_TOTAL',
+        'DEUDA_TOTAL',
+        'CUOTAS_REGISTRADAS',
+    ];
+
     /**
-     * Extrae nombres únicos de la columna VENDEDOR (primera aparición define la fila de referencia).
+     * Extrae nombres únicos de la columna VENDEDOR.
      *
      * @return list<array{fila: int, nombre: string}>
      */
     public function read(string $filePath): array
     {
         if (! File::exists($filePath)) {
-            throw new RuntimeException("No se encontró el archivo: {$filePath}");
+            throw new RuntimeException("No se encontro el archivo: {$filePath}");
         }
 
-        $sheet = Excel::toArray(new RawExcelArrayImport, $filePath)[0] ?? [];
+        $sheet = $this->readSheet($filePath);
         if ($sheet === []) {
             throw new RuntimeException('El archivo no contiene datos.');
         }
@@ -29,7 +43,7 @@ class ExcelVendedorColumnReader
         [$headerIndex, $headers] = $this->resolveHeaders($sheet);
         $vendedorCol = $this->findVendedorColumnIndex($headers);
         if ($vendedorCol === null) {
-            throw new RuntimeException('No se encontró la columna VENDEDOR en los encabezados.');
+            throw new RuntimeException('No se encontro la columna VENDEDOR en los encabezados.');
         }
 
         $seen = [];
@@ -59,6 +73,36 @@ class ExcelVendedorColumnReader
     }
 
     /**
+     * @return list<list<mixed>>
+     */
+    private function readSheet(string $filePath): array
+    {
+        $sheets = Excel::toArray(new RawExcelArrayImport, $filePath);
+        try {
+            $sheetNames = Excel::sheetNames($filePath);
+        } catch (\Throwable) {
+            $sheetNames = [];
+        }
+
+        foreach ($sheetNames as $index => $name) {
+            if ($this->normalizeHeader($name) === $this->normalizeHeader(self::SHEET_NAME)) {
+                return $sheets[$index] ?? [];
+            }
+        }
+
+        foreach ($sheets as $sheet) {
+            try {
+                $this->resolveHeaders($sheet);
+
+                return $sheet;
+            } catch (\Throwable) {
+            }
+        }
+
+        return $sheets[0] ?? [];
+    }
+
+    /**
      * @param  list<list<mixed>>  $sheet
      * @return array{0: int, 1: list<string>}
      */
@@ -68,22 +112,17 @@ class ExcelVendedorColumnReader
             if (! is_array($row)) {
                 continue;
             }
-            $normalized = [];
+            $headers = [];
             foreach ($row as $cell) {
-                $normalized[] = is_string($cell) ? trim($cell) : (string) $cell;
+                $headers[] = is_string($cell) ? trim($cell) : (string) $cell;
             }
-            $joined = implode('|', $normalized);
-            if (str_contains($joined, 'VENDEDOR') || str_contains(mb_strtoupper($joined), 'VENDEDOR')) {
-                $headers = [];
-                foreach ($normalized as $cell) {
-                    $headers[] = is_string($cell) ? trim($cell) : '';
-                }
-
+            $normalized = array_map(fn (string $header): string => $this->normalizeHeader($header), $headers);
+            if (in_array('vendedor', $normalized, true) && in_array('clientes', $normalized, true)) {
                 return [$idx, $headers];
             }
         }
 
-        throw new RuntimeException('No se encontró la fila de encabezados con columna VENDEDOR.');
+        throw new RuntimeException('No se encontro la fila de encabezados con columna VENDEDOR.');
     }
 
     /**
@@ -91,9 +130,8 @@ class ExcelVendedorColumnReader
      */
     private function findVendedorColumnIndex(array $headers): ?int
     {
-        foreach ($headers as $i => $h) {
-            $u = mb_strtoupper(str_replace(["\xc2\xa0", "\xe2\x80\xaf"], ' ', trim($h)), 'UTF-8');
-            if ($u === 'VENDEDOR' || str_contains($u, 'VENDEDOR')) {
+        foreach ($headers as $i => $header) {
+            if ($this->normalizeHeader($header) === 'vendedor') {
                 return $i;
             }
         }
@@ -118,5 +156,15 @@ class ExcelVendedorColumnReader
     private function isIgnoredName(string $normalized): bool
     {
         return in_array($normalized, ['sin vendedor', 'n/a', '-', '--'], true);
+    }
+
+    private function normalizeHeader(string $header): string
+    {
+        $header = str_replace(["\xc2\xa0", "\xe2\x80\xaf"], ' ', $header);
+        $header = mb_strtoupper(trim($header), 'UTF-8');
+        $header = str_replace(['_', '.'], ' ', $header);
+        $header = preg_replace('/\s+/u', ' ', $header) ?? $header;
+
+        return mb_strtolower(trim($header), 'UTF-8');
     }
 }

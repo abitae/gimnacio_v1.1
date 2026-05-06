@@ -5,6 +5,7 @@ namespace App\Services\Imports;
 use App\DataTransferObjects\Imports\DeudaClienteRowData;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Str;
+use PhpOffice\PhpSpreadsheet\Shared\Date as ExcelDate;
 
 class DeudaRowNormalizer
 {
@@ -13,21 +14,70 @@ class DeudaRowNormalizer
      */
     public function normalize(int $rowNumber, array $row): DeudaClienteRowData
     {
+        $indexed = $this->indexRowByNormalizedHeader($row);
+
         return new DeudaClienteRowData(
             rowNumber: $rowNumber,
-            codigo: $this->cleanString($row['CODIGO'] ?? null),
-            nombreRaw: $this->cleanString($row['NOMBRES'] ?? null),
-            correo: $this->cleanEmail($row['CORREO'] ?? null),
-            dni: $this->cleanDni($row['DNI'] ?? null),
-            celular: $this->cleanString($row['CELULAR'] ?? null),
-            tipoPlan: $this->cleanString($row['TIPO PLAN'] ?? null),
-            plan: $this->cleanString($row['PLAN'] ?? null),
-            fechaInicio: $this->parseDate($row['FECHA INICIO'] ?? null),
-            fechaFin: $this->parseDate($row['FECHA FIN'] ?? null),
-            costo: $this->parseMoney($row['COSTO'] ?? null),
-            debe: $this->parseMoney($row['DEBE'] ?? null),
-            vendedor: $this->cleanString($row['VENDEDOR'] ?? null),
+            codigo: $this->cleanString($this->pick($row, $indexed, ['CODIGO'])),
+            nombreRaw: $this->cleanString($this->pick($row, $indexed, ['NOMBRES', 'CLIENTE'])),
+            correo: $this->cleanEmail($this->pick($row, $indexed, ['CORREO'])),
+            dni: $this->cleanDni($this->pick($row, $indexed, ['DNI'])),
+            celular: $this->cleanString($this->pick($row, $indexed, ['CELULAR'])),
+            tipoPlan: $this->cleanString($this->pick($row, $indexed, ['TIPO PLAN', 'TIPO_PLAN'])),
+            plan: $this->cleanString($this->pick($row, $indexed, ['PLAN'])),
+            fechaInicio: $this->parseDate($this->pick($row, $indexed, ['FECHA INICIO', 'FECHA_INICIO'])),
+            fechaFin: $this->parseDate($this->pick($row, $indexed, ['FECHA FIN', 'FECHA_FIN'])),
+            costo: $this->parseMoney($this->pick($row, $indexed, ['COSTO'])),
+            debe: $this->parseMoney($this->pick($row, $indexed, ['DEBE'])),
+            vendedor: $this->cleanString($this->pick($row, $indexed, ['VENDEDOR'])),
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @param  array<string, mixed>  $indexed
+     * @param  list<string>  $candidates
+     */
+    private function pick(array $row, array $indexed, array $candidates): mixed
+    {
+        foreach ($candidates as $name) {
+            if (array_key_exists($name, $row) && $row[$name] !== null && $row[$name] !== '') {
+                return $row[$name];
+            }
+        }
+        foreach ($candidates as $name) {
+            $key = $this->normalizeHeaderKey($name);
+            if (array_key_exists($key, $indexed) && $indexed[$key] !== null && $indexed[$key] !== '') {
+                return $indexed[$key];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $row
+     * @return array<string, mixed>
+     */
+    private function indexRowByNormalizedHeader(array $row): array
+    {
+        $indexed = [];
+        foreach ($row as $header => $value) {
+            $indexed[$this->normalizeHeaderKey((string) $header)] = $value;
+        }
+
+        return $indexed;
+    }
+
+    private function normalizeHeaderKey(string $header): string
+    {
+        $header = str_replace(["\xc2\xa0", "\xe2\x80\xaf"], ' ', $header);
+        $header = Str::ascii($header);
+        $header = mb_strtoupper(trim($header), 'UTF-8');
+        $header = str_replace(['_', '.'], ' ', $header);
+        $header = preg_replace('/\s+/u', ' ', $header) ?? $header;
+
+        return trim($header);
     }
 
     private function cleanString(mixed $value): ?string
@@ -67,6 +117,13 @@ class DeudaRowNormalizer
 
     private function parseDate(mixed $value): ?CarbonImmutable
     {
+        if (is_int($value) || is_float($value)) {
+            try {
+                return CarbonImmutable::instance(ExcelDate::excelToDateTimeObject((float) $value))->startOfDay();
+            } catch (\Throwable) {
+            }
+        }
+
         $value = $this->cleanString($value);
         if ($value === null) {
             return null;

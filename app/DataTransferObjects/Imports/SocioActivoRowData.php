@@ -30,6 +30,13 @@ final class SocioActivoRowData
         public readonly ?string $sesiones,
         public readonly ?string $asistencias,
         public readonly ?string $reservas,
+        public readonly ?string $genero = null,
+        public readonly ?string $estado = null,
+        public readonly ?string $estadoFinal = null,
+        public readonly ?CarbonImmutable $fechaCreacion = null,
+        public readonly ?float $precioTotal = null,
+        public readonly ?float $pagadoTotal = null,
+        public readonly ?float $deudaTotal = null,
     ) {}
 
     public function tipoVentaNormalizado(): string

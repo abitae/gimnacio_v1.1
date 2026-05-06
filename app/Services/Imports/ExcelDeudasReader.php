@@ -13,16 +13,18 @@ use RuntimeException;
 
 class ExcelDeudasReader
 {
+    public const SHEET_NAME = 'Deudas Clientes';
+
     public const EXPECTED_HEADERS = [
         'CODIGO',
-        'NOMBRES',
+        'CLIENTE',
         'CORREO',
         'DNI',
         'CELULAR',
-        'TIPO PLAN',
+        'TIPO_PLAN',
         'PLAN',
-        'FECHA INICIO',
-        'FECHA FIN',
+        'FECHA_INICIO',
+        'FECHA_FIN',
         'COSTO',
         'DEBE',
         'VENDEDOR',
@@ -87,17 +89,6 @@ class ExcelDeudasReader
             }
 
             if (in_array('dni', $normalized, true) && in_array('plan', $normalized, true) && in_array('debe', $normalized, true)) {
-                $missing = [];
-                foreach (self::EXPECTED_HEADERS as $header) {
-                    if (! in_array($this->normalizeHeader($header), $normalized, true)) {
-                        $missing[] = $header;
-                    }
-                }
-
-                if ($missing !== []) {
-                    throw new RuntimeException('Faltan encabezados requeridos: '.implode(', ', $missing));
-                }
-
                 $canonical = [];
                 foreach ($normalized as $position => $normalizedHeader) {
                     $canonical[$position] = $expectedMap[$normalizedHeader] ?? trim((string) ($row[$position] ?? ''));
@@ -107,7 +98,7 @@ class ExcelDeudasReader
             }
         }
 
-        throw new RuntimeException('No se encontro la fila de encabezados esperada en el Excel.');
+        throw new RuntimeException('No se encontro la fila de encabezados esperada en la hoja de deudas.');
     }
 
     /**
@@ -135,6 +126,26 @@ class ExcelDeudasReader
         }
 
         $sheets = Excel::toArray(new RawExcelArrayImport, $filePath);
+        try {
+            $sheetNames = Excel::sheetNames($filePath);
+        } catch (\Throwable) {
+            $sheetNames = [];
+        }
+
+        foreach ($sheetNames as $index => $name) {
+            if ($this->normalizeHeader($name) === $this->normalizeHeader(self::SHEET_NAME)) {
+                return $sheets[$index] ?? [];
+            }
+        }
+
+        foreach ($sheets as $sheet) {
+            try {
+                $this->resolveHeaders($sheet);
+
+                return $sheet;
+            } catch (\Throwable) {
+            }
+        }
 
         return $sheets[0] ?? [];
     }
@@ -176,22 +187,10 @@ class ExcelDeudasReader
 
     private function normalizeHeader(string $value): string
     {
-        $value = $this->repairEncoding(trim($value));
-        $value = Str::ascii($value);
+        $value = Str::ascii(trim($value));
         $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
-        $value = str_replace(['.', '"'], '', $value);
+        $value = str_replace(['.', '"', '_'], ['','',' '], $value);
 
         return Str::lower(trim($value));
-    }
-
-    private function repairEncoding(string $value): string
-    {
-        if (! preg_match('/Ã|Â|â/u', $value)) {
-            return $value;
-        }
-
-        $converted = @iconv('Windows-1252', 'UTF-8//IGNORE', $value);
-
-        return is_string($converted) && $converted !== '' ? $converted : $value;
     }
 }

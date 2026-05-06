@@ -23,13 +23,9 @@ final class ImportType
      */
     public static function labels(): array
     {
-        return [
-            self::USUARIOS => 'Vendedores / usuarios (columna VENDEDOR en cualquier Excel legacy)',
-            self::MEMBRESIAS_MATRICULAS => 'Membresias / Matriculas (Socios activos.xlsx)',
-            self::CLIENTES => 'Clientes (Socios activos.xlsx)',
-            self::DEUDAS => 'Deudas (Deudas Clientes.xlsx)',
+        return array_merge(InitialLoadCatalog::labels(), [
             self::CLIENTES_AGRUPADOS => 'Actualizacion especial Clientes Agrupados.xlsx',
-        ];
+        ]);
     }
 
     /**
@@ -37,11 +33,6 @@ final class ImportType
      */
     public static function implemented(): array
     {
-        return [
-            self::USUARIOS,
-            self::MEMBRESIAS_MATRICULAS,
-            self::CLIENTES,
-            self::DEUDAS,
-        ];
+        return InitialLoadCatalog::implemented();
     }
 }
