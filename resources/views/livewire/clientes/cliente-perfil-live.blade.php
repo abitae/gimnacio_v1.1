@@ -169,6 +169,58 @@
                         </div>
                     @endif
 
+                    @canany(['checking.crear', 'checking.editar'])
+                        @php
+                            $puedeRegistrarIngreso = $membresiaActiva && (($validacionAcceso['tiene_acceso'] ?? false) === true);
+                            $mensajeAsistencia = $ingresoEnCurso
+                                ? __('Ingreso en curso desde :hora', ['hora' => $ingresoEnCurso->fecha_hora_ingreso->format('d/m/Y H:i')])
+                                : ($validacionAcceso['mensaje'] ?? __('El cliente no tiene una membresÃ­a activa.'));
+                        @endphp
+                        <div class="mb-4 rounded-2xl border border-violet-200 bg-gradient-to-r from-violet-50 via-white to-sky-50 p-4 shadow-sm dark:border-violet-900/60 dark:from-violet-950/30 dark:via-zinc-900 dark:to-sky-950/20">
+                            <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                <div class="space-y-1">
+                                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-violet-700 dark:text-violet-300">{{ __('Asistencia') }}</p>
+                                    <h3 class="text-lg font-bold text-zinc-900 dark:text-zinc-50">
+                                        {{ $ingresoEnCurso ? __('Registrar salida') : __('Registrar ingreso') }}
+                                    </h3>
+                                    <p class="text-sm text-zinc-600 dark:text-zinc-300">{{ $mensajeAsistencia }}</p>
+                                </div>
+                                <div class="w-full lg:w-auto">
+                                    @if ($ingresoEnCurso)
+                                        @can('checking.editar')
+                                            <flux:button
+                                                type="button"
+                                                wire:click="registrarSalidaPerfil"
+                                                wire:loading.attr="disabled"
+                                                wire:target="registrarSalidaPerfil"
+                                                icon="arrow-right-circle"
+                                                class="w-full min-h-12 rounded-xl border-0 bg-amber-500 px-5 text-sm font-semibold text-white shadow-lg shadow-amber-500/20 hover:bg-amber-600 lg:min-w-[15rem]"
+                                            >
+                                                <span wire:loading.remove wire:target="registrarSalidaPerfil">{{ __('Registrar salida') }}</span>
+                                                <span wire:loading wire:target="registrarSalidaPerfil">{{ __('Registrando...') }}</span>
+                                            </flux:button>
+                                        @endcan
+                                    @else
+                                        @can('checking.crear')
+                                            <flux:button
+                                                type="button"
+                                                wire:click="registrarIngresoPerfil"
+                                                wire:loading.attr="disabled"
+                                                wire:target="registrarIngresoPerfil"
+                                                :disabled="! $puedeRegistrarIngreso"
+                                                icon="check-circle"
+                                                class="w-full min-h-12 rounded-xl border-0 bg-emerald-600 px-5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-600 dark:disabled:bg-zinc-700 dark:disabled:text-zinc-300 lg:min-w-[15rem]"
+                                            >
+                                                <span wire:loading.remove wire:target="registrarIngresoPerfil">{{ __('Registrar ingreso') }}</span>
+                                                <span wire:loading wire:target="registrarIngresoPerfil">{{ __('Registrando...') }}</span>
+                                            </flux:button>
+                                        @endcan
+                                    @endif
+                                </div>
+                            </div>
+                        </div>
+                    @endcanany
+
                     <div class="mb-3">
                         <flux:subheading size="sm" class="mb-2 font-semibold text-zinc-800 dark:text-zinc-200">{{ __('Resumen de deudas') }}</flux:subheading>
                         <div class="grid gap-2 md:grid-cols-2">

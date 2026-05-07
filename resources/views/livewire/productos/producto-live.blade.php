@@ -110,7 +110,13 @@
                 
                 <flux:field>
                     <flux:label>Código</flux:label>
-                    <flux:input wire:model="formData.codigo" />
+                    @if ($productoId)
+                        <flux:input :value="$formData['codigo']" disabled />
+                        <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">El codigo se conserva y no se puede editar desde este formulario.</p>
+                    @else
+                        <flux:input value="Se genera automaticamente" disabled />
+                        <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">El sistema asignara el siguiente codigo disponible al guardar.</p>
+                    @endif
                 </flux:field>
 
                 <flux:field>

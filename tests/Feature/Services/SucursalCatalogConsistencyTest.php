@@ -112,3 +112,79 @@ it('allows reusing the same product code in different sucursales', function () {
         ->and($productoA->sucursal_id)->toBe($sucursalA->id)
         ->and($productoB->sucursal_id)->toBe($sucursalB->id);
 });
+
+it('auto generates sequential product codes when codigo is omitted', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $sucursal = crearSucursalCatalogo('SPROD-AUTO', true);
+    app(SucursalContext::class)->setDelegateContext($sucursal->id, $sucursal->empresa_id);
+
+    $categoria = CategoriaProducto::factory()->create([
+        'nombre' => 'Categoria auto',
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    \App\Models\Core\Producto::withoutGlobalScopes()->create([
+        'codigo' => 'PROD-0001',
+        'nombre' => 'Producto base',
+        'categoria_id' => $categoria->id,
+        'precio_venta' => 10,
+        'precio_compra' => 5,
+        'stock_actual' => 4,
+        'stock_minimo' => 1,
+        'unidad_medida' => 'unidad',
+        'estado' => 'activo',
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    $producto2 = app(ProductoService::class)->create([
+        'nombre' => 'Producto 2',
+        'categoria_id' => $categoria->id,
+        'precio_venta' => 15,
+        'estado' => 'activo',
+    ]);
+
+    $producto3 = app(ProductoService::class)->create([
+        'nombre' => 'Producto 3',
+        'categoria_id' => $categoria->id,
+        'precio_venta' => 18,
+        'estado' => 'activo',
+    ]);
+
+    expect($producto2->codigo)->toBe('PROD-0002')
+        ->and($producto3->codigo)->toBe('PROD-0003');
+});
+
+it('keeps the existing product code when updating without codigo', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $sucursal = crearSucursalCatalogo('SPROD-UPD', true);
+    app(SucursalContext::class)->setDelegateContext($sucursal->id, $sucursal->empresa_id);
+
+    $categoria = CategoriaProducto::factory()->create([
+        'nombre' => 'Categoria update',
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    $producto = \App\Models\Core\Producto::withoutGlobalScopes()->create([
+        'codigo' => 'PROD-0042',
+        'nombre' => 'Producto legacy',
+        'categoria_id' => $categoria->id,
+        'precio_venta' => 22,
+        'precio_compra' => 11,
+        'stock_actual' => 7,
+        'stock_minimo' => 2,
+        'unidad_medida' => 'unidad',
+        'estado' => 'activo',
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    $actualizado = app(ProductoService::class)->update($producto->id, [
+        'nombre' => 'Producto actualizado',
+    ]);
+
+    expect($actualizado->codigo)->toBe('PROD-0042')
+        ->and($actualizado->nombre)->toBe('Producto actualizado');
+});

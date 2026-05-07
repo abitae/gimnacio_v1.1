@@ -2,6 +2,7 @@
 
 use App\Livewire\Clientes\ClienteLive;
 use App\Livewire\Clientes\ClientePerfilLive;
+use App\Models\Core\Asistencia;
 use App\Models\Core\Clase;
 use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
@@ -17,7 +18,7 @@ use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
     $guard = config('auth.defaults.guard');
-    foreach (['cliente.ver', 'cliente.crear', 'cliente.editar', 'matricula_cliente.ver', 'matricula_cliente.crear', 'matricula_cliente.editar'] as $perm) {
+    foreach (['cliente.ver', 'cliente.crear', 'cliente.editar', 'matricula_cliente.ver', 'matricula_cliente.crear', 'matricula_cliente.editar', 'checking.crear', 'checking.editar'] as $perm) {
         Permission::firstOrCreate(['name' => $perm, 'guard_name' => $guard]);
     }
 });
@@ -429,4 +430,92 @@ it('muestra en el resumen la suma de saldos de planes y membresias del cliente',
     Livewire::test(ClientePerfilLive::class)
         ->call('selectCliente', $cliente->id)
         ->assertSee('Debe S/ 255.00 en membresía');
+});
+it('registra ingreso desde el perfil del cliente y refresca el estado de asistencia', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['cliente.ver', 'checking.crear', 'checking.editar']);
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $membresia = Membresia::factory()->create([
+        'nombre' => 'Plan Check In',
+        'precio_base' => 120,
+        'estado' => 'activa',
+    ]);
+
+    ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 120,
+        'descuento_monto' => 0,
+        'precio_final' => 120,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+    ]);
+
+    Livewire::test(ClientePerfilLive::class)
+        ->call('selectCliente', $cliente->id)
+        ->call('registrarIngresoPerfil')
+        ->assertSee('Registrar salida')
+        ->assertSee('Ingreso en curso desde');
+
+    $asistencia = Asistencia::query()->where('cliente_id', $cliente->id)->latest('id')->first();
+
+    expect($asistencia)->not->toBeNull()
+        ->and($asistencia->fecha_hora_salida)->toBeNull();
+});
+
+it('registra salida desde el perfil del cliente cuando existe un ingreso en curso', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['cliente.ver', 'checking.crear', 'checking.editar']);
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $membresia = Membresia::factory()->create([
+        'nombre' => 'Plan Check Out',
+        'precio_base' => 120,
+        'estado' => 'activa',
+    ]);
+
+    $matricula = ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 120,
+        'descuento_monto' => 0,
+        'precio_final' => 120,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+    ]);
+
+    $asistencia = Asistencia::create([
+        'cliente_id' => $cliente->id,
+        'cliente_matricula_id' => $matricula->id,
+        'fecha_hora_ingreso' => now()->subHour(),
+        'fecha_hora_salida' => null,
+        'origen' => 'manual',
+        'valido_por_membresia' => true,
+        'registrada_por' => $user->id,
+    ]);
+
+    Livewire::test(ClientePerfilLive::class)
+        ->call('selectCliente', $cliente->id)
+        ->assertSee('Registrar salida')
+        ->call('registrarSalidaPerfil')
+        ->assertSee('Registrar ingreso');
+
+    expect($asistencia->fresh()->fecha_hora_salida)->not->toBeNull();
 });

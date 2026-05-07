@@ -54,6 +54,8 @@ class ClientePerfilLive extends Component
 
     public array $validacionAcceso = [];
 
+    public $ingresoEnCurso = null;
+
     public float $saldoPendiente = 0.0;
 
     public float $deudaMembresiaPendiente = 0.0;
@@ -285,6 +287,58 @@ class ClientePerfilLive extends Component
     public function setTab(string $tab): void
     {
         $this->tabActiva = in_array($tab, ['membresias', 'matriculas'], true) ? $tab : 'membresias';
+    }
+
+    public function registrarIngresoPerfil(): void
+    {
+        $this->authorize('checking.crear');
+
+        if (! $this->selectedClienteId) {
+            $this->flashToast('error', 'Selecciona un cliente.');
+
+            return;
+        }
+
+        try {
+            $validacion = $this->asistenciaService->validarIngreso((int) $this->selectedClienteId);
+
+            if (! ($validacion['valido'] ?? false)) {
+                $this->flashToast('error', (string) ($validacion['mensaje'] ?? 'No se pudo registrar el ingreso.'));
+
+                return;
+            }
+
+            $this->asistenciaService->registrarIngreso((int) $this->selectedClienteId, (int) auth()->id());
+            $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+            $this->flashToast('success', 'Ingreso registrado exitosamente.');
+        } catch (\Exception $e) {
+            $this->flashToast('error', $e->getMessage());
+        }
+    }
+
+    public function registrarSalidaPerfil(): void
+    {
+        $this->authorize('checking.editar');
+
+        if (! $this->selectedClienteId) {
+            $this->flashToast('error', 'Selecciona un cliente.');
+
+            return;
+        }
+
+        if (! $this->ingresoEnCurso?->id) {
+            $this->flashToast('error', 'No hay un ingreso en curso para este cliente.');
+
+            return;
+        }
+
+        try {
+            $this->asistenciaService->registrarSalida((int) $this->ingresoEnCurso->id);
+            $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+            $this->flashToast('success', 'Salida registrada exitosamente.');
+        } catch (\Exception $e) {
+            $this->flashToast('error', $e->getMessage());
+        }
     }
 
     public function openCobroMatriculaModal(?int $clienteMatriculaId = null): void
@@ -748,6 +802,7 @@ class ClientePerfilLive extends Component
                 'total_sesiones' => 0,
                 'porcentaje_efectividad' => 0,
             ];
+        $this->ingresoEnCurso = $this->asistenciaService->obtenerIngresoEnCurso($clienteId);
 
         $history = $this->clientEnrollmentService->resolveCommercialHistory($clienteId);
         $this->historialMembresias = $history['memberships']->all();
@@ -794,6 +849,7 @@ class ClientePerfilLive extends Component
         $this->asistenciasRecientes = [];
         $this->estadisticasAsistencia = [];
         $this->validacionAcceso = [];
+        $this->ingresoEnCurso = null;
         $this->saldoPendiente = 0.0;
         $this->deudaProductoPendiente = 0.0;
         $this->deudaMembresiaPendiente = 0.0;

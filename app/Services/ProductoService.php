@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Core\Producto;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
@@ -75,10 +76,27 @@ class ProductoService
     {
         $validated = $this->validate($data);
         $validated['sucursal_id'] = $validated['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
+        $shouldGenerateCodigo = empty($validated['codigo']);
 
-        return DB::transaction(function () use ($validated) {
-            return Producto::create($validated);
-        });
+        for ($attempt = 0; $attempt < 3; $attempt++) {
+            try {
+                return DB::transaction(function () use ($validated, $shouldGenerateCodigo) {
+                    $payload = $validated;
+
+                    if ($shouldGenerateCodigo) {
+                        $payload['codigo'] = $this->generateNextCodigo();
+                    }
+
+                    return Producto::create($payload);
+                });
+            } catch (QueryException $e) {
+                if (! $shouldGenerateCodigo || ! $this->isUniqueConstraintViolation($e) || $attempt === 2) {
+                    throw $e;
+                }
+            }
+        }
+
+        throw new \RuntimeException('No se pudo generar un codigo unico para el producto.');
     }
 
     /**
@@ -123,10 +141,11 @@ class ProductoService
     protected function validate(array $data, ?int $id = null): array
     {
         $isUpdate = $id !== null;
+        $data = $this->normalizeData($data);
 
         $rules = [
             'codigo' => [
-                $isUpdate ? 'sometimes' : 'required',
+                'sometimes',
                 'string',
                 'max:50',
                 function ($attribute, $value, $fail) use ($data, $id) {
@@ -184,6 +203,51 @@ class ProductoService
         }
 
         return $validator->validated();
+    }
+
+    protected function normalizeData(array $data): array
+    {
+        if (array_key_exists('codigo', $data)) {
+            $codigo = trim((string) $data['codigo']);
+
+            if ($codigo === '') {
+                unset($data['codigo']);
+            } else {
+                $data['codigo'] = $codigo;
+            }
+        }
+
+        return $data;
+    }
+
+    protected function generateNextCodigo(): string
+    {
+        $codigos = Producto::withoutGlobalScopes()
+            ->where('codigo', 'like', 'PROD-%')
+            ->lockForUpdate()
+            ->pluck('codigo');
+
+        $maximo = 0;
+
+        foreach ($codigos as $codigo) {
+            if (preg_match('/^PROD-(\d+)$/', (string) $codigo, $matches) !== 1) {
+                continue;
+            }
+
+            $maximo = max($maximo, (int) $matches[1]);
+        }
+
+        return 'PROD-'.str_pad((string) ($maximo + 1), 4, '0', STR_PAD_LEFT);
+    }
+
+    protected function isUniqueConstraintViolation(QueryException $exception): bool
+    {
+        $sqlState = (string) ($exception->errorInfo[0] ?? $exception->getCode());
+        $message = strtolower($exception->getMessage());
+
+        return $sqlState === '23000'
+            || str_contains($message, 'unique')
+            || str_contains($message, 'duplicate');
     }
 
     private function resolveSucursalId(array $data, ?int $id, string $modelClass): int
