@@ -32,8 +32,10 @@ class ClienteService
 
     /**
      * Buscar clientes por término de búsqueda
+     *
+     * @param  string|null  $codigo  Filtro adicional AND por columna codigo (coincidencia exacta).
      */
-    public function search(string $search, ?string $estado = null, int $perPage = 15): LengthAwarePaginator
+    public function search(string $search, ?string $estado = null, int $perPage = 15, ?string $codigo = null): LengthAwarePaginator
     {
         $query = Cliente::query();
 
@@ -45,6 +47,11 @@ class ClienteService
                     ->orWhere('codigo', 'like', "%{$search}%")
                     ->orWhere('email', 'like', "%{$search}%");
             });
+        }
+
+        $codigoTrim = $codigo !== null ? trim($codigo) : '';
+        if ($codigoTrim !== '') {
+            $query->where('codigo', $codigoTrim);
         }
 
         if ($estado) {
@@ -114,6 +121,25 @@ class ClienteService
                 "{$searchTerm}%",
                 "{$searchTerm}%",
             ])
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Autocompletado solo por código interno (coincidencia exacta con el texto buscado).
+     */
+    public function quickSearchByCodigo(string $search, int $limit = 10): Collection
+    {
+        $searchTerm = trim($search);
+
+        if ($searchTerm === '') {
+            return collect([]);
+        }
+
+        return Cliente::query()
+            ->select(['id', 'codigo', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono', 'email', 'estado_cliente'])
+            ->where('codigo', $searchTerm)
+            ->orderBy('codigo')
             ->limit($limit)
             ->get();
     }

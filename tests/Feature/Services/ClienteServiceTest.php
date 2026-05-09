@@ -156,3 +156,88 @@ it('prioritizes health_records over legacy datos_salud in cliente summaries', fu
     expect($cliente->health_summary['medicacion'])->toBe('Antialergicos');
     expect($cliente->health_summary['lesiones'])->toBe('Rodilla');
 });
+
+it('quickSearchByCodigo returns only clients whose codigo matches exactly', function () {
+    $user = User::factory()->create();
+
+    $empresa = Empresa::query()->create([
+        'nombre' => 'Empresa test quick codigo',
+        'estado' => 'activa',
+    ]);
+    $sucursal = Sucursal::query()->create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'S-QC-'.substr(md5((string) microtime(true)), 0, 8),
+        'nombre' => 'Sucursal quick codigo',
+        'estado' => 'activa',
+        'es_principal' => true,
+    ]);
+
+    $match = Cliente::create([
+        'sucursal_id' => $sucursal->id,
+        'codigo' => '91001',
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '71111111',
+        'nombres' => 'Ana',
+        'apellidos' => 'CodMatch',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    Cliente::create([
+        'sucursal_id' => $sucursal->id,
+        'codigo' => '92001',
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '72222222',
+        'nombres' => 'Ben',
+        'apellidos' => 'OtroCod',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    $svc = app(ClienteService::class);
+
+    expect($svc->quickSearchByCodigo('910'))->toHaveCount(0);
+
+    $exact = $svc->quickSearchByCodigo('91001');
+    expect($exact)->toHaveCount(1);
+    expect($exact->first()->id)->toBe($match->id);
+
+    expect($svc->quickSearchByCodigo(''))->toHaveCount(0);
+});
+
+it('search applies optional codigo filter with exact match', function () {
+    $user = User::factory()->create();
+
+    $empresa = Empresa::query()->create([
+        'nombre' => 'Empresa test search codigo',
+        'estado' => 'activa',
+    ]);
+    $sucursal = Sucursal::query()->create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'S-SC-'.substr(md5((string) microtime(true)), 0, 8),
+        'nombre' => 'Sucursal search codigo',
+        'estado' => 'activa',
+        'es_principal' => true,
+    ]);
+
+    Cliente::create([
+        'sucursal_id' => $sucursal->id,
+        'codigo' => '81001',
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '73333333',
+        'nombres' => 'Carla',
+        'apellidos' => 'Lista',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    $svc = app(ClienteService::class);
+
+    $page = $svc->search('', null, 15, '81001');
+    expect($page->total())->toBe(1);
+
+    expect($svc->search('', null, 15, '810')->total())->toBe(0);
+
+    $pageEmpty = $svc->search('', null, 15, '999');
+    expect($pageEmpty->total())->toBe(0);
+});

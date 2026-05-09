@@ -18,8 +18,8 @@ use App\Services\AsistenciaService;
 use App\Services\ClienteMatriculaService;
 use App\Services\ClientEnrollmentService;
 use App\Services\ClienteService;
-use App\Services\DailyOperationsDebtService;
 use App\Services\ClientWellnessService;
+use App\Services\DailyOperationsDebtService;
 use App\Services\EnrollmentInstallmentService;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Str;
@@ -33,6 +33,8 @@ class ClientePerfilLive extends Component
     use ManagesCuotaPagoModal;
 
     public string $clienteSearch = '';
+
+    public string $codigoSearch = '';
 
     public Collection $clientes;
 
@@ -200,6 +202,7 @@ class ClientePerfilLive extends Component
 
     public function updatingClienteSearch($value): void
     {
+        $this->codigoSearch = '';
         $this->isSearching = true;
 
         if ($this->selectedCliente) {
@@ -216,6 +219,40 @@ class ClientePerfilLive extends Component
     public function updatedClienteSearch(): void
     {
         $this->searchClientes();
+    }
+
+    public function updatingCodigoSearch($value): void
+    {
+        $this->clienteSearch = '';
+        $this->isSearching = true;
+
+        if ($this->selectedCliente) {
+            $codigoCliente = trim((string) ($this->selectedCliente->codigo ?? ''));
+            $valorTrim = trim((string) $value);
+
+            if ($valorTrim !== '' && $valorTrim !== $codigoCliente) {
+                $this->clearClienteSelection();
+                $this->codigoSearch = $valorTrim;
+            }
+        }
+    }
+
+    public function updatedCodigoSearch(): void
+    {
+        $this->searchClientesPorCodigo();
+    }
+
+    public function searchClientesPorCodigo(): void
+    {
+        $term = trim($this->codigoSearch);
+
+        if ($term !== '') {
+            $this->clientes = $this->clienteService->quickSearchByCodigo($term, 10);
+        } else {
+            $this->clientes = collect([]);
+        }
+
+        $this->isSearching = false;
     }
 
     public function searchClientes(): void
@@ -243,6 +280,7 @@ class ClientePerfilLive extends Component
         $this->selectedClienteId = $clienteId;
         $this->selectedCliente = $cliente;
         $this->clienteSearch = trim($cliente->nombres.' '.$cliente->apellidos);
+        $this->codigoSearch = '';
         $this->clientes = collect([]);
         $this->isSearching = false;
         $this->perfilClienteMinimizado = false;
@@ -255,6 +293,7 @@ class ClientePerfilLive extends Component
         $this->selectedClienteId = null;
         $this->selectedCliente = null;
         $this->clienteSearch = '';
+        $this->codigoSearch = '';
         $this->clientes = collect([]);
         $this->isSearching = false;
         $this->perfilClienteMinimizado = false;

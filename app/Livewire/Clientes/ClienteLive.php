@@ -14,6 +14,8 @@ class ClienteLive extends Component
 
     public $search = '';
 
+    public $codigoSearch = '';
+
     public $estadoFilter = '';
 
     public $perPage = 15;
@@ -38,6 +40,11 @@ class ClienteLive extends Component
         $this->resetPage();
     }
 
+    public function updatingCodigoSearch(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatingEstadoFilter(): void
     {
         $this->resetPage();
@@ -55,8 +62,15 @@ class ClienteLive extends Component
 
     public function render()
     {
-        if ($this->search || $this->estadoFilter) {
-            $clientes = $this->service->search($this->search, $this->estadoFilter, $this->perPage);
+        $codigoTrim = trim($this->codigoSearch);
+
+        if ($this->search || $this->estadoFilter || $codigoTrim !== '') {
+            $clientes = $this->service->search(
+                $this->search,
+                $this->estadoFilter ?: null,
+                $this->perPage,
+                $codigoTrim !== '' ? $codigoTrim : null
+            );
         } else {
             $clientes = $this->service->paginate($this->perPage);
         }

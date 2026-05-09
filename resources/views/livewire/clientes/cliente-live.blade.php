@@ -16,12 +16,19 @@
         </div>
 
         <div class="flex flex-wrap items-center justify-end gap-3">
-            <div class="w-full min-w-[12rem] sm:w-48">
+            <div class="w-full min-w-[12rem] sm:w-44">
                 <flux:input icon="magnifying-glass" type="search" size="xs"
                     wire:model.live.debounce.300ms="search"
-                    placeholder="{{ __('Nombre, apellidos, código, documento o correo…') }}"
+                    placeholder="{{ __('Nombre, apellidos, documento o correo…') }}"
                     class="w-full"
-                    aria-label="{{ __('Buscar clientes por nombre, código, documento o email') }}" />
+                    aria-label="{{ __('Buscar clientes por nombre, documento o email') }}" />
+            </div>
+            <div class="w-full min-w-[10rem] sm:w-36">
+                <flux:input icon="identification" type="search" size="xs"
+                    wire:model.live.debounce.300ms="codigoSearch"
+                    placeholder="{{ __('Solo código…') }}"
+                    class="w-full"
+                    aria-label="{{ __('Filtrar por código interno del cliente') }}" />
             </div>
             <div class="w-32">
                 <select wire:model.live="estadoFilter"
@@ -48,7 +55,7 @@
 
         <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700"
             wire:loading.delay.class="opacity-60 pointer-events-none"
-            wire:target="search,estadoFilter,perPage">
+            wire:target="search,codigoSearch,estadoFilter,perPage">
             <table class="w-full min-w-[720px] text-sm">
                 <thead class="bg-zinc-50 dark:bg-zinc-900">
                     <tr>

@@ -17,6 +17,8 @@ class CheckingLive extends Component
 
     public $clienteSearch = '';
 
+    public $codigoSearch = '';
+
     public $clientes;
 
     public $selectedClienteId = null;
@@ -82,6 +84,7 @@ class CheckingLive extends Component
 
     public function updatingClienteSearch($value)
     {
+        $this->codigoSearch = '';
         $this->isSearching = true;
 
         if ($this->selectedCliente) {
@@ -98,6 +101,40 @@ class CheckingLive extends Component
     public function updatedClienteSearch()
     {
         $this->searchClientes();
+    }
+
+    public function updatingCodigoSearch($value): void
+    {
+        $this->clienteSearch = '';
+        $this->isSearching = true;
+
+        if ($this->selectedCliente) {
+            $codigoCliente = trim((string) ($this->selectedCliente->codigo ?? ''));
+            $valorTrim = trim((string) $value);
+            if ($valorTrim !== '' && $valorTrim !== $codigoCliente) {
+                $this->selectedClienteId = null;
+                $this->selectedCliente = null;
+                $this->resetearSeleccion();
+            }
+        }
+    }
+
+    public function updatedCodigoSearch(): void
+    {
+        $this->searchClientesPorCodigo();
+    }
+
+    public function searchClientesPorCodigo(): void
+    {
+        $term = trim($this->codigoSearch);
+
+        if ($term !== '') {
+            $this->clientes = $this->clienteService->quickSearchByCodigo($term, 10);
+        } else {
+            $this->clientes = collect([]);
+        }
+
+        $this->isSearching = false;
     }
 
     public function searchClientes()
@@ -136,6 +173,7 @@ class CheckingLive extends Component
             $this->selectedClienteId = $clienteId;
             $this->selectedCliente = $cliente;
             $this->clienteSearch = trim($cliente->nombres.' '.$cliente->apellidos);
+            $this->codigoSearch = '';
             $this->clientes = collect([]);
             $this->isSearching = false;
             $this->refreshSelectedClienteContext($clienteId);
@@ -154,6 +192,7 @@ class CheckingLive extends Component
         $this->selectedClienteId = null;
         $this->selectedCliente = null;
         $this->clienteSearch = '';
+        $this->codigoSearch = '';
         $this->clientes = collect([]);
         $this->isSearching = false;
         $this->resetearSeleccion();

@@ -86,9 +86,11 @@
             <div class="min-w-[min(100%,22rem)] flex-1">
                 <x-cliente.search-input
                     :clienteSearch="$clienteSearch"
+                    :codigoSearch="$codigoSearch"
                     :clientes="$clientes"
                     :selectedCliente="$selectedCliente"
-                    :isSearching="$isSearching" />
+                    :isSearching="$isSearching"
+                    :showCodigoField="true" />
             </div>
             <div class="flex flex-wrap items-center gap-2">
                 <flux:button href="{{ route('clientes.index') }}" wire:navigate variant="ghost" size="xs"

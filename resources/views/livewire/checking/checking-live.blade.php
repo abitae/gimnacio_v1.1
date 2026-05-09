@@ -34,26 +34,47 @@
                 Buscar Cliente
             </label>
         </div>
-        <div class="relative">
-            <div class="relative">
-                <flux:input 
-                    icon="magnifying-glass" 
-                    type="search" 
-                    wire:model.live.debounce.300ms="clienteSearch" 
-                    placeholder="Buscar: código, nombre..." 
-                    class="w-full text-base border-zinc-300 focus:border-purple-500 focus:ring-purple-500"
-                    autofocus
-                    aria-label="Buscar cliente" 
-                />
-                
-                @if ($isSearching)
-                    <div class="absolute right-3 top-1/2 -translate-y-1/2">
-                        <flux:icon name="arrow-path" class="h-5 w-5 animate-spin text-purple-600" />
-                    </div>
-                @endif
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2 md:items-end">
+            <div>
+                <label class="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">Nombre, documento o correo</label>
+                <div class="relative">
+                    <flux:input
+                        icon="magnifying-glass"
+                        type="search"
+                        wire:model.live.debounce.300ms="clienteSearch"
+                        placeholder="Nombre, documento, correo…"
+                        class="w-full text-base border-zinc-300 focus:border-purple-500 focus:ring-purple-500"
+                        autofocus
+                        aria-label="Buscar cliente por nombre, documento o correo"
+                    />
+                    @if ($isSearching && filled($clienteSearch))
+                        <div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                            <flux:icon name="arrow-path" class="h-5 w-5 animate-spin text-purple-600" />
+                        </div>
+                    @endif
+                </div>
             </div>
-            
-            @if ($clienteSearch && !$isSearching && !$selectedCliente)
+            <div>
+                <label class="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">Solo código interno</label>
+                <div class="relative">
+                    <flux:input
+                        icon="identification"
+                        type="search"
+                        wire:model.live.debounce.300ms="codigoSearch"
+                        placeholder="Ej. 10001…"
+                        class="w-full text-base border-zinc-300 focus:border-purple-500 focus:ring-purple-500"
+                        aria-label="Buscar cliente solo por código interno"
+                    />
+                    @if ($isSearching && filled($codigoSearch))
+                        <div class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2">
+                            <flux:icon name="arrow-path" class="h-5 w-5 animate-spin text-purple-600" />
+                        </div>
+                    @endif
+                </div>
+            </div>
+        </div>
+        <div class="relative mt-2">
+            @if (($clienteSearch || $codigoSearch) && !$isSearching && !$selectedCliente)
                 @if ($clientes->count() > 0)
                     <div class="absolute z-20 mt-2 w-full rounded-lg border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-800 max-h-64 overflow-y-auto">
                         @foreach ($clientes as $cliente)
@@ -71,6 +92,10 @@
                                             {{ $cliente->nombres }} {{ $cliente->apellidos }}
                                         </div>
                                         <div class="text-xs text-zinc-500 dark:text-zinc-400">
+                                            @if (filled($cliente->codigo))
+                                                <span class="font-medium text-purple-700 dark:text-purple-300">{{ __('Cód.') }} {{ $cliente->codigo }}</span>
+                                                <span class="mx-1">·</span>
+                                            @endif
                                             {{ $cliente->tipo_documento }}: {{ $cliente->numero_documento }}
                                             @if ($cliente->email)
                                                 <span class="ml-2">• {{ $cliente->email }}</span>
@@ -81,7 +106,7 @@
                             </button>
                         @endforeach
                     </div>
-                @elseif (strlen(trim($clienteSearch)) >= 2)
+                @elseif (strlen(trim($clienteSearch)) >= 2 || strlen(trim($codigoSearch)) >= 1)
                     <div class="absolute z-20 mt-2 w-full rounded-lg border border-zinc-200 bg-white shadow-xl dark:border-zinc-700 dark:bg-zinc-800 p-6">
                         <div class="text-center">
                             <flux:icon name="magnifying-glass" class="mx-auto h-12 w-12 text-zinc-400" />
