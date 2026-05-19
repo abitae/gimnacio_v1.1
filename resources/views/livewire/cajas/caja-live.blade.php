@@ -119,7 +119,25 @@
                                     </td>
                                     <td class="px-3 py-2 text-right">
                                         @if (! empty($movimiento['ticket_pago_id']))
-                                            <button type="button" class="text-xs text-sky-600 underline-offset-2 hover:underline dark:text-sky-400" wire:click="abrirTicketPagoCaja({{ $movimiento['ticket_pago_id'] }})">Reimprimir</button>
+                                            <flux:button
+                                                type="button"
+                                                variant="ghost"
+                                                size="xs"
+                                                icon="printer"
+                                                class="!text-sky-600 hover:!bg-sky-50 dark:!text-sky-400 dark:hover:!bg-sky-950/40"
+                                                wire:click="abrirTicketPagoCaja({{ $movimiento['ticket_pago_id'] }})"
+                                                aria-label="Reimprimir ticket"
+                                                title="Reimprimir ticket" />
+                                        @elseif (! empty($movimiento['ticket_venta_id']))
+                                            <flux:button
+                                                type="button"
+                                                variant="ghost"
+                                                size="xs"
+                                                icon="printer"
+                                                class="!text-sky-600 hover:!bg-sky-50 dark:!text-sky-400 dark:hover:!bg-sky-950/40"
+                                                wire:click="abrirTicketVentaCaja({{ $movimiento['ticket_venta_id'] }})"
+                                                aria-label="Reimprimir comprobante"
+                                                title="Reimprimir comprobante" />
                                         @else
                                             <span class="text-zinc-400">—</span>
                                         @endif
@@ -404,6 +422,31 @@
                 <div class="rounded-2xl border border-dashed border-zinc-300 px-6 py-12 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
                     No se pudo preparar el reporte de entradas.
                 </div>
+            @endif
+        </div>
+    </flux:modal>
+
+    <flux:modal wire:model="mostrarModalTicketVenta" focusable class="md:max-w-4xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Comprobante de venta</h2>
+                <div class="flex gap-2">
+                    @if ($ventaIdTicketCaja)
+                        <a href="{{ route('ventas.comprobante.pdf', ['venta' => $ventaIdTicketCaja]) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestaña
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarModalTicketVentaCaja">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($ventaIdTicketCaja)
+                <iframe
+                    src="{{ route('ventas.comprobante.pdf', ['venta' => $ventaIdTicketCaja]) }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Comprobante PDF">
+                </iframe>
             @endif
         </div>
     </flux:modal>

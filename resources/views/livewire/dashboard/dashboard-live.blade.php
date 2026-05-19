@@ -77,9 +77,9 @@
     </div>
 
     {{-- Grid: 1) Perfil + Estado | 2) Asistencias | 3) Estadísticas + Historial Membresías + Clases --}}
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-stretch">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
         {{-- 1. Perfil del Cliente + Estado y acceso (compacto, encuadrado) --}}
-        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800 flex flex-col min-h-0 overflow-visible">
+        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800 flex flex-col overflow-visible">
             <div class="border-b border-zinc-200 bg-zinc-50/80 dark:bg-zinc-800/80 px-3 py-2 dark:border-zinc-700 shrink-0">
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-semibold tracking-tight text-zinc-800 dark:text-zinc-200">Perfil del Cliente y Estado y acceso</h3>
@@ -90,11 +90,11 @@
                     @endif
                 </div>
             </div>
-            <div class="p-3 flex-1 flex flex-col min-h-0 min-w-0">
+            <div class="p-3 flex flex-col">
                 @if ($selectedCliente)
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4 items-center">
-                        {{-- Perfil: 2/3 — Foto y datos --}}
-                        <div class="md:col-span-2 flex flex-col md:flex-row items-center md:items-center gap-3">
+                    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(240px,1fr)] gap-4 items-start">
+                        {{-- Perfil: foto y datos --}}
+                        <div class="flex flex-col sm:flex-row items-center sm:items-start gap-3 min-w-0">
                             <div class="shrink-0">
                                 @if ($selectedCliente->foto)
                                     <img src="{{ asset('storage/' . $selectedCliente->foto) }}" alt="{{ $selectedCliente->nombres }} {{ $selectedCliente->apellidos }}"
@@ -113,49 +113,49 @@
                                 </div>
                             </div>
                         </div>
-                        {{-- Estado y acceso: 1/3 — Badges de estado --}}
-                        <div class="md:col-span-1 flex flex-col justify-center border-t border-zinc-200 dark:border-zinc-700 pt-3 md:border-t-0 md:pt-0 md:border-l md:pl-4 border-zinc-200 dark:border-zinc-700 space-y-2">
+                        {{-- Estado y acceso: badges (ancho mínimo para no comprimir cards) --}}
+                        <div class="flex w-full min-w-0 shrink-0 flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-4">
                             @if ($membresiaActiva)
                                 @if (!empty($validacionAcceso) && !$validacionAcceso['tiene_acceso'])
-                                    <div class="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40 p-2.5 shadow-sm">
+                                    <div class="w-full shrink-0 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40 p-2.5 shadow-sm">
                                         <div class="flex items-center gap-2">
                                             <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50">
                                                 <flux:icon name="exclamation-triangle" class="h-4 w-4 text-red-600 dark:text-red-400" />
                                             </div>
-                                            <p class="text-xs font-semibold text-red-800 dark:text-red-200 leading-tight">{{ $validacionAcceso['mensaje'] }}</p>
+                                            <p class="min-w-0 text-xs font-semibold text-red-800 dark:text-red-200 leading-snug">{{ $validacionAcceso['mensaje'] }}</p>
                                         </div>
                                     </div>
                                 @else
-                                    <div class="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 p-2.5 shadow-sm">
+                                    <div class="w-full shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 p-2.5 shadow-sm">
                                         <div class="flex items-center gap-2">
                                             <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50">
                                                 <flux:icon name="check-circle" class="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
                                             </div>
-                                            <p class="text-xs font-semibold text-emerald-800 dark:text-emerald-200 leading-tight">{{ $validacionAcceso['mensaje'] ?? 'Acceso permitido.' }}</p>
+                                            <p class="min-w-0 text-xs font-semibold text-emerald-800 dark:text-emerald-200 leading-snug">{{ $validacionAcceso['mensaje'] ?? 'Acceso permitido.' }}</p>
                                         </div>
                                     </div>
                                 @endif
                                 @if ($ingresoEnCurso)
-                                    <div class="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-2.5 py-2 shadow-sm">
+                                    <div class="w-full shrink-0 rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 px-2.5 py-2 shadow-sm">
                                         <p class="text-[11px] font-medium text-amber-800 dark:text-amber-200 leading-tight">En gimnasio desde {{ $ingresoEnCurso->fecha_hora_ingreso->format('d/m/Y H:i') }}</p>
                                     </div>
                                 @endif
                                 @php $tieneDeuda = ($saldoPendiente > 0) || (isset($selectedCliente->deuda_total) && $selectedCliente->deuda_total > 0); $deudaTotal = $selectedCliente->deuda_total ?? $saldoPendiente; @endphp
                                 @if ($tieneDeuda)
                                     <div wire:key="debt-alert-{{ $selectedClienteId }}"
-                                        class="rounded-lg border-2 border-red-500 bg-red-100 dark:border-red-500 dark:bg-red-950/60 p-3 shadow-lg ring-2 ring-red-400/50 dark:ring-red-500/40 animate-pulse">
-                                        <div class="flex items-center gap-2">
+                                        class="w-full shrink-0 rounded-lg border-2 border-red-500 bg-red-100 p-3 shadow-lg ring-2 ring-red-400/50 dark:border-red-500 dark:bg-red-950/60 dark:ring-red-500/40 animate-pulse">
+                                        <div class="flex items-center gap-2.5">
                                             <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-200 dark:bg-red-900/70">
                                                 <flux:icon name="exclamation-triangle" class="h-5 w-5 text-red-700 dark:text-red-300" />
                                             </div>
-                                            <div>
+                                            <div class="min-w-0 flex-1">
                                                 <p class="text-xs font-bold uppercase tracking-wider text-red-700 dark:text-red-300">Deuda pendiente</p>
-                                                <p class="mt-0.5 text-xl font-bold text-red-900 dark:text-red-100">S/ {{ number_format($deudaTotal, 2) }}</p>
+                                                <p class="mt-0.5 text-lg font-bold text-red-900 sm:text-xl dark:text-red-100 whitespace-nowrap">S/ {{ number_format($deudaTotal, 2) }}</p>
                                             </div>
                                         </div>
                                     </div>
                                 @else
-                                    <div class="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 p-2.5 shadow-sm">
+                                    <div class="w-full shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 p-2.5 shadow-sm">
                                         <div class="flex items-center gap-2">
                                             <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50">
                                                 <flux:icon name="check-circle" class="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
@@ -165,7 +165,7 @@
                                     </div>
                                 @endif
                             @else
-                                <div class="rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40 p-2.5 shadow-sm">
+                                <div class="w-full shrink-0 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40 p-2.5 shadow-sm">
                                     <div class="flex items-center gap-2">
                                         <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50">
                                             <flux:icon name="exclamation-triangle" class="h-4 w-4 text-red-600 dark:text-red-400" />
@@ -181,10 +181,11 @@
                     </div>
                     {{-- Estadísticas: ancho completo, encuadrado --}}
                     @if (!empty($estadisticasAsistencia))
-                        <div class="mt-3 pt-3 border-t border-zinc-200 dark:border-zinc-700 col-span-full -mx-0.5">
-                            <p class="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Estadísticas</p>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                                <div class="rounded-lg border border-zinc-200 bg-zinc-50 dark:bg-zinc-900/50 dark:border-zinc-700 p-2.5 min-w-0">
+                        <div class="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-700">
+                            <p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Estadísticas</p>
+                            <div class="overflow-x-auto -mx-0.5 px-0.5">
+                            <div class="grid min-w-[min(100%,18rem)] grid-cols-3 gap-2">
+                                <div class="shrink-0 rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50">
                                     <p class="text-[11px] text-zinc-600 dark:text-zinc-400 leading-tight">
                                         <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ $estadisticasAsistencia['total_asistencias'] ?? 0 }}</span> asistencias
                                         @if (isset($estadisticasAsistencia['total_sesiones']))
@@ -203,14 +204,15 @@
                                         </div>
                                     @endif
                                 </div>
-                                <div class="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/40 p-2.5 text-center min-w-0">
+                                <div class="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-center dark:border-emerald-800 dark:bg-emerald-950/40">
                                     <p class="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Asistidas</p>
                                     <p class="mt-0.5 text-lg font-bold text-emerald-700 dark:text-emerald-300">{{ $estadisticasAsistencia['asistencias_completas'] ?? 0 }}</p>
                                 </div>
-                                <div class="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40 p-2.5 text-center min-w-0">
+                                <div class="shrink-0 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-center dark:border-amber-800 dark:bg-amber-950/40">
                                     <p class="text-[11px] font-medium text-amber-600 dark:text-amber-400">Pendientes</p>
                                     <p class="mt-0.5 text-lg font-bold text-amber-700 dark:text-amber-300">{{ $estadisticasAsistencia['asistencias_pendientes'] ?? 0 }}</p>
                                 </div>
+                            </div>
                             </div>
                         </div>
                     @endif
@@ -226,12 +228,12 @@
         </div>
 
         {{-- 4. Asistencias Recientes --}}
-        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800 flex flex-col min-h-0">
+        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800 flex flex-col">
             <div class="border-b border-zinc-200 bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 dark:border-zinc-700 dark:from-blue-900/20 dark:to-indigo-900/20 shrink-0">
                 <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-100">Asistencias Recientes</h3>
             </div>
             @if ($selectedCliente && count($asistenciasRecientes ?? []) > 0)
-                <div class="p-4 flex-1 min-h-0 overflow-auto">
+                <div class="max-h-96 overflow-y-auto p-4">
                     <div class="space-y-2">
                         @foreach ($asistenciasRecientes as $asistencia)
                             <div class="rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/50">
@@ -260,12 +262,12 @@
         </div>
 
         {{-- 5. Historial de Membresías e Historial de Clases --}}
-        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800 flex flex-col min-h-0">
+        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800 flex flex-col">
             <div class="border-b border-zinc-200 bg-gradient-to-r from-purple-50 to-pink-50 px-6 py-4 dark:border-zinc-700 dark:from-purple-900/20 dark:to-pink-900/20 shrink-0">
                 <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-100">Historial de Membresías e Historial de Clases</h3>
             </div>
             @if ($selectedCliente && (collect($historialMembresias ?? [])->isNotEmpty() || collect($historialClases ?? [])->isNotEmpty()))
-                <div class="p-4 flex-1 min-h-0 overflow-auto space-y-4">
+                <div class="max-h-96 space-y-4 overflow-y-auto p-4">
                     {{-- Historial de Membresías --}}
                     <div>
                         <p class="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Membresías</p>

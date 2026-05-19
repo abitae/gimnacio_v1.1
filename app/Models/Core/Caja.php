@@ -171,6 +171,8 @@ class Caja extends Model
                 default => null,
             };
 
+            $ticketVentaId = $referencia instanceof Venta ? $referencia->id : null;
+
             return [
                 'id' => $movimiento->id,
                 'fecha' => $movimiento->fecha_movimiento,
@@ -197,6 +199,7 @@ class Caja extends Model
                 'referencia_tipo' => $movimiento->referencia_tipo,
                 'referencia_id' => $movimiento->referencia_id,
                 'ticket_pago_id' => $ticketPagoId ? (int) $ticketPagoId : null,
+                'ticket_venta_id' => $ticketVentaId ? (int) $ticketVentaId : null,
                 'referencia_label' => match (true) {
                     $referencia instanceof Venta => $referencia->numero_venta,
                     $referencia instanceof Pago => 'Pago #'.$referencia->id,
