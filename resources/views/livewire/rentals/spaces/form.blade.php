@@ -6,6 +6,10 @@
             <flux:input wire:model="form.nombre" required />
         </flux:field>
         <flux:field>
+            <flux:label>Precio (POS / referencia)</flux:label>
+            <flux:input type="number" min="0" step="0.01" wire:model="form.precio" />
+        </flux:field>
+        <flux:field>
             <flux:label>Capacidad</flux:label>
             <flux:input type="number" min="0" wire:model="form.capacidad" />
         </flux:field>

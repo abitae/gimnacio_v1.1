@@ -301,13 +301,15 @@ class POSLive extends Component
         } else {
             $term = '%'.$this->busqueda.'%';
             $espacios = RentableSpace::activos()
+                ->with('rates')
                 ->where(function ($q) use ($term) {
                     $q->where('nombre', 'like', $term)
                         ->orWhere('descripcion', 'like', $term);
                 })
                 ->orderBy('nombre')
                 ->limit(40)
-                ->get();
+                ->get()
+                ->filter(fn (RentableSpace $espacio) => $espacio->tienePrecioPos());
 
             foreach ($espacios as $espacio) {
                 $this->resultadosBusqueda[] = $this->itemAlquilerDesdeEspacio($espacio);
@@ -322,14 +324,18 @@ class POSLive extends Component
             'id' => $espacio->id,
             'codigo' => 'ESP-'.$espacio->id,
             'nombre' => $espacio->nombre,
-            'precio' => $espacio->precioReferencialPos(),
+            'precio' => $espacio->precioPos(),
             'capacidad' => $espacio->capacidad,
         ];
     }
 
     public function obtenerEspaciosParaPOS()
     {
-        $espacios = RentableSpace::activos()->orderBy('nombre')->get();
+        $espacios = RentableSpace::activos()
+            ->with('rates')
+            ->orderBy('nombre')
+            ->get()
+            ->filter(fn (RentableSpace $espacio) => $espacio->tienePrecioPos());
 
         if ($espacios->isEmpty()) {
             return collect();
@@ -521,11 +527,6 @@ class POSLive extends Component
     protected function validarDatosProcesarVenta(): bool
     {
         if ($this->carritoTieneAlquiler) {
-            if ($this->tipoComprador !== 'cliente' || ! $this->clienteId) {
-                $this->flashToast('error', 'Los alquileres requieren seleccionar un cliente del gimnasio.');
-
-                return false;
-            }
             if ($this->esCredito) {
                 $this->flashToast('error', 'No se puede vender alquileres a crédito desde el POS.');
 

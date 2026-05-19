@@ -295,7 +295,7 @@ class VentaService
                     throw new \Exception("El espacio {$espacio->nombre} no esta activo.");
                 }
 
-                $precio = $espacio->precioReferencialPos();
+                $precio = $espacio->precioPos();
                 $descuento = (float) ($item['descuento'] ?? 0);
                 $subtotal = ($precio * $cantidad) - $descuento;
 

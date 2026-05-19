@@ -17,6 +17,7 @@ class Form extends Component
         'nombre' => '',
         'descripcion' => '',
         'capacidad' => '',
+        'precio' => '',
         'estado' => 'activo',
         'color_calendario' => '#3B82F6',
     ];
@@ -37,6 +38,7 @@ class Form extends Component
                 'nombre' => $space->nombre,
                 'descripcion' => $space->descripcion ?? '',
                 'capacidad' => (string) $space->capacidad,
+                'precio' => $space->precio !== null ? (string) $space->precio : '',
                 'estado' => $space->estado,
                 'color_calendario' => $space->color_calendario ?? '#3B82F6',
             ];
@@ -48,6 +50,7 @@ class Form extends Component
         $this->validate([
             'form.nombre' => 'required|string|max:120',
             'form.capacidad' => 'nullable|integer|min:0',
+            'form.precio' => 'nullable|numeric|min:0',
             'form.estado' => 'required|in:activo,inactivo',
         ]);
 
@@ -56,6 +59,7 @@ class Form extends Component
                 'nombre' => $this->form['nombre'],
                 'descripcion' => $this->form['descripcion'] ?: null,
                 'capacidad' => $this->form['capacidad'] !== '' ? (int) $this->form['capacidad'] : null,
+                'precio' => $this->form['precio'] !== '' ? (float) $this->form['precio'] : null,
                 'estado' => $this->form['estado'],
                 'color_calendario' => $this->form['color_calendario'] ?: null,
             ];

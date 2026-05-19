@@ -401,7 +401,7 @@
                                                         'id' => $item->id,
                                                         'codigo' => 'ESP-' . $item->id,
                                                         'nombre' => $item->nombre,
-                                                        'precio' => $item->precioReferencialPos(),
+                                                        'precio' => $item->precioPos(),
                                                         'capacidad' => $item->capacidad,
                                                     ]) }})"
                                                     class="cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 hover:border-purple-500 hover:shadow-md transition-all">
@@ -422,7 +422,7 @@
                                                         {{ $item->nombre }}
                                                     </h3>
                                                     <p class="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                                                        S/ {{ number_format($item->precioReferencialPos(), 2) }}
+                                                        S/ {{ number_format($item->precioPos(), 2) }}
                                                     </p>
                                                 </div>
                                             @endif

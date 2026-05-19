@@ -20,6 +20,7 @@ class RentableSpace extends Model
         'tipo',
         'descripcion',
         'capacidad',
+        'precio',
         'estado',
         'color_calendario',
         'sucursal_id',
@@ -29,6 +30,7 @@ class RentableSpace extends Model
     {
         return [
             'capacidad' => 'integer',
+            'precio' => 'decimal:2',
             'sucursal_id' => 'integer',
         ];
     }
@@ -62,13 +64,41 @@ class RentableSpace extends Model
         return $query->where('estado', 'activo');
     }
 
-    public function precioReferencialPos(): float
+    public function precioPos(): float
     {
-        $minRate = $this->rates()->min('precio');
-        if ($minRate !== null) {
+        if ($this->precio !== null && (float) $this->precio > 0) {
+            return (float) $this->precio;
+        }
+
+        $minRate = $this->relationLoaded('rates')
+            ? $this->rates->min('precio')
+            : $this->rates()->min('precio');
+
+        if ($minRate !== null && (float) $minRate > 0) {
             return (float) $minRate;
         }
 
-        return (float) config('pos.alquiler_precio_referencial', 20);
+        throw new \InvalidArgumentException(
+            "El espacio \"{$this->nombre}\" no tiene precio configurado. Asigne un precio al espacio en Alquileres > Espacios."
+        );
+    }
+
+    /** @deprecated Use precioPos() */
+    public function precioReferencialPos(): float
+    {
+        return $this->precioPos();
+    }
+
+    public function tienePrecioPos(): bool
+    {
+        if ($this->precio !== null && (float) $this->precio > 0) {
+            return true;
+        }
+
+        if ($this->relationLoaded('rates')) {
+            return $this->rates->contains(fn ($rate) => (float) $rate->precio > 0);
+        }
+
+        return $this->rates()->where('precio', '>', 0)->exists();
     }
 }

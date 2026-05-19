@@ -95,6 +95,7 @@ class RentableSpaceService
             'tipo' => ['nullable', 'string', 'max:40'],
             'descripcion' => ['nullable', 'string'],
             'capacidad' => ['nullable', 'integer', 'min:0'],
+            'precio' => ['nullable', 'numeric', 'min:0'],
             'estado' => ['required', 'in:activo,inactivo'],
             'color_calendario' => ['nullable', 'string', 'max:20'],
             'sucursal_id' => ['nullable', 'exists:sucursales,id'],

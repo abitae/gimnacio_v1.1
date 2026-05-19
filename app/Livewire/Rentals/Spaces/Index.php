@@ -21,6 +21,7 @@ class Index extends Component
         'nombre' => '',
         'descripcion' => '',
         'capacidad' => '',
+        'precio' => '',
         'estado' => 'activo',
         'color_calendario' => '#3B82F6',
     ];
@@ -61,6 +62,7 @@ class Index extends Component
             'nombre' => $space->nombre,
             'descripcion' => $space->descripcion ?? '',
             'capacidad' => (string) $space->capacidad,
+            'precio' => $space->precio !== null ? (string) $space->precio : '',
             'estado' => $space->estado,
             'color_calendario' => $space->color_calendario ?? '#3B82F6',
         ];
@@ -73,6 +75,7 @@ class Index extends Component
         $this->validate([
             'formData.nombre' => 'required|string|max:120',
             'formData.capacidad' => 'nullable|integer|min:0',
+            'formData.precio' => 'nullable|numeric|min:0',
             'formData.estado' => 'required|in:activo,inactivo',
         ]);
 
@@ -81,6 +84,7 @@ class Index extends Component
                 'nombre' => $this->formData['nombre'],
                 'descripcion' => $this->formData['descripcion'] ?: null,
                 'capacidad' => $this->formData['capacidad'] !== '' ? (int) $this->formData['capacidad'] : null,
+                'precio' => $this->formData['precio'] !== '' ? (float) $this->formData['precio'] : null,
                 'estado' => $this->formData['estado'],
                 'color_calendario' => $this->formData['color_calendario'] ?: null,
             ];
@@ -111,6 +115,7 @@ class Index extends Component
             'nombre' => '',
             'descripcion' => '',
             'capacidad' => '',
+            'precio' => '',
             'estado' => 'activo',
             'color_calendario' => '#3B82F6',
         ];

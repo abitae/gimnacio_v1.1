@@ -10,6 +10,7 @@
             <thead class="bg-zinc-50 dark:bg-zinc-900">
                 <tr>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Nombre</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Precio</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Capacidad</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Estado</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Acciones</th>
@@ -19,6 +20,13 @@
                 @forelse($spaces as $s)
                     <tr>
                         <td class="px-4 py-2 font-medium">{{ $s->nombre }}</td>
+                        <td class="px-4 py-2">
+                            @if($s->tienePrecioPos())
+                                S/ {{ number_format($s->precioPos(), 2) }}
+                            @else
+                                <span class="text-amber-600 dark:text-amber-400">Sin precio</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-2">{{ $s->capacidad ?? '—' }}</td>
                         <td class="px-4 py-2">
                             @can('alquiler.editar')
@@ -36,7 +44,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="4" class="px-4 py-8 text-center text-zinc-500">No hay espacios</td></tr>
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-zinc-500">No hay espacios</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -53,6 +61,14 @@
                     <flux:label>Nombre</flux:label>
                     <flux:input wire:model="formData.nombre" required />
                     @error('formData.nombre')
+                    <flux:error>{{ $message }}</flux:error>
+                    @enderror
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Precio (POS / referencia)</flux:label>
+                    <flux:input type="number" min="0" step="0.01" wire:model="formData.precio" />
+                    @error('formData.precio')
                     <flux:error>{{ $message }}</flux:error>
                     @enderror
                 </flux:field>

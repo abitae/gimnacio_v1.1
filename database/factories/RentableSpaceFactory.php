@@ -18,6 +18,7 @@ class RentableSpaceFactory extends Factory
             'nombre' => fake()->randomElement(['Cancha', 'Salón', 'Sala', 'Auditorio']).' '.fake()->unique()->numberBetween(1, 999_999_999),
             'descripcion' => fake()->sentence(),
             'capacidad' => fake()->numberBetween(4, 40),
+            'precio' => fake()->randomFloat(2, 15, 80),
             'estado' => 'activo',
             'color_calendario' => fake()->randomElement(array_keys(RentableSpace::COLORES_CALENDARIO)),
         ];
