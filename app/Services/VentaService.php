@@ -12,6 +12,7 @@ use App\Models\Core\Employee;
 use App\Models\Core\EmployeeDebt;
 use App\Models\Core\PaymentMethod;
 use App\Models\Core\Producto;
+use App\Models\Core\RentableSpace;
 use App\Models\Core\ServicioExterno;
 use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
@@ -284,6 +285,29 @@ class VentaService
                     'descuento' => $descuento,
                     'subtotal' => $subtotal,
                 ];
+            } elseif ($tipo === 'alquiler') {
+                $espacio = RentableSpace::find($id);
+                if (! $espacio) {
+                    throw new \Exception("Espacio con ID {$id} no encontrado.");
+                }
+                $this->assertSucursalMatch((int) $espacio->sucursal_id, $sucursalId, "El espacio {$espacio->nombre} no pertenece a la sucursal activa.");
+                if ($espacio->estado !== 'activo') {
+                    throw new \Exception("El espacio {$espacio->nombre} no esta activo.");
+                }
+
+                $precio = $espacio->precioReferencialPos();
+                $descuento = (float) ($item['descuento'] ?? 0);
+                $subtotal = ($precio * $cantidad) - $descuento;
+
+                $itemsValidados[] = [
+                    'tipo' => 'alquiler',
+                    'id' => $id,
+                    'nombre' => 'Alquiler: '.$espacio->nombre,
+                    'cantidad' => $cantidad,
+                    'precio' => $precio,
+                    'descuento' => $descuento,
+                    'subtotal' => $subtotal,
+                ];
             } else {
                 throw new \Exception("Tipo de item invalido: {$tipo}");
             }
@@ -346,6 +370,18 @@ class VentaService
     protected function registrarPagoEnCaja(Venta $venta, Caja $caja, ?float $monto = null): void
     {
         $monto = $monto ?? $venta->total;
+        if ($monto <= 0) {
+            return;
+        }
+
+        $venta->loadMissing('items');
+        $subtotalItems = (float) $venta->items->sum('subtotal');
+        $subtotalAlquiler = (float) $venta->items->where('tipo_item', 'alquiler')->sum('subtotal');
+        $montoAlquiler = $subtotalItems > 0
+            ? round($monto * ($subtotalAlquiler / $subtotalItems), 2)
+            : 0.0;
+        $monto = round($monto - $montoAlquiler, 2);
+
         if ($monto <= 0) {
             return;
         }

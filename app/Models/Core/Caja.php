@@ -171,7 +171,11 @@ class Caja extends Model
                 default => null,
             };
 
-            $ticketVentaId = $referencia instanceof Venta ? $referencia->id : null;
+            $ticketVentaId = match (true) {
+                $referencia instanceof Venta => $referencia->id,
+                $referencia instanceof RentalPayment => self::ventaIdDesdePagoAlquiler($referencia),
+                default => null,
+            };
 
             return [
                 'id' => $movimiento->id,
@@ -211,5 +215,18 @@ class Caja extends Model
                 },
             ];
         })->values()->all();
+    }
+
+    protected static function ventaIdDesdePagoAlquiler(RentalPayment $payment): ?int
+    {
+        $observaciones = $payment->relationLoaded('rental')
+            ? $payment->rental?->observaciones
+            : $payment->rental()->value('observaciones');
+
+        if (! is_string($observaciones) || ! preg_match('/#(\d+)\s*$/', $observaciones, $matches)) {
+            return null;
+        }
+
+        return (int) $matches[1];
     }
 }

@@ -239,6 +239,7 @@
                 <flux:radio.group wire:model.live="tipoItem" variant="segmented">
                     <flux:radio value="producto" label="Productos" icon="cube" />
                     <flux:radio value="servicio" label="Servicios" icon="wrench-screwdriver" />
+                    <flux:radio value="alquiler" label="Alquileres" icon="building-office-2" />
                 </flux:radio.group>
                 
                 <div class="flex gap-2">
@@ -246,11 +247,12 @@
                         <flux:input 
                             type="text" 
                             wire:model.live.debounce.300ms="busqueda" 
-                            :placeholder="$tipoItem === 'producto' ? 'Buscar productos...' : 'Buscar servicios...'" 
+                            :placeholder="$tipoItem === 'producto' ? 'Buscar productos...' : ($tipoItem === 'servicio' ? 'Buscar servicios...' : 'Buscar espacios...')" 
                             icon="magnifying-glass"
                             class="w-full"
                         />
                     </div>
+                    @if ($tipoItem !== 'alquiler')
                     <select wire:model.live="categoriaFiltro"
                         class="rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
                         <option value="">Todas las categorías</option>
@@ -258,6 +260,7 @@
                             <option value="{{ $categoria->id }}">{{ $categoria->nombre }}</option>
                         @endforeach
                     </select>
+                    @endif
                 </div>
             </div>
 
@@ -273,9 +276,11 @@
                                     @if (isset($item['imagen']) && $item['imagen'])
                                         <img src="{{ Storage::url($item['imagen']) }}" alt="{{ $item['nombre'] }}" class="w-full h-32 object-cover rounded mb-2">
                                     @else
-                                        <div class="w-full h-32 {{ $item['tipo'] === 'servicio' ? 'bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20' : 'bg-zinc-200 dark:bg-zinc-700' }} rounded mb-2 flex items-center justify-center">
+                                        <div class="w-full h-32 {{ $item['tipo'] === 'servicio' ? 'bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20' : ($item['tipo'] === 'alquiler' ? 'bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20' : 'bg-zinc-200 dark:bg-zinc-700') }} rounded mb-2 flex items-center justify-center">
                                             @if ($item['tipo'] === 'servicio')
                                                 <flux:icon name="wrench-screwdriver" class="h-8 w-8 text-blue-600 dark:text-blue-400" />
+                                            @elseif ($item['tipo'] === 'alquiler')
+                                                <flux:icon name="building-office-2" class="h-8 w-8 text-amber-600 dark:text-amber-400" />
                                             @else
                                                 <flux:icon name="cube" class="h-8 w-8 text-zinc-400" />
                                             @endif
@@ -292,6 +297,10 @@
                                         @elseif (isset($item['duracion_minutos']) && $item['duracion_minutos'])
                                             <span class="text-xs text-zinc-500 dark:text-zinc-400">
                                                 {{ $item['duracion_minutos'] }} min
+                                            </span>
+                                        @elseif (isset($item['capacidad']) && $item['capacidad'])
+                                            <span class="text-xs text-zinc-500 dark:text-zinc-400">
+                                                Cap. {{ $item['capacidad'] }}
                                             </span>
                                         @endif
                                     </div>
@@ -354,7 +363,7 @@
                                                         S/ {{ number_format($item->precio_venta, 2) }}
                                                     </p>
                                                 </div>
-                                            @else
+                                            @elseif ($tipoItem === 'servicio')
                                                 <div 
                                                     wire:click="agregarAlCarrito({{ json_encode([
                                                         'tipo' => 'servicio',
@@ -385,6 +394,37 @@
                                                         S/ {{ number_format($item->precio, 2) }}
                                                     </p>
                                                 </div>
+                                            @else
+                                                <div 
+                                                    wire:click="agregarAlCarrito({{ json_encode([
+                                                        'tipo' => 'alquiler',
+                                                        'id' => $item->id,
+                                                        'codigo' => 'ESP-' . $item->id,
+                                                        'nombre' => $item->nombre,
+                                                        'precio' => $item->precioReferencialPos(),
+                                                        'capacidad' => $item->capacidad,
+                                                    ]) }})"
+                                                    class="cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 hover:border-purple-500 hover:shadow-md transition-all">
+                                                    <div class="w-full h-32 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20 rounded mb-2 flex items-center justify-center">
+                                                        <flux:icon name="building-office-2" class="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                                                    </div>
+                                                    <div class="flex items-start justify-between mb-1">
+                                                        <span class="text-xs font-medium text-purple-600 dark:text-purple-400">
+                                                            ESP-{{ $item->id }}
+                                                        </span>
+                                                        @if ($item->capacidad)
+                                                            <span class="text-xs text-zinc-500 dark:text-zinc-400">
+                                                                Cap. {{ $item->capacidad }}
+                                                            </span>
+                                                        @endif
+                                                    </div>
+                                                    <h3 class="font-semibold text-sm text-zinc-900 dark:text-zinc-100 mb-2">
+                                                        {{ $item->nombre }}
+                                                    </h3>
+                                                    <p class="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                                                        S/ {{ number_format($item->precioReferencialPos(), 2) }}
+                                                    </p>
+                                                </div>
                                             @endif
                                         @endforeach
                                     </div>
@@ -395,10 +435,14 @@
                         <div class="flex items-center justify-center h-full">
                             <div class="text-center">
                                 <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-2">
-                                    No hay {{ $tipoItem === 'producto' ? 'productos' : 'servicios' }} disponibles
+                                    No hay {{ $tipoItem === 'producto' ? 'productos' : ($tipoItem === 'servicio' ? 'servicios' : 'espacios') }} disponibles
                                 </p>
                                 <p class="text-xs text-zinc-400 dark:text-zinc-500">
-                                    Busca {{ $tipoItem === 'producto' ? 'productos' : 'servicios' }} o selecciona una categoría
+                                    @if ($tipoItem === 'alquiler')
+                                        Busca espacios para alquilar
+                                    @else
+                                        Busca {{ $tipoItem === 'producto' ? 'productos' : 'servicios' }} o selecciona una categoría
+                                    @endif
                                 </p>
                             </div>
                         </div>
@@ -675,62 +719,28 @@
                 </div>
             @endif
 
+            @if ($this->carritoTieneAlquiler)
+                <div class="rounded-lg border border-amber-200 bg-amber-50/80 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+                    <p class="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">Datos del alquiler</p>
+                    <p class="mb-3 text-xs text-amber-800/90 dark:text-amber-300/90">Se creará una reserva en el calendario. Requiere cliente del gimnasio.</p>
+                    <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                        <flux:input type="date" wire:model="alquilerFecha" label="Fecha" />
+                        <flux:input type="time" wire:model="alquilerHoraInicio" label="Hora inicio" />
+                        <flux:input type="time" wire:model="alquilerHoraFin" label="Hora fin" />
+                    </div>
+                </div>
+            @endif
+
             <div class="flex justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700">
                 <flux:button variant="ghost" wire:click="cerrarModalProcesarVenta">Cancelar</flux:button>
-                <flux:button variant="primary" color="purple" wire:click="abrirModalConfirmacionVenta">
-                    Siguiente
+                <flux:button variant="primary" color="purple" wire:click="procesarVenta" wire:loading.attr="disabled" wire:target="procesarVenta">
+                    <span wire:loading.remove wire:target="procesarVenta">Procesar venta</span>
+                    <span wire:loading wire:target="procesarVenta">Procesando...</span>
                 </flux:button>
             </div>
         </div>
     </flux:modal>
 
-    <!-- Modal Confirmación de venta (resumen antes de confirmar) -->
-    <flux:modal name="confirmacion-venta-modal" wire:model="mostrarModalConfirmacionVenta" focusable  class="md:w-lg">
-        <div class="p-4">
-            <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100 mb-4">Confirmar venta</h2>
-            <div class="space-y-3 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-900 p-4 text-sm">
-                <div class="flex justify-between">
-                    <span class="text-zinc-600 dark:text-zinc-400">Comprador:</span>
-                    <span class="font-medium text-zinc-900 dark:text-zinc-100">
-                        @if($tipoComprador === 'cliente' && $clienteSeleccionado)
-                            {{ $clienteSeleccionado->nombres }} {{ $clienteSeleccionado->apellidos }}
-                        @elseif($tipoComprador === 'empleado' && $employeeSeleccionado)
-                            {{ $employeeSeleccionado->nombre_completo }}
-                        @elseif($tipoComprador === 'cliente_solo_venta')
-                            {{ $this->clienteSoloVentaNombreParaVenta() }} · {{ $this->clienteSoloVentaDocumentoParaVenta() }}
-                        @else
-                            —
-                        @endif
-                    </span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-zinc-600 dark:text-zinc-400">Comprobante:</span>
-                    <span class="font-medium text-zinc-900 dark:text-zinc-100">Ticket</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-zinc-600 dark:text-zinc-400">Método de pago:</span>
-                    <span class="font-medium text-zinc-900 dark:text-zinc-100">{{ $selectedPaymentMethod?->nombre ?? '—' }}</span>
-                </div>
-                @if($esCredito)
-                    <div class="flex justify-between">
-                        <span class="text-zinc-600 dark:text-zinc-400">Venta a crédito:</span>
-                        <span class="font-medium text-amber-600 dark:text-amber-400">S/ {{ number_format($montoInicial, 2) }} inicial · vence {{ $fechaVencimientoDeuda ? \Carbon\Carbon::parse($fechaVencimientoDeuda)->format('d/m/Y') : '—' }}</span>
-                    </div>
-                @endif
-                <div class="flex justify-between pt-2 border-t border-zinc-200 dark:border-zinc-700">
-                    <span class="font-semibold text-zinc-900 dark:text-zinc-100">Total:</span>
-                    <span class="font-bold text-purple-600 dark:text-purple-400">S/ {{ number_format($this->total, 2) }}</span>
-                </div>
-            </div>
-            <div class="mt-4 flex justify-end gap-2">
-                <flux:button variant="ghost" wire:click="cerrarModalConfirmacionVenta">Volver</flux:button>
-                <flux:button variant="primary" color="purple" wire:click="confirmarYProcesarVenta" wire:loading.attr="disabled" wire:target="confirmarYProcesarVenta">
-                    <span wire:loading.remove wire:target="confirmarYProcesarVenta">Confirmar venta</span>
-                    <span wire:loading wire:target="confirmarYProcesarVenta">Procesando...</span>
-                </flux:button>
-            </div>
-        </div>
-    </flux:modal>
 
     <flux:modal name="ticket-pago-cobro-modal" wire:model="mostrarModalTicketPagoCobro" focusable class="md:max-w-4xl">
         <div class="flex flex-col p-4">

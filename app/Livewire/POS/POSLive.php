@@ -6,6 +6,7 @@ use App\Livewire\Concerns\FlashesToast;
 use App\Models\Core\Cliente;
 use App\Models\Core\PaymentMethod;
 use App\Models\Core\Producto;
+use App\Models\Core\RentableSpace;
 use App\Models\Core\ServicioExterno;
 use App\Services\CajaService;
 use App\Services\ClientDebtService;
@@ -14,12 +15,14 @@ use App\Services\ClienteMembresiaService;
 use App\Services\ClienteService;
 use App\Services\DailyOperationsDebtService;
 use App\Services\EnrollmentInstallmentService;
+use App\Services\PosAlquilerReservaService;
 use App\Services\ProductoService;
 use App\Services\ServicioExternoService;
 use App\Services\SucursalContext;
 use App\Services\VentaService;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class POSLive extends Component
@@ -33,7 +36,7 @@ class POSLive extends Component
 
     public $categoriaFiltro = '';
 
-    public $tipoItem = 'producto'; // 'producto' o 'servicio'
+    public $tipoItem = 'producto'; // 'producto', 'servicio' o 'alquiler'
 
     // Carrito
     public $carrito = [];
@@ -96,12 +99,16 @@ class POSLive extends Component
 
     public $fechaVencimientoDeuda = '';
 
+    public $alquilerFecha = '';
+
+    public $alquilerHoraInicio = '09:00';
+
+    public $alquilerHoraFin = '10:00';
+
     // Estado modales
     public $mostrarModalCliente = false;
 
     public $mostrarModalProcesarVenta = false;
-
-    public $mostrarModalConfirmacionVenta = false; // resumen antes de confirmar
 
     public $mostrarModalConfirmacion = false; // post-venta (legacy)
 
@@ -166,6 +173,8 @@ class POSLive extends Component
 
     protected ClientDebtService $clientDebtService;
 
+    protected PosAlquilerReservaService $posAlquilerReservaService;
+
     public function boot(
         CajaService $cajaService,
         ProductoService $productoService,
@@ -176,7 +185,8 @@ class POSLive extends Component
         ClienteMembresiaService $clienteMembresiaService,
         EnrollmentInstallmentService $enrollmentInstallmentService,
         DailyOperationsDebtService $dailyOperationsDebtService,
-        ClientDebtService $clientDebtService
+        ClientDebtService $clientDebtService,
+        PosAlquilerReservaService $posAlquilerReservaService
     ) {
         $this->cajaService = $cajaService;
         $this->productoService = $productoService;
@@ -188,6 +198,14 @@ class POSLive extends Component
         $this->enrollmentInstallmentService = $enrollmentInstallmentService;
         $this->dailyOperationsDebtService = $dailyOperationsDebtService;
         $this->clientDebtService = $clientDebtService;
+        $this->posAlquilerReservaService = $posAlquilerReservaService;
+    }
+
+    public function getCarritoTieneAlquilerProperty(): bool
+    {
+        return collect($this->carrito)->contains(
+            fn (array $item) => ($item['tipo'] ?? '') === 'alquiler'
+        );
     }
 
     public function mount()
@@ -196,6 +214,7 @@ class POSLive extends Component
         $this->clientesCobro = collect([]);
         $this->clientesProcesar = collect([]);
         $this->employeesProcesar = collect([]);
+        $this->alquilerFecha = now()->format('Y-m-d');
         $efectivo = PaymentMethod::activos()->where('nombre', 'Efectivo')->first();
         $this->paymentMethodId = $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id;
         // Validar que haya caja abierta
@@ -266,7 +285,7 @@ class POSLive extends Component
                     'imagen' => $producto->imagen,
                 ];
             }
-        } else {
+        } elseif ($this->tipoItem === 'servicio') {
             $servicios = $this->servicioExternoService->buscarParaPOS($this->busqueda);
 
             foreach ($servicios as $servicio) {
@@ -279,7 +298,44 @@ class POSLive extends Component
                     'duracion_minutos' => $servicio->duracion_minutos,
                 ];
             }
+        } else {
+            $term = '%'.$this->busqueda.'%';
+            $espacios = RentableSpace::activos()
+                ->where(function ($q) use ($term) {
+                    $q->where('nombre', 'like', $term)
+                        ->orWhere('descripcion', 'like', $term);
+                })
+                ->orderBy('nombre')
+                ->limit(40)
+                ->get();
+
+            foreach ($espacios as $espacio) {
+                $this->resultadosBusqueda[] = $this->itemAlquilerDesdeEspacio($espacio);
+            }
         }
+    }
+
+    protected function itemAlquilerDesdeEspacio(RentableSpace $espacio): array
+    {
+        return [
+            'tipo' => 'alquiler',
+            'id' => $espacio->id,
+            'codigo' => 'ESP-'.$espacio->id,
+            'nombre' => $espacio->nombre,
+            'precio' => $espacio->precioReferencialPos(),
+            'capacidad' => $espacio->capacidad,
+        ];
+    }
+
+    public function obtenerEspaciosParaPOS()
+    {
+        $espacios = RentableSpace::activos()->orderBy('nombre')->get();
+
+        if ($espacios->isEmpty()) {
+            return collect();
+        }
+
+        return collect(['Espacios' => $espacios]);
     }
 
     /**
@@ -462,53 +518,66 @@ class POSLive extends Component
         $this->mostrarModalProcesarVenta = false;
     }
 
-    /**
-     * Validar datos del modal Procesar venta y abrir modal Confirmación (resumen)
-     */
-    public function abrirModalConfirmacionVenta()
+    protected function validarDatosProcesarVenta(): bool
     {
+        if ($this->carritoTieneAlquiler) {
+            if ($this->tipoComprador !== 'cliente' || ! $this->clienteId) {
+                $this->flashToast('error', 'Los alquileres requieren seleccionar un cliente del gimnasio.');
+
+                return false;
+            }
+            if ($this->esCredito) {
+                $this->flashToast('error', 'No se puede vender alquileres a crédito desde el POS.');
+
+                return false;
+            }
+            if (empty($this->alquilerFecha) || empty($this->alquilerHoraInicio) || empty($this->alquilerHoraFin)) {
+                $this->flashToast('error', 'Indique fecha y horario del alquiler.');
+
+                return false;
+            }
+            if ($this->alquilerHoraFin <= $this->alquilerHoraInicio) {
+                $this->flashToast('error', 'La hora de fin debe ser posterior a la hora de inicio.');
+
+                return false;
+            }
+        }
+
         if ($this->tipoComprador === 'cliente' && ! $this->clienteId) {
             $this->flashToast('error', 'Seleccione un cliente del gimnasio.');
 
-            return;
+            return false;
         }
         if ($this->tipoComprador === 'empleado' && ! $this->employeeId) {
             $this->flashToast('error', 'Seleccione un empleado.');
 
-            return;
+            return false;
         }
         if (! $this->paymentMethodId) {
             $this->flashToast('error', 'Seleccione un método de pago.');
 
-            return;
+            return false;
         }
         $paymentMethod = PaymentMethod::find($this->paymentMethodId);
         if ($paymentMethod && $paymentMethod->requiere_numero_operacion && empty(trim((string) $this->numeroOperacion))) {
             $this->flashToast('error', 'Este método de pago requiere número de operación.');
 
-            return;
+            return false;
         }
         if ($paymentMethod && $paymentMethod->requiere_entidad && empty(trim((string) $this->entidadFinanciera))) {
             $this->flashToast('error', 'Este método de pago requiere entidad financiera.');
 
-            return;
+            return false;
         }
         if ($this->esCredito && ($this->tipoComprador === 'cliente' || $this->tipoComprador === 'empleado')) {
             if (empty($this->fechaVencimientoDeuda)) {
                 $this->flashToast('error', 'Indique la fecha de vencimiento de la deuda.');
 
-                return;
+                return false;
             }
         }
-        $this->mostrarModalConfirmacionVenta = true;
-    }
 
-    /**
-     * Cerrar modal Confirmación (volver al modal Procesar venta)
-     */
-    public function cerrarModalConfirmacionVenta()
-    {
-        $this->mostrarModalConfirmacionVenta = false;
+        return true;
     }
 
     /**
@@ -594,13 +663,17 @@ class POSLive extends Component
     }
 
     /**
-     * Procesar venta (llamado desde modal Confirmación; ejecuta la venta y abre comprobante en nueva pestaña)
+     * Procesar venta desde el modal Procesar venta (ticket + reservas de alquiler si aplica).
      */
-    public function confirmarYProcesarVenta()
+    public function procesarVenta()
     {
         if (empty($this->carrito)) {
             $this->flashToast('error', 'El carrito está vacío.');
 
+            return;
+        }
+
+        if (! $this->validarDatosProcesarVenta()) {
             return;
         }
 
@@ -615,28 +688,42 @@ class POSLive extends Component
                 ];
             }
 
-            $venta = $this->ventaService->procesarVenta([
-                'tipo_comprador' => $this->tipoComprador,
-                'cliente_id' => $this->tipoComprador === 'cliente' ? $this->clienteId : null,
-                'employee_id' => $this->tipoComprador === 'empleado' ? $this->employeeId : null,
-                'cliente_venta_nombre' => $this->tipoComprador === 'cliente_solo_venta' ? $this->clienteSoloVentaNombreParaVenta() : null,
-                'cliente_venta_documento' => $this->tipoComprador === 'cliente_solo_venta' ? $this->clienteSoloVentaDocumentoParaVenta() : null,
-                'cliente_venta_telefono' => $this->tipoComprador === 'cliente_solo_venta' ? trim((string) $this->clienteSoloVentaTelefono) : null,
-                'tipo_comprobante' => 'ticket',
-                'payment_method_id' => $this->paymentMethodId,
-                'numero_operacion' => trim((string) $this->numeroOperacion) ?: null,
-                'entidad_financiera' => trim((string) $this->entidadFinanciera) ?: null,
-                'es_credito' => $this->esCredito && ($this->clienteId || $this->employeeId),
-                'monto_inicial' => $this->esCredito ? (float) $this->montoInicial : 0,
-                'fecha_vencimiento_deuda' => $this->esCredito && $this->fechaVencimientoDeuda ? $this->fechaVencimientoDeuda : null,
-                'descuento' => $this->descuento,
-                'discount_coupon_id' => $this->cuponAplicado,
-                'monto_descuento_cupon' => (float) $this->montoDescuentoCupon,
-                'observaciones' => $this->observaciones,
-                'items' => $items,
-            ]);
+            $carritoSnapshot = $this->carrito;
+            $tieneAlquiler = $this->carritoTieneAlquiler;
 
-            $this->mostrarModalConfirmacionVenta = false;
+            $venta = DB::transaction(function () use ($items, $carritoSnapshot, $tieneAlquiler) {
+                $venta = $this->ventaService->procesarVenta([
+                    'tipo_comprador' => $this->tipoComprador,
+                    'cliente_id' => $this->tipoComprador === 'cliente' ? $this->clienteId : null,
+                    'employee_id' => $this->tipoComprador === 'empleado' ? $this->employeeId : null,
+                    'cliente_venta_nombre' => $this->tipoComprador === 'cliente_solo_venta' ? $this->clienteSoloVentaNombreParaVenta() : null,
+                    'cliente_venta_documento' => $this->tipoComprador === 'cliente_solo_venta' ? $this->clienteSoloVentaDocumentoParaVenta() : null,
+                    'cliente_venta_telefono' => $this->tipoComprador === 'cliente_solo_venta' ? trim((string) $this->clienteSoloVentaTelefono) : null,
+                    'tipo_comprobante' => 'ticket',
+                    'payment_method_id' => $this->paymentMethodId,
+                    'numero_operacion' => trim((string) $this->numeroOperacion) ?: null,
+                    'entidad_financiera' => trim((string) $this->entidadFinanciera) ?: null,
+                    'es_credito' => $this->esCredito && ($this->clienteId || $this->employeeId),
+                    'monto_inicial' => $this->esCredito ? (float) $this->montoInicial : 0,
+                    'fecha_vencimiento_deuda' => $this->esCredito && $this->fechaVencimientoDeuda ? $this->fechaVencimientoDeuda : null,
+                    'descuento' => $this->descuento,
+                    'discount_coupon_id' => $this->cuponAplicado,
+                    'monto_descuento_cupon' => (float) $this->montoDescuentoCupon,
+                    'observaciones' => $this->observaciones,
+                    'items' => $items,
+                ]);
+
+                if ($tieneAlquiler) {
+                    $this->posAlquilerReservaService->crearDesdeVenta($venta, $carritoSnapshot, [
+                        'fecha' => $this->alquilerFecha,
+                        'hora_inicio' => $this->alquilerHoraInicio,
+                        'hora_fin' => $this->alquilerHoraFin,
+                    ]);
+                }
+
+                return $venta;
+            });
+
             $this->mostrarModalProcesarVenta = false;
             $this->limpiarCarrito();
             $this->resetearDatosModalVenta();
@@ -688,6 +775,9 @@ class POSLive extends Component
         $this->numeroOperacion = '';
         $this->entidadFinanciera = '';
         $this->tipoComprobante = 'ticket';
+        $this->alquilerFecha = now()->format('Y-m-d');
+        $this->alquilerHoraInicio = '09:00';
+        $this->alquilerHoraFin = '10:00';
     }
 
     /**
@@ -985,7 +1075,7 @@ class POSLive extends Component
                     ->get()
             );
             $itemsPorCategoria = $this->obtenerProductosPorCategoria();
-        } else {
+        } elseif ($this->tipoItem === 'servicio') {
             $categorias = Cache::remember(
                 "pos.categorias_servicio.{$sucursalId}",
                 $catalogTtl,
@@ -994,6 +1084,9 @@ class POSLive extends Component
                     ->get()
             );
             $itemsPorCategoria = $this->obtenerServiciosPorCategoria();
+        } else {
+            $categorias = collect();
+            $itemsPorCategoria = $this->obtenerEspaciosParaPOS();
         }
 
         // Clientes con deuda: caché breve + tope para no evaluar deuda_total en exceso

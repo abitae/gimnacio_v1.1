@@ -20,11 +20,11 @@
         <img src="{{ $appBrandLogoUrl }}" alt="{{ $appBrandName ?? config('app.name') }}" class="brand-logo">
     @endif
     <p class="text-center font-bold" style="font-size: 10pt; margin-bottom: 2px;">{{ $appBrandName ?? config('app.name') }}</p>
-    <p class="text-center muted" style="margin-bottom: 6px;">
+    <p class="text-center muted" style="margin-bottom: 6px; font-size: 8pt;">
         {{ $venta->sucursal?->nombre ?? $venta->caja?->sucursal?->nombre ?? 'Sucursal principal' }}
     </p>
     <p class="text-center font-bold" style="font-size: 9pt; margin-bottom: 4px;">TICKET DE VENTA</p>
-    <p class="text-center muted" style="margin-bottom: 6px;">
+    <p class="text-center muted" style="margin-bottom: 6px; font-size: 8pt;">
         {{ $venta->serie_comprobante }}-{{ $venta->numero_comprobante }} · {{ $venta->numero_venta }} · {{ $venta->fecha_venta?->format('d/m/Y H:i') }}
     </p>
     <div class="line"></div>

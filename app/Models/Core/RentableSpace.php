@@ -61,4 +61,14 @@ class RentableSpace extends Model
     {
         return $query->where('estado', 'activo');
     }
+
+    public function precioReferencialPos(): float
+    {
+        $minRate = $this->rates()->min('precio');
+        if ($minRate !== null) {
+            return (float) $minRate;
+        }
+
+        return (float) config('pos.alquiler_precio_referencial', 20);
+    }
 }
