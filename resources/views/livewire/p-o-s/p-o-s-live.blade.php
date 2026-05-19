@@ -45,7 +45,7 @@
                         Volver a ventas
                     </flux:button>
                 @endif
-                @if ($this->cajaService->validarCajaAbierta(auth()->id()))
+                @if ($cajaAbierta)
                     <span class="inline-flex rounded-full px-2 py-1 text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
                         Caja Abierta
                     </span>
@@ -331,15 +331,7 @@
                                         @foreach ($items as $item)
                                             @if ($tipoItem === 'producto')
                                                 <div 
-                                                    wire:click="agregarAlCarrito({{ json_encode([
-                                                        'tipo' => 'producto',
-                                                        'id' => $item->id,
-                                                        'codigo' => $item->codigo,
-                                                        'nombre' => $item->nombre,
-                                                        'precio' => $item->precio_venta,
-                                                        'stock' => $item->stock_actual,
-                                                        'imagen' => $item->imagen,
-                                                    ]) }})"
+                                                    wire:click="agregarAlCarritoPorTipo('producto', {{ $item->id }})"
                                                     class="cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 hover:border-purple-500 hover:shadow-md transition-all">
                                                     @if ($item->imagen)
                                                         <img src="{{ Storage::url($item->imagen) }}" alt="{{ $item->nombre }}" class="w-full h-32 object-cover rounded mb-2">
@@ -365,14 +357,7 @@
                                                 </div>
                                             @elseif ($tipoItem === 'servicio')
                                                 <div 
-                                                    wire:click="agregarAlCarrito({{ json_encode([
-                                                        'tipo' => 'servicio',
-                                                        'id' => $item->id,
-                                                        'codigo' => $item->codigo,
-                                                        'nombre' => $item->nombre,
-                                                        'precio' => $item->precio,
-                                                        'duracion_minutos' => $item->duracion_minutos,
-                                                    ]) }})"
+                                                    wire:click="agregarAlCarritoPorTipo('servicio', {{ $item->id }})"
                                                     class="cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 hover:border-purple-500 hover:shadow-md transition-all">
                                                     <div class="w-full h-32 bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/20 dark:to-indigo-900/20 rounded mb-2 flex items-center justify-center">
                                                         <flux:icon name="wrench-screwdriver" class="h-8 w-8 text-blue-600 dark:text-blue-400" />
@@ -396,14 +381,7 @@
                                                 </div>
                                             @else
                                                 <div 
-                                                    wire:click="agregarAlCarrito({{ json_encode([
-                                                        'tipo' => 'alquiler',
-                                                        'id' => $item->id,
-                                                        'codigo' => 'ESP-' . $item->id,
-                                                        'nombre' => $item->nombre,
-                                                        'precio' => $item->precioPos(),
-                                                        'capacidad' => $item->capacidad,
-                                                    ]) }})"
+                                                    wire:click="agregarAlCarritoPorTipo('alquiler', {{ $item->id }})"
                                                     class="cursor-pointer rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 p-3 hover:border-purple-500 hover:shadow-md transition-all">
                                                     <div class="w-full h-32 bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20 rounded mb-2 flex items-center justify-center">
                                                         <flux:icon name="building-office-2" class="h-8 w-8 text-amber-600 dark:text-amber-400" />
@@ -422,7 +400,7 @@
                                                         {{ $item->nombre }}
                                                     </h3>
                                                     <p class="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                                                        S/ {{ number_format($item->precioPos(), 2) }}
+                                                        S/ {{ number_format($item->precio_pos ?? $item->precioPos(), 2) }}
                                                     </p>
                                                 </div>
                                             @endif
@@ -573,20 +551,48 @@
 
     <!-- Modal Procesar venta (paso 2: cliente, cupón, comprobante, pago) -->
     <flux:modal name="procesar-venta-modal" wire:model="mostrarModalProcesarVenta" focusable  class="md:w-xl">
-        <div class="p-4 space-y-4">
+        <div
+            wire:key="procesar-venta-modal-{{ $modalProcesarVentaKey }}"
+            class="p-4 space-y-4"
+            x-data="{
+                compradorTab: 'cliente',
+                clienteId: @entangle('clienteId'),
+                employeeId: @entangle('employeeId'),
+                setCompradorTab(tab) {
+                    this.compradorTab = tab;
+                    if (tab === 'cliente_solo_venta') {
+                        $wire.set('esCredito', false);
+                    }
+                }
+            }">
             <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Procesar venta</h2>
 
-            <!-- Tipo de comprador -->
+            <!-- Tipo de comprador (Alpine: sin round-trip al cambiar pestaña) -->
             <div>
                 <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2 block">Comprador</label>
-                <flux:radio.group wire:model.live="tipoComprador" variant="segmented">
-                    <flux:radio value="cliente" label="Cliente gimnasio" />
-                    <flux:radio value="empleado" label="Empleado" />
-                    <flux:radio value="cliente_solo_venta" label="Cliente solo venta" />
-                </flux:radio.group>
+                <div class="inline-flex w-full rounded-lg border border-zinc-200 bg-zinc-100 p-0.5 dark:border-zinc-600 dark:bg-zinc-800" role="tablist">
+                    <button type="button" role="tab"
+                        @click="setCompradorTab('cliente')"
+                        :class="compradorTab === 'cliente' ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'"
+                        class="flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:text-sm">
+                        Cliente gimnasio
+                    </button>
+                    <button type="button" role="tab"
+                        @click="setCompradorTab('empleado')"
+                        :class="compradorTab === 'empleado' ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'"
+                        class="flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:text-sm">
+                        Empleado
+                    </button>
+                    <button type="button" role="tab"
+                        @click="setCompradorTab('cliente_solo_venta')"
+                        :class="compradorTab === 'cliente_solo_venta' ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-700 dark:text-zinc-100' : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'"
+                        class="flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors sm:text-sm">
+                        Cliente solo venta
+                    </button>
+                </div>
             </div>
 
-            @if ($tipoComprador === 'cliente')
+            <div x-show="compradorTab === 'cliente'" x-cloak>
                 <div>
                     <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Cliente</label>
                     @if ($clienteSeleccionado)
@@ -620,9 +626,9 @@
                         </div>
                     @endif
                 </div>
-            @endif
+            </div>
 
-            @if ($tipoComprador === 'empleado')
+            <div x-show="compradorTab === 'empleado'" x-cloak>
                 <div>
                     <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Empleado</label>
                     @if ($employeeSeleccionado)
@@ -656,15 +662,15 @@
                         </div>
                     @endif
                 </div>
-            @endif
+            </div>
 
-            @if ($tipoComprador === 'cliente_solo_venta')
+            <div x-show="compradorTab === 'cliente_solo_venta'" x-cloak>
                 <div class="grid grid-cols-1 gap-2">
                     <flux:input wire:model="clienteSoloVentaNombre" label="Nombre completo" placeholder="ninguno" />
                     <flux:input wire:model="clienteSoloVentaDocumento" label="Documento" placeholder="00000000" />
                     <flux:input wire:model="clienteSoloVentaTelefono" label="Teléfono (opcional)" placeholder="Opcional" />
                 </div>
-            @endif
+            </div>
 
             <!-- Cupón -->
             <div class="flex justify-between items-center gap-2">
@@ -703,9 +709,11 @@
                 <flux:input wire:model="entidadFinanciera" label="Entidad financiera" placeholder="Obligatorio" />
             @endif
 
-            <!-- Venta a crédito (solo cliente o empleado) -->
-            @if(($tipoComprador === 'cliente' && $clienteId) || ($tipoComprador === 'empleado' && $employeeId))
-                <div class="border-t border-zinc-200 dark:border-zinc-700 pt-3">
+            <!-- Venta a crédito (solo cliente o empleado con selección) -->
+            <div
+                x-show="(compradorTab === 'cliente' && clienteId) || (compradorTab === 'empleado' && employeeId)"
+                x-cloak
+                class="border-t border-zinc-200 dark:border-zinc-700 pt-3">
                     <div class="flex items-center gap-2 mb-2">
                         <flux:checkbox wire:model.live="esCredito" id="pos-es-credito" />
                         <label for="pos-es-credito" class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Venta a crédito</label>
@@ -716,13 +724,12 @@
                             <flux:input type="date" wire:model="fechaVencimientoDeuda" label="Vencimiento deuda" />
                         </div>
                     @endif
-                </div>
-            @endif
+            </div>
 
             @if ($this->carritoTieneAlquiler)
                 <div class="rounded-lg border border-amber-200 bg-amber-50/80 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
                     <p class="mb-2 text-sm font-semibold text-amber-900 dark:text-amber-200">Datos del alquiler</p>
-                    <p class="mb-3 text-xs text-amber-800/90 dark:text-amber-300/90">Se creará una reserva en el calendario. Requiere cliente del gimnasio.</p>
+                    <p class="mb-3 text-xs text-amber-800/90 dark:text-amber-300/90">Se creará una reserva en el calendario con los datos del comprador.</p>
                     <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
                         <flux:input type="date" wire:model="alquilerFecha" label="Fecha" />
                         <flux:input type="time" wire:model="alquilerHoraInicio" label="Hora inicio" />
@@ -733,7 +740,7 @@
 
             <div class="flex justify-end gap-2 pt-2 border-t border-zinc-200 dark:border-zinc-700">
                 <flux:button variant="ghost" wire:click="cerrarModalProcesarVenta">Cancelar</flux:button>
-                <flux:button variant="primary" color="purple" wire:click="procesarVenta" wire:loading.attr="disabled" wire:target="procesarVenta">
+                <flux:button variant="primary" color="purple" @click="$wire.procesarVenta(compradorTab)" wire:loading.attr="disabled" wire:target="procesarVenta">
                     <span wire:loading.remove wire:target="procesarVenta">Procesar venta</span>
                     <span wire:loading wire:target="procesarVenta">Procesando...</span>
                 </flux:button>

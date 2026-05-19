@@ -110,6 +110,10 @@ class POSLive extends Component
 
     public $mostrarModalProcesarVenta = false;
 
+    public int $modalProcesarVentaKey = 0;
+
+    public bool $cajaAbierta = false;
+
     public $mostrarModalConfirmacion = false; // post-venta (legacy)
 
     public $ventaProcesada = null;
@@ -214,6 +218,7 @@ class POSLive extends Component
         $this->clientesCobro = collect([]);
         $this->clientesProcesar = collect([]);
         $this->employeesProcesar = collect([]);
+        $this->refrescarEstadoCaja();
         $this->alquilerFecha = now()->format('Y-m-d');
         $efectivo = PaymentMethod::activos()->where('nombre', 'Efectivo')->first();
         $this->paymentMethodId = $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id;
@@ -251,9 +256,20 @@ class POSLive extends Component
         $this->employeeSeleccionado = $value ? \App\Models\Core\Employee::find($value) : null;
     }
 
-    public function updatedTipoComprador($value)
+    protected function refrescarEstadoCaja(): void
     {
-        if ($value === 'cliente_solo_venta') {
+        $this->cajaAbierta = $this->cajaService->validarCajaAbierta(auth()->id());
+    }
+
+    protected function aplicarTipoComprador(string $tab): void
+    {
+        if (! in_array($tab, ['cliente', 'empleado', 'cliente_solo_venta'], true)) {
+            $tab = 'cliente';
+        }
+
+        $this->tipoComprador = $tab;
+
+        if ($tab === 'cliente_solo_venta') {
             $this->esCredito = false;
         }
     }
@@ -335,13 +351,49 @@ class POSLive extends Component
             ->with('rates')
             ->orderBy('nombre')
             ->get()
-            ->filter(fn (RentableSpace $espacio) => $espacio->tienePrecioPos());
+            ->filter(fn (RentableSpace $espacio) => $espacio->tienePrecioPos())
+            ->map(function (RentableSpace $espacio) {
+                $espacio->setAttribute('precio_pos', $espacio->precioPos());
+
+                return $espacio;
+            });
 
         if ($espacios->isEmpty()) {
             return collect();
         }
 
         return collect(['Espacios' => $espacios]);
+    }
+
+    protected function obtenerEspaciosParaPOSCached(int $sucursalId, int $catalogTtl): \Illuminate\Support\Collection
+    {
+        return Cache::remember(
+            "pos.catalog.espacios.{$sucursalId}",
+            $catalogTtl,
+            fn () => $this->obtenerEspaciosParaPOS()
+        );
+    }
+
+    protected function obtenerProductosPorCategoriaCached(int $sucursalId, int $catalogTtl): \Illuminate\Support\Collection
+    {
+        $filtro = $this->categoriaFiltro ?: 'all';
+
+        return Cache::remember(
+            "pos.catalog.productos.{$sucursalId}.{$filtro}",
+            $catalogTtl,
+            fn () => $this->obtenerProductosPorCategoria()
+        );
+    }
+
+    protected function obtenerServiciosPorCategoriaCached(int $sucursalId, int $catalogTtl): \Illuminate\Support\Collection
+    {
+        $filtro = $this->categoriaFiltro ?: 'all';
+
+        return Cache::remember(
+            "pos.catalog.servicios.{$sucursalId}.{$filtro}",
+            $catalogTtl,
+            fn () => $this->obtenerServiciosPorCategoria()
+        );
     }
 
     /**
@@ -388,7 +440,34 @@ class POSLive extends Component
      */
     public function agregarAlCarrito($item)
     {
-        $key = $item['tipo'].'-'.$item['id'];
+        $this->agregarItemAlCarrito(is_array($item) ? $item : []);
+    }
+
+    public function agregarAlCarritoPorTipo(string $tipo, int $id): void
+    {
+        $item = match ($tipo) {
+            'producto' => $this->itemProductoParaCarrito($id),
+            'servicio' => $this->itemServicioParaCarrito($id),
+            'alquiler' => $this->itemAlquilerParaCarrito($id),
+            default => null,
+        };
+
+        if ($item === null) {
+            $this->flashToast('error', 'Ítem no encontrado o no disponible.');
+
+            return;
+        }
+
+        $this->agregarItemAlCarrito($item);
+    }
+
+    protected function agregarItemAlCarrito(array $item): void
+    {
+        $key = ($item['tipo'] ?? '').'-'.($item['id'] ?? '');
+
+        if ($key === '-' || ! isset($item['tipo'], $item['id'])) {
+            return;
+        }
 
         if (isset($this->carrito[$key])) {
             $this->carrito[$key]['cantidad']++;
@@ -396,9 +475,9 @@ class POSLive extends Component
             $this->carrito[$key] = [
                 'tipo' => $item['tipo'],
                 'id' => $item['id'],
-                'codigo' => $item['codigo'],
-                'nombre' => $item['nombre'],
-                'precio' => $item['precio'],
+                'codigo' => $item['codigo'] ?? '',
+                'nombre' => $item['nombre'] ?? '',
+                'precio' => (float) ($item['precio'] ?? 0),
                 'cantidad' => 1,
                 'descuento' => 0,
             ];
@@ -407,6 +486,54 @@ class POSLive extends Component
         $this->calcularTotales();
         $this->busqueda = '';
         $this->resultadosBusqueda = [];
+    }
+
+    protected function itemProductoParaCarrito(int $id): ?array
+    {
+        $producto = Producto::query()
+            ->where('estado', 'activo')
+            ->where('stock_actual', '>', 0)
+            ->find($id);
+
+        if (! $producto) {
+            return null;
+        }
+
+        return [
+            'tipo' => 'producto',
+            'id' => $producto->id,
+            'codigo' => $producto->codigo,
+            'nombre' => $producto->nombre,
+            'precio' => (float) $producto->precio_venta,
+        ];
+    }
+
+    protected function itemServicioParaCarrito(int $id): ?array
+    {
+        $servicio = ServicioExterno::query()->where('estado', 'activo')->find($id);
+
+        if (! $servicio) {
+            return null;
+        }
+
+        return [
+            'tipo' => 'servicio',
+            'id' => $servicio->id,
+            'codigo' => $servicio->codigo,
+            'nombre' => $servicio->nombre,
+            'precio' => (float) $servicio->precio,
+        ];
+    }
+
+    protected function itemAlquilerParaCarrito(int $id): ?array
+    {
+        $espacio = RentableSpace::activos()->with('rates')->find($id);
+
+        if (! $espacio || ! $espacio->tienePrecioPos()) {
+            return null;
+        }
+
+        return $this->itemAlquilerDesdeEspacio($espacio);
     }
 
     /**
@@ -513,6 +640,7 @@ class POSLive extends Component
 
             return;
         }
+        $this->modalProcesarVentaKey++;
         $this->mostrarModalProcesarVenta = true;
     }
 
@@ -666,8 +794,12 @@ class POSLive extends Component
     /**
      * Procesar venta desde el modal Procesar venta (ticket + reservas de alquiler si aplica).
      */
-    public function procesarVenta()
+    public function procesarVenta(?string $compradorTab = null)
     {
+        if ($compradorTab !== null) {
+            $this->aplicarTipoComprador($compradorTab);
+        }
+
         if (empty($this->carrito)) {
             $this->flashToast('error', 'El carrito está vacío.');
 
@@ -730,6 +862,7 @@ class POSLive extends Component
             $this->resetearDatosModalVenta();
             $this->ventaIdComprobante = $venta->id;
             $this->mostrarModalComprobante = true;
+            $this->refrescarEstadoCaja();
             $this->flashToast('success', 'Venta procesada exitosamente.');
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());
@@ -1075,7 +1208,7 @@ class POSLive extends Component
                     ->orderBy('nombre')
                     ->get()
             );
-            $itemsPorCategoria = $this->obtenerProductosPorCategoria();
+            $itemsPorCategoria = $this->obtenerProductosPorCategoriaCached($sucursalId, $catalogTtl);
         } elseif ($this->tipoItem === 'servicio') {
             $categorias = Cache::remember(
                 "pos.categorias_servicio.{$sucursalId}",
@@ -1084,18 +1217,19 @@ class POSLive extends Component
                     ->orderBy('nombre')
                     ->get()
             );
-            $itemsPorCategoria = $this->obtenerServiciosPorCategoria();
+            $itemsPorCategoria = $this->obtenerServiciosPorCategoriaCached($sucursalId, $catalogTtl);
         } else {
             $categorias = collect();
-            $itemsPorCategoria = $this->obtenerEspaciosParaPOS();
+            $itemsPorCategoria = $this->obtenerEspaciosParaPOSCached($sucursalId, $catalogTtl);
         }
 
-        // Clientes con deuda: caché breve + tope para no evaluar deuda_total en exceso
-        $clientesConDeuda = Cache::remember(
-            "pos.clientes_con_deuda.{$sucursalId}",
-            $deudaTtl,
-            fn () => $this->dailyOperationsDebtService->clientesConDeuda(100)
-        );
+        $clientesConDeuda = $this->modoCobroMembresiaClase
+            ? Cache::remember(
+                "pos.clientes_con_deuda.{$sucursalId}",
+                $deudaTtl,
+                fn () => $this->dailyOperationsDebtService->clientesConDeuda(100)
+            )
+            : collect();
 
         $paymentMethods = Cache::remember(
             "pos.payment_methods.{$sucursalId}",
