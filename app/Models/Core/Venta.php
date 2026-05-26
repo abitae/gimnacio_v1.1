@@ -87,6 +87,16 @@ class Venta extends Model
         return $this->hasMany(VentaItem::class);
     }
 
+    public function pagos(): HasMany
+    {
+        return $this->hasMany(VentaPago::class);
+    }
+
+    public function ticketReprints(): HasMany
+    {
+        return $this->hasMany(TicketReprint::class);
+    }
+
     public function paymentMethod(): BelongsTo
     {
         return $this->belongsTo(PaymentMethod::class);
@@ -123,5 +133,48 @@ class Venta extends Model
         }
 
         return '—';
+    }
+
+    public function montoPagadoInicial(): float
+    {
+        if ($this->relationLoaded('pagos') && $this->pagos->isNotEmpty()) {
+            return round((float) $this->pagos->sum('monto'), 2);
+        }
+
+        if (! $this->relationLoaded('pagos') && $this->pagos()->exists()) {
+            return round((float) $this->pagos()->sum('monto'), 2);
+        }
+
+        return $this->es_credito
+            ? round((float) ($this->monto_inicial ?? 0), 2)
+            : round((float) $this->total, 2);
+    }
+
+    public function saldoPendienteVenta(): float
+    {
+        if ($this->relationLoaded('clientDebt') && $this->clientDebt) {
+            return round((float) $this->clientDebt->saldo_pendiente, 2);
+        }
+
+        if (! $this->relationLoaded('clientDebt') && $this->clientDebt()->exists()) {
+            return round((float) $this->clientDebt()->value('saldo_pendiente'), 2);
+        }
+
+        return max(0, round((float) $this->total - $this->montoPagadoInicial(), 2));
+    }
+
+    public function metodosPagoResumen(): string
+    {
+        $pagos = $this->relationLoaded('pagos')
+            ? $this->pagos
+            : $this->pagos()->with('paymentMethod')->get();
+
+        if ($pagos->isNotEmpty()) {
+            return $pagos
+                ->map(fn (VentaPago $pago) => trim(($pago->paymentMethod?->nombre ?? $pago->metodo_pago ?? 'Pago').' S/ '.number_format((float) $pago->monto, 2)))
+                ->implode(', ');
+        }
+
+        return (string) ($this->paymentMethod?->nombre ?? $this->metodo_pago ?? 'Sin especificar');
     }
 }

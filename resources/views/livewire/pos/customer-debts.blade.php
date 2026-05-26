@@ -34,6 +34,7 @@
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Fecha</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Total</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Saldo</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Registró</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Estado</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Acciones</th>
                 </tr>
@@ -48,6 +49,7 @@
                         <td class="px-4 py-3 text-xs">{{ $d->fecha_registro?->format('d/m/Y') ?? '—' }}</td>
                         <td class="px-4 py-3 text-right text-xs">S/ {{ number_format((float) $d->monto_total, 2) }}</td>
                         <td class="px-4 py-3 text-right text-xs font-semibold text-amber-600 dark:text-amber-400">S/ {{ number_format((float) $d->saldo_pendiente, 2) }}</td>
+                        <td class="px-4 py-3 text-xs">{{ $d->venta?->usuario?->name ?? '-' }}</td>
                         <td class="px-4 py-3 text-xs">
                             <span class="rounded-full px-2 py-1 {{ $d->estado === 'vencido' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : ($d->estado === 'parcial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300') }}">
                                 {{ ucfirst($d->estado) }}
@@ -60,6 +62,9 @@
                                     <flux:button size="xs" variant="ghost" wire:click="abrirModalPagoCliente({{ $d->cliente_id }})">Pagar cliente</flux:button>
                                 @endif
                                 <flux:button size="xs" variant="primary" color="green" wire:click="abrirModalCobro({{ $d->id }})">Pagar deuda</flux:button>
+                                @if ($d->venta)
+                                    <flux:button size="xs" variant="ghost" href="{{ route('ventas.comprobante.pdf', ['venta' => $d->venta->id, 'reprint' => 1]) }}" target="_blank">Reimprimir ticket</flux:button>
+                                @endif
                             </div>
                         </td>
                     </tr>

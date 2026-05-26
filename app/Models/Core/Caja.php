@@ -159,6 +159,8 @@ class Caja extends Model
                 $metodoPago = $referencia->metodo_pago;
             } elseif ($referencia instanceof Venta) {
                 $metodoPago = $referencia->metodo_pago;
+            } elseif ($referencia instanceof VentaPago) {
+                $metodoPago = $referencia->paymentMethod?->nombre ?? $referencia->metodo_pago;
             } elseif ($referencia instanceof RentalPayment) {
                 $metodoPago = $referencia->paymentMethod?->nombre;
             } elseif ($referencia instanceof EnrollmentInstallment) {
@@ -173,6 +175,7 @@ class Caja extends Model
 
             $ticketVentaId = match (true) {
                 $referencia instanceof Venta => $referencia->id,
+                $referencia instanceof VentaPago => $referencia->venta_id,
                 $referencia instanceof RentalPayment => self::ventaIdDesdePagoAlquiler($referencia),
                 default => null,
             };
@@ -190,12 +193,14 @@ class Caja extends Model
                 'numero_operacion' => match (true) {
                     $referencia instanceof Pago => $referencia->numero_operacion,
                     $referencia instanceof Venta => $referencia->numero_operacion,
+                    $referencia instanceof VentaPago => $referencia->numero_operacion,
                     $referencia instanceof EnrollmentInstallment => $referencia->numero_operacion,
                     default => null,
                 },
                 'entidad_financiera' => match (true) {
                     $referencia instanceof Pago => $referencia->entidad_financiera,
                     $referencia instanceof Venta => $referencia->entidad_financiera,
+                    $referencia instanceof VentaPago => $referencia->entidad_financiera,
                     default => null,
                 },
                 'usuario' => $movimiento->usuario?->name,
@@ -206,6 +211,7 @@ class Caja extends Model
                 'ticket_venta_id' => $ticketVentaId ? (int) $ticketVentaId : null,
                 'referencia_label' => match (true) {
                     $referencia instanceof Venta => $referencia->numero_venta,
+                    $referencia instanceof VentaPago => $referencia->venta?->numero_venta ?? 'Venta pago #'.$referencia->id,
                     $referencia instanceof Pago => 'Pago #'.$referencia->id,
                     $referencia instanceof RentalPayment => 'Alquiler #'.$referencia->rental_id,
                     $referencia instanceof EnrollmentInstallment => $referencia->pago_id

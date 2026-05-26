@@ -16,6 +16,11 @@
     </style>
 </head>
 <body>
+    @php
+        $montoPagado = $venta->montoPagadoInicial();
+        $saldoPendiente = $venta->saldoPendienteVenta();
+        $estadoCredito = $venta->es_credito ? ($saldoPendiente > 0 ? 'PENDIENTE' : 'PAGADO') : 'PAGADO';
+    @endphp
     @if(!empty($appBrandLogoUrl))
         <img src="{{ $appBrandLogoUrl }}" alt="{{ $appBrandName ?? config('app.name') }}" class="brand-logo">
     @endif
@@ -29,14 +34,23 @@
     </p>
     <div class="line"></div>
 
+    <p style="margin: 2px 0;"><strong>Estado:</strong> {{ $venta->es_credito ? 'CREDITO / '.$estadoCredito : $estadoCredito }}</p>
     <p style="margin: 2px 0;"><strong>Cliente:</strong> {{ $venta->nombre_comprador }}</p>
+    @if($venta->cliente)
+        <p style="margin: 2px 0;"><strong>Codigo:</strong> {{ $venta->cliente->codigo ?? '-' }} · <strong>{{ $venta->cliente->tipo_documento ?? 'Doc.' }}:</strong> {{ $venta->cliente->numero_documento ?? '-' }} · <strong>Tel.:</strong> {{ $venta->cliente->telefono ?? '-' }}</p>
+    @endif
+    <p style="margin: 2px 0;"><strong>Caja:</strong> #{{ $venta->caja_id ?? '-' }}</p>
     <p style="margin: 2px 0;"><strong>Atendió:</strong> {{ $venta->usuario?->name ?? '—' }}</p>
     <p style="margin: 2px 0;"><strong>Pago:</strong> {{ $venta->paymentMethod?->nombre ?? $venta->metodo_pago }}</p>
+    <p style="margin: 2px 0;"><strong>Pago detalle:</strong> {{ $venta->metodosPagoResumen() }}</p>
     @if($venta->numero_operacion)
         <p style="margin: 2px 0;"><strong>N° oper.:</strong> {{ $venta->numero_operacion }}</p>
     @endif
     @if($venta->es_credito)
         <p style="margin: 2px 0;"><strong>Crédito:</strong> Inicial S/ {{ number_format((float) ($venta->monto_inicial ?? 0), 2) }} · Vence {{ $venta->fecha_vencimiento_deuda?->format('d/m/Y') }}</p>
+    @endif
+    @if($venta->es_credito)
+        <p style="margin: 2px 0;"><strong>Saldo credito:</strong> S/ {{ number_format($saldoPendiente, 2) }}</p>
     @endif
     <div class="line"></div>
 
@@ -67,5 +81,7 @@
         <p class="text-right" style="margin: 1px 0;">Descuento: -S/ {{ number_format((float) $venta->descuento, 2) }}</p>
     @endif
     <p class="text-right font-bold" style="font-size: 10pt; margin-top: 4px;">TOTAL: S/ {{ number_format((float) $venta->total, 2) }}</p>
+    <p class="text-right" style="margin: 1px 0;">Pagado: S/ {{ number_format($montoPagado, 2) }}</p>
+    <p class="text-right" style="margin: 1px 0;">Saldo: S/ {{ number_format($saldoPendiente, 2) }}</p>
 </body>
 </html>

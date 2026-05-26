@@ -8,6 +8,7 @@ use App\Models\Core\PaymentMethod;
 use App\Models\Core\Producto;
 use App\Models\Core\RentableSpace;
 use App\Models\Core\ServicioExterno;
+use App\Models\Core\VentaItem;
 use App\Services\CajaService;
 use App\Services\ClientDebtService;
 use App\Services\ClienteMatriculaService;
@@ -86,6 +87,8 @@ class POSLive extends Component
     public $numeroOperacion = '';
 
     public $entidadFinanciera = '';
+
+    public array $pagosVenta = [];
 
     public $codigoCupon = '';
 
@@ -222,6 +225,7 @@ class POSLive extends Component
         $this->alquilerFecha = now()->format('Y-m-d');
         $efectivo = PaymentMethod::activos()->where('nombre', 'Efectivo')->first();
         $this->paymentMethodId = $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id;
+        $this->resetPagosVenta();
         // Validar que haya caja abierta
         if (! $this->cajaService->validarCajaAbierta(Auth::id())) {
             $this->flashToast('error', 'No hay una caja abierta. Por favor, abra una caja antes de usar el punto de venta.');
@@ -254,6 +258,64 @@ class POSLive extends Component
     public function updatedEmployeeId($value)
     {
         $this->employeeSeleccionado = $value ? \App\Models\Core\Employee::find($value) : null;
+    }
+
+    public function updatedPaymentMethodId($value): void
+    {
+        if (isset($this->pagosVenta[0]) && count($this->pagosVenta) === 1) {
+            $this->pagosVenta[0]['payment_method_id'] = $value ? (int) $value : null;
+        }
+    }
+
+    public function updatedEsCredito(): void
+    {
+        if ($this->esCredito && isset($this->pagosVenta[0])) {
+            $this->montoInicial = 0;
+            $this->pagosVenta[0]['monto'] = 0;
+        }
+
+        $this->syncMontoPagoPrincipal();
+    }
+
+    public function agregarPagoVenta(): void
+    {
+        $this->pagosVenta[] = [
+            'payment_method_id' => $this->paymentMethodId,
+            'monto' => 0,
+            'numero_operacion' => '',
+            'entidad_financiera' => '',
+        ];
+    }
+
+    public function quitarPagoVenta(int $index): void
+    {
+        unset($this->pagosVenta[$index]);
+        $this->pagosVenta = array_values($this->pagosVenta);
+        if ($this->pagosVenta === []) {
+            $this->agregarPagoVenta();
+        }
+    }
+
+    protected function resetPagosVenta(): void
+    {
+        $this->pagosVenta = [[
+            'payment_method_id' => $this->paymentMethodId,
+            'monto' => 0,
+            'numero_operacion' => '',
+            'entidad_financiera' => '',
+        ]];
+    }
+
+    protected function syncMontoPagoPrincipal(): void
+    {
+        if (! isset($this->pagosVenta[0])) {
+            $this->resetPagosVenta();
+        }
+
+        if (! $this->esCredito) {
+            $this->pagosVenta[0]['monto'] = $this->total;
+            $this->montoInicial = $this->total;
+        }
     }
 
     protected function refrescarEstadoCaja(): void
@@ -383,6 +445,37 @@ class POSLive extends Component
             $catalogTtl,
             fn () => $this->obtenerProductosPorCategoria()
         );
+    }
+
+    protected function obtenerProductosMasVendidos(int $sucursalId): \Illuminate\Support\Collection
+    {
+        return Cache::remember("pos.top_productos.{$sucursalId}", 300, function () use ($sucursalId) {
+            return VentaItem::query()
+                ->select('item_id', DB::raw('SUM(cantidad) as cantidad_vendida'))
+                ->where('tipo_item', 'producto')
+                ->where('sucursal_id', $sucursalId)
+                ->where('created_at', '>=', now()->subDays(30))
+                ->groupBy('item_id')
+                ->orderByDesc('cantidad_vendida')
+                ->limit(8)
+                ->get()
+                ->map(function (VentaItem $row) {
+                    $producto = Producto::query()
+                        ->where('estado', 'activo')
+                        ->where('stock_actual', '>', 0)
+                        ->find($row->item_id);
+
+                    if (! $producto) {
+                        return null;
+                    }
+
+                    $producto->setAttribute('cantidad_vendida', (int) $row->cantidad_vendida);
+
+                    return $producto;
+                })
+                ->filter()
+                ->values();
+        });
     }
 
     protected function obtenerServiciosPorCategoriaCached(int $sucursalId, int $catalogTtl): \Illuminate\Support\Collection
@@ -640,6 +733,7 @@ class POSLive extends Component
 
             return;
         }
+        $this->syncMontoPagoPrincipal();
         $this->modalProcesarVentaKey++;
         $this->mostrarModalProcesarVenta = true;
     }
@@ -726,6 +820,97 @@ class POSLive extends Component
     /**
      * Búsqueda de empleados en modal Procesar venta (por nombre o documento)
      */
+    protected function validarDatosProcesarVentaConPagos(): bool
+    {
+        if ($this->carritoTieneAlquiler) {
+            if ($this->esCredito) {
+                $this->flashToast('error', 'No se puede vender alquileres a credito desde el POS.');
+
+                return false;
+            }
+            if (empty($this->alquilerFecha) || empty($this->alquilerHoraInicio) || empty($this->alquilerHoraFin)) {
+                $this->flashToast('error', 'Indique fecha y horario del alquiler.');
+
+                return false;
+            }
+            if ($this->alquilerHoraFin <= $this->alquilerHoraInicio) {
+                $this->flashToast('error', 'La hora de fin debe ser posterior a la hora de inicio.');
+
+                return false;
+            }
+        }
+
+        if ($this->tipoComprador === 'cliente' && ! $this->clienteId) {
+            $this->flashToast('error', 'Seleccione un cliente del gimnasio.');
+
+            return false;
+        }
+        if ($this->tipoComprador === 'empleado' && ! $this->employeeId) {
+            $this->flashToast('error', 'Seleccione un empleado.');
+
+            return false;
+        }
+
+        $pagosValidos = collect($this->pagosVenta)
+            ->map(fn ($pago) => [
+                'payment_method_id' => $pago['payment_method_id'] ?? null,
+                'monto' => round((float) ($pago['monto'] ?? 0), 2),
+                'numero_operacion' => trim((string) ($pago['numero_operacion'] ?? '')),
+                'entidad_financiera' => trim((string) ($pago['entidad_financiera'] ?? '')),
+            ])
+            ->filter(fn ($pago) => $pago['monto'] > 0)
+            ->values();
+
+        if ($pagosValidos->isEmpty() && ! $this->esCredito) {
+            $this->flashToast('error', 'Registre al menos un pago para ventas al contado.');
+
+            return false;
+        }
+
+        foreach ($pagosValidos as $pago) {
+            if (! $pago['payment_method_id']) {
+                $this->flashToast('error', 'Seleccione un metodo de pago en cada linea.');
+
+                return false;
+            }
+
+            $paymentMethod = PaymentMethod::find($pago['payment_method_id']);
+            if ($paymentMethod && $paymentMethod->requiere_numero_operacion && $pago['numero_operacion'] === '') {
+                $this->flashToast('error', "El metodo {$paymentMethod->nombre} requiere numero de operacion.");
+
+                return false;
+            }
+            if ($paymentMethod && $paymentMethod->requiere_entidad && $pago['entidad_financiera'] === '') {
+                $this->flashToast('error', "El metodo {$paymentMethod->nombre} requiere entidad financiera.");
+
+                return false;
+            }
+        }
+
+        $totalPagos = round((float) $pagosValidos->sum('monto'), 2);
+        $totalVenta = round($this->total, 2);
+        if (! $this->esCredito && abs($totalPagos - $totalVenta) > 0.009) {
+            $this->flashToast('error', 'La suma de pagos debe ser igual al total de la venta.');
+
+            return false;
+        }
+        if ($this->esCredito && $totalPagos > $totalVenta) {
+            $this->flashToast('error', 'La suma de pagos no puede superar el total de la venta a credito.');
+
+            return false;
+        }
+
+        if ($this->esCredito && ($this->tipoComprador === 'cliente' || $this->tipoComprador === 'empleado')) {
+            if (empty($this->fechaVencimientoDeuda)) {
+                $this->flashToast('error', 'Indique la fecha de vencimiento de la deuda.');
+
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function updatedEmployeeSearchProcesar($value)
     {
         $term = trim((string) $value);
@@ -806,7 +991,7 @@ class POSLive extends Component
             return;
         }
 
-        if (! $this->validarDatosProcesarVenta()) {
+        if (! $this->validarDatosProcesarVentaConPagos()) {
             return;
         }
 
@@ -836,8 +1021,9 @@ class POSLive extends Component
                     'payment_method_id' => $this->paymentMethodId,
                     'numero_operacion' => trim((string) $this->numeroOperacion) ?: null,
                     'entidad_financiera' => trim((string) $this->entidadFinanciera) ?: null,
+                    'pagos' => $this->pagosVenta,
                     'es_credito' => $this->esCredito && ($this->clienteId || $this->employeeId),
-                    'monto_inicial' => $this->esCredito ? (float) $this->montoInicial : 0,
+                    'monto_inicial' => $this->esCredito ? (float) collect($this->pagosVenta)->sum('monto') : 0,
                     'fecha_vencimiento_deuda' => $this->esCredito && $this->fechaVencimientoDeuda ? $this->fechaVencimientoDeuda : null,
                     'descuento' => $this->descuento,
                     'discount_coupon_id' => $this->cuponAplicado,
@@ -902,6 +1088,7 @@ class POSLive extends Component
         $this->clienteSoloVentaTelefono = '';
         $this->esCredito = false;
         $this->montoInicial = 0.0;
+        $this->resetPagosVenta();
         $this->fechaVencimientoDeuda = '';
         $this->codigoCupon = '';
         $this->cuponAplicado = null;
@@ -1247,6 +1434,7 @@ class POSLive extends Component
             'paymentMethods' => $paymentMethods,
             'selectedPaymentMethod' => $selectedPaymentMethod,
             'cobroPaymentMethod' => $cobroPaymentMethod,
+            'productosMasVendidos' => $this->tipoItem === 'producto' ? $this->obtenerProductosMasVendidos($sucursalId) : collect(),
         ]);
     }
 

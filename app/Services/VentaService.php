@@ -5,8 +5,8 @@ namespace App\Services;
 use App\Models\Core\Caja;
 use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Clase;
-use App\Models\Core\Cliente;
 use App\Models\Core\ClientDebt;
+use App\Models\Core\Cliente;
 use App\Models\Core\CouponUsage;
 use App\Models\Core\Employee;
 use App\Models\Core\EmployeeDebt;
@@ -16,6 +16,7 @@ use App\Models\Core\RentableSpace;
 use App\Models\Core\ServicioExterno;
 use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
+use App\Models\Core\VentaPago;
 use App\Models\System\ComprobanteConfig;
 use Illuminate\Support\Facades\DB;
 
@@ -64,13 +65,6 @@ class VentaService
             $numeroVenta = $this->generarNumeroVenta();
             $comprobante = $this->generarComprobante($data['tipo_comprobante'] ?? 'ticket');
 
-            $paymentMethodId = $data['payment_method_id'] ?? null;
-            $metodoPago = $data['metodo_pago'] ?? 'efectivo';
-            if ($paymentMethodId) {
-                $pm = $this->resolvePaymentMethod((int) $paymentMethodId, $sucursalId);
-                $metodoPago = $pm->nombre;
-            }
-
             $tipoComprador = $data['tipo_comprador'] ?? 'cliente';
             $clienteId = $tipoComprador === 'cliente' ? ($data['cliente_id'] ?? null) : null;
             $employeeId = $tipoComprador === 'empleado' ? ($data['employee_id'] ?? null) : null;
@@ -87,10 +81,16 @@ class VentaService
                 : null;
 
             $esCredito = ! empty($data['es_credito']) && ($clienteId || $employeeId);
-            $montoInicial = $esCredito ? (float) ($data['monto_inicial'] ?? 0) : 0;
+            $pagosVenta = $this->normalizarPagosVenta($data, $total, $esCredito, $sucursalId);
+            $montoInicial = $esCredito ? round((float) collect($pagosVenta)->sum('monto'), 2) : 0;
             $fechaVencimientoDeuda = $esCredito && ! empty($data['fecha_vencimiento_deuda'])
                 ? $data['fecha_vencimiento_deuda']
                 : null;
+            $primerPago = $pagosVenta[0] ?? null;
+            $paymentMethodId = $primerPago['payment_method_id'] ?? ($data['payment_method_id'] ?? null);
+            $metodoPago = count($pagosVenta) > 1
+                ? 'Mixto'
+                : ($primerPago['metodo_pago'] ?? ($data['metodo_pago'] ?? 'efectivo'));
 
             $venta = Venta::create([
                 'numero_venta' => $numeroVenta,
@@ -110,8 +110,8 @@ class VentaService
                 'total' => $total,
                 'metodo_pago' => $metodoPago,
                 'payment_method_id' => $paymentMethodId,
-                'numero_operacion' => $data['numero_operacion'] ?? null,
-                'entidad_financiera' => $data['entidad_financiera'] ?? null,
+                'numero_operacion' => $primerPago['numero_operacion'] ?? ($data['numero_operacion'] ?? null),
+                'entidad_financiera' => $primerPago['entidad_financiera'] ?? ($data['entidad_financiera'] ?? null),
                 'discount_coupon_id' => $data['discount_coupon_id'] ?? null,
                 'monto_descuento_cupon' => $montoDescuentoCupon,
                 'es_credito' => $esCredito,
@@ -172,7 +172,6 @@ class VentaService
                     'estado' => $estado,
                     'observaciones' => 'Venta a credito POS - '.$venta->numero_venta,
                 ]);
-                $montoARegistrar = $montoInicial;
             } elseif ($esCredito && $venta->employee_id) {
                 $saldoPendiente = $total - $montoInicial;
                 $estado = $saldoPendiente <= 0 ? 'pagado' : ($montoInicial > 0 ? 'parcial' : 'pendiente');
@@ -186,14 +185,26 @@ class VentaService
                     'estado' => $estado,
                     'observaciones' => 'Venta a credito POS - '.$venta->numero_venta,
                 ]);
-                $montoARegistrar = $montoInicial;
-            } else {
-                $montoARegistrar = $total;
             }
 
-            $this->registrarPagoEnCaja($venta, $caja, $montoARegistrar);
+            foreach ($pagosVenta as $pagoData) {
+                $ventaPago = VentaPago::create([
+                    'venta_id' => $venta->id,
+                    'payment_method_id' => $pagoData['payment_method_id'],
+                    'monto' => $pagoData['monto'],
+                    'metodo_pago' => $pagoData['metodo_pago'],
+                    'numero_operacion' => $pagoData['numero_operacion'],
+                    'entidad_financiera' => $pagoData['entidad_financiera'],
+                    'pagado_en' => now(),
+                    'usuario_id' => auth()->id(),
+                    'caja_id' => $caja->id,
+                    'sucursal_id' => $sucursalId,
+                ]);
 
-            return $venta->fresh(['cliente', 'caja', 'usuario', 'items']);
+                $this->registrarPagoVentaEnCaja($venta, $ventaPago, $caja);
+            }
+
+            return $venta->fresh(['cliente', 'caja', 'usuario', 'items', 'pagos.paymentMethod']);
         });
     }
 
@@ -365,6 +376,116 @@ class VentaService
             'serie' => $config->serie,
             'numero' => str_pad($numero, 6, '0', STR_PAD_LEFT),
         ];
+    }
+
+    protected function normalizarPagosVenta(array $data, float $total, bool $esCredito, int $sucursalId): array
+    {
+        $pagosInput = $data['pagos'] ?? [];
+
+        if (empty($pagosInput)) {
+            $monto = $esCredito ? round((float) ($data['monto_inicial'] ?? 0), 2) : round($total, 2);
+            if ($monto <= 0) {
+                if ($esCredito) {
+                    return [];
+                }
+
+                throw new \InvalidArgumentException('El pago de una venta al contado debe cubrir el total.');
+            }
+
+            $pagosInput = [[
+                'payment_method_id' => $data['payment_method_id'] ?? null,
+                'metodo_pago' => $data['metodo_pago'] ?? 'efectivo',
+                'monto' => $monto,
+                'numero_operacion' => $data['numero_operacion'] ?? null,
+                'entidad_financiera' => $data['entidad_financiera'] ?? null,
+            ]];
+        }
+
+        $pagos = [];
+        foreach ($pagosInput as $pago) {
+            $monto = round((float) ($pago['monto'] ?? 0), 2);
+            if ($monto <= 0) {
+                continue;
+            }
+
+            $paymentMethodId = $pago['payment_method_id'] ?? null;
+            $metodoPago = $pago['metodo_pago'] ?? 'efectivo';
+            if ($paymentMethodId) {
+                $pm = $this->resolvePaymentMethod((int) $paymentMethodId, $sucursalId);
+                $metodoPago = $pm->nombre;
+
+                if ($pm->requiere_numero_operacion && empty(trim((string) ($pago['numero_operacion'] ?? '')))) {
+                    throw new \InvalidArgumentException("El metodo {$pm->nombre} requiere numero de operacion.");
+                }
+
+                if ($pm->requiere_entidad && empty(trim((string) ($pago['entidad_financiera'] ?? '')))) {
+                    throw new \InvalidArgumentException("El metodo {$pm->nombre} requiere entidad financiera.");
+                }
+            }
+
+            $pagos[] = [
+                'payment_method_id' => $paymentMethodId ? (int) $paymentMethodId : null,
+                'metodo_pago' => $metodoPago,
+                'monto' => $monto,
+                'numero_operacion' => trim((string) ($pago['numero_operacion'] ?? '')) ?: null,
+                'entidad_financiera' => trim((string) ($pago['entidad_financiera'] ?? '')) ?: null,
+            ];
+        }
+
+        $totalPagado = round((float) collect($pagos)->sum('monto'), 2);
+        $total = round($total, 2);
+
+        if (! $esCredito && abs($totalPagado - $total) > 0.009) {
+            throw new \InvalidArgumentException('La suma de pagos debe ser igual al total de la venta al contado.');
+        }
+
+        if ($esCredito && $totalPagado > $total) {
+            throw new \InvalidArgumentException('La suma de pagos no puede superar el total de la venta a credito.');
+        }
+
+        return $pagos;
+    }
+
+    protected function registrarPagoVentaEnCaja(Venta $venta, VentaPago $ventaPago, Caja $caja): void
+    {
+        $monto = (float) $ventaPago->monto;
+        if ($monto <= 0) {
+            return;
+        }
+
+        $venta->loadMissing('items');
+        $subtotalItems = (float) $venta->items->sum('subtotal');
+        $subtotalAlquiler = (float) $venta->items->where('tipo_item', 'alquiler')->sum('subtotal');
+        $montoAlquiler = $subtotalItems > 0
+            ? round($monto * ($subtotalAlquiler / $subtotalItems), 2)
+            : 0.0;
+        $monto = round($monto - $montoAlquiler, 2);
+
+        if ($monto <= 0) {
+            return;
+        }
+
+        $concepto = "Venta POS - {$venta->numero_venta}";
+        if ($venta->es_credito && $venta->saldoPendienteVenta() > 0) {
+            $concepto .= ' (anticipo a credito)';
+        }
+
+        $observaciones = "Metodo de pago: {$ventaPago->metodo_pago}, Comprobante: ".strtoupper($venta->tipo_comprobante)." {$venta->serie_comprobante}-{$venta->numero_comprobante}";
+        if ($ventaPago->numero_operacion) {
+            $observaciones .= ', Operacion: '.$ventaPago->numero_operacion;
+        }
+
+        $this->cajaService->registrarMovimientoClasificado(
+            cajaId: $caja->id,
+            tipo: 'entrada',
+            categoria: CajaMovimiento::CATEGORIA_POS,
+            origenModulo: CajaMovimiento::ORIGEN_VENTAS,
+            monto: $monto,
+            concepto: $concepto,
+            referenciaTipo: VentaPago::class,
+            referenciaId: $ventaPago->id,
+            observaciones: $observaciones
+        );
     }
 
     protected function registrarPagoEnCaja(Venta $venta, Caja $caja, ?float $monto = null): void

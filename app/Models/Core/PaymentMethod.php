@@ -47,6 +47,11 @@ class PaymentMethod extends Model
         return $this->hasMany(Venta::class, 'payment_method_id');
     }
 
+    public function ventaPagos(): HasMany
+    {
+        return $this->hasMany(VentaPago::class, 'payment_method_id');
+    }
+
     public function getRequiereNumeroOperacionAttribute($value): bool
     {
         return (bool) $value;

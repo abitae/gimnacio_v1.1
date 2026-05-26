@@ -25,7 +25,7 @@ class ReporteModuloService
      */
     public function datosReporteVentas(?string $fechaDesde, ?string $fechaHasta): array
     {
-        $query = Venta::with(['cliente', 'usuario', 'items']);
+        $query = Venta::with(['cliente', 'usuario', 'caja.usuario', 'items', 'pagos.paymentMethod', 'clientDebt']);
         if ($fechaDesde) {
             $query->where('fecha_venta', '>=', $fechaDesde);
         }
@@ -38,9 +38,101 @@ class ReporteModuloService
         $totalSubtotal = $ventas->sum('subtotal');
         $totalDescuento = $ventas->sum('descuento');
         $totalIgv = $ventas->sum('igv');
-        $porMetodo = $ventas->groupBy('metodo_pago')->map(fn ($g) => ['cantidad' => $g->count(), 'total' => $g->sum('total')]);
+        $porMetodo = [];
+        foreach ($ventas as $venta) {
+            if ($venta->pagos->isNotEmpty()) {
+                foreach ($venta->pagos as $pago) {
+                    $metodo = $pago->paymentMethod?->nombre ?? $pago->metodo_pago ?? 'Sin especificar';
+                    $porMetodo[$metodo] ??= ['cantidad' => 0, 'total' => 0.0];
+                    $porMetodo[$metodo]['cantidad']++;
+                    $porMetodo[$metodo]['total'] = round($porMetodo[$metodo]['total'] + (float) $pago->monto, 2);
+                }
+            } else {
+                $metodo = $venta->metodo_pago ?: 'Sin especificar';
+                $porMetodo[$metodo] ??= ['cantidad' => 0, 'total' => 0.0];
+                $porMetodo[$metodo]['cantidad']++;
+                $porMetodo[$metodo]['total'] = round($porMetodo[$metodo]['total'] + (float) $venta->montoPagadoInicial(), 2);
+            }
+        }
         $porEstado = $ventas->groupBy('estado')->map(fn ($g) => $g->count());
         $porTipoComprobante = $ventas->groupBy('tipo_comprobante')->map(fn ($g) => ['cantidad' => $g->count(), 'total' => $g->sum('total')]);
+        $totalCobrado = (float) collect($porMetodo)->sum('total');
+        $totalCredito = (float) $ventas->where('es_credito', true)->sum('total');
+        $totalSaldoPendiente = (float) $ventas->sum(fn (Venta $venta) => $venta->saldoPendienteVenta());
+
+        $porProducto = $ventas
+            ->flatMap->items
+            ->where('tipo_item', 'producto')
+            ->groupBy('item_id')
+            ->map(function ($items) {
+                $first = $items->first();
+                $producto = $first?->producto;
+
+                return [
+                    'producto' => $first?->nombre_item,
+                    'categoria' => $producto?->categoria?->nombre ?? 'Sin categoria',
+                    'cantidad' => (int) $items->sum('cantidad'),
+                    'total' => round((float) $items->sum('subtotal'), 2),
+                    'stock_actual' => $producto?->stock_actual,
+                ];
+            })
+            ->sortByDesc('cantidad')
+            ->values();
+
+        $porUsuario = $ventas
+            ->groupBy('usuario_id')
+            ->map(function ($rows) {
+                $usuario = $rows->first()?->usuario;
+
+                return [
+                    'usuario' => $usuario?->name ?? 'Sin usuario',
+                    'cantidad' => $rows->count(),
+                    'total' => round((float) $rows->sum('total'), 2),
+                    'contado' => round((float) $rows->where('es_credito', false)->sum('total'), 2),
+                    'credito' => round((float) $rows->where('es_credito', true)->sum('total'), 2),
+                    'pagos' => round((float) $rows->sum(fn (Venta $venta) => $venta->montoPagadoInicial()), 2),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $porCaja = $ventas
+            ->groupBy('caja_id')
+            ->map(function ($rows) {
+                $caja = $rows->first()?->caja;
+                $metodos = [];
+                foreach ($rows as $venta) {
+                    foreach ($venta->pagos as $pago) {
+                        $metodo = $pago->paymentMethod?->nombre ?? $pago->metodo_pago ?? 'Sin especificar';
+                        $metodos[$metodo] = round(($metodos[$metodo] ?? 0) + (float) $pago->monto, 2);
+                    }
+                    if ($venta->pagos->isEmpty()) {
+                        $metodo = $venta->metodo_pago ?: 'Sin especificar';
+                        $metodos[$metodo] = round(($metodos[$metodo] ?? 0) + (float) $venta->montoPagadoInicial(), 2);
+                    }
+                }
+
+                return [
+                    'caja' => $caja ? '#'.$caja->id : 'Sin caja',
+                    'usuario' => $caja?->usuario?->name ?? $rows->first()?->usuario?->name ?? 'Sin usuario',
+                    'total' => round((float) $rows->sum('total'), 2),
+                    'metodos' => $metodos,
+                    'credito' => round((float) $rows->where('es_credito', true)->sum('total'), 2),
+                ];
+            })
+            ->values();
+
+        $porCategoria = $ventas
+            ->flatMap->items
+            ->groupBy(fn ($item) => $item->tipo_item === 'producto' ? ($item->producto?->categoria?->nombre ?? 'Sin categoria') : ucfirst((string) $item->tipo_item))
+            ->map(fn ($items, $categoria) => [
+                'categoria' => $categoria,
+                'cantidad' => (int) $items->sum('cantidad'),
+                'total' => round((float) $items->sum('subtotal'), 2),
+                'porcentaje' => $totalVentas > 0 ? round(((float) $items->sum('subtotal') / (float) $totalVentas) * 100, 2) : 0,
+            ])
+            ->sortByDesc('total')
+            ->values();
 
         return [
             'ventas' => $ventas,
@@ -50,9 +142,17 @@ class ReporteModuloService
                 'subtotal' => (float) $totalSubtotal,
                 'descuento_total' => (float) $totalDescuento,
                 'igv_total' => (float) $totalIgv,
-                'por_metodo_pago' => $porMetodo->toArray(),
+                'por_metodo_pago' => $porMetodo,
                 'por_estado' => $porEstado->toArray(),
                 'por_tipo_comprobante' => $porTipoComprobante->toArray(),
+                'total_cobrado' => $totalCobrado,
+                'total_credito' => $totalCredito,
+                'saldo_pendiente' => $totalSaldoPendiente,
+                'ticket_promedio' => $ventas->count() > 0 ? round((float) $totalVentas / $ventas->count(), 2) : 0,
+                'por_producto' => $porProducto->all(),
+                'por_usuario' => $porUsuario->all(),
+                'por_caja' => $porCaja->all(),
+                'por_categoria' => $porCategoria->all(),
             ],
         ];
     }

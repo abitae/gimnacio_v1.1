@@ -30,6 +30,7 @@
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Pagado</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Saldo</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Fecha</th>
+                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Registró</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Estado</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Acciones</th>
                 </tr>
@@ -52,6 +53,7 @@
                         <td class="px-4 py-3 text-right text-xs">S/ {{ number_format($montoPagado, 2) }}</td>
                         <td class="px-4 py-3 text-right text-xs font-semibold text-amber-600 dark:text-amber-400">S/ {{ number_format($saldo, 2) }}</td>
                         <td class="px-4 py-3 text-xs">{{ $v->fecha_venta?->format('d/m/Y H:i') ?? '—' }}</td>
+                        <td class="px-4 py-3 text-xs">{{ $v->usuario?->name ?? '-' }}</td>
                         <td class="px-4 py-3 text-xs">
                             <span class="rounded-full px-2 py-1 {{ $estado === 'vencido' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : ($estado === 'parcial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : ($estado === 'pagado' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300')) }}">
                                 {{ ucfirst($estado) }}
@@ -68,6 +70,7 @@
                                 @if ($debt && $saldo > 0)
                                     <flux:button size="xs" variant="primary" color="green" wire:click="abrirModalCobroVenta({{ $debt->id }})">Pagar venta</flux:button>
                                 @endif
+                                <flux:button size="xs" variant="ghost" href="{{ route('ventas.comprobante.pdf', ['venta' => $v->id, 'reprint' => 1]) }}" target="_blank">Reimprimir ticket</flux:button>
                             </div>
                         </td>
                     </tr>

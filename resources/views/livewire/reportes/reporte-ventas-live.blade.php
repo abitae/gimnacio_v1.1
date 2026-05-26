@@ -47,6 +47,48 @@
         </div>
     @endif
 
+    <div class="grid gap-3 lg:grid-cols-3">
+        @if(!empty($resumen['por_producto']))
+            <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="mb-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">Cantidad vendida por producto</div>
+                <div class="space-y-1">
+                    @foreach(collect($resumen['por_producto'])->take(6) as $row)
+                        <div class="flex justify-between gap-2 text-xs">
+                            <span class="truncate">{{ $row['producto'] }} <span class="text-zinc-400">({{ $row['categoria'] }})</span></span>
+                            <span class="font-medium">{{ $row['cantidad'] }} · S/ {{ number_format($row['total'], 2) }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+        @if(!empty($resumen['por_usuario']))
+            <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="mb-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">Ventas por usuario</div>
+                <div class="space-y-1">
+                    @foreach(collect($resumen['por_usuario'])->take(6) as $row)
+                        <div class="flex justify-between gap-2 text-xs">
+                            <span class="truncate">{{ $row['usuario'] }}</span>
+                            <span class="font-medium">{{ $row['cantidad'] }} · S/ {{ number_format($row['total'], 2) }}</span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+        @if(!empty($resumen['por_categoria']))
+            <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
+                <div class="mb-2 text-xs font-semibold text-zinc-600 dark:text-zinc-300">Ventas por categoria</div>
+                <div class="space-y-1">
+                    @foreach(collect($resumen['por_categoria'])->take(6) as $row)
+                        <div class="flex justify-between gap-2 text-xs">
+                            <span class="truncate">{{ $row['categoria'] }}</span>
+                            <span class="font-medium">S/ {{ number_format($row['total'], 2) }} · {{ $row['porcentaje'] }}%</span>
+                        </div>
+                    @endforeach
+                </div>
+            </div>
+        @endif
+    </div>
+
     <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
@@ -77,7 +119,7 @@
                             <td class="px-3 py-2 text-right">S/ {{ number_format($v->descuento ?? 0, 2) }}</td>
                             <td class="px-3 py-2 text-right">S/ {{ number_format($v->igv ?? 0, 2) }}</td>
                             <td class="px-3 py-2 text-right font-medium">S/ {{ number_format($v->total, 2) }}</td>
-                            <td class="px-3 py-2 capitalize">{{ $v->metodo_pago ?? '-' }}</td>
+                            <td class="px-3 py-2 capitalize">{{ method_exists($v, 'metodosPagoResumen') ? $v->metodosPagoResumen() : ($v->metodo_pago ?? '-') }}</td>
                             <td class="px-3 py-2">{{ $v->estado ?? '-' }}</td>
                         </tr>
                     @empty

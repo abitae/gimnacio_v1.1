@@ -35,8 +35,19 @@
         · Fecha: {{ $venta->fecha_venta?->format('d/m/Y H:i') }}
     </p>
 
+    @php
+        $montoPagado = $venta->montoPagadoInicial();
+        $saldoPendiente = $venta->saldoPendienteVenta();
+        $estadoCredito = $venta->es_credito ? ($saldoPendiente > 0 ? 'PENDIENTE' : 'PAGADO') : 'PAGADO';
+    @endphp
+    <div class="mb-2"><strong>Estado:</strong> {{ $venta->es_credito ? 'CREDITO / '.$estadoCredito : $estadoCredito }}</div>
     <div class="mb-2"><strong>Comprador:</strong> {{ $venta->nombre_comprador }}</div>
+    @if($venta->cliente)
+        <div class="mb-2"><strong>Codigo cliente:</strong> {{ $venta->cliente->codigo ?? '-' }} · <strong>{{ $venta->cliente->tipo_documento ?? 'Doc.' }}:</strong> {{ $venta->cliente->numero_documento ?? '-' }} · <strong>Tel.:</strong> {{ $venta->cliente->telefono ?? '-' }}</div>
+    @endif
+    <div class="mb-2"><strong>Registro:</strong> {{ $venta->usuario?->name ?? '-' }} · <strong>Caja:</strong> #{{ $venta->caja_id ?? '-' }}</div>
     <div class="mb-2"><strong>Método de pago:</strong> {{ $venta->metodo_pago }}</div>
+    <div class="mb-2"><strong>Metodo(s) detalle:</strong> {{ $venta->metodosPagoResumen() }}</div>
     @if($venta->es_credito)
         <div class="mb-2"><strong>Venta a crédito:</strong> S/ {{ number_format($venta->monto_inicial ?? 0, 2) }} inicial · Vence: {{ $venta->fecha_vencimiento_deuda?->format('d/m/Y') }}</div>
     @endif
@@ -70,6 +81,8 @@
             <div>Cupón: -S/ {{ number_format($venta->monto_descuento_cupon, 2) }}</div>
         @endif
         <div class="text-lg font-bold mt-4">Total: S/ {{ number_format($venta->total, 2) }}</div>
+        <div>Pagado: S/ {{ number_format($montoPagado, 2) }}</div>
+        <div>Saldo pendiente: S/ {{ number_format($saldoPendiente, 2) }}</div>
     </div>
 </body>
 </html>

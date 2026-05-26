@@ -18,17 +18,18 @@ class ReporteVentasExport implements FromCollection, WithHeadings, WithTitle
     public function collection()
     {
         $ventas = $this->data['ventas'] ?? collect();
+
         return $ventas->map(function ($v) {
             return [
                 $v->fecha_venta ? $v->fecha_venta->format('d/m/Y H:i') : '',
                 $v->numero_venta ?? $v->id,
-                $v->cliente ? trim($v->cliente->nombres . ' ' . $v->cliente->apellidos) : '',
-                $v->cliente ? ($v->cliente->tipo_documento ?? '') . ' ' . ($v->cliente->numero_documento ?? '') : '',
+                $v->cliente ? trim($v->cliente->nombres.' '.$v->cliente->apellidos) : '',
+                $v->cliente ? ($v->cliente->tipo_documento ?? '').' '.($v->cliente->numero_documento ?? '') : '',
                 (float) ($v->subtotal ?? 0),
                 (float) ($v->descuento ?? 0),
                 (float) ($v->igv ?? 0),
                 (float) $v->total,
-                $v->metodo_pago ?? '',
+                method_exists($v, 'metodosPagoResumen') ? $v->metodosPagoResumen() : ($v->metodo_pago ?? ''),
                 $v->estado ?? '',
                 $v->tipo_comprobante ?? '',
                 $v->numero_comprobante ?? '',

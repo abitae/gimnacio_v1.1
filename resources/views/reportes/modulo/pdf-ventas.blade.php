@@ -57,7 +57,7 @@
                 <td class="text-right">S/ {{ number_format($v->descuento ?? 0, 2) }}</td>
                 <td class="text-right">S/ {{ number_format($v->igv ?? 0, 2) }}</td>
                 <td class="text-right"><strong>S/ {{ number_format($v->total, 2) }}</strong></td>
-                <td>{{ $v->metodo_pago ?? '-' }}</td>
+                <td>{{ method_exists($v, 'metodosPagoResumen') ? $v->metodosPagoResumen() : ($v->metodo_pago ?? '-') }}</td>
                 <td>{{ $v->estado ?? '-' }}</td>
             </tr>
         @endforeach

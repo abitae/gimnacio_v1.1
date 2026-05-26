@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Core\TicketReprint;
 use App\Models\Core\Venta;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Log;
 use Mpdf\Mpdf;
 
 class ComprobanteVentaController extends Controller
@@ -18,7 +20,7 @@ class ComprobanteVentaController extends Controller
             abort(403);
         }
 
-        $venta->load(['items', 'cliente', 'employee', 'paymentMethod']);
+        $venta->load(['items', 'cliente', 'employee', 'paymentMethod', 'usuario', 'caja.sucursal', 'clientDebt', 'pagos.paymentMethod']);
 
         return view('ventas.comprobante', [
             'venta' => $venta,
@@ -34,7 +36,23 @@ class ComprobanteVentaController extends Controller
             abort(403);
         }
 
-        $venta->load(['items', 'cliente', 'employee', 'paymentMethod']);
+        $venta->load(['items', 'cliente', 'employee', 'paymentMethod', 'usuario', 'caja.sucursal', 'clientDebt', 'pagos.paymentMethod']);
+
+        if ($request->boolean('reprint')) {
+            try {
+                TicketReprint::create([
+                    'venta_id' => $venta->id,
+                    'user_id' => $request->user()?->id,
+                    'reprinted_at' => now(),
+                    'reason' => 'Reimpresion solicitada',
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('No se pudo registrar la reimpresion de ticket.', [
+                    'venta_id' => $venta->id,
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        }
 
         $html = view('ventas.comprobante-pdf', ['venta' => $venta])->render();
 

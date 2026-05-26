@@ -266,6 +266,28 @@
 
             <!-- Resultados de Búsqueda o Productos por Categoría -->
             <div class="flex-1 overflow-y-auto p-4">
+                @if ($tipoItem === 'producto' && empty($busqueda) && ($productosMasVendidos ?? collect())->isNotEmpty())
+                    <div class="mb-4 rounded-lg border border-zinc-200 bg-white p-3 dark:border-zinc-700 dark:bg-zinc-800">
+                        <div class="mb-2 flex items-center justify-between">
+                            <h3 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Productos mas vendidos</h3>
+                            <span class="text-xs text-zinc-500 dark:text-zinc-400">Ultimos 30 dias</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                            @foreach ($productosMasVendidos as $productoTop)
+                                <button type="button"
+                                    wire:click="agregarAlCarritoPorTipo('producto', {{ $productoTop->id }})"
+                                    class="rounded-lg border border-zinc-200 bg-zinc-50 p-2 text-left transition hover:border-purple-500 hover:bg-white dark:border-zinc-700 dark:bg-zinc-900/40 dark:hover:bg-zinc-800">
+                                    <div class="truncate text-xs font-semibold text-zinc-900 dark:text-zinc-100">{{ $productoTop->nombre }}</div>
+                                    <div class="mt-1 flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                        <span>S/ {{ number_format((float) $productoTop->precio_venta, 2) }}</span>
+                                        <span>Stock {{ $productoTop->stock_actual }}</span>
+                                    </div>
+                                    <div class="mt-1 text-[11px] font-medium text-purple-600 dark:text-purple-400">{{ $productoTop->cantidad_vendida }} vendidos</div>
+                                </button>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
                 @if (!empty($busqueda))
                     @if (!empty($resultadosBusqueda))
                         <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
@@ -709,6 +731,55 @@
                 <flux:input wire:model="entidadFinanciera" label="Entidad financiera" placeholder="Obligatorio" />
             @endif
 
+            <div class="space-y-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+                <div class="flex items-center justify-between gap-2">
+                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300">Pagos</label>
+                    <flux:button type="button" size="xs" variant="ghost" wire:click="agregarPagoVenta">Agregar pago</flux:button>
+                </div>
+                @foreach($pagosVenta as $i => $pago)
+                    @php
+                        $lineMethod = !empty($pago['payment_method_id']) ? $paymentMethods->firstWhere('id', (int) $pago['payment_method_id']) : null;
+                    @endphp
+                    <div class="grid grid-cols-1 gap-2 rounded-lg border border-zinc-200 bg-white p-2 dark:border-zinc-700 dark:bg-zinc-800 sm:grid-cols-12">
+                        <div class="sm:col-span-4">
+                            <label class="mb-1 block text-[11px] font-medium text-zinc-500 dark:text-zinc-400">Metodo</label>
+                            <select wire:model.live="pagosVenta.{{ $i }}.payment_method_id"
+                                class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                                <option value="">Seleccione</option>
+                                @foreach($paymentMethods as $pm)
+                                    <option value="{{ $pm->id }}">{{ $pm->nombre }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+                        <div class="sm:col-span-3">
+                            <flux:input size="xs" type="number" step="0.01" min="0" wire:model.live.number="pagosVenta.{{ $i }}.monto" label="Monto" />
+                        </div>
+                        @if($lineMethod?->requiere_numero_operacion)
+                            <div class="sm:col-span-3">
+                                <flux:input size="xs" wire:model.live="pagosVenta.{{ $i }}.numero_operacion" label="Operacion" />
+                            </div>
+                        @endif
+                        @if($lineMethod?->requiere_entidad)
+                            <div class="sm:col-span-3">
+                                <flux:input size="xs" wire:model.live="pagosVenta.{{ $i }}.entidad_financiera" label="Entidad" />
+                            </div>
+                        @endif
+                        <div class="flex items-end justify-end sm:col-span-2">
+                            <flux:button type="button" size="xs" variant="ghost" color="red" wire:click="quitarPagoVenta({{ $i }})">Quitar</flux:button>
+                        </div>
+                    </div>
+                @endforeach
+                @php
+                    $totalPagosVenta = collect($pagosVenta)->sum(fn ($p) => (float) ($p['monto'] ?? 0));
+                    $saldoPreviewVenta = max(0, $this->total - $totalPagosVenta);
+                @endphp
+                <div class="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span class="text-zinc-600 dark:text-zinc-400">Total: <strong>S/ {{ number_format($this->total, 2) }}</strong></span>
+                    <span class="text-zinc-600 dark:text-zinc-400">Pagado: <strong>S/ {{ number_format($totalPagosVenta, 2) }}</strong></span>
+                    <span class="{{ $saldoPreviewVenta > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400' }}">Saldo: <strong>S/ {{ number_format($saldoPreviewVenta, 2) }}</strong></span>
+                </div>
+            </div>
+
             <!-- Venta a crédito (solo cliente o empleado con selección) -->
             <div
                 x-show="(compradorTab === 'cliente' && clienteId) || (compradorTab === 'empleado' && employeeId)"
@@ -720,7 +791,7 @@
                     </div>
                     @if($esCredito)
                         <div class="grid grid-cols-2 gap-2">
-                            <flux:input type="number" step="0.01" min="0" wire:model="montoInicial" label="Monto inicial (S/)" placeholder="0" />
+                            <flux:input type="number" step="0.01" min="0" value="{{ number_format($totalPagosVenta ?? 0, 2, '.', '') }}" label="Inicial segun pagos (S/)" readonly />
                             <flux:input type="date" wire:model="fechaVencimientoDeuda" label="Vencimiento deuda" />
                         </div>
                     @endif

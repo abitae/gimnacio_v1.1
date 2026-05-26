@@ -201,7 +201,7 @@ class CustomerDebts extends Component
         $this->clientDebtService->markOverdueDebts();
 
         $query = ClientDebt::query()
-            ->with(['cliente', 'venta'])
+            ->with(['cliente', 'venta.usuario'])
             ->pendientes()
             ->orderByDesc('fecha_registro');
 
