@@ -64,6 +64,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->booted(function () {
             Schedule::command('crm:mark-overdue-tasks')->hourly();
             Schedule::command('crm:renewal-tasks --days=7')->dailyAt('08:00');
+            Schedule::command('checking:auto-checkout')->dailyAt('23:59')->withoutOverlapping();
         });
 
         $sidebarBgClasses = [

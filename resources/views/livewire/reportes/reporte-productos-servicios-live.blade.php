@@ -24,6 +24,10 @@
             <div class="text-xs font-medium text-red-600 dark:text-red-400">Productos bajo stock</div>
             <div class="text-lg font-bold text-red-700 dark:text-red-300">{{ $resumen['productos_bajo_stock'] }}</div>
         </div>
+        <div class="rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-950/30 p-4">
+            <div class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Productos vendidos</div>
+            <div class="text-lg font-bold text-emerald-700 dark:text-emerald-300">{{ $resumen['productos_vendidos'] ?? 0 }}</div>
+        </div>
     </div>
 
     <div class="grid gap-4 lg:grid-cols-2">
@@ -80,6 +84,103 @@
                     </tbody>
                 </table>
             </div>
+        </div>
+    </div>
+    <div class="grid gap-4 lg:grid-cols-2">
+        <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+            <div class="bg-zinc-100 dark:bg-zinc-900/60 text-zinc-800 dark:text-zinc-200 px-3 py-2 font-semibold text-sm">Productos vendidos por caja</div>
+            <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-zinc-50 dark:bg-zinc-900/40">
+                        <tr>
+                            <th class="px-3 py-1.5 text-left font-medium">Caja</th>
+                            <th class="px-3 py-1.5 text-left font-medium">Usuario caja</th>
+                            <th class="px-3 py-1.5 text-right font-medium">Ventas</th>
+                            <th class="px-3 py-1.5 text-right font-medium">Cant.</th>
+                            <th class="px-3 py-1.5 text-right font-medium">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        @forelse($productosPorCaja as $row)
+                            <tr>
+                                <td class="px-3 py-1.5">{{ $row['caja'] }}</td>
+                                <td class="px-3 py-1.5">{{ $row['usuario_caja'] }}</td>
+                                <td class="px-3 py-1.5 text-right">{{ $row['ventas_count'] }}</td>
+                                <td class="px-3 py-1.5 text-right">{{ $row['cantidad_productos'] }}</td>
+                                <td class="px-3 py-1.5 text-right">S/ {{ number_format($row['total'] ?? 0, 2) }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="5" class="px-3 py-2 text-center text-zinc-500">Sin productos vendidos por caja</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+            <div class="bg-zinc-100 dark:bg-zinc-900/60 text-zinc-800 dark:text-zinc-200 px-3 py-2 font-semibold text-sm">Productos vendidos por usuario</div>
+            <div class="overflow-x-auto max-h-80 overflow-y-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-zinc-50 dark:bg-zinc-900/40">
+                        <tr>
+                            <th class="px-3 py-1.5 text-left font-medium">Usuario</th>
+                            <th class="px-3 py-1.5 text-right font-medium">Ventas</th>
+                            <th class="px-3 py-1.5 text-right font-medium">Cant.</th>
+                            <th class="px-3 py-1.5 text-right font-medium">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        @forelse($productosPorUsuario as $row)
+                            <tr>
+                                <td class="px-3 py-1.5">{{ $row['usuario'] }}</td>
+                                <td class="px-3 py-1.5 text-right">{{ $row['ventas_count'] }}</td>
+                                <td class="px-3 py-1.5 text-right">{{ $row['cantidad_productos'] }}</td>
+                                <td class="px-3 py-1.5 text-right">S/ {{ number_format($row['total'] ?? 0, 2) }}</td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="4" class="px-3 py-2 text-center text-zinc-500">Sin productos vendidos por usuario</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+        <div class="bg-zinc-100 dark:bg-zinc-900/60 text-zinc-800 dark:text-zinc-200 px-3 py-2 font-semibold text-sm">Detalle de productos vendidos</div>
+        <div class="overflow-x-auto max-h-[30rem] overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-zinc-50 dark:bg-zinc-900/40">
+                    <tr>
+                        <th class="px-3 py-1.5 text-left font-medium">Fecha</th>
+                        <th class="px-3 py-1.5 text-left font-medium">Caja</th>
+                        <th class="px-3 py-1.5 text-left font-medium">Vendedor</th>
+                        <th class="px-3 py-1.5 text-left font-medium">Producto</th>
+                        <th class="px-3 py-1.5 text-right font-medium">Cant.</th>
+                        <th class="px-3 py-1.5 text-right font-medium">Subtotal</th>
+                        <th class="px-3 py-1.5 text-left font-medium">Comprobante</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                    @forelse($detalleProductosVendidos as $row)
+                        <tr>
+                            <td class="px-3 py-1.5 whitespace-nowrap">{{ $row['fecha']?->format('d/m/Y H:i') }}</td>
+                            <td class="px-3 py-1.5">{{ $row['caja'] }}</td>
+                            <td class="px-3 py-1.5">{{ $row['vendedor'] }}</td>
+                            <td class="px-3 py-1.5">{{ $row['producto'] }}</td>
+                            <td class="px-3 py-1.5 text-right">{{ $row['cantidad'] }}</td>
+                            <td class="px-3 py-1.5 text-right">S/ {{ number_format($row['subtotal'] ?? 0, 2) }}</td>
+                            <td class="px-3 py-1.5">
+                                <a class="text-orange-700 underline underline-offset-2 dark:text-orange-300"
+                                   href="{{ route('ventas.comprobante.pdf', ['venta' => $row['venta_id'], 'reprint' => 1]) }}"
+                                   target="_blank">
+                                    {{ $row['comprobante'] ?: $row['numero_venta'] }}
+                                </a>
+                            </td>
+                        </tr>
+                    @empty
+                        <tr><td colspan="7" class="px-3 py-2 text-center text-zinc-500">Sin detalle de productos vendidos</td></tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
     </div>
     </div>

@@ -240,6 +240,9 @@ class ClienteMatriculaService
                 'comprobante_numero' => $data['comprobante_numero'] ?? null,
             ]);
 
+            $numeroOperacion = trim((string) ($data['numero_operacion'] ?? '')) ?: null;
+            $entidadFinanciera = trim((string) ($data['entidad_financiera'] ?? '')) ?: null;
+
             // Crear nuevo registro de pago asociado a la caja
             $pago = Pago::create([
                 'cliente_id' => $clienteMatricula->cliente_id,
@@ -248,8 +251,8 @@ class ClienteMatriculaService
                 'moneda' => $data['moneda'] ?? 'PEN',
                 'metodo_pago' => $metodoPago,
                 'payment_method_id' => $paymentMethodId,
-                'numero_operacion' => $data['numero_operacion'] ?? null,
-                'entidad_financiera' => $data['entidad_financiera'] ?? null,
+                'numero_operacion' => $numeroOperacion,
+                'entidad_financiera' => $entidadFinanciera,
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
                 'es_pago_parcial' => $esPagoParcial,
                 'saldo_pendiente' => $nuevoSaldoPendiente,

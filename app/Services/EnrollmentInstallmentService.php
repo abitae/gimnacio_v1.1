@@ -475,6 +475,8 @@ class EnrollmentInstallmentService
                 'comprobante_tipo' => $data['comprobante_tipo'] ?? null,
                 'comprobante_numero' => $data['comprobante_numero'] ?? null,
             ]);
+            $numeroOperacion = trim((string) ($data['numero_operacion'] ?? '')) ?: null;
+            $entidadFinanciera = trim((string) ($data['entidad_financiera'] ?? '')) ?: null;
 
             $pago = Pago::create([
                 'cliente_id' => $matricula->cliente_id,
@@ -485,8 +487,8 @@ class EnrollmentInstallmentService
                 'metodo_pago' => $metodoPago,
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
                 'payment_method_id' => $paymentMethodId,
-                'numero_operacion' => $data['numero_operacion'] ?? null,
-                'entidad_financiera' => $data['entidad_financiera'] ?? null,
+                'numero_operacion' => $numeroOperacion,
+                'entidad_financiera' => $entidadFinanciera,
                 'es_pago_parcial' => $saldoPendienteNuevo > 0,
                 'saldo_pendiente' => $saldoPendienteNuevo,
                 'comprobante_tipo' => $cobro['tipo'],
@@ -521,7 +523,7 @@ class EnrollmentInstallmentService
                 'monto_pagado' => min((float) $row->monto, $nuevoMontoPagado),
                 'estado' => $nuevoEstado,
                 'payment_method_id' => $data['payment_method_id'] ?? null,
-                'numero_operacion' => $data['numero_operacion'] ?? null,
+                'numero_operacion' => $numeroOperacion,
                 'pago_id' => $pago->id,
                 'fecha_pago' => $pago->fecha_pago ? Carbon::parse($pago->fecha_pago)->toDateString() : null,
             ]);

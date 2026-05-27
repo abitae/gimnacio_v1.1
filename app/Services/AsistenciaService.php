@@ -6,6 +6,8 @@ use App\Models\Core\Asistencia;
 use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\ClienteMembresia;
+use Carbon\CarbonInterface;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 
 class AsistenciaService
@@ -209,9 +211,51 @@ class AsistenciaService
 
         return DB::transaction(function () use ($asistencia) {
             $asistencia->fecha_hora_salida = now();
+            $asistencia->checkout_origen = 'manual';
             $asistencia->save();
 
             return $asistencia->fresh();
+        });
+    }
+
+    /**
+     * Cierra todos los ingresos abiertos hasta el fin del dia indicado.
+     */
+    public function cerrarIngresosAbiertosHastaFinDelDia(CarbonInterface|string|null $fecha = null): array
+    {
+        $finDelDia = $fecha instanceof CarbonInterface
+            ? Carbon::instance($fecha->toDateTime())->endOfDay()
+            : Carbon::parse($fecha ?? now())->endOfDay();
+
+        return DB::transaction(function () use ($finDelDia) {
+            $ids = Asistencia::withoutGlobalScopes()
+                ->whereNull('fecha_hora_salida')
+                ->where('fecha_hora_ingreso', '<=', $finDelDia)
+                ->orderBy('id')
+                ->pluck('id')
+                ->all();
+
+            if ($ids === []) {
+                return [
+                    'total' => 0,
+                    'ids' => [],
+                    'fecha_hora_salida' => $finDelDia,
+                ];
+            }
+
+            Asistencia::withoutGlobalScopes()
+                ->whereIn('id', $ids)
+                ->update([
+                    'fecha_hora_salida' => $finDelDia,
+                    'checkout_origen' => 'automatico',
+                    'updated_at' => now(),
+                ]);
+
+            return [
+                'total' => count($ids),
+                'ids' => $ids,
+                'fecha_hora_salida' => $finDelDia,
+            ];
         });
     }
 

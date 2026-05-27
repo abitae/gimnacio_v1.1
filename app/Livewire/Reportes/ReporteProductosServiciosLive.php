@@ -25,6 +25,9 @@ class ReporteProductosServiciosLive extends Component
 
         return view('livewire.reportes.reporte-productos-servicios-live', [
             'itemsMasVendidos' => $data['items_mas_vendidos'],
+            'productosPorCaja' => $data['productos_por_caja'],
+            'productosPorUsuario' => $data['productos_por_usuario'],
+            'detalleProductosVendidos' => $data['detalle_productos_vendidos'],
             'productosBajoStock' => $data['productos_bajo_stock'],
             'resumen' => $data['resumen'],
         ]);

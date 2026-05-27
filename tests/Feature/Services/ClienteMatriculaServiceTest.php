@@ -61,6 +61,8 @@ it('registers a caja movement when a matricula payment is processed', function (
 
     expect($pago->caja_id)->toBe($caja->id);
     expect((float) $pago->saldo_pendiente)->toBe(140.0);
+    expect($pago->numero_operacion)->toBeNull();
+    expect($pago->entidad_financiera)->toBeNull();
     expect($pago->comprobante_tipo)->toBe('ticket');
     expect($pago->comprobante_numero)->toStartWith('C');
 
@@ -147,6 +149,8 @@ it('allows partial payments on enrollment installments and completes the same in
     $cuota->refresh();
     expect((float) $primerPago->monto)->toBe(60.0);
     expect($primerPago->enrollment_installment_id)->toBe($cuota->id);
+    expect($primerPago->numero_operacion)->toBeNull();
+    expect($primerPago->entidad_financiera)->toBeNull();
     expect($cuota->estado)->toBe('parcial');
     expect((float) $cuota->monto_pagado)->toBe(60.0);
     expect((float) $cuota->saldo_pendiente)->toBe(90.0);

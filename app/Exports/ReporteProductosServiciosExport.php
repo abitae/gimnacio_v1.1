@@ -19,9 +19,12 @@ class ReporteProductosServiciosExport implements WithMultipleSheets
     public function sheets(): array
     {
         return [
-            new class($this->data['items_mas_vendidos'] ?? collect()) implements FromCollection, WithHeadings, WithTitle {
+            new class($this->data['items_mas_vendidos'] ?? collect()) implements FromCollection, WithHeadings, WithTitle
+            {
                 public function __construct(protected $items) {}
-                public function collection() {
+
+                public function collection()
+                {
                     return $this->items->map(fn ($i) => [
                         $i->tipo_item ?? '',
                         $i->nombre_item ?? '',
@@ -29,12 +32,106 @@ class ReporteProductosServiciosExport implements WithMultipleSheets
                         (float) ($i->total ?? 0),
                     ]);
                 }
-                public function headings(): array { return ['Tipo', 'Nombre', 'Cantidad vendida', 'Total (S/)']; }
-                public function title(): string { return 'Más vendidos'; }
+
+                public function headings(): array
+                {
+                    return ['Tipo', 'Nombre', 'Cantidad vendida', 'Total (S/)'];
+                }
+
+                public function title(): string
+                {
+                    return 'Mas vendidos';
+                }
             },
-            new class($this->data['productos_bajo_stock'] ?? collect()) implements FromCollection, WithHeadings, WithTitle {
+            new class($this->data['productos_por_caja'] ?? collect()) implements FromCollection, WithHeadings, WithTitle
+            {
+                public function __construct(protected $rows) {}
+
+                public function collection()
+                {
+                    return $this->rows->map(fn ($row) => [
+                        $row['caja'] ?? '',
+                        $row['usuario_caja'] ?? '',
+                        (int) ($row['ventas_count'] ?? 0),
+                        (int) ($row['cantidad_productos'] ?? 0),
+                        (float) ($row['total'] ?? 0),
+                        collect($row['metodos_pago'] ?? [])->map(fn ($total, $metodo) => $metodo.': S/ '.number_format((float) $total, 2))->implode(', '),
+                    ]);
+                }
+
+                public function headings(): array
+                {
+                    return ['Caja', 'Usuario caja', 'Ventas', 'Cantidad productos', 'Total (S/)', 'Metodos de pago'];
+                }
+
+                public function title(): string
+                {
+                    return 'Por caja';
+                }
+            },
+            new class($this->data['productos_por_usuario'] ?? collect()) implements FromCollection, WithHeadings, WithTitle
+            {
+                public function __construct(protected $rows) {}
+
+                public function collection()
+                {
+                    return $this->rows->map(fn ($row) => [
+                        $row['usuario'] ?? '',
+                        (int) ($row['ventas_count'] ?? 0),
+                        (int) ($row['cantidad_productos'] ?? 0),
+                        (float) ($row['total'] ?? 0),
+                    ]);
+                }
+
+                public function headings(): array
+                {
+                    return ['Usuario', 'Ventas', 'Cantidad productos', 'Total (S/)'];
+                }
+
+                public function title(): string
+                {
+                    return 'Por usuario';
+                }
+            },
+            new class($this->data['detalle_productos_vendidos'] ?? collect()) implements FromCollection, WithHeadings, WithTitle
+            {
+                public function __construct(protected $rows) {}
+
+                public function collection()
+                {
+                    return $this->rows->map(fn ($row) => [
+                        $row['fecha']?->format('Y-m-d H:i:s') ?? '',
+                        $row['caja'] ?? '',
+                        $row['usuario_caja'] ?? '',
+                        $row['vendedor'] ?? '',
+                        $row['comprador'] ?? '',
+                        $row['producto'] ?? '',
+                        (int) ($row['cantidad'] ?? 0),
+                        (float) ($row['precio_unitario'] ?? 0),
+                        (float) ($row['subtotal'] ?? 0),
+                        (float) ($row['total_venta'] ?? 0),
+                        $row['comprobante'] ?? '',
+                        $row['numero_venta'] ?? '',
+                        $row['estado'] ?? '',
+                    ]);
+                }
+
+                public function headings(): array
+                {
+                    return ['Fecha', 'Caja', 'Usuario caja', 'Vendedor', 'Comprador', 'Producto', 'Cantidad', 'Precio unitario', 'Subtotal', 'Total venta', 'Comprobante', 'Numero venta', 'Estado'];
+                }
+
+                public function title(): string
+                {
+                    return 'Detalle productos';
+                }
+            },
+            new class($this->data['productos_bajo_stock'] ?? collect()) implements FromCollection, WithHeadings, WithTitle
+            {
                 public function __construct(protected $productos) {}
-                public function collection() {
+
+                public function collection()
+                {
                     return $this->productos->map(fn ($p) => [
                         $p->codigo ?? '',
                         $p->nombre ?? '',
@@ -42,8 +139,16 @@ class ReporteProductosServiciosExport implements WithMultipleSheets
                         (int) $p->stock_minimo,
                     ]);
                 }
-                public function headings(): array { return ['Código', 'Nombre', 'Stock actual', 'Stock mínimo']; }
-                public function title(): string { return 'Stock bajo'; }
+
+                public function headings(): array
+                {
+                    return ['Codigo', 'Nombre', 'Stock actual', 'Stock minimo'];
+                }
+
+                public function title(): string
+                {
+                    return 'Stock bajo';
+                }
             },
         ];
     }

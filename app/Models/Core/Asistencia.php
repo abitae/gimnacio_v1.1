@@ -19,6 +19,7 @@ class Asistencia extends Model
         'cliente_matricula_id',
         'fecha_hora_ingreso',
         'fecha_hora_salida',
+        'checkout_origen',
         'origen',
         'valido_por_membresia',
         'registrada_por',

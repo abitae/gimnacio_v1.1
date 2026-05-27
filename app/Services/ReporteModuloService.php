@@ -651,20 +651,101 @@ class ReporteModuloService
      */
     public function datosReporteProductosServicios(?string $fechaDesde, ?string $fechaHasta): array
     {
-        $ventasQuery = Venta::query();
+        $ventasQuery = Venta::with(['items', 'caja.usuario', 'usuario', 'cliente', 'employee', 'paymentMethod', 'pagos.paymentMethod']);
         if ($fechaDesde) {
             $ventasQuery->where('fecha_venta', '>=', $fechaDesde);
         }
         if ($fechaHasta) {
             $ventasQuery->where('fecha_venta', '<=', $fechaHasta.' 23:59:59');
         }
-        $ventaIds = $ventasQuery->pluck('id');
+        $ventas = $ventasQuery->orderByDesc('fecha_venta')->get();
+        $ventaIds = $ventas->pluck('id');
 
         $items = VentaItem::whereIn('venta_id', $ventaIds)
             ->select('tipo_item', 'item_id', 'nombre_item', DB::raw('SUM(cantidad) as cantidad_vendida'), DB::raw('SUM(subtotal) as total'))
             ->groupBy('tipo_item', 'item_id', 'nombre_item')
             ->orderByDesc('cantidad_vendida')
             ->get();
+
+        $detalleProductosVendidos = $ventas
+            ->flatMap(function (Venta $venta) {
+                return $venta->items
+                    ->where('tipo_item', 'producto')
+                    ->map(function (VentaItem $item) use ($venta) {
+                        return [
+                            'venta_id' => $venta->id,
+                            'fecha' => $venta->fecha_venta,
+                            'caja_id' => $venta->caja_id,
+                            'caja' => $venta->caja_id ? '#'.$venta->caja_id : 'Sin caja',
+                            'usuario_caja' => $venta->caja?->usuario?->name ?? 'Sin usuario',
+                            'vendedor_id' => $venta->usuario_id,
+                            'vendedor' => $venta->usuario?->name ?? 'Sin usuario',
+                            'comprador' => $venta->nombre_comprador,
+                            'comprobante' => trim(strtoupper((string) $venta->tipo_comprobante).' '.($venta->serie_comprobante ? $venta->serie_comprobante.'-' : '').(string) $venta->numero_comprobante),
+                            'numero_venta' => $venta->numero_venta,
+                            'producto_id' => $item->item_id,
+                            'producto' => $item->nombre_item,
+                            'cantidad' => (int) $item->cantidad,
+                            'precio_unitario' => (float) $item->precio_unitario,
+                            'subtotal' => (float) $item->subtotal,
+                            'total_venta' => (float) $venta->total,
+                            'estado' => $venta->estado,
+                            'metodos_pago' => $venta->metodosPagoResumen(),
+                        ];
+                    });
+            })
+            ->values();
+
+        $porCajaProductos = $detalleProductosVendidos
+            ->groupBy('caja_id')
+            ->map(function ($rows) use ($ventas) {
+                $ventaIdsCaja = $rows->pluck('venta_id')->unique();
+                $metodos = [];
+
+                $ventas->whereIn('id', $ventaIdsCaja)->each(function (Venta $venta) use (&$metodos) {
+                    if ($venta->pagos->isNotEmpty()) {
+                        foreach ($venta->pagos as $pago) {
+                            $metodo = $pago->paymentMethod?->nombre ?? $pago->metodo_pago ?? 'Sin especificar';
+                            $metodos[$metodo] = round(($metodos[$metodo] ?? 0) + (float) $pago->monto, 2);
+                        }
+
+                        return;
+                    }
+
+                    $metodo = $venta->paymentMethod?->nombre ?? ($venta->metodo_pago ?: 'Sin especificar');
+                    $metodos[$metodo] = round(($metodos[$metodo] ?? 0) + (float) $venta->montoPagadoInicial(), 2);
+                });
+
+                $first = $rows->first();
+
+                return [
+                    'caja_id' => $first['caja_id'],
+                    'caja' => $first['caja'],
+                    'usuario_caja' => $first['usuario_caja'],
+                    'cantidad_productos' => (int) $rows->sum('cantidad'),
+                    'ventas_count' => $ventaIdsCaja->count(),
+                    'total' => round((float) $rows->sum('subtotal'), 2),
+                    'metodos_pago' => $metodos,
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
+
+        $porUsuarioProductos = $detalleProductosVendidos
+            ->groupBy('vendedor_id')
+            ->map(function ($rows) {
+                $first = $rows->first();
+
+                return [
+                    'usuario_id' => $first['vendedor_id'],
+                    'usuario' => $first['vendedor'],
+                    'cantidad_productos' => (int) $rows->sum('cantidad'),
+                    'ventas_count' => $rows->pluck('venta_id')->unique()->count(),
+                    'total' => round((float) $rows->sum('subtotal'), 2),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values();
 
         $productosBajoStock = Producto::where('estado', 'activo')
             ->whereRaw('stock_actual <= stock_minimo')
@@ -673,11 +754,17 @@ class ReporteModuloService
 
         return [
             'items_mas_vendidos' => $items,
+            'productos_por_caja' => $porCajaProductos,
+            'productos_por_usuario' => $porUsuarioProductos,
+            'detalle_productos_vendidos' => $detalleProductosVendidos,
             'productos_bajo_stock' => $productosBajoStock,
             'resumen' => [
                 'total_productos_activos' => Producto::where('estado', 'activo')->count(),
                 'total_servicios_activos' => ServicioExterno::where('estado', 'activo')->count(),
                 'productos_bajo_stock' => $productosBajoStock->count(),
+                'productos_vendidos' => (int) $detalleProductosVendidos->sum('cantidad'),
+                'ventas_con_productos' => $detalleProductosVendidos->pluck('venta_id')->unique()->count(),
+                'total_productos_vendidos' => round((float) $detalleProductosVendidos->sum('subtotal'), 2),
             ],
         ];
     }

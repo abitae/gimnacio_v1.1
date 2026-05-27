@@ -100,10 +100,10 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
 
     // Comprobante de venta (HTML y PDF para modal)
     Route::get('ventas/{venta}/comprobante', [\App\Http\Controllers\ComprobanteVentaController::class, 'show'])
-        ->middleware('permission:punto_venta.ver')
+        ->middleware('permission:punto_venta.ver|reporte.ver')
         ->name('ventas.comprobante');
     Route::get('ventas/{venta}/comprobante.pdf', [\App\Http\Controllers\ComprobanteVentaController::class, 'pdf'])
-        ->middleware('permission:punto_venta.ver')
+        ->middleware('permission:punto_venta.ver|reporte.ver')
         ->name('ventas.comprobante.pdf');
 
     Route::get('pagos/{pago}/ticket.pdf', [\App\Http\Controllers\ComprobantePagoController::class, 'pdf'])

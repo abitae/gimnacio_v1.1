@@ -16,7 +16,7 @@ class ComprobanteVentaController extends Controller
      */
     public function show(Request $request, Venta $venta)
     {
-        if (! Gate::allows('punto_venta.ver')) {
+        if (! $this->canViewComprobante()) {
             abort(403);
         }
 
@@ -32,7 +32,7 @@ class ComprobanteVentaController extends Controller
      */
     public function pdf(Request $request, Venta $venta)
     {
-        if (! Gate::allows('punto_venta.ver')) {
+        if (! $this->canViewComprobante()) {
             abort(403);
         }
 
@@ -71,5 +71,10 @@ class ComprobanteVentaController extends Controller
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="comprobante-'.$venta->numero_venta.'.pdf"',
         ]);
+    }
+
+    protected function canViewComprobante(): bool
+    {
+        return Gate::allows('punto_venta.ver') || Gate::allows('reporte.ver');
     }
 }

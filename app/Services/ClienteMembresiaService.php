@@ -2,8 +2,8 @@
 
 namespace App\Services;
 
-use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Caja;
+use App\Models\Core\CajaMovimiento;
 use App\Models\Core\ClienteMembresia;
 use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Membresia;
@@ -145,6 +145,9 @@ class ClienteMembresiaService
                 'comprobante_numero' => $data['comprobante_numero'] ?? null,
             ]);
 
+            $numeroOperacion = trim((string) ($data['numero_operacion'] ?? '')) ?: null;
+            $entidadFinanciera = trim((string) ($data['entidad_financiera'] ?? '')) ?: null;
+
             // Crear nuevo registro de pago asociado a la caja
             $pago = Pago::create([
                 'cliente_id' => $clienteMembresia->cliente_id,
@@ -153,8 +156,8 @@ class ClienteMembresiaService
                 'moneda' => $data['moneda'] ?? 'PEN',
                 'metodo_pago' => $metodoPago,
                 'payment_method_id' => $paymentMethodId,
-                'numero_operacion' => $data['numero_operacion'] ?? null,
-                'entidad_financiera' => $data['entidad_financiera'] ?? null,
+                'numero_operacion' => $numeroOperacion,
+                'entidad_financiera' => $entidadFinanciera,
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
                 'es_pago_parcial' => $esPagoParcial,
                 'saldo_pendiente' => $nuevoSaldoPendiente,
