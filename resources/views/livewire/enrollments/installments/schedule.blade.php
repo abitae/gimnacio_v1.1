@@ -43,7 +43,9 @@
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">#</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Matrícula / concepto</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Vencimiento</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Monto</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Programado</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Pagado</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Saldo</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Estado</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Acciones</th>
                 </tr>
@@ -76,6 +78,8 @@
                                 S/ {{ number_format($cuota->monto, 2) }}
                             @endif
                         </td>
+                        <td class="px-4 py-2 text-emerald-700 dark:text-emerald-400">S/ {{ number_format($cuota->monto_pagado_actual, 2) }}</td>
+                        <td class="px-4 py-2 {{ $cuota->saldo_pendiente > 0 ? 'font-medium text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">S/ {{ number_format($cuota->saldo_pendiente, 2) }}</td>
                         <td class="px-4 py-2">
                             <span class="rounded-full px-1.5 py-0.5 text-xs
                                 @if($cuota->estado === 'pagada') bg-green-100 dark:bg-green-900/30
@@ -113,7 +117,7 @@
     <flux:modal name="schedule-pago-cuota-modal" wire:model="cuotaPagoModalAbierto" focusable class="md:w-lg">
         <form wire:submit.prevent="guardarPagoCuota" class="space-y-3 p-4">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago de cuota') }}</h2>
-            <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. El monto debe coincidir con la cuota programada.') }}</p>
+            <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. Puedes registrar un abono parcial o completar el saldo de la cuota.') }}</p>
             <flux:input size="xs" type="number" step="0.01" wire:model="pagoCuotaForm.monto" label="{{ __('Monto') }}" required />
             <flux:input size="xs" type="date" wire:model="pagoCuotaForm.fecha_pago" label="{{ __('Fecha') }}" required />
             <div>

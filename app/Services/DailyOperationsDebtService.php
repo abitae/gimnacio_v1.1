@@ -4,8 +4,6 @@ namespace App\Services;
 
 use App\Models\Core\ClientDebt;
 use App\Models\Core\Cliente;
-use App\Models\Core\ClienteMembresia;
-use App\Models\Core\ClienteMatricula;
 use App\Models\Core\EnrollmentInstallment;
 use Illuminate\Support\Collection;
 
@@ -14,8 +12,7 @@ class DailyOperationsDebtService
     public function __construct(
         protected ClienteMatriculaService $clienteMatriculaService,
         protected ClienteMembresiaService $clienteMembresiaService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return Collection<int, array<string, mixed>>
@@ -82,7 +79,7 @@ class DailyOperationsDebtService
                 'tipo' => 'cuota',
                 'id' => $installment->id,
                 'nombre' => 'Cuota '.$installment->numero_cuota.($matriculaNombre ? ' - '.$matriculaNombre : ''),
-                'saldo_pendiente' => round((float) $installment->monto, 2),
+                'saldo_pendiente' => round((float) $installment->saldo_pendiente, 2),
                 'estado' => $installment->estado,
                 'es_vencida' => $installment->estaVencida(),
                 'fecha_vencimiento' => $installment->fecha_vencimiento,
@@ -94,7 +91,7 @@ class DailyOperationsDebtService
             ->where('cliente_id', $clienteId)
             ->pendientes()
             ->with('venta')
-            ->orderByRaw("CASE WHEN fecha_vencimiento IS NULL THEN 1 ELSE 0 END")
+            ->orderByRaw('CASE WHEN fecha_vencimiento IS NULL THEN 1 ELSE 0 END')
             ->orderBy('fecha_vencimiento')
             ->orderByDesc('fecha_registro')
             ->get();

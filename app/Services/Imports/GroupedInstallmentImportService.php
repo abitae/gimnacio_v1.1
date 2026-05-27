@@ -265,6 +265,9 @@ class GroupedInstallmentImportService
         $installmentStatuses = $scheduleMatchesFinancedBalance
             ? $this->resolveInstallmentStatusesWithoutAppliedPayments($sorted)
             : $this->resolveInstallmentStatuses($sorted, $montoPagado);
+        $installmentPaidAmounts = $scheduleMatchesFinancedBalance
+            ? array_fill(0, count($sorted), 0.0)
+            : $this->resolveInstallmentPaidAmounts($sorted, $montoPagado);
 
         $minCuota = $sorted[0]->fechaCuota ?? CarbonImmutable::now();
         $maxCuota = $sorted[array_key_last($sorted)]->fechaCuota ?? $minCuota;
@@ -351,6 +354,7 @@ class GroupedInstallmentImportService
                 'client_debt_id' => $debt->id,
                 'numero_cuota' => $numero,
                 'monto' => $row->montoCuota,
+                'monto_pagado' => $installmentPaidAmounts[$idx] ?? 0,
                 'fecha_vencimiento' => $row->fechaCuota->toDateString(),
                 'estado' => $estado,
                 'payment_method_id' => null,
@@ -643,6 +647,25 @@ class GroupedInstallmentImportService
         }
 
         return $statuses;
+    }
+
+    /**
+     * @param  list<CuotaClienteRowData>  $sortedRows
+     * @return list<float>
+     */
+    private function resolveInstallmentPaidAmounts(array $sortedRows, float $montoPagado): array
+    {
+        $amounts = [];
+        $remaining = round(max(0, $montoPagado), 2);
+
+        foreach ($sortedRows as $row) {
+            $monto = round((float) ($row->montoCuota ?? 0), 2);
+            $paid = min($monto, $remaining);
+            $amounts[] = round(max(0, $paid), 2);
+            $remaining = round(max(0, $remaining - $paid), 2);
+        }
+
+        return $amounts;
     }
 
     private function resolveInstallmentEstadoFallback(CuotaClienteRowData $row): string

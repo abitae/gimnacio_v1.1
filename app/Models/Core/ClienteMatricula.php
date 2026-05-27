@@ -136,8 +136,8 @@ class ClienteMatricula extends Model
 
             if ($hasInstallments) {
                 $sum = $this->relationLoaded('enrollmentInstallments')
-                    ? (float) $this->enrollmentInstallments->whereIn('estado', ['pendiente', 'vencida', 'parcial'])->sum('monto')
-                    : (float) $this->enrollmentInstallments()->whereIn('estado', ['pendiente', 'vencida', 'parcial'])->sum('monto');
+                    ? (float) $this->enrollmentInstallments->whereIn('estado', ['pendiente', 'vencida', 'parcial'])->sum(fn (EnrollmentInstallment $installment) => $installment->saldo_pendiente)
+                    : (float) $this->enrollmentInstallments()->whereIn('estado', ['pendiente', 'vencida', 'parcial'])->get()->sum(fn (EnrollmentInstallment $installment) => $installment->saldo_pendiente);
 
                 return round(max(0, $sum), 2);
             }

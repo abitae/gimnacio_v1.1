@@ -179,16 +179,23 @@ class CreditSales extends Component
     {
         $query = Venta::query()
             ->where('es_credito', true)
-            ->with(['cliente', 'usuario', 'clientDebt'])
+            ->with(['cliente', 'employee', 'usuario', 'clientDebt', 'employeeDebt'])
             ->orderByDesc('fecha_venta');
 
         if ($this->search) {
             $query->where(function ($q) {
                 $q->where('numero_venta', 'like', '%'.$this->search.'%')
+                    ->orWhere('cliente_venta_nombre', 'like', '%'.$this->search.'%')
+                    ->orWhere('cliente_venta_documento', 'like', '%'.$this->search.'%')
+                    ->orWhere('cliente_venta_telefono', 'like', '%'.$this->search.'%')
                     ->orWhereHas('cliente', fn ($c) => $c->where('nombres', 'like', '%'.$this->search.'%')
                         ->orWhere('apellidos', 'like', '%'.$this->search.'%')
                         ->orWhere('numero_documento', 'like', '%'.$this->search.'%')
                         ->orWhere('codigo', 'like', '%'.$this->search.'%')
+                        ->orWhere('telefono', 'like', '%'.$this->search.'%'))
+                    ->orWhereHas('employee', fn ($e) => $e->where('nombres', 'like', '%'.$this->search.'%')
+                        ->orWhere('apellidos', 'like', '%'.$this->search.'%')
+                        ->orWhere('documento', 'like', '%'.$this->search.'%')
                         ->orWhere('telefono', 'like', '%'.$this->search.'%'));
             });
         }

@@ -14,6 +14,7 @@ use App\Models\Core\Pago;
 use App\Models\Core\PaymentMethod;
 use App\Models\Core\RentableSpace;
 use App\Models\Core\Rental;
+use App\Models\User;
 use App\Services\AsistenciaService;
 use App\Services\ClienteMatriculaService;
 use App\Services\ClientEnrollmentService;
@@ -113,6 +114,10 @@ class ClientePerfilLive extends Component
     public bool $reservaModalAbierto = false;
 
     public ?int $editingRentalId = null;
+
+    public bool $trainerModalAbierto = false;
+
+    public $trainerAsignacionId = null;
 
     public array $reservaForm = [
         'rentable_space_id' => null,
@@ -309,6 +314,8 @@ class ClientePerfilLive extends Component
         $this->perfilFinanzasTab = 'pagos';
         $this->reservaModalAbierto = false;
         $this->editingRentalId = null;
+        $this->trainerModalAbierto = false;
+        $this->trainerAsignacionId = null;
         $this->fidelizacionHistorialModalAbierto = false;
         $this->fidelizacionNuevoModalAbierto = false;
         $this->resetFidelizacionForm();
@@ -813,6 +820,63 @@ class ClientePerfilLive extends Component
         }
     }
 
+    public function openTrainerModal(): void
+    {
+        $this->authorize('cliente.editar');
+
+        if (! $this->selectedCliente) {
+            $this->flashToast('error', __('Selecciona un cliente.'));
+
+            return;
+        }
+
+        $this->trainerAsignacionId = $this->selectedCliente->trainer_user_id
+            ? (int) $this->selectedCliente->trainer_user_id
+            : null;
+        $this->trainerModalAbierto = true;
+    }
+
+    public function closeTrainerModal(): void
+    {
+        $this->trainerModalAbierto = false;
+        $this->trainerAsignacionId = null;
+    }
+
+    public function guardarTrainer(): void
+    {
+        $this->authorize('cliente.editar');
+
+        if (! $this->selectedClienteId) {
+            $this->flashToast('error', __('Selecciona un cliente.'));
+
+            return;
+        }
+
+        $this->validate([
+            'trainerAsignacionId' => ['nullable', 'exists:users,id'],
+        ], [], [
+            'trainerAsignacionId' => __('trainer'),
+        ]);
+
+        $cliente = Cliente::query()->findOrFail((int) $this->selectedClienteId);
+        $trainerId = $this->trainerAsignacionId ? (int) $this->trainerAsignacionId : null;
+
+        if ($trainerId) {
+            $trainerExists = User::role('trainer')->whereKey($trainerId)->exists();
+            if (! $trainerExists) {
+                $this->flashToast('error', __('Seleccione un usuario con rol trainer.'));
+
+                return;
+            }
+        }
+
+        $cliente->forceFill(['trainer_user_id' => $trainerId])->save();
+
+        $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+        $this->closeTrainerModal();
+        $this->flashToast('success', $trainerId ? __('Trainer asignado correctamente.') : __('Trainer removido correctamente.'));
+    }
+
     protected function refreshSelectedClienteContext(int $clienteId): void
     {
         $this->selectedCliente = $this->clienteService->find($clienteId);
@@ -1080,6 +1144,11 @@ class ClientePerfilLive extends Component
             $rentableSpaces = RentableSpace::orderBy('nombre')->get();
         }
 
+        $trainers = collect([]);
+        if ($this->trainerModalAbierto) {
+            $trainers = User::role('trainer')->orderBy('name')->get(['id', 'name']);
+        }
+
         $membresiasActivas = collect([]);
         $clasesActivas = collect([]);
         if ($this->matriculaModalState['create']) {
@@ -1102,6 +1171,7 @@ class ClientePerfilLive extends Component
             'cuotasModalInstallments' => $cuotasModalInstallments,
             'matriculaCobroSeleccionada' => $matriculaCobroSeleccionada,
             'rentableSpaces' => $rentableSpaces,
+            'trainers' => $trainers,
             'membresiasActivas' => $membresiasActivas,
             'clasesActivas' => $clasesActivas,
         ]);
@@ -1159,6 +1229,8 @@ class ClientePerfilLive extends Component
                     'numero_cuota' => (int) $installment->numero_cuota,
                     'fecha_vencimiento' => $installment->fecha_vencimiento,
                     'monto' => round((float) $installment->monto, 2),
+                    'monto_pagado' => round((float) $installment->monto_pagado_actual, 2),
+                    'saldo' => round((float) $installment->saldo_pendiente, 2),
                     'estado' => $estado,
                     'estado_label' => Str::ucfirst($estado),
                     'puede_pagar' => in_array($estado, ['pendiente', 'vencida', 'parcial'], true),

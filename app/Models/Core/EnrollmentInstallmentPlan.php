@@ -55,11 +55,11 @@ class EnrollmentInstallmentPlan extends Model
 
     public function getMontoPagadoAttribute(): float
     {
-        return (float) $this->installments()->whereIn('estado', ['pagada', 'parcial'])->sum('monto');
+        return round((float) $this->installments()->get()->sum(fn (EnrollmentInstallment $installment) => $installment->monto_pagado_actual), 2);
     }
 
     public function getSaldoPendienteAttribute(): float
     {
-        return (float) $this->monto_total - $this->monto_pagado;
+        return round(max(0, (float) $this->monto_total - $this->monto_pagado), 2);
     }
 }

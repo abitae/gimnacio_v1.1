@@ -39,7 +39,7 @@ class ReporteCuotasVencidasLive extends Component
     {
         $query = EnrollmentInstallment::query()
             ->with(['plan.cliente', 'clienteMatricula.membresia', 'clienteMatricula.clase'])
-            ->whereIn('estado', ['pendiente', 'vencida'])
+            ->whereIn('estado', ['pendiente', 'vencida', 'parcial'])
             ->where('fecha_vencimiento', '<=', now()->toDateString())
             ->orderBy('fecha_vencimiento');
 
@@ -47,9 +47,11 @@ class ReporteCuotasVencidasLive extends Component
             $query->where('estado', 'vencida');
         } elseif ($this->estadoFilter === 'pendiente') {
             $query->where('estado', 'pendiente');
+        } elseif ($this->estadoFilter === 'parcial') {
+            $query->where('estado', 'parcial');
         }
 
-        $totalMonto = (float) (clone $query)->sum('monto');
+        $totalMonto = (float) (clone $query)->get()->sum(fn (EnrollmentInstallment $installment) => $installment->saldo_pendiente);
         $cuotas = $query->paginate($this->perPage);
 
         $paymentMethods = $this->cuotaPagoModalAbierto

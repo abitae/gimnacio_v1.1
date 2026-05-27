@@ -116,6 +116,36 @@
 </flux:modal>
 @endcan
 
+@can('cliente.editar')
+<flux:modal name="trainer-cliente-modal" wire:model="trainerModalAbierto" focusable class="md:w-lg">
+    <form wire:submit.prevent="guardarTrainer" class="space-y-4 p-4">
+        <div>
+            <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Asignar trainer') }}</h2>
+            <p class="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                {{ $selectedCliente ? trim($selectedCliente->nombres.' '.$selectedCliente->apellidos) : __('Cliente') }}
+            </p>
+        </div>
+        <div>
+            <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ __('Trainer') }}</label>
+            <select wire:model="trainerAsignacionId"
+                class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800">
+                <option value="">{{ __('Sin trainer') }}</option>
+                @foreach ($trainers as $trainer)
+                    <option value="{{ $trainer->id }}">{{ $trainer->name }}</option>
+                @endforeach
+            </select>
+            @error('trainerAsignacionId')
+                <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ $message }}</p>
+            @enderror
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+            <flux:button type="button" variant="ghost" size="xs" wire:click="closeTrainerModal">{{ __('Cancelar') }}</flux:button>
+            <flux:button type="submit" variant="primary" size="xs" wire:loading.attr="disabled" wire:target="guardarTrainer">{{ __('Guardar') }}</flux:button>
+        </div>
+    </form>
+</flux:modal>
+@endcan
+
 @can('matricula_cliente.editar')
 <flux:modal name="cobro-matricula-modal" wire:model="cobroModalAbierto" focusable class="md:w-lg">
     <form wire:submit.prevent="guardarCobroMatricula" class="space-y-3 p-4">
@@ -207,7 +237,9 @@
                     <tr class="text-left text-zinc-500">
                         <th class="px-2 py-2">#</th>
                         <th class="px-2 py-2">{{ __('Vencimiento') }}</th>
-                        <th class="px-2 py-2">{{ __('Monto') }}</th>
+                        <th class="px-2 py-2">{{ __('Programado') }}</th>
+                        <th class="px-2 py-2">{{ __('Pagado') }}</th>
+                        <th class="px-2 py-2">{{ __('Saldo') }}</th>
                         <th class="px-2 py-2">{{ __('Estado') }}</th>
                         <th class="px-2 py-2"></th>
                     </tr>
@@ -218,6 +250,8 @@
                             <td class="px-2 py-1.5">{{ $cuota->numero_cuota }}</td>
                             <td class="px-2 py-1.5">{{ optional($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
                             <td class="px-2 py-1.5">S/ {{ number_format((float) $cuota->monto, 2) }}</td>
+                            <td class="px-2 py-1.5">S/ {{ number_format((float) $cuota->monto_pagado_actual, 2) }}</td>
+                            <td class="px-2 py-1.5">S/ {{ number_format((float) $cuota->saldo_pendiente, 2) }}</td>
                             <td class="px-2 py-1.5">{{ \App\Models\Core\EnrollmentInstallment::ESTADOS[$cuota->estado] ?? ucfirst((string) $cuota->estado) }}</td>
                             <td class="px-2 py-1.5 text-right">
                                 @can('matricula_cliente.editar')
@@ -229,7 +263,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="px-2 py-6 text-center text-zinc-500">{{ __('Sin cuotas registradas.') }}</td>
+                            <td colspan="7" class="px-2 py-6 text-center text-zinc-500">{{ __('Sin cuotas registradas.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -252,7 +286,7 @@
 <flux:modal name="pago-cuota-modal" wire:model="cuotaPagoModalAbierto" focusable class="md:w-lg">
     <form wire:submit.prevent="guardarPagoCuota" class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago de cuota') }}</h2>
-        <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. El monto debe coincidir con la cuota programada.') }}</p>
+        <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. Puedes registrar un abono parcial o completar el saldo de la cuota.') }}</p>
         <flux:input size="xs" type="number" step="0.01" wire:model="pagoCuotaForm.monto" label="{{ __('Monto') }}" required />
         <flux:input size="xs" type="date" wire:model="pagoCuotaForm.fecha_pago" label="{{ __('Fecha') }}" required />
         <div>

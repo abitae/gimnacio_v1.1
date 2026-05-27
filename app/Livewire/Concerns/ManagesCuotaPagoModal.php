@@ -60,7 +60,7 @@ trait ManagesCuotaPagoModal
 
         $this->pagoCuotaInstallmentId = $installmentId;
         $this->pagoCuotaForm = [
-            'monto' => (string) $inst->monto,
+            'monto' => (string) $inst->saldo_pendiente,
             'fecha_pago' => now()->format('Y-m-d'),
             'payment_method_id' => null,
             'numero_operacion' => '',

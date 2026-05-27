@@ -336,8 +336,9 @@ class Cliente extends Model
         // Cuotas del plan único del cliente (pendientes / vencidas)
         $cuotasPendientes = \App\Models\Core\EnrollmentInstallment::query()
             ->whereHas('plan', fn ($q) => $q->where('cliente_id', $this->id))
-            ->whereIn('estado', ['pendiente', 'vencida'])
-            ->sum('monto');
+            ->whereIn('estado', ['pendiente', 'vencida', 'parcial'])
+            ->get()
+            ->sum(fn (\App\Models\Core\EnrollmentInstallment $installment) => $installment->saldo_pendiente);
         $deudaTotal += (float) $cuotasPendientes;
 
         return round($deudaTotal, 2);

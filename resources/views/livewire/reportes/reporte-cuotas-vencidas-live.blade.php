@@ -8,6 +8,7 @@
             <option value="">Todas</option>
             <option value="pendiente">Pendiente</option>
             <option value="vencida">Vencida</option>
+            <option value="parcial">Parcial</option>
         </select>
         <span class="text-sm text-zinc-500">Total pendiente: S/ {{ number_format($totalMonto, 2) }}</span>
     </div>
@@ -19,7 +20,9 @@
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Matrícula</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Cuota</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Vencimiento</th>
-                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Monto</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Programado</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Pagado</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Saldo</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Acciones</th>
                 </tr>
             </thead>
@@ -35,6 +38,8 @@
                         <td class="px-4 py-2">{{ $c->numero_cuota }}</td>
                         <td class="px-4 py-2">{{ $c->fecha_vencimiento->format('d/m/Y') }}</td>
                         <td class="px-4 py-2">S/ {{ number_format($c->monto, 2) }}</td>
+                        <td class="px-4 py-2 text-emerald-700 dark:text-emerald-400">S/ {{ number_format($c->monto_pagado_actual, 2) }}</td>
+                        <td class="px-4 py-2 font-medium text-red-600 dark:text-red-400">S/ {{ number_format($c->saldo_pendiente, 2) }}</td>
                         <td class="px-4 py-2">
                             @can('matricula_cliente.editar')
                             <flux:button size="xs" variant="ghost" type="button" wire:click="openRegistrarPagoCuota({{ $c->id }})">{{ __('Pagar') }}</flux:button>
@@ -42,7 +47,7 @@
                         </td>
                     </tr>
                 @empty
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-zinc-500">No hay cuotas vencidas</td></tr>
+                    <tr><td colspan="8" class="px-4 py-8 text-center text-zinc-500">No hay cuotas vencidas</td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -53,7 +58,7 @@
     <flux:modal name="reporte-pago-cuota-modal" wire:model="cuotaPagoModalAbierto" focusable class="md:w-lg">
         <form wire:submit.prevent="guardarPagoCuota" class="space-y-3 p-4">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago de cuota') }}</h2>
-            <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. El monto debe coincidir con la cuota programada.') }}</p>
+            <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. Puedes registrar un abono parcial o completar el saldo de la cuota.') }}</p>
             <flux:input size="xs" type="number" step="0.01" wire:model="pagoCuotaForm.monto" label="{{ __('Monto') }}" required />
             <flux:input size="xs" type="date" wire:model="pagoCuotaForm.fecha_pago" label="{{ __('Fecha') }}" required />
             <div>

@@ -23,8 +23,6 @@
                 <tr>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Código</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Cliente</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Documento</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Celular</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Venta</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Total</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Pagado</th>
@@ -39,15 +37,43 @@
                 @forelse ($ventas as $v)
                     @php
                         $debt = $v->clientDebt;
-                        $saldo = (float) ($debt?->saldo_pendiente ?? max(0, ($v->total ?? 0) - ($v->monto_inicial ?? 0)));
-                        $montoPagado = (float) ($debt?->monto_pagado ?? ($v->monto_inicial ?? 0));
-                        $estado = $debt?->estado ?? ($saldo > 0 ? 'pendiente' : 'pagado');
+                        $employeeDebt = $v->employeeDebt;
+                        $saldo = (float) ($debt?->saldo_pendiente ?? $employeeDebt?->saldo_pendiente ?? max(0, ($v->total ?? 0) - ($v->monto_inicial ?? 0)));
+                        $montoPagado = (float) ($debt?->monto_pagado ?? $employeeDebt?->monto_abonado ?? ($v->monto_inicial ?? 0));
+                        $estado = $debt?->estado ?? $employeeDebt?->estado ?? ($saldo > 0 ? 'pendiente' : 'pagado');
+                        if ($v->cliente) {
+                            $compradorNombre = trim($v->cliente->nombres.' '.$v->cliente->apellidos);
+                            $compradorDetalle = trim(($v->cliente->tipo_documento ?? 'Doc.').' '.($v->cliente->numero_documento ?? ''));
+                            $compradorCodigo = $v->cliente->codigo ?? $v->cliente->numero_documento ?? '—';
+                            $compradorTipo = 'Cliente gimnasio';
+                        } elseif ($v->employee) {
+                            $compradorNombre = $v->employee->nombre_completo;
+                            $compradorDetalle = trim('Doc. '.($v->employee->documento ?? ''));
+                            $compradorCodigo = $v->employee->documento ?? '—';
+                            $compradorTipo = 'Empleado';
+                        } elseif ($v->cliente_venta_nombre) {
+                            $compradorNombre = $v->cliente_venta_nombre;
+                            $compradorDetalle = trim(collect([$v->cliente_venta_documento, $v->cliente_venta_telefono])->filter()->implode(' - '));
+                            $compradorCodigo = $v->cliente_venta_documento ?: '—';
+                            $compradorTipo = 'Cliente POS';
+                        } else {
+                            $compradorNombre = '—';
+                            $compradorDetalle = '';
+                            $compradorCodigo = '—';
+                            $compradorTipo = 'Sin cliente';
+                        }
                     @endphp
                     <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-700/30">
-                        <td class="px-4 py-3 text-xs font-semibold text-zinc-800 dark:text-zinc-200">{{ $v->cliente?->codigo ?? '—' }}</td>
-                        <td class="px-4 py-3 text-xs">{{ $v->cliente ? $v->cliente->nombres.' '.$v->cliente->apellidos : '—' }}</td>
-                        <td class="px-4 py-3 text-xs">{{ $v->cliente?->tipo_documento }} {{ $v->cliente?->numero_documento }}</td>
-                        <td class="px-4 py-3 text-xs">{{ $v->cliente?->telefono ?? '—' }}</td>
+                        <td class="px-4 py-3 text-xs font-semibold text-zinc-800 dark:text-zinc-200">{{ $compradorCodigo }}</td>
+                        <td class="px-4 py-3 text-xs">
+                            <div class="font-medium text-zinc-800 dark:text-zinc-100">{{ $compradorNombre }}</div>
+                            <div class="mt-1 flex flex-wrap items-center gap-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                <span class="rounded-full bg-zinc-100 px-2 py-0.5 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-200">{{ $compradorTipo }}</span>
+                                @if ($compradorDetalle)
+                                    <span>{{ $compradorDetalle }}</span>
+                                @endif
+                            </div>
+                        </td>
                         <td class="px-4 py-3 text-xs font-medium">{{ $v->numero_venta }}</td>
                         <td class="px-4 py-3 text-right text-xs">S/ {{ number_format((float) $v->total, 2) }}</td>
                         <td class="px-4 py-3 text-right text-xs">S/ {{ number_format($montoPagado, 2) }}</td>
@@ -62,21 +88,21 @@
                         <td class="px-4 py-3 text-right">
                             <div class="inline-flex flex-wrap justify-end gap-1">
                                 @if ($v->cliente)
-                                    <flux:button size="xs" variant="ghost" href="{{ route('clientes.perfil', $v->cliente) }}" wire:navigate>Ficha</flux:button>
+                                    <flux:button size="xs" variant="ghost" icon="user-circle" href="{{ route('clientes.perfil', $v->cliente) }}" wire:navigate aria-label="Ver ficha del cliente" title="Ver ficha" />
                                     @if ($saldo > 0)
-                                        <flux:button size="xs" variant="ghost" wire:click="abrirModalCobroCliente({{ $v->cliente_id }})">Pagar cliente</flux:button>
+                                        <flux:button size="xs" variant="ghost" icon="wallet" wire:click="abrirModalCobroCliente({{ $v->cliente_id }})" aria-label="Pagar deuda del cliente" title="Pagar cliente" />
                                     @endif
                                 @endif
                                 @if ($debt && $saldo > 0)
-                                    <flux:button size="xs" variant="primary" color="green" wire:click="abrirModalCobroVenta({{ $debt->id }})">Pagar venta</flux:button>
+                                    <flux:button size="xs" variant="primary" color="green" icon="credit-card" wire:click="abrirModalCobroVenta({{ $debt->id }})" aria-label="Pagar esta venta" title="Pagar venta" />
                                 @endif
-                                <flux:button size="xs" variant="ghost" href="{{ route('ventas.comprobante.pdf', ['venta' => $v->id, 'reprint' => 1]) }}" target="_blank">Reimprimir ticket</flux:button>
+                                <flux:button size="xs" variant="ghost" icon="printer" href="{{ route('ventas.comprobante.pdf', ['venta' => $v->id, 'reprint' => 1]) }}" target="_blank" aria-label="Reimprimir ticket" title="Reimprimir ticket" />
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="px-4 py-10 text-center text-xs text-zinc-500 dark:text-zinc-400">No hay ventas a crédito para los filtros seleccionados.</td>
+                        <td colspan="10" class="px-4 py-10 text-center text-xs text-zinc-500 dark:text-zinc-400">No hay ventas a crédito para los filtros seleccionados.</td>
                     </tr>
                 @endforelse
             </tbody>

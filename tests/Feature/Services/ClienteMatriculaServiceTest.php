@@ -5,6 +5,8 @@ use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\ClientePlanTraspaso;
+use App\Models\Core\EnrollmentInstallment;
+use App\Models\Core\EnrollmentInstallmentPlan;
 use App\Models\Core\Membresia;
 use App\Models\Core\Pago;
 use App\Models\User;
@@ -74,6 +76,148 @@ it('registers a caja movement when a matricula payment is processed', function (
     expect($movimiento->categoria)->toBe('membresia');
     expect($movimiento->origen_modulo)->toBe('cliente_matriculas');
     expect((float) $movimiento->monto)->toBe(40.0);
+});
+
+it('allows partial payments on enrollment installments and completes the same installment later', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $membresia = Membresia::factory()->conCuotas()->create(['precio_base' => 300, 'estado' => 'activa']);
+
+    $matricula = ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(90)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 300,
+        'descuento_monto' => 0,
+        'precio_final' => 300,
+        'modalidad_pago' => 'cuotas',
+        'requiere_plan_cuotas' => true,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+    ]);
+
+    $plan = EnrollmentInstallmentPlan::create([
+        'cliente_id' => $cliente->id,
+        'cliente_matricula_id' => $matricula->id,
+        'monto_total' => 300,
+        'numero_cuotas' => 2,
+        'monto_cuota' => 150,
+        'frecuencia' => 'mensual',
+        'fecha_inicio' => now()->toDateString(),
+    ]);
+
+    $cuota = EnrollmentInstallment::create([
+        'enrollment_installment_plan_id' => $plan->id,
+        'cliente_matricula_id' => $matricula->id,
+        'numero_cuota' => 1,
+        'monto' => 150,
+        'fecha_vencimiento' => now()->addDays(5)->toDateString(),
+        'estado' => 'pendiente',
+    ]);
+
+    EnrollmentInstallment::create([
+        'enrollment_installment_plan_id' => $plan->id,
+        'cliente_matricula_id' => $matricula->id,
+        'numero_cuota' => 2,
+        'monto' => 150,
+        'fecha_vencimiento' => now()->addDays(35)->toDateString(),
+        'estado' => 'pendiente',
+    ]);
+
+    Caja::create([
+        'usuario_id' => $user->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    $service = app(EnrollmentInstallmentService::class);
+
+    $primerPago = $service->pagarCuota($cuota, [
+        'monto' => 60,
+        'fecha_pago' => now()->toDateString(),
+    ]);
+
+    $cuota->refresh();
+    expect((float) $primerPago->monto)->toBe(60.0);
+    expect($primerPago->enrollment_installment_id)->toBe($cuota->id);
+    expect($cuota->estado)->toBe('parcial');
+    expect((float) $cuota->monto_pagado)->toBe(60.0);
+    expect((float) $cuota->saldo_pendiente)->toBe(90.0);
+    expect(app(ClienteMatriculaService::class)->obtenerSaldoPendiente($matricula->id))->toBe(240.0);
+
+    $segundoPago = $service->pagarCuota($cuota, [
+        'monto' => 90,
+        'fecha_pago' => now()->toDateString(),
+    ]);
+
+    $cuota->refresh();
+    expect((float) $segundoPago->monto)->toBe(90.0);
+    expect($cuota->estado)->toBe('pagada');
+    expect((float) $cuota->monto_pagado)->toBe(150.0);
+    expect((float) $cuota->saldo_pendiente)->toBe(0.0);
+    expect($cuota->pagos()->count())->toBe(2);
+    expect(app(ClienteMatriculaService::class)->obtenerSaldoPendiente($matricula->id))->toBe(150.0);
+});
+
+it('rejects installment payments greater than the pending balance', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $membresia = Membresia::factory()->conCuotas()->create(['precio_base' => 150, 'estado' => 'activa']);
+    $matricula = ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 150,
+        'descuento_monto' => 0,
+        'precio_final' => 150,
+        'modalidad_pago' => 'cuotas',
+        'requiere_plan_cuotas' => true,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+    ]);
+    $plan = EnrollmentInstallmentPlan::create([
+        'cliente_id' => $cliente->id,
+        'cliente_matricula_id' => $matricula->id,
+        'monto_total' => 150,
+        'numero_cuotas' => 1,
+        'monto_cuota' => 150,
+        'frecuencia' => 'mensual',
+        'fecha_inicio' => now()->toDateString(),
+    ]);
+    $cuota = EnrollmentInstallment::create([
+        'enrollment_installment_plan_id' => $plan->id,
+        'cliente_matricula_id' => $matricula->id,
+        'numero_cuota' => 1,
+        'monto' => 150,
+        'monto_pagado' => 100,
+        'fecha_vencimiento' => now()->addDays(5)->toDateString(),
+        'estado' => 'parcial',
+    ]);
+
+    Caja::create([
+        'usuario_id' => $user->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    expect(fn () => app(EnrollmentInstallmentService::class)->pagarCuota($cuota, [
+        'monto' => 60,
+        'fecha_pago' => now()->toDateString(),
+    ]))->toThrow(\InvalidArgumentException::class, 'saldo pendiente de la cuota');
 });
 
 it('records a traspaso when a matricula changes to another plan', function () {

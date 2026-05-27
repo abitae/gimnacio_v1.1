@@ -292,15 +292,16 @@ class ClienteMatriculaService
         }
 
         if ($clienteMatricula->usaPlanCuotas()) {
-            $sum = (float) $clienteMatricula->enrollmentInstallments()
-                ->whereIn('estado', ['pendiente', 'vencida'])
-                ->sum('monto');
-
-            if ($sum > 0) {
-                return round($sum, 2);
+            if (! $clienteMatricula->enrollmentInstallments()->exists()) {
+                return round($clienteMatricula->monto_financiado, 2);
             }
 
-            return round($clienteMatricula->monto_financiado, 2);
+            $sum = (float) $clienteMatricula->enrollmentInstallments()
+                ->whereIn('estado', ['pendiente', 'vencida', 'parcial'])
+                ->get()
+                ->sum(fn (\App\Models\Core\EnrollmentInstallment $installment) => $installment->saldo_pendiente);
+
+            return round(max(0, $sum), 2);
         }
 
         // Obtener el Ãºltimo pago para ver el saldo pendiente actual

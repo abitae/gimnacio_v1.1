@@ -60,6 +60,51 @@ it('shows action shortcuts for a credit sale with debt', function () {
 
     Livewire::actingAs($user)
         ->test(CreditSales::class)
-        ->assertSee('Cobrar')
-        ->assertSee('CxC');
+        ->assertSee(trim($cliente->nombres.' '.$cliente->apellidos))
+        ->assertSee('Cliente gimnasio')
+        ->assertSee('Pagar deuda del cliente')
+        ->assertSee('Pagar esta venta');
+});
+
+it('shows pos-only customer data on credit sales', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('punto_venta.ver');
+
+    $caja = Caja::create([
+        'usuario_id' => $user->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    Venta::create([
+        'numero_venta' => 'V-20260410-0002',
+        'cliente_venta_nombre' => 'Cliente Externo Demo',
+        'cliente_venta_documento' => '87654321',
+        'cliente_venta_telefono' => '999888777',
+        'caja_id' => $caja->id,
+        'usuario_id' => $user->id,
+        'tipo_comprobante' => 'ticket',
+        'numero_comprobante' => '000002',
+        'serie_comprobante' => 'T001',
+        'subtotal' => 100,
+        'descuento' => 0,
+        'igv' => 15.25,
+        'total' => 100,
+        'metodo_pago' => 'Credito',
+        'es_credito' => true,
+        'monto_inicial' => 20,
+        'fecha_vencimiento_deuda' => now()->addDays(10)->toDateString(),
+        'estado' => 'completada',
+        'fecha_venta' => now(),
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(CreditSales::class)
+        ->assertSee('Cliente Externo Demo')
+        ->assertSee('87654321')
+        ->assertSee('999888777')
+        ->assertSee('Cliente POS')
+        ->set('search', '87654321')
+        ->assertSee('Cliente Externo Demo');
 });

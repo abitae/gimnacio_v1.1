@@ -27,7 +27,7 @@ class PaymentForm extends Component
     {
         $this->authorize('matricula_cliente.editar');
         $this->installment = $installment->load(['plan.cliente', 'clienteMatricula.cliente']);
-        $this->form['monto'] = (string) $installment->monto;
+        $this->form['monto'] = (string) $installment->saldo_pendiente;
         $this->form['fecha_pago'] = now()->format('Y-m-d');
         $cajaAbierta = \App\Models\Core\Caja::where('estado', 'abierta')->first();
         $this->form['caja_id'] = $cajaAbierta?->id;

@@ -414,26 +414,40 @@ class EnrollmentInstallmentService
         }
 
         return DB::transaction(function () use ($installment, $data) {
-            $plan = $installment->plan()->lockForUpdate()->first();
+            $row = EnrollmentInstallment::query()
+                ->whereKey($installment->id)
+                ->lockForUpdate()
+                ->first();
+
+            if (! $row || ! in_array($row->estado, ['pendiente', 'vencida', 'parcial'], true)) {
+                throw new \InvalidArgumentException('Esta cuota ya esta pagada.');
+            }
+
+            $plan = $row->plan()->lockForUpdate()->first();
             if (! $plan) {
                 throw new \InvalidArgumentException('Plan de cuotas no encontrado.');
             }
 
-            $matriculaId = $installment->cliente_matricula_id ?? $plan->cliente_matricula_id;
+            $matriculaId = $row->cliente_matricula_id ?? $plan->cliente_matricula_id;
             $matricula = $matriculaId ? ClienteMatricula::find($matriculaId) : null;
             if (! $matricula) {
                 throw new \InvalidArgumentException('La cuota no tiene una matrícula asociada para registrar el pago.');
             }
 
-            $monto = (float) ($data['monto'] ?? $installment->monto);
+            $monto = round((float) ($data['monto'] ?? $row->saldo_pendiente), 2);
             $cajaService = app(CajaService::class);
 
             if ($matricula->estado === 'cancelada') {
                 throw new \InvalidArgumentException('No se pueden cobrar cuotas de una matrícula cancelada.');
             }
 
-            if (round($monto, 2) !== round((float) $installment->monto, 2)) {
-                throw new \InvalidArgumentException('Por ahora solo se admite el pago completo de la cuota programada.');
+            $saldoCuota = $row->saldo_pendiente;
+            if ($monto <= 0) {
+                throw new \InvalidArgumentException('El monto del pago debe ser mayor a cero.');
+            }
+
+            if ($monto > $saldoCuota) {
+                throw new \InvalidArgumentException('El monto del pago no puede ser mayor al saldo pendiente de la cuota.');
             }
 
             if (! $cajaService->validarCajaAbierta(auth()->id())) {
@@ -447,7 +461,7 @@ class EnrollmentInstallmentService
             $saldoPendienteActual = app(ClienteMatriculaService::class)->obtenerSaldoPendiente($matricula->id);
             $saldoPendienteNuevo = max(0, $saldoPendienteActual - $monto);
 
-            $metodoPago = $data['metodo_pago'] ?? ('Cuota '.$installment->numero_cuota);
+            $metodoPago = $data['metodo_pago'] ?? ('Cuota '.$row->numero_cuota);
             $paymentMethodId = $data['payment_method_id'] ?? null;
             if ($paymentMethodId) {
                 $this->assertPaymentMethodSucursal((int) $paymentMethodId, (int) $matricula->sucursal_id);
@@ -465,6 +479,7 @@ class EnrollmentInstallmentService
             $pago = Pago::create([
                 'cliente_id' => $matricula->cliente_id,
                 'cliente_matricula_id' => $matricula->id,
+                'enrollment_installment_id' => $row->id,
                 'monto' => $monto,
                 'moneda' => $data['moneda'] ?? 'PEN',
                 'metodo_pago' => $metodoPago,
@@ -488,7 +503,7 @@ class EnrollmentInstallmentService
 
             $cajaService->registrarIngresoPorPago(
                 $pago,
-                'Pago cuota '.$installment->numero_cuota.' - '.$matricula->nombre,
+                'Pago cuota '.$row->numero_cuota.' - '.$matricula->nombre,
                 CajaMovimiento::CATEGORIA_CUOTA,
                 CajaMovimiento::ORIGEN_ENROLLMENT_INSTALLMENTS,
                 null,
@@ -496,8 +511,15 @@ class EnrollmentInstallmentService
                 trim($obsCaja, ', ')
             );
 
-            $installment->update([
-                'estado' => 'pagada',
+            $nuevoMontoPagado = round($row->monto_pagado_actual + $monto, 2);
+            $nuevoSaldoCuota = round(max(0, (float) $row->monto - $nuevoMontoPagado), 2);
+            $nuevoEstado = $nuevoSaldoCuota <= 0
+                ? 'pagada'
+                : ($row->fecha_vencimiento && Carbon::parse($row->fecha_vencimiento)->isPast() ? 'vencida' : 'parcial');
+
+            $row->update([
+                'monto_pagado' => min((float) $row->monto, $nuevoMontoPagado),
+                'estado' => $nuevoEstado,
                 'payment_method_id' => $data['payment_method_id'] ?? null,
                 'numero_operacion' => $data['numero_operacion'] ?? null,
                 'pago_id' => $pago->id,

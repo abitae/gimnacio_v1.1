@@ -143,6 +143,17 @@
                             {{ __('Módulo matrículas') }}
                         </flux:button>
                     @endcan
+                    @can('cliente.editar')
+                        <flux:button variant="outline" size="xs" icon="user-plus" class="w-full"
+                            type="button" wire:click="openTrainerModal">
+                            {{ $selectedCliente->trainerUser ? __('Cambiar trainer') : __('Agregar trainer') }}
+                        </flux:button>
+                        @if ($selectedCliente->trainerUser)
+                            <p class="px-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                {{ __('Trainer: :name', ['name' => $selectedCliente->trainerUser->name]) }}
+                            </p>
+                        @endif
+                    @endcan
                 </div>
             </div>
 
@@ -346,7 +357,9 @@
                                                             <tr class="text-left text-[11px] uppercase tracking-wide text-zinc-500">
                                                                 <th class="px-3 py-2">{{ __('Cuota') }}</th>
                                                                 <th class="px-3 py-2">{{ __('Vencimiento') }}</th>
-                                                                <th class="px-3 py-2 text-right">{{ __('Monto') }}</th>
+                                                                <th class="px-3 py-2 text-right">{{ __('Programado') }}</th>
+                                                                <th class="px-3 py-2 text-right">{{ __('Pagado') }}</th>
+                                                                <th class="px-3 py-2 text-right">{{ __('Saldo') }}</th>
                                                                 <th class="px-3 py-2">{{ __('Estado') }}</th>
                                                                 <th class="px-3 py-2 text-right">{{ __('Acciones') }}</th>
                                                             </tr>
@@ -366,6 +379,8 @@
                                                                     <td class="px-3 py-2 text-zinc-900 dark:text-zinc-100">#{{ $cuota['numero_cuota'] }}</td>
                                                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($cuota['fecha_vencimiento'])->format('d/m/Y') ?? '—' }}</td>
                                                                     <td class="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">S/ {{ number_format((float) $cuota['monto'], 2) }}</td>
+                                                                    <td class="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) $cuota['monto_pagado'], 2) }}</td>
+                                                                    <td class="px-3 py-2 text-right {{ (float) $cuota['saldo'] > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">S/ {{ number_format((float) $cuota['saldo'], 2) }}</td>
                                                                     <td class="px-3 py-2">
                                                                         <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $estadoCuotaBadge }}">
                                                                             {{ $cuota['estado_label'] }}
@@ -509,6 +524,7 @@
                     </div>
                 </div>
 
+                @if (false)
                 @canany(['alquiler.ver', 'alquiler.crear', 'alquiler.editar'])
                     <div class="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                         <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-zinc-50/80 px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/50">
@@ -578,6 +594,7 @@
                         </div>
                     </div>
                 @endcanany
+                @endif
             </div>
 
             <div class="space-y-4">
