@@ -89,8 +89,6 @@ class ClienteSeeder extends Seeder
                     'datos_salud' => $datosSalud,
                     'datos_emergencia' => $datosEmergencia,
                     'consentimientos' => $consentimientos,
-                    'biotime_state' => false,
-                    'biotime_update' => false,
                     'created_by' => $user->id,
                     'created_at' => $faker->dateTimeBetween('-2 years', 'now'),
                     'updated_at' => now(),

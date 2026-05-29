@@ -123,9 +123,6 @@
             <x-cliente.info-field label="Teléfono" :value="$cliente->telefono" />
             <x-cliente.info-field label="Email" :value="$cliente->email" />
             <x-cliente.info-field label="Dirección" :value="$cliente->direccion" />
-            @if ($cliente->biotime_state)
-                <x-cliente.info-field label="BioTime" value="Sincronizado" />
-            @endif
         </div>
 
         @if (collect($cliente->health_summary ?? [])->filter()->isNotEmpty())

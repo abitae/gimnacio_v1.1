@@ -9,7 +9,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('asistencias', function (Blueprint $table) {
-            $table->enum('checkout_origen', ['manual', 'automatico'])
+            $table->enum('checkout_origen', ['manual', 'automatico', 'biotime'])
                 ->nullable()
                 ->after('fecha_hora_salida');
             $table->index('checkout_origen');

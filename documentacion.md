@@ -1,62 +1,49 @@
-# 📦 MODELOS DEL SISTEMA  
-## Administración de Gimnasio  
-**Laravel 12 · Backend API · DNI / CE · Flutter · ZKTeco / BioTime**
+# Modelos del Sistema
+## Administracion de Gimnasio
+**Laravel 12 · Backend API · DNI / CE · Flutter**
 
 ---
 
-## 📌 Descripción general
+## Descripcion general
 
-Este documento define **exclusivamente los modelos del backend** necesarios para el Sistema de Administración de un Gimnasio, basados en los requerimientos funcionales aprobados.
+Este documento define los modelos del backend para el Sistema de Administracion de un Gimnasio, basados en los requerimientos funcionales aprobados.
 
 El sistema considera:
-- Identificación única de clientes por **DNI o Carnet de Extranjería**
-- Arquitectura de **3 proyectos** (Backend API, Frontend Web, App Flutter)
-- Preparación para integración con **ZKTeco / BioTime**
-- Escalabilidad, auditoría y control de accesos
+- Identificacion unica de clientes por DNI o Carnet de Extranjeria.
+- Arquitectura de 3 proyectos: Backend API, Frontend Web y App Flutter.
+- Escalabilidad, auditoria y control de accesos.
 
 ---
 
-## 🧠 MODELOS PRINCIPALES (CORE)
+## Modelos principales
 
----
+### 1. User
+Representa a los usuarios del sistema, como administradores, recepcionistas, entrenadores y personal contable.
 
-### 1️⃣ User
-**Descripción:**  
-Representa a los usuarios del sistema (staff del gimnasio).
-
-**Uso principal:**
-- Autenticación
-- Autorización por roles
-- Registro de acciones (auditoría)
-
-**Campos relevantes:**
+Campos relevantes:
 - id
 - name
 - email
 - password
-- role (admin, recepcion, entrenador, contabilidad)
 - estado
 - timestamps
 
-**Relaciones:**
+Relaciones:
 - hasMany(Pago)
 - hasMany(Asistencia)
 - hasMany(EvaluacionFisica)
 - hasMany(AuditLog)
 
----
-
-### 2️⃣ Cliente
-**Descripción:**  
+### 2. Cliente
 Entidad central del sistema. Representa a una persona inscrita en el gimnasio.
 
-**Identificación oficial única:**
+Identificacion oficial unica:
 - tipo_documento (DNI | CE)
 - numero_documento
 
-**Campos relevantes:**
+Campos relevantes:
 - tipo_documento
-- numero_documento (único)
+- numero_documento
 - nombres
 - apellidos
 - telefono
@@ -67,22 +54,17 @@ Entidad central del sistema. Representa a una persona inscrita en el gimnasio.
 - datos_salud
 - datos_emergencia
 - consentimientos
-- biotime_user_id (nullable)
 
-**Relaciones:**
+Relaciones:
 - hasMany(ClienteMembresia)
 - hasMany(Pago)
 - hasMany(Asistencia)
 - hasMany(EvaluacionFisica)
-- hasMany(BiotimeAccessLog)
 
----
+### 3. Membresia
+Catalogo de planes del gimnasio.
 
-### 3️⃣ Membresia
-**Descripción:**  
-Catálogo de planes del gimnasio.
-
-**Campos relevantes:**
+Campos relevantes:
 - nombre
 - descripcion
 - duracion_dias
@@ -93,16 +75,13 @@ Catálogo de planes del gimnasio.
 - max_dias_congelacion
 - estado
 
-**Relaciones:**
+Relaciones:
 - hasMany(ClienteMembresia)
 
----
+### 4. ClienteMembresia
+Historial de membresias adquiridas por un cliente.
 
-### 4️⃣ ClienteMembresia
-**Descripción:**  
-Historial de membresías adquiridas por un cliente.
-
-**Campos relevantes:**
+Campos relevantes:
 - cliente_id
 - membresia_id
 - fecha_inicio
@@ -116,20 +95,17 @@ Historial de membresías adquiridas por un cliente.
 - fechas_congelacion
 - motivo_cancelacion
 
-**Relaciones:**
+Relaciones:
 - belongsTo(Cliente)
 - belongsTo(Membresia)
-- belongsTo(User) → asesor
+- belongsTo(User) como asesor
 - hasMany(Pago)
 - hasMany(Asistencia)
 
----
-
-### 5️⃣ Pago
-**Descripción:**  
+### 5. Pago
 Registro de pagos realizados por los clientes.
 
-**Campos relevantes:**
+Campos relevantes:
 - cliente_id
 - cliente_membresia_id
 - monto
@@ -142,23 +118,19 @@ Registro de pagos realizados por los clientes.
 - comprobante_numero
 - registrado_por
 
-**Relaciones:**
+Relaciones:
 - belongsTo(Cliente)
 - belongsTo(ClienteMembresia)
 - belongsTo(User)
 
----
-
-### 6️⃣ Asistencia
-**Descripción:**  
+### 6. Asistencia
 Registro de ingresos del cliente al gimnasio.
 
-**Origen del acceso:**
-- manual (web)
-- app (Flutter)
-- biotime (ZKTeco)
+Origen del acceso:
+- manual
+- app
 
-**Campos relevantes:**
+Campos relevantes:
 - cliente_id
 - cliente_membresia_id
 - fecha_hora_ingreso
@@ -167,18 +139,15 @@ Registro de ingresos del cliente al gimnasio.
 - valido_por_membresia
 - registrada_por
 
-**Relaciones:**
+Relaciones:
 - belongsTo(Cliente)
 - belongsTo(ClienteMembresia)
 - belongsTo(User)
 
----
-
-### 7️⃣ EvaluacionFisica
-**Descripción:**  
+### 7. EvaluacionFisica
 Historial de evaluaciones corporales del cliente.
 
-**Campos relevantes:**
+Campos relevantes:
 - cliente_id
 - peso
 - estatura
@@ -191,55 +160,27 @@ Historial de evaluaciones corporales del cliente.
 - observaciones
 - evaluado_por
 
-**Relaciones:**
+Relaciones:
 - belongsTo(Cliente)
 - belongsTo(User)
 
 ---
 
-## 🔗 MODELOS PARA INTEGRACIÓN ZKTECO / BIOTIME
+## Modelos de integracion, configuracion y auditoria
 
----
-
-### 8️⃣ BiotimeAccessLog
-**Descripción:**  
-Almacena los eventos de acceso biométrico recibidos desde BioTime.
-
-**Campos relevantes:**
-- biotime_user_id
-- cliente_id (nullable)
-- device_id
-- event_time
-- event_type (entry / exit)
-- result (success / denied)
-- raw_payload
-
-**Relaciones:**
-- belongsTo(Cliente)
-
----
-
-### 9️⃣ IntegrationErrorLog
-**Descripción:**  
+### IntegrationErrorLog
 Registro de errores en integraciones externas.
 
-**Campos relevantes:**
-- source (biotime, api, webhook)
+Campos relevantes:
+- source (api, webhook)
 - payload
 - error_message
 - resolved_at
 
----
+### GymSetting
+Configuracion general del gimnasio.
 
-## ⚙️ MODELOS DE CONFIGURACIÓN Y AUDITORÍA
-
----
-
-### 🔟 GymSetting
-**Descripción:**  
-Configuración general del gimnasio.
-
-**Campos relevantes:**
+Campos relevantes:
 - nombre_gimnasio
 - ruc
 - direccion
@@ -249,13 +190,10 @@ Configuración general del gimnasio.
 - horarios_acceso
 - politicas_acceso
 
----
+### AuditLog
+Registro de acciones criticas del sistema.
 
-### 1️⃣1️⃣ AuditLog
-**Descripción:**  
-Registro de acciones críticas del sistema.
-
-**Campos relevantes:**
+Campos relevantes:
 - user_id
 - action
 - entity_type
@@ -265,14 +203,14 @@ Registro de acciones críticas del sistema.
 - ip
 - user_agent
 
-**Relaciones:**
+Relaciones:
 - belongsTo(User)
 
 ---
 
-## ✅ RESUMEN DE MODELOS
+## Resumen
 
-### 🔹 Modelos esenciales:
+Modelos esenciales:
 - User
 - Cliente
 - Membresia
@@ -281,16 +219,9 @@ Registro de acciones críticas del sistema.
 - Asistencia
 - EvaluacionFisica
 
-### 🔹 Modelos avanzados / integración:
-- BiotimeAccessLog
+Modelos de soporte:
 - IntegrationErrorLog
 - GymSetting
 - AuditLog
 
----
-
-📌 **Este archivo sirve como base directa para:**
-- Crear migraciones en Laravel 12
-- Definir relaciones Eloquent
-- Documentar el backend
-- Coordinar Frontend Web, App Flutter y BioTime
+Este archivo sirve como base para crear migraciones, definir relaciones Eloquent, documentar el backend y coordinar los proyectos web y movil.

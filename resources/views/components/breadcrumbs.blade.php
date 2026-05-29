@@ -16,6 +16,7 @@
             'cuotas.pagar' => __('Pagar cuota'),
             'clases.index' => __('Clases'),
             'checking.index' => __('Checking'),
+            'biotime.index' => __('BioTime'),
             'cajas.index' => __('Caja'),
             'pos.index' => __('Punto de Venta'),
             'pos.ventas-credito' => __('Ventas a crédito'),
@@ -59,12 +60,6 @@
             'roles.index' => __('Roles'),
             'administracion.backups.index' => __('Backups de base de datos'),
             'payment-methods.index' => __('Métodos de pago'),
-            'biotime.index' => __('BioTime'),
-            'biotime.config' => __('Configuración BioTime'),
-            'biotime.sync' => __('Sincronizar BioTime'),
-            'biotime.areas' => __('Áreas BioTime'),
-            'biotime.departments' => __('Departamentos BioTime'),
-            'biotime.employees' => __('Empleados BioTime'),
             'reportes.index' => __('Centro de reportes'),
             'reportes.ventas' => __('Reporte de Ventas'),
             'reportes.matriculas' => __('Reporte de Matrículas'),
@@ -106,11 +101,6 @@
             $urls = [
                 'gestion-nutricional.calendario' => route('gestion-nutricional.calendario'),
                 'gestion-nutricional.objetivos.index' => route('gestion-nutricional.objetivos.index'),
-                'biotime.config' => route('biotime.config'),
-                'biotime.sync' => route('biotime.sync'),
-                'biotime.areas' => route('biotime.areas'),
-                'biotime.departments' => route('biotime.departments'),
-                'biotime.employees' => route('biotime.employees'),
             ];
             $parentLabel = null;
             $parentRoute = null;
@@ -125,7 +115,7 @@
                 $parentLabel = __('Clientes');
                 $parentRoute = 'clientes.perfil.index';
             }
-            if (str_starts_with($routeName, 'checking.') || str_starts_with($routeName, 'cajas.') || str_starts_with($routeName, 'pos.')) {
+            if (str_starts_with($routeName, 'checking.') || str_starts_with($routeName, 'biotime.') || str_starts_with($routeName, 'cajas.') || str_starts_with($routeName, 'pos.')) {
                 $parentLabel = __('Operación diaria');
                 $parentRoute = 'checking.index';
             }
@@ -149,9 +139,9 @@
                 $parentLabel = __('Analítica');
                 $parentRoute = 'reportes.index';
             }
-            if (str_starts_with($routeName, 'biotime.') || str_starts_with($routeName, 'payment-methods.') || str_starts_with($routeName, 'usuarios.') || str_starts_with($routeName, 'roles.') || str_starts_with($routeName, 'employees.') || str_starts_with($routeName, 'administracion.backups.')) {
+            if (str_starts_with($routeName, 'payment-methods.') || str_starts_with($routeName, 'usuarios.') || str_starts_with($routeName, 'roles.') || str_starts_with($routeName, 'employees.') || str_starts_with($routeName, 'administracion.backups.')) {
                 $parentLabel = __('Administración');
-                $parentRoute = str_starts_with($routeName, 'employees.') ? 'employees.index' : (str_starts_with($routeName, 'biotime.') ? 'biotime.index' : (str_starts_with($routeName, 'payment-methods.') ? 'payment-methods.index' : 'usuarios.index'));
+                $parentRoute = str_starts_with($routeName, 'employees.') ? 'employees.index' : (str_starts_with($routeName, 'payment-methods.') ? 'payment-methods.index' : 'usuarios.index');
             }
             if (str_starts_with($routeName, 'ejercicios.') || str_starts_with($routeName, 'rutinas-base.') || str_starts_with($routeName, 'clientes.rutinas.') || str_starts_with($routeName, 'clientes.sesiones.') || str_starts_with($routeName, 'ejercicios-rutinas.')) {
                 $parentLabel = __('Bienestar');

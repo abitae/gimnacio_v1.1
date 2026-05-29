@@ -387,8 +387,6 @@ trait ManagesClienteMatriculaForm
                 }
             }
 
-            \App\Models\Core\Cliente::where('id', $this->selectedClienteId)->update(['estado_cliente' => 'activo']);
-
             $this->closeMatriculaModal();
             $this->afterClienteMatriculaMutation();
         } catch (\Illuminate\Validation\ValidationException $e) {

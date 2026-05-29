@@ -230,8 +230,6 @@ class ClienteMembresiaLive extends Component
                 $this->flashToast('success', 'Membresía creada correctamente');
             }
 
-            \App\Models\Core\Cliente::where('id', $this->selectedClienteId)->update(['estado_cliente' => 'activo']);
-
             $this->closeModal();
             $this->resetPage();
         } catch (\Illuminate\Validation\ValidationException $e) {

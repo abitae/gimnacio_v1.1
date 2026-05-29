@@ -21,7 +21,6 @@ Centralizar un analisis profundo de todos los modulos visibles desde el sidebar 
 | Recursos | catalogos y alquileres | `categorias-productos.*`, `productos.*`, `servicios.*`, `rentals.*` | Mezcla inventario, servicios y espacios |
 | Analitica | centro de reportes y exportaciones | `reportes.*` | Todavia reutiliza pantallas operativas como destinos |
 | Administracion | usuarios, roles, metodos de pago, empleados, backups | `employees.*`, `payment-methods.*`, `usuarios.*`, `roles.*`, `administracion.*` | Faltan bloques de configuracion mas claros |
-| Biotime | integracion externa de control | `biotime.*` | Modulo de soporte tecnico, no de uso operativo diario |
 
 ## Principios transversales recomendados
 1. Cada modulo debe tener una fuente de verdad principal y solo consumir legado en compatibilidad de lectura o migracion.
@@ -41,7 +40,7 @@ Centralizar un analisis profundo de todos los modulos visibles desde el sidebar 
 - CRM: `crm_leads`, `deals`, `crm_tasks`, `crm_activities`, `campaigns`
 - Recursos: `productos`, `servicios_externos`, `rentable_spaces`, `rentals`
 - Administracion: `users`, `roles`, `payment_methods`, `employees`, `employee_attendances`
-- Integracion: `biotime_settings`, `biotime_access_logs`, `integration_error_logs`
+- Integracion: `integration_error_logs`
 
 ## Matriz ejecutiva
 | Modulo | Livewire eje | Servicio eje | Modelos eje | Fuente de verdad | Riesgo principal | Prioridad |
@@ -52,7 +51,6 @@ Centralizar un analisis profundo de todos los modulos visibles desde el sidebar 
 | Recursos | `ProductoLive`, `ServicioExternoLive`, `Rentals/*` | `ProductoService`, `ServicioExternoService` | `Producto`, `CategoriaProducto`, `ServicioExterno`, `RentableSpace`, `Rental` | catalogos y alquileres | catalogos e inventario con poca capa de movimientos | Media |
 | Analitica | `ReporteIndexLive` y reportes derivados | `ReporteModuloService`, `ReporteService` | agregaciones multi-modulo | servicios agregadores | mezcla operativo/analitico y dependencia legacy | Alta |
 | Administracion | `UsuarioLive`, `RolLive`, `Employees/*`, `PaymentMethods/Index` | servicios especificos + `SucursalContext` | `User`, `Role`, `PaymentMethod`, `Employee`, `EmployeeAttendance` | administracion del sistema | gestion fragmentada de seguridad, personal y configuracion | Media |
-| Biotime | `BiotimeIndexLive`, `BiotimeSyncLive`, `BiotimeConfigLive` | `BiotimeApiClient` | `BiotimeSetting`, `BiotimeAccessLog`, `IntegrationErrorLog` | integracion externa | falta observabilidad y separacion entre configuracion y operaciones | Media |
 
 ## 1. Clientes
 ### Alcance actual
@@ -473,64 +471,6 @@ El modulo `Administracion` agrupa:
 - Fase 2: reforzar pantallas de configuracion de empresa/sucursales.
 - Fase 3: agregar auditoria y soporte de administracion avanzada.
 
-## 7. Biotime
-### Alcance actual
-El modulo `Biotime` contiene:
-
-- panel de integracion,
-- configuracion,
-- sincronizacion,
-- areas,
-- departamentos,
-- empleados BioTime.
-
-### Componentes y servicios eje
-- Livewire:
-  - `app/Livewire/biotime/BiotimeIndexLive.php`
-  - `app/Livewire/biotime/BiotimeConfigLive.php`
-  - `app/Livewire/biotime/BiotimeSyncLive.php`
-  - `app/Livewire/biotime/area/AreaIndexLive.php`
-  - `app/Livewire/biotime/department/DepartmentIndexLive.php`
-  - `app/Livewire/biotime/employees/EmployeesIndexLive.php`
-- Servicios:
-  - `app/Services/BiotimeApiClient.php`
-
-### Modelos y relaciones dominantes
-- `BiotimeSetting`
-- `BiotimeAccessLog`
-- `IntegrationErrorLog`
-- entidades sincronizadas de personal/estructura
-
-### Hallazgos
-- `BiotimeIndexLive` hoy es una pantalla muy ligera cuyo rol principal es testear conexion.
-- La integracion parece estar organizada por vistas separadas, pero falta una experiencia de observabilidad.
-- BioTime es un modulo tecnico; no deberia competir visualmente con modulos operativos de negocio.
-
-### Riesgos actuales
-- Si la integracion falla, el usuario no tiene un tablero claro de:
-  - ultimo sync exitoso,
-  - errores recientes,
-  - impacto funcional.
-- Configuracion, sincronizacion manual y datos maestros estan separados, pero no articulados como flujo.
-
-### Plan de mejora
-1. Convertir `Biotime` en un modulo de integracion con tres vistas:
-   - estado del conector,
-   - sincronizaciones,
-   - catalogos sincronizados.
-2. Incorporar logs operativos visibles:
-   - ultimo intento,
-   - ultimo exito,
-   - errores recientes,
-   - entidad afectada.
-3. Enlazar BioTime con asistencia de clientes o empleados solo a traves de servicios de integracion, nunca con consultas directas desde UI.
-4. Dejar `Biotime` como modulo de soporte/administracion, no como parte del flujo diario.
-
-### Prioridad recomendada
-- Fase 1: observabilidad y estado del conector.
-- Fase 2: trazabilidad de sincronizaciones.
-- Fase 3: cierre de brechas entre integracion y modulos consumidores.
-
 ## Dependencias y relaciones transversales que debemos cuidar
 ### Cliente como entidad pivote
 `Cliente` es el centro real del sistema y conecta:
@@ -587,7 +527,6 @@ Debe quedar claramente marcado como legado de lectura/cobranza controlada.
 4. Comercial
 5. Recursos
 6. Administracion
-7. Biotime
 
 ## Criterios de exito
 - Un mismo cliente muestra el mismo estado comercial, de bienestar y de deuda en cualquier modulo.

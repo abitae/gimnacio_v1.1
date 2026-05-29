@@ -65,7 +65,6 @@
                         <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Contacto') }}</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Estado') }}</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Deuda') }}</th>
-                        <th class="px-3 py-2 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400" title="BioTime">BT</th>
                         <th class="px-3 py-2 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Acciones') }}</th>
                     </tr>
                 </thead>
@@ -124,14 +123,6 @@
                                 @else
                                     <flux:badge color="green" class="text-xs">{{ __('Sin deuda') }}</flux:badge>
                                 @endif
-                            </td>
-                            <td class="px-3 py-2">
-                                <div class="flex items-center justify-center gap-0.5">
-                                    @php($biotimeState = $cliente->biotime_state_bool)
-                                    <flux:icon name="{{ $biotimeState ? 'check-circle' : 'x-circle' }}" class="size-4 {{ $biotimeState ? 'text-lime-600' : 'text-red-600' }}" title="BioTime" />
-                                    @php($biotimeUpdate = $cliente->biotime_update_bool)
-                                    <flux:icon name="{{ $biotimeUpdate ? 'arrow-path' : 'x-circle' }}" class="size-4 {{ $biotimeUpdate ? 'text-lime-600' : 'text-red-600' }}" title="{{ __('Actualización BioTime') }}" />
-                                </div>
                             </td>
                             <td class="px-3 py-2 text-right">
                                 <flux:button size="xs" variant="primary" icon="user-circle" type="button"

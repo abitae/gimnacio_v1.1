@@ -55,8 +55,6 @@ trait ManagesClienteCrudAndPhoto
         'numero_hijos' => '',
         'placa_carro' => '',
         'sexo' => '',
-        'biotime_state' => false,
-        'biotime_update' => false,
         'datos_emergencia' => [
             'nombre' => '',
             'telefono' => '',
@@ -334,8 +332,6 @@ trait ManagesClienteCrudAndPhoto
                 }
             } else {
                 $data['estado_cliente'] = 'inactivo';
-                $data['biotime_state'] = false;
-                $data['biotime_update'] = false;
                 $nuevo = $this->clienteService->create($data);
                 $this->flashToast('success', 'Cliente creado correctamente');
                 $this->closeClienteCreateModal();
@@ -396,8 +392,6 @@ trait ManagesClienteCrudAndPhoto
             'numero_hijos' => $cliente->numero_hijos !== null ? (string) $cliente->numero_hijos : '',
             'placa_carro' => $cliente->placa_carro ?? '',
             'sexo' => $sexo,
-            'biotime_state' => (bool) $cliente->biotime_state,
-            'biotime_update' => (bool) $cliente->biotime_update,
             'datos_emergencia' => [
                 'nombre' => $cliente->datos_emergencia['nombre_contacto'] ?? '',
                 'telefono' => $cliente->datos_emergencia['telefono_contacto'] ?? '',
@@ -437,8 +431,6 @@ trait ManagesClienteCrudAndPhoto
             'numero_hijos' => $this->formData['numero_hijos'] !== '' ? (int) $this->formData['numero_hijos'] : null,
             'placa_carro' => $this->formData['placa_carro'] ?: null,
             'sexo' => $sexo,
-            'biotime_state' => (bool) ($this->formData['biotime_state'] ?? false),
-            'biotime_update' => (bool) ($this->formData['biotime_update'] ?? false),
             'datos_emergencia' => [
                 'nombre_contacto' => $this->formData['datos_emergencia']['nombre'] ?: null,
                 'telefono_contacto' => $this->formData['datos_emergencia']['telefono'] ?: null,
@@ -497,8 +489,6 @@ trait ManagesClienteCrudAndPhoto
             'numero_hijos' => '',
             'placa_carro' => '',
             'sexo' => '',
-            'biotime_state' => false,
-            'biotime_update' => false,
             'datos_emergencia' => [
                 'nombre' => '',
                 'telefono' => '',

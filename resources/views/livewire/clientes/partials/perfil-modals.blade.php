@@ -57,12 +57,6 @@
                 <flux:checkbox wire:model="formData.consentimientos.uso_imagen" label="{{ __('Uso de imagen') }}" />
                 <flux:checkbox wire:model="formData.consentimientos.tratamiento_datos" label="{{ __('Tratamiento de datos') }}" />
             </div>
-            @if ($clienteId)
-                <div class="flex flex-wrap gap-4 text-xs">
-                    <flux:checkbox wire:model="formData.biotime_state" label="{{ __('BioTime activo') }}" />
-                    <flux:checkbox wire:model="formData.biotime_update" label="{{ __('Actualizar en BioTime') }}" />
-                </div>
-            @endif
         </div>
         <div class="flex justify-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-700">
             <flux:button type="button" variant="ghost" size="xs" wire:click="closeClienteCreateModal">{{ __('Cancelar') }}</flux:button>

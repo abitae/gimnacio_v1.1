@@ -14,6 +14,14 @@ class ClienteMembresia extends Model
     use BelongsToSucursal;
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::saved(function (ClienteMembresia $clienteMembresia): void {
+            app(\App\Services\ClienteService::class)
+                ->syncEstadoDesdeMembresiaActiva((int) $clienteMembresia->cliente_id);
+        });
+    }
+
     protected $fillable = [
         'cliente_id',
         'membresia_id',

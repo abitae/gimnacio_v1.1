@@ -630,7 +630,7 @@ CREATE TABLE `health_records` (
 DROP TABLE IF EXISTS `integration_error_logs`;
 CREATE TABLE `integration_error_logs` (
   `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-  `source` enum('biotime','api','webhook') NOT NULL,
+  `source` enum('api','webhook') NOT NULL,
   `payload` longtext CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(`payload`)),
   `error_message` text NOT NULL,
   `resolved_at` timestamp NULL DEFAULT NULL,
@@ -782,7 +782,6 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (8, '2025_12_14_034
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (9, '2025_12_14_034243_create_pagos_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (10, '2025_12_14_034245_create_asistencias_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (11, '2025_12_14_034248_create_evaluacion_fisicas_table', 1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (12, '2025_12_14_034250_create_biotime_access_logs_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (13, '2025_12_14_034253_create_integration_error_logs_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (14, '2025_12_14_034255_create_gym_settings_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (15, '2025_12_14_034258_create_audit_logs_table', 1);
@@ -806,7 +805,6 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (32, '2026_01_11_05
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (33, '2026_01_11_052205_create_evaluaciones_medidas_nutricion_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (34, '2026_01_11_052210_create_citas_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (35, '2026_01_11_054323_add_cliente_matricula_id_to_pagos_and_asistencias_tables', 1);
-INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (36, '2026_01_30_120000_create_biotime_settings_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (37, '2026_02_05_100000_create_seguimientos_nutricion_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (38, '2026_02_05_100001_create_crm_mensajes_table', 1);
 INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES (39, '2026_02_26_223050_add_appearance_and_accent_to_users_table', 1);
@@ -2595,10 +2593,6 @@ INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at
 INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (70, 'roles.create', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
 INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (71, 'roles.update', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
 INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (72, 'roles.delete', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
-INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (73, 'biotime.view', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
-INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (74, 'biotime.create', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
-INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (75, 'biotime.update', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
-INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (76, 'biotime.delete', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
 INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (77, 'reportes.view', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
 INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (78, 'reportes.create', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
 INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES (79, 'reportes.update', 'web', '2026-04-01 22:34:59', '2026-04-01 22:34:59');
@@ -2833,10 +2827,6 @@ INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (69, 2);
 INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (70, 2);
 INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (71, 2);
 INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (72, 2);
-INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (73, 2);
-INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (74, 2);
-INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (75, 2);
-INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (76, 2);
 INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (77, 2);
 INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (78, 2);
 INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES (79, 2);

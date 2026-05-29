@@ -16,7 +16,8 @@ class ClienteService
     private const CODIGO_CLIENTE_INICIAL = 10000;
 
     public function __construct(
-        protected SucursalContext $sucursalContext
+        protected SucursalContext $sucursalContext,
+        protected ClientEnrollmentService $clientEnrollmentService,
     ) {}
 
     /**
@@ -220,7 +221,6 @@ class ClienteService
             if (array_key_exists('codigo', $validated)) {
                 $validated['codigo'] = $this->normalizeCodigo($validated['codigo']);
             }
-            $validated['biotime_update'] = true;
             $validated['updated_by'] = auth()->id();
             $validated['sucursal_id'] = $cliente->sucursal_id;
             $cliente->update($validated);
@@ -329,8 +329,6 @@ class ClienteService
             'placa_carro' => ['nullable', 'string', 'max:20'],
             'sexo' => ['nullable', 'string', 'in:masculino,femenino'],
             'estado_cliente' => [$isUpdate ? 'sometimes' : 'required', 'string', 'in:activo,inactivo,suspendido'],
-            'biotime_state' => ['nullable', 'boolean'],
-            'biotime_update' => ['nullable', 'boolean'],
             'foto' => ['nullable', 'string'],
             'datos_salud' => ['nullable', 'array'],
             'datos_emergencia' => ['nullable', 'array'],
@@ -378,6 +376,21 @@ class ClienteService
         }
 
         return (int) ($this->sucursalContext->getFallbackSucursalId() ?? 0);
+    }
+
+    /**
+     * Si el cliente tiene una membresía vigente, asegura que su estado sea activo.
+     */
+    public function syncEstadoDesdeMembresiaActiva(int $clienteId): void
+    {
+        if ($this->clientEnrollmentService->resolveActiveEnrollmentModel($clienteId) === null) {
+            return;
+        }
+
+        Cliente::query()
+            ->whereKey($clienteId)
+            ->where('estado_cliente', '!=', 'activo')
+            ->update(['estado_cliente' => 'activo']);
     }
 
     /**

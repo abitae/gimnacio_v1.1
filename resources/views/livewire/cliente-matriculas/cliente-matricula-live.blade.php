@@ -104,9 +104,6 @@
                             <x-cliente.info-field label="Teléfono" :value="$selectedCliente->telefono" />
                             <x-cliente.info-field label="Email" :value="$selectedCliente->email" />
                             <x-cliente.info-field label="Dirección" :value="$selectedCliente->direccion" />
-                            @if ($selectedCliente->biotime_state)
-                                <x-cliente.info-field label="BioTime" value="Sincronizado" />
-                            @endif
                         </div>
                     </div>
                 </div>

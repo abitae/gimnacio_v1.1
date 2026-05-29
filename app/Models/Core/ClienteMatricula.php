@@ -14,6 +14,18 @@ class ClienteMatricula extends Model
     use BelongsToSucursal;
     use HasFactory;
 
+    protected static function booted(): void
+    {
+        static::saved(function (ClienteMatricula $clienteMatricula): void {
+            if ($clienteMatricula->tipo !== 'membresia') {
+                return;
+            }
+
+            app(\App\Services\ClienteService::class)
+                ->syncEstadoDesdeMembresiaActiva((int) $clienteMatricula->cliente_id);
+        });
+    }
+
     protected $table = 'cliente_matriculas';
 
     protected $fillable = [

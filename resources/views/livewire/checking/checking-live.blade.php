@@ -150,11 +150,6 @@
                                         </span>
                                     </div>
                                 @endif
-                                @if ($selectedCliente->biotime_state)
-                                    <div class="absolute -bottom-1 -right-1 flex h-8 w-8 items-center justify-center rounded-full bg-blue-500 border-2 border-white shadow-md">
-                                        <flux:icon name="identification" class="h-4 w-4 text-white" />
-                                    </div>
-                                @endif
                             </div>
                         </div>
 

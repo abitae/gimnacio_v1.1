@@ -68,8 +68,6 @@ class ClienteFactory extends Factory
             ],
             'created_by' => User::factory(),
             'updated_by' => null,
-            'biotime_state' => false,
-            'biotime_update' => false,
             'trainer_user_id' => null,
         ];
     }

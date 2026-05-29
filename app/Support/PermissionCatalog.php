@@ -100,10 +100,6 @@ final class PermissionCatalog
                 'label' => 'Roles',
                 'actions' => self::crudDescriptions('roles'),
             ],
-            'biotime' => [
-                'label' => 'BioTime',
-                'actions' => self::crudDescriptions('configuracion de BioTime'),
-            ],
             'reporte' => [
                 'label' => 'Reportes',
                 'actions' => self::crudDescriptions('reportes'),
@@ -123,6 +119,13 @@ final class PermissionCatalog
             'importacion' => [
                 'label' => 'Importación de datos',
                 'actions' => self::crudDescriptions('importación Excel legacy'),
+            ],
+            'biotime' => [
+                'label' => 'BioTime',
+                'actions' => [
+                    'ver' => 'Ver panel, mapeos e historial de BioTime.',
+                    'editar' => 'Configurar token, mapeos y homologaciones de BioTime.',
+                ],
             ],
         ];
     }
@@ -420,10 +423,6 @@ final class PermissionCatalog
             'roles.create',
             'roles.update',
             'roles.delete',
-            'biotime.view',
-            'biotime.create',
-            'biotime.update',
-            'biotime.delete',
             'reportes.view',
             'reportes.create',
             'reportes.update',

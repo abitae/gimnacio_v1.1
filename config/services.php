@@ -35,12 +35,4 @@ return [
         ],
     ],
 
-    'biotime' => [
-        'base_url' => env('BIOTIME_BASE_URL'),
-        'username' => env('BIOTIME_USERNAME'),
-        'password' => env('BIOTIME_PASSWORD'),
-        'auth_type' => env('BIOTIME_AUTH_TYPE', 'jwt'),
-        'enabled' => env('BIOTIME_ENABLED', true),
-    ],
-
 ];

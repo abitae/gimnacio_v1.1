@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\View;
 use Illuminate\Support\ServiceProvider;
@@ -45,6 +48,12 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::policy(\App\Models\Crm\Lead::class, \App\Policies\Crm\LeadPolicy::class);
+
+        RateLimiter::for('biotime-sync', function (Request $request) {
+            $key = $request->bearerToken() ?: $request->header('X-BioTime-Secret') ?: $request->ip();
+
+            return Limit::perMinute(120)->by(sha1((string) $key));
+        });
 
         $slowMs = (int) env('DB_SLOW_QUERY_LOG_MS', 0);
         if ($slowMs > 0 && (bool) config('app.debug')) {

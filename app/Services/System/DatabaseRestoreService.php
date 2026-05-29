@@ -4,7 +4,6 @@ namespace App\Services\System;
 
 use App\Support\PermissionCatalog;
 use Database\Seeders\AdminUserSeeder;
-use Database\Seeders\BiotimeSettingSeeder;
 use Database\Seeders\CategoriaProductoSeeder;
 use Database\Seeders\CategoriaServicioSeeder;
 use Database\Seeders\ComprobanteConfigSeeder;
@@ -602,7 +601,6 @@ class DatabaseRestoreService
         foreach ([
             RoleSeeder::class,
             GymSettingSeeder::class,
-            BiotimeSettingSeeder::class,
             ComprobanteConfigSeeder::class,
             PaymentMethodSeeder::class,
             CategoriaProductoSeeder::class,

@@ -49,13 +49,13 @@ class AsistenciaSeeder extends Seeder
             'registrada_por' => null,
         ]);
 
-        // Asistencia desde BioTime
+        // Asistencia registrada por la aplicacion
         Asistencia::create([
             'cliente_id' => $cliente1->id,
             'cliente_membresia_id' => $membresia1->id,
             'fecha_hora_ingreso' => now()->subDays(2)->setTime(7, 0),
             'fecha_hora_salida' => now()->subDays(2)->setTime(8, 45),
-            'origen' => 'biotime',
+            'origen' => 'app',
             'valido_por_membresia' => true,
             'registrada_por' => null,
         ]);

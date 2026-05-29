@@ -65,3 +65,71 @@ it('records a traspaso when a legacy membership changes to another plan', functi
     expect((int) $traspaso->plan_anterior_id)->toBe($planInicial->id);
     expect((int) $traspaso->plan_nuevo_id)->toBe($planNuevo->id);
 });
+
+it('activates an inactive client when they receive an active membership', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000005',
+        'nombres' => 'Luis',
+        'apellidos' => 'Pérez',
+        'estado_cliente' => 'inactivo',
+        'created_by' => $user->id,
+    ]);
+
+    $plan = Membresia::create([
+        'nombre' => 'Premium',
+        'duracion_dias' => 30,
+        'precio_base' => 120,
+        'estado' => 'activa',
+    ]);
+
+    app(ClienteMembresiaService::class)->create([
+        'cliente_id' => $cliente->id,
+        'membresia_id' => $plan->id,
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 120,
+        'descuento_monto' => 0,
+        'precio_final' => 120,
+    ]);
+
+    expect($cliente->fresh()->estado_cliente)->toBe('activo');
+});
+
+it('does not activate a client when the membership is not active', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000006',
+        'nombres' => 'María',
+        'apellidos' => 'López',
+        'estado_cliente' => 'inactivo',
+        'created_by' => $user->id,
+    ]);
+
+    $plan = Membresia::create([
+        'nombre' => 'Básico vencido',
+        'duracion_dias' => 30,
+        'precio_base' => 80,
+        'estado' => 'activa',
+    ]);
+
+    app(ClienteMembresiaService::class)->create([
+        'cliente_id' => $cliente->id,
+        'membresia_id' => $plan->id,
+        'fecha_inicio' => now()->subDays(60)->toDateString(),
+        'fecha_fin' => now()->subDays(30)->toDateString(),
+        'estado' => 'vencida',
+        'precio_lista' => 80,
+        'descuento_monto' => 0,
+        'precio_final' => 80,
+    ]);
+
+    expect($cliente->fresh()->estado_cliente)->toBe('inactivo');
+});

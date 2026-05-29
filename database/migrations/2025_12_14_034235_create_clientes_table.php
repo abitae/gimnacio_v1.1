@@ -26,8 +26,6 @@ return new class extends Migration
             $table->json('datos_salud')->nullable();
             $table->json('datos_emergencia')->nullable();
             $table->json('consentimientos')->nullable();
-            $table->boolean('biotime_state')->default(false)->comment('Si el cliente ya está sincronizado en BioTime');
-            $table->boolean('biotime_update')->default(false);
             $table->foreignId('trainer_user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->foreignId('created_by')->constrained('users');
             $table->foreignId('updated_by')->nullable()->constrained('users');
@@ -35,7 +33,6 @@ return new class extends Migration
 
             $table->unique(['tipo_documento', 'numero_documento']);
             $table->index('estado_cliente');
-            $table->index('biotime_state');
             $table->index('trainer_user_id');
         });
     }

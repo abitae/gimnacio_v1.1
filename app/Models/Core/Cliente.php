@@ -3,7 +3,6 @@
 namespace App\Models\Core;
 
 use App\Models\Concerns\BelongsToSucursal;
-use App\Models\Integration\BiotimeAccessLog;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -20,6 +19,7 @@ class Cliente extends Model
 
     protected $fillable = [
         'codigo',
+        'biotime_id',
         'tipo_documento',
         'numero_documento',
         'nombres',
@@ -43,8 +43,6 @@ class Cliente extends Model
         'consentimientos',
         'created_by',
         'updated_by',
-        'biotime_state',
-        'biotime_update',
         'trainer_user_id',
         'sucursal_id',
     ];
@@ -53,14 +51,13 @@ class Cliente extends Model
     {
         return [
             'fecha_nacimiento' => 'date',
+            'biotime_id' => 'integer',
             'numero_hijos' => 'integer',
             'datos_salud' => 'array',
             'datos_emergencia' => 'array',
             'consentimientos' => 'array',
             'created_by' => 'integer',
             'updated_by' => 'integer',
-            'biotime_state' => 'boolean',
-            'biotime_update' => 'boolean',
             'sucursal_id' => 'integer',
         ];
     }
@@ -99,30 +96,6 @@ class Cliente extends Model
         return $base;
     }
 
-    /**
-     * Valor booleano fiable para biotime_state (desde BD: 0/1, "0"/"1", true/false).
-     */
-    public function getBiotimeStateBoolAttribute(): bool
-    {
-        $v = array_key_exists('biotime_state', $this->attributes)
-            ? $this->getRawOriginal('biotime_state')
-            : ($this->biotime_state ?? false);
-
-        return $v === true || $v === 1 || $v === '1';
-    }
-
-    /**
-     * Valor booleano fiable para biotime_update (desde BD: 0/1, "0"/"1", true/false).
-     */
-    public function getBiotimeUpdateBoolAttribute(): bool
-    {
-        $v = array_key_exists('biotime_update', $this->attributes)
-            ? $this->getRawOriginal('biotime_update')
-            : ($this->biotime_update ?? false);
-
-        return $v === true || $v === 1 || $v === '1';
-    }
-
     // Relaciones
     public function clienteMembresias(): HasMany
     {
@@ -147,11 +120,6 @@ class Cliente extends Model
     public function evaluacionesFisicas(): HasMany
     {
         return $this->hasMany(EvaluacionFisica::class);
-    }
-
-    public function biotimeAccessLogs(): HasMany
-    {
-        return $this->hasMany(BiotimeAccessLog::class);
     }
 
     public function evaluacionesMedidasNutricion(): HasMany

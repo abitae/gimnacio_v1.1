@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('integration_error_logs', function (Blueprint $table) {
             $table->id();
-            $table->enum('source', ['biotime', 'api', 'webhook']);
+            $table->enum('source', ['api', 'webhook']);
             $table->json('payload')->nullable();
             $table->text('error_message');
             $table->timestamp('resolved_at')->nullable();

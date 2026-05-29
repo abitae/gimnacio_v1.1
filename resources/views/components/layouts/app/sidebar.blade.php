@@ -222,14 +222,19 @@
                 </flux:sidebar.group>
                 @endcan
 
-                @canany(['empleado.ver', 'metodo_pago.ver', 'usuario.ver', 'rol.ver'])
-                <flux:sidebar.group expandable heading="Administracion" class="grid" :expanded="request()->routeIs('employees.*') || request()->routeIs('payment-methods.*') || request()->routeIs('usuarios.*') || request()->routeIs('roles.*')">
+                @canany(['empleado.ver', 'metodo_pago.ver', 'usuario.ver', 'rol.ver', 'biotime.ver'])
+                <flux:sidebar.group expandable heading="Administracion" class="grid" :expanded="request()->routeIs('employees.*') || request()->routeIs('payment-methods.*') || request()->routeIs('usuarios.*') || request()->routeIs('roles.*') || request()->routeIs('biotime.*')">
                     @can('empleado.ver')
                     <flux:sidebar.item icon="users" :href="route('employees.index')" :current="request()->routeIs('employees.index') || request()->routeIs('employees.show') || request()->routeIs('employees.edit') || request()->routeIs('employees.create')" wire:navigate>
                         {{ __('Empleados') }}
                     </flux:sidebar.item>
                     <flux:sidebar.item icon="clipboard-document-check" :href="route('employees.attendances.index')" :current="request()->routeIs('employees.attendances.*')" wire:navigate>
                         {{ __('Asistencia del personal') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('biotime.ver')
+                    <flux:sidebar.item icon="finger-print" :href="route('biotime.index')" :current="request()->routeIs('biotime.*')" wire:navigate>
+                        {{ __('BioTime') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('metodo_pago.ver')
@@ -249,29 +254,6 @@
                     @endcan
                 </flux:sidebar.group>
                 @endcanany
-
-                @can('biotime.ver')
-                <flux:sidebar.group expandable heading="Biotime" class="grid" :expanded="request()->routeIs('biotime.*')">
-                    <flux:sidebar.item icon="signal" :href="route('biotime.index')" :current="request()->routeIs('biotime.index')" wire:navigate>
-                        {{ __('Integracion BioTime') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="cog-6-tooth" :href="route('biotime.config')" :current="request()->routeIs('biotime.config')" wire:navigate>
-                        {{ __('Configuracion') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="arrow-path" :href="route('biotime.sync')" :current="request()->routeIs('biotime.sync')" wire:navigate>
-                        {{ __('Sincronizar') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="map-pin" :href="route('biotime.areas')" :current="request()->routeIs('biotime.areas')" wire:navigate>
-                        {{ __('Areas') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="building-office-2" :href="route('biotime.departments')" :current="request()->routeIs('biotime.departments')" wire:navigate>
-                        {{ __('Departamentos') }}
-                    </flux:sidebar.item>
-                    <flux:sidebar.item icon="users" :href="route('biotime.employees')" :current="request()->routeIs('biotime.employees')" wire:navigate>
-                        {{ __('Empleados BioTime') }}
-                    </flux:sidebar.item>
-                </flux:sidebar.group>
-                @endcan
 
                 @if (auth()->user()?->hasRole(\App\Support\PermissionCatalog::SUPER_ADMIN_ROLE_NAME))
                 <flux:sidebar.group expandable heading="Super administracion" class="grid" :expanded="request()->routeIs('company-branches.*') || request()->routeIs('administracion.backups.*') || request()->routeIs('importaciones.*')">

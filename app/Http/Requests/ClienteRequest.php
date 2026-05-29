@@ -39,8 +39,6 @@ class ClienteRequest extends FormRequest
             'email' => ['nullable', 'email', 'max:255'],
             'direccion' => ['nullable', 'string'],
             'estado_cliente' => [$isUpdate ? 'sometimes' : 'required', 'string', 'in:activo,inactivo,suspendido'],
-            'biotime_state' => ['nullable', 'boolean'],
-            'biotime_update' => ['nullable', 'boolean'],
             'foto' => ['nullable', 'string'],
             'datos_salud' => ['nullable', 'array'],
             'datos_emergencia' => ['nullable', 'array'],
@@ -71,4 +69,3 @@ class ClienteRequest extends FormRequest
         ];
     }
 }
-

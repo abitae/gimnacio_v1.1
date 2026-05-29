@@ -18,7 +18,6 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RoleSeeder::class,
             GymSettingSeeder::class,
-            BiotimeSettingSeeder::class,
             ComprobanteConfigSeeder::class,
             PaymentMethodSeeder::class,
             CategoriaProductoSeeder::class,
@@ -57,7 +56,6 @@ class DatabaseSeeder extends Seeder
         //     HealthRecordSeeder::class,
         //     NutritionGoalSeeder::class,
         //     CrmMensajeSeeder::class,
-        //     BiotimeAccessLogSeeder::class,
         //     IntegrationErrorLogSeeder::class,
         //     AuditLogSeeder::class,
         //     ScenarioSeeder::class,

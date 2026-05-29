@@ -92,6 +92,9 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     // Checking - Registro de Ingreso
     // Checking: acceso para cualquier usuario autenticado (recepción / operación diaria).
     Route::get('checking', \App\Livewire\Checking\CheckingLive::class)->name('checking.index');
+    Route::get('biotime', \App\Livewire\BioTime\BioTimeDashboard::class)
+        ->middleware('permission:biotime.ver')
+        ->name('biotime.index');
 
     // Punto de Venta
     Route::get('pos', \App\Livewire\POS\POSLive::class)->middleware('permission:punto_venta.ver')->name('pos.index');
@@ -243,16 +246,6 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     Route::get('administracion/backups', \App\Livewire\Administracion\DatabaseBackupLive::class)->name('administracion.backups.index');
     Route::get('usuarios', \App\Livewire\Usuarios\UsuarioLive::class)->middleware('permission:usuario.ver')->name('usuarios.index');
     Route::get('roles', \App\Livewire\Roles\RolLive::class)->middleware('permission:rol.ver')->name('roles.index');
-
-    // Integración BioTime (ZKTeco)
-    Route::middleware('permission:biotime.ver')->group(function () {
-        Route::get('biotime', \App\Livewire\biotime\BiotimeIndexLive::class)->name('biotime.index');
-        Route::get('biotime/config', \App\Livewire\biotime\BiotimeConfigLive::class)->name('biotime.config');
-        Route::get('biotime/sync', \App\Livewire\biotime\BiotimeSyncLive::class)->name('biotime.sync');
-        Route::get('biotime/areas', \App\Livewire\biotime\area\AreaIndexLive::class)->name('biotime.areas');
-        Route::get('biotime/departments', \App\Livewire\biotime\department\DepartmentIndexLive::class)->name('biotime.departments');
-        Route::get('biotime/employees', \App\Livewire\biotime\employees\EmployeesIndexLive::class)->name('biotime.employees');
-    });
 
     Volt::route('settings/profile', 'settings.profile')->name('profile.edit');
     Volt::route('settings/password', 'settings.password')->name('user-password.edit');
