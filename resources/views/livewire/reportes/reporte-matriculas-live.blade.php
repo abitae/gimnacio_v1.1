@@ -65,6 +65,7 @@
                 </tbody>
             </table>
         </div>
+        <x-reportes.table-pagination :paginator="$matriculas" model="perPageMatriculas" />
     </div>
     </div>
 </div>

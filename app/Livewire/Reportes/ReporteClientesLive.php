@@ -2,12 +2,17 @@
 
 namespace App\Livewire\Reportes;
 
+use App\Livewire\Reportes\Concerns\PaginatesReportTables;
 use App\Models\User;
 use App\Services\ReporteModuloService;
 use Livewire\Component;
+use Livewire\WithPagination;
 
 class ReporteClientesLive extends Component
 {
+    use PaginatesReportTables;
+    use WithPagination;
+
     public $estadoFilter = '';
 
     public $fechaDesde = '';
@@ -24,11 +29,55 @@ class ReporteClientesLive extends Component
 
     public $ventanaDias = 15;
 
+    public int $perPageClientes = 15;
+
+    protected $paginationTheme = 'tailwind';
+
     public function mount(): void
     {
         $this->authorize('reporte.ver');
         $this->fechaDesde = now()->subYear()->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');
+    }
+
+    public function updatingEstadoFilter(): void
+    {
+        $this->resetPage('clientesPage');
+    }
+
+    public function updatingFechaDesde(): void
+    {
+        $this->resetPage('clientesPage');
+    }
+
+    public function updatingFechaHasta(): void
+    {
+        $this->resetPage('clientesPage');
+    }
+
+    public function updatingCreatedById(): void
+    {
+        $this->resetPage('clientesPage');
+    }
+
+    public function updatingTrainerUserId(): void
+    {
+        $this->resetPage('clientesPage');
+    }
+
+    public function updatingVigenciaFilter(): void
+    {
+        $this->resetPage('clientesPage');
+    }
+
+    public function updatingVentanaDias(): void
+    {
+        $this->resetPage('clientesPage');
+    }
+
+    public function updatingPerPageClientes(): void
+    {
+        $this->resetPage('clientesPage');
     }
 
     public function render()
@@ -47,7 +96,7 @@ class ReporteClientesLive extends Component
         $usuarios = User::orderBy('name')->get(['id', 'name']);
 
         return view('livewire.reportes.reporte-clientes-live', [
-            'clientes' => $data['clientes'],
+            'clientes' => $this->paginateReportCollection($data['clientes'], $this->perPageClientes, 'clientesPage'),
             'resumen' => $data['resumen'],
             'usuarios' => $usuarios,
         ]);

@@ -1,8 +1,15 @@
 <div class="space-y-3 border border-zinc-200 rounded-lg p-3 dark:border-zinc-700" wire:key="calendario-wrap">
     <div class="flex flex-col gap-3">
-        <div>
-            <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Calendario de Citas</h1>
-            <p class="text-xs text-zinc-600 dark:text-zinc-400">Visualiza y gestiona las citas en el calendario</p>
+        <div class="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+                <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Calendario de Citas</h1>
+                <p class="text-xs text-zinc-600 dark:text-zinc-400">Visualiza y gestiona las citas en el calendario</p>
+            </div>
+            @can('gestion_nutricional.crear')
+                <flux:button icon="plus" size="sm" variant="primary" wire:click="abrirCrearCita">
+                    Nueva cita
+                </flux:button>
+            @endcan
         </div>
 
         {{-- Leyenda de estados --}}
@@ -23,10 +30,148 @@
             @endforeach
         </div>
 
-        <div class="min-w-0 overflow-hidden rounded-lg border border-zinc-200 dark:border-zinc-700">
-            <div id="calendar" class="min-h-[360px] max-h-[520px] w-full" wire:ignore></div>
+        <div class="calendar-shell min-w-0 rounded-lg border border-zinc-200 dark:border-zinc-700">
+            <div id="calendar" class="w-full" wire:ignore></div>
         </div>
     </div>
+
+    {{-- Modal crear cita --}}
+    <flux:modal name="crear-cita-modal" wire:model="modalCita" focusable flyout variant="floating" class="md:w-lg">
+        <form wire:submit="guardarCita">
+            <div class="space-y-4 p-4">
+                <div class="flex items-center justify-between border-b border-zinc-200 pb-3 dark:border-zinc-700">
+                    <flux:heading size="lg">Nueva cita</flux:heading>
+                    <flux:button type="button" variant="ghost" size="xs" icon="x-mark" wire:click="cerrarCrearCita" aria-label="Cerrar" />
+                </div>
+
+                <flux:field>
+                    <flux:label>Cliente</flux:label>
+                    <div class="space-y-2">
+                        <div class="flex gap-2">
+                            <flux:input
+                                type="search"
+                                wire:model.live.debounce.300ms="citaClienteSearch"
+                                placeholder="Buscar por codigo, documento o nombre"
+                                autocomplete="off"
+                                class="flex-1"
+                            />
+                            @if ($selectedClienteCitaId)
+                                <flux:button type="button" variant="ghost" icon="x-mark" wire:click="limpiarClienteCita" aria-label="Limpiar cliente" />
+                            @endif
+                        </div>
+
+                        @if ($selectedClienteCita)
+                            <div class="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm dark:border-emerald-800 dark:bg-emerald-900/20">
+                                <div class="font-medium text-emerald-900 dark:text-emerald-200">
+                                    {{ $selectedClienteCita->nombres }} {{ $selectedClienteCita->apellidos }}
+                                </div>
+                                <div class="text-xs text-emerald-700 dark:text-emerald-300">
+                                    Codigo: {{ $selectedClienteCita->codigo ?: '-' }} - Doc: {{ $selectedClienteCita->numero_documento ?: '-' }}
+                                </div>
+                            </div>
+                        @elseif (strlen(trim($citaClienteSearch)) >= 2)
+                            <div class="max-h-56 overflow-y-auto rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900">
+                                @forelse ($clientesCita as $cliente)
+                                    <button
+                                        type="button"
+                                        wire:click="seleccionarClienteCita({{ $cliente->id }})"
+                                        class="block w-full border-b border-zinc-100 px-3 py-2 text-left text-sm transition hover:bg-zinc-50 last:border-b-0 dark:border-zinc-800 dark:hover:bg-zinc-800"
+                                    >
+                                        <span class="block font-medium text-zinc-900 dark:text-zinc-100">
+                                            {{ $cliente->nombres }} {{ $cliente->apellidos }}
+                                        </span>
+                                        <span class="block text-xs text-zinc-500 dark:text-zinc-400">
+                                            Codigo: {{ $cliente->codigo ?: '-' }} - Doc: {{ $cliente->numero_documento ?: '-' }} - {{ $cliente->telefono ?: 'Sin telefono' }}
+                                        </span>
+                                    </button>
+                                @empty
+                                    <div class="px-3 py-2 text-sm text-zinc-500 dark:text-zinc-400">
+                                        No se encontraron clientes.
+                                    </div>
+                                @endforelse
+                            </div>
+                        @endif
+                    </div>
+                    <flux:error name="selectedClienteCitaId" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Tipo</flux:label>
+                    <select wire:model="citaFormData.tipo"
+                        class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="evaluacion">Evaluacion</option>
+                        <option value="consulta_nutricional">Consulta nutricional</option>
+                        <option value="seguimiento">Seguimiento</option>
+                        <option value="otro">Otro</option>
+                    </select>
+                    <flux:error name="citaFormData.tipo" />
+                </flux:field>
+
+                <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <flux:field>
+                        <flux:label>Fecha y hora</flux:label>
+                        <flux:input type="datetime-local" wire:model="citaFormData.fecha_hora" required />
+                        <flux:error name="citaFormData.fecha_hora" />
+                    </flux:field>
+                    <flux:field>
+                        <flux:label>Duracion (min)</flux:label>
+                        <flux:input type="number" wire:model="citaFormData.duracion_minutos" min="15" max="480" required />
+                        <flux:error name="citaFormData.duracion_minutos" />
+                    </flux:field>
+                </div>
+
+                <flux:field>
+                    <flux:label>Nutricionista</flux:label>
+                    <select wire:model="citaFormData.nutricionista_id"
+                        class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="">Sin asignar</option>
+                        @foreach ($nutricionistas as $n)
+                            <option value="{{ $n->id }}">{{ $n->name }}</option>
+                        @endforeach
+                    </select>
+                    <flux:error name="citaFormData.nutricionista_id" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Trainer</flux:label>
+                    <select wire:model="citaFormData.trainer_user_id"
+                        class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="">Sin asignar</option>
+                        @foreach ($trainers as $t)
+                            <option value="{{ $t->id }}">{{ $t->name }}</option>
+                        @endforeach
+                    </select>
+                    <flux:error name="citaFormData.trainer_user_id" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Estado</flux:label>
+                    <select wire:model="citaFormData.estado"
+                        class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="programada">Programada</option>
+                        <option value="confirmada">Confirmada</option>
+                        <option value="en_curso">En curso</option>
+                        <option value="completada">Completada</option>
+                        <option value="cancelada">Cancelada</option>
+                        <option value="no_asistio">No asistio</option>
+                    </select>
+                    <flux:error name="citaFormData.estado" />
+                </flux:field>
+
+                <flux:field>
+                    <flux:label>Observaciones</flux:label>
+                    <textarea wire:model="citaFormData.observaciones" rows="3"
+                        class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"></textarea>
+                    <flux:error name="citaFormData.observaciones" />
+                </flux:field>
+
+                <div class="flex justify-end gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700">
+                    <flux:button type="button" variant="ghost" wire:click="cerrarCrearCita">Cancelar</flux:button>
+                    <flux:button type="submit" variant="primary">Guardar cita</flux:button>
+                </div>
+            </div>
+        </form>
+    </flux:modal>
 
     {{-- Modal detalle cita + cliente (Flux UI) --}}
     <flux:modal name="detalle-cita-modal" wire:model="modalDetalle" focusable flyout variant="floating" class="md:w-xl">
@@ -139,20 +284,19 @@
 @push('styles')
 <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
 <style>
-    /* Evitar desborde: contenedor del calendario */
-    .min-w-0.overflow-hidden {
+    /* Evitar desborde horizontal sin recortar la altura del calendario */
+    .calendar-shell {
         min-width: 0;
+        overflow-x: auto;
+        overflow-y: visible;
     }
-    .min-w-0.overflow-hidden .fc {
+    .calendar-shell .fc {
         max-width: 100%;
-        overflow: hidden;
     }
-    .min-w-0.overflow-hidden .fc-view-harness {
+    .calendar-shell .fc-view-harness {
         max-width: 100%;
-        overflow: hidden;
     }
-    .min-w-0.overflow-hidden #calendar {
-        overflow: hidden;
+    .calendar-shell #calendar {
         max-width: 100%;
         box-sizing: border-box;
     }
@@ -291,7 +435,6 @@
             locale: 'es',
             firstDay: 1,
             height: 'auto',
-            contentHeight: 340,
             headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek,listMonth' },
             buttonText: {
                 today: 'Hoy',
@@ -310,8 +453,8 @@
                 listWeek: { buttonText: 'Lista semana' },
                 listMonth: { buttonText: 'Lista mes' }
             },
-            slotMinTime: '05:00:00',
-            slotMaxTime: '22:00:00',
+            slotMinTime: '07:00:00',
+            slotMaxTime: '21:00:00',
             slotLabelFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
             eventTimeFormat: { hour: '2-digit', minute: '2-digit', hour12: false },
             displayEventTime: true,

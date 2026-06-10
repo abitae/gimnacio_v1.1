@@ -44,7 +44,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                        @forelse($pagos->take(20) as $p)
+                        @forelse($pagos as $p)
                             <tr>
                                 <td class="px-3 py-1.5">{{ $p->fecha_pago?->format('d/m/Y H:i') }}</td>
                                 <td class="px-3 py-1.5">{{ $p->cliente ? $p->cliente->nombres . ' ' . $p->cliente->apellidos : '-' }}</td>
@@ -59,6 +59,7 @@
                     </tbody>
                 </table>
             </div>
+            <x-reportes.table-pagination :paginator="$pagos" model="perPagePagos" />
         </div>
         <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
             <div class="bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 px-3 py-2 font-semibold text-sm">Últimas ventas</div>
@@ -72,7 +73,7 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                        @forelse($ventas->take(20) as $v)
+                        @forelse($ventas as $v)
                             <tr>
                                 <td class="px-3 py-1.5">{{ $v->fecha_venta?->format('d/m/Y H:i') }}</td>
                                 <td class="px-3 py-1.5">{{ $v->cliente ? $v->cliente->nombres . ' ' . $v->cliente->apellidos : '-' }}</td>
@@ -84,6 +85,7 @@
                     </tbody>
                 </table>
             </div>
+            <x-reportes.table-pagination :paginator="$ventas" model="perPageVentas" />
         </div>
     </div>
     </div>

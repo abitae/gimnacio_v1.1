@@ -90,6 +90,19 @@
         </div>
 
         <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Cajas</h2>
+                <label class="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 print:hidden">
+                    Filas
+                    <select wire:model.live="perPageCajas"
+                        class="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </label>
+            </div>
             <table class="w-full text-sm">
                 <thead class="bg-zinc-50 dark:bg-zinc-900">
                     <tr>
@@ -101,6 +114,7 @@
                         <th class="px-3 py-2 text-left text-xs font-medium">Estado</th>
                         <th class="px-3 py-2 text-right text-xs font-medium">Inicial</th>
                         <th class="px-3 py-2 text-right text-xs font-medium">Final</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -114,19 +128,42 @@
                             <td class="px-3 py-2 text-xs capitalize">{{ $c->estado }}</td>
                             <td class="px-3 py-2 text-right text-xs">S/ {{ number_format((float) $c->saldo_inicial, 2) }}</td>
                             <td class="px-3 py-2 text-right text-xs">S/ {{ number_format((float) ($c->saldo_final ?? 0), 2) }}</td>
+                            <td class="px-3 py-2 text-right text-xs print:hidden">
+                                <flux:button type="button" size="xs" variant="ghost" icon="eye"
+                                    wire:click="abrirDetalleCaja({{ $c->id }})">
+                                    Detalle
+                                </flux:button>
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-3 py-4 text-center text-zinc-500">No hay cajas en el período.</td>
+                            <td colspan="9" class="px-3 py-4 text-center text-zinc-500">No hay cajas en el período.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
+            @if ($cajas->hasPages())
+                <div class="border-t border-zinc-200 px-4 py-3 dark:border-zinc-700 print:hidden">
+                    {{ $cajas->links() }}
+                </div>
+            @endif
         </div>
 
         <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-            <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 text-sm font-semibold text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
-                Detalle de movimientos
+            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                    Detalle de movimientos
+                </div>
+                <label class="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 print:hidden">
+                    Filas
+                    <select wire:model.live="perPageMovimientos"
+                        class="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                        <option value="10">10</option>
+                        <option value="15">15</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                    </select>
+                </label>
             </div>
             <table class="w-full text-sm">
                 <thead class="bg-white dark:bg-zinc-950">
@@ -139,6 +176,7 @@
                         <th class="px-3 py-2 text-left text-xs font-medium">Método</th>
                         <th class="px-3 py-2 text-left text-xs font-medium">Operación</th>
                         <th class="px-3 py-2 text-right text-xs font-medium">Monto</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -154,14 +192,94 @@
                             <td class="px-3 py-2 text-right text-xs font-semibold {{ $movimiento['tipo'] === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">
                                 {{ $movimiento['tipo'] === 'entrada' ? '+' : '-' }} S/ {{ number_format((float) $movimiento['monto'], 2) }}
                             </td>
+                            <td class="px-3 py-2 text-right text-xs print:hidden">
+                                @if (! empty($movimiento['ticket_venta_id']))
+                                    <flux:button type="button" size="xs" variant="ghost" icon="printer"
+                                        wire:click="abrirTicketVenta({{ $movimiento['ticket_venta_id'] }})"
+                                        title="Ver ticket de venta">
+                                        Detalle
+                                    </flux:button>
+                                @else
+                                    <span class="text-zinc-400">-</span>
+                                @endif
+                            </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-3 py-6 text-center text-zinc-500">Sin movimientos en el período.</td>
+                            <td colspan="9" class="px-3 py-6 text-center text-zinc-500">Sin movimientos en el período.</td>
                         </tr>
                     @endforelse
                 </tbody>
             </table>
+            @if ($detalleMovimientos->hasPages())
+                <div class="border-t border-zinc-200 px-4 py-3 dark:border-zinc-700 print:hidden">
+                    {{ $detalleMovimientos->links() }}
+                </div>
+            @endif
         </div>
     </div>
+
+    <flux:modal wire:model="mostrarModalDetalleCaja" focusable class="md:max-w-4xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Detalle de caja</h2>
+                <div class="flex gap-2">
+                    @if ($cajaDetalleId)
+                        <a href="{{ route('reportes.cajas.exportar.pdf', [
+                            'fecha_desde' => $fechaDesde ?: null,
+                            'fecha_hasta' => $fechaHasta ?: null,
+                            'usuario_id' => $usuarioId ?: null,
+                            'sucursal_id' => $sucursalId ?: null,
+                            'caja_id' => $cajaDetalleId,
+                            'inline' => 1,
+                        ]) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestana
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarDetalleCaja">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($cajaDetalleId)
+                <iframe
+                    src="{{ route('reportes.cajas.exportar.pdf', [
+                        'fecha_desde' => $fechaDesde ?: null,
+                        'fecha_hasta' => $fechaHasta ?: null,
+                        'usuario_id' => $usuarioId ?: null,
+                        'sucursal_id' => $sucursalId ?: null,
+                        'caja_id' => $cajaDetalleId,
+                        'inline' => 1,
+                    ]) }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Detalle PDF de caja">
+                </iframe>
+            @endif
+        </div>
+    </flux:modal>
+
+    <flux:modal wire:model="mostrarModalTicketVenta" focusable class="md:max-w-4xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Ticket de venta</h2>
+                <div class="flex gap-2">
+                    @if ($ventaIdTicketReporte)
+                        <a href="{{ route('ventas.comprobante.pdf', ['venta' => $ventaIdTicketReporte]) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestana
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarTicketVenta">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($ventaIdTicketReporte)
+                <iframe
+                    src="{{ route('ventas.comprobante.pdf', ['venta' => $ventaIdTicketReporte]) }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Ticket PDF de venta">
+                </iframe>
+            @endif
+        </div>
+    </flux:modal>
 </div>

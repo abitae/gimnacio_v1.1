@@ -69,7 +69,7 @@ class ClienteService
      * Búsqueda rápida para autocompletado (optimizada)
      * Busca por: documento, código interno, nombre completo, email
      */
-    public function quickSearch(string $search, int $limit = 10): Collection
+    public function quickSearch(string $search, int $limit = 10, ?int $responsableId = null): Collection
     {
         $searchTerm = trim($search);
 
@@ -79,6 +79,12 @@ class ClienteService
 
         return Cliente::query()
             ->select(['id', 'codigo', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono', 'email', 'estado_cliente'])
+            ->when($responsableId, function ($query) use ($responsableId) {
+                $query->where(function ($q) use ($responsableId) {
+                    $q->where('created_by', $responsableId)
+                        ->orWhereHas('clienteMatriculas', fn ($matriculas) => $matriculas->where('asesor_id', $responsableId));
+                });
+            })
             ->where(function ($q) use ($searchTerm) {
                 // Prioridad 1: Documento o código que empiecen con el término
                 $q->where('numero_documento', 'like', "{$searchTerm}%")
@@ -129,7 +135,7 @@ class ClienteService
     /**
      * Autocompletado solo por código interno (coincidencia exacta con el texto buscado).
      */
-    public function quickSearchByCodigo(string $search, int $limit = 10): Collection
+    public function quickSearchByCodigo(string $search, int $limit = 10, ?int $responsableId = null): Collection
     {
         $searchTerm = trim($search);
 
@@ -139,6 +145,12 @@ class ClienteService
 
         return Cliente::query()
             ->select(['id', 'codigo', 'tipo_documento', 'numero_documento', 'nombres', 'apellidos', 'telefono', 'email', 'estado_cliente'])
+            ->when($responsableId, function ($query) use ($responsableId) {
+                $query->where(function ($q) use ($responsableId) {
+                    $q->where('created_by', $responsableId)
+                        ->orWhereHas('clienteMatriculas', fn ($matriculas) => $matriculas->where('asesor_id', $responsableId));
+                });
+            })
             ->where('codigo', $searchTerm)
             ->orderBy('codigo')
             ->limit($limit)

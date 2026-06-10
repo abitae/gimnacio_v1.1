@@ -154,6 +154,7 @@
                 </tbody>
             </table>
         </div>
+        <x-reportes.table-pagination :paginator="$clientes" model="perPageClientes" />
     </div>
     </div>
 </div>

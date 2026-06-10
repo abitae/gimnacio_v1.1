@@ -110,7 +110,7 @@
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                     @forelse($ventas as $v)
                         <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                            <td class="px-3 py-2">{{ $loop->iteration }}</td>
+                            <td class="px-3 py-2">{{ $ventas->firstItem() + $loop->index }}</td>
                             <td class="px-3 py-2">{{ $v->fecha_venta?->format('d/m/Y H:i') }}</td>
                             <td class="px-3 py-2">{{ $v->numero_venta ?? $v->id }}</td>
                             <td class="px-3 py-2">{{ $v->cliente ? trim($v->cliente->nombres . ' ' . $v->cliente->apellidos) : '-' }}</td>
@@ -130,6 +130,7 @@
                 </tbody>
             </table>
         </div>
+        <x-reportes.table-pagination :paginator="$ventas" model="perPageVentas" />
     </div>
     </div>
 </div>

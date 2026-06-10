@@ -57,6 +57,7 @@
                     </tbody>
                 </table>
             </div>
+            <x-reportes.table-pagination :paginator="$itemsMasVendidos" model="perPageItemsMasVendidos" />
         </div>
         <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
             <div class="bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-200 px-3 py-2 font-semibold text-sm">Productos con stock bajo</div>
@@ -84,6 +85,7 @@
                     </tbody>
                 </table>
             </div>
+            <x-reportes.table-pagination :paginator="$productosBajoStock" model="perPageProductosBajoStock" />
         </div>
     </div>
     <div class="grid gap-4 lg:grid-cols-2">
@@ -115,6 +117,7 @@
                     </tbody>
                 </table>
             </div>
+            <x-reportes.table-pagination :paginator="$productosPorCaja" model="perPageProductosPorCaja" />
         </div>
         <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
             <div class="bg-zinc-100 dark:bg-zinc-900/60 text-zinc-800 dark:text-zinc-200 px-3 py-2 font-semibold text-sm">Productos vendidos por usuario</div>
@@ -142,6 +145,7 @@
                     </tbody>
                 </table>
             </div>
+            <x-reportes.table-pagination :paginator="$productosPorUsuario" model="perPageProductosPorUsuario" />
         </div>
     </div>
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
@@ -182,6 +186,7 @@
                 </tbody>
             </table>
         </div>
+        <x-reportes.table-pagination :paginator="$detalleProductosVendidos" model="perPageDetalleProductosVendidos" />
     </div>
     </div>
 </div>

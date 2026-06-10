@@ -55,30 +55,21 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                            @foreach($membresias_activas as $m)
+                            @forelse($membresias_activas as $m)
                                 <tr>
-                                    <td class="px-3 py-1.5">{{ $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '-' }}</td>
-                                    <td class="px-3 py-1.5">{{ $m->membresia?->nombre ?? 'N/A' }}</td>
-                                    <td class="px-3 py-1.5">{{ $m->fecha_inicio?->format('d/m/Y') }}</td>
-                                    <td class="px-3 py-1.5">{{ $m->fecha_fin?->format('d/m/Y') ?? '-' }}</td>
-                                    <td class="px-3 py-1.5 text-right">S/ {{ number_format($m->precio_final ?? 0, 2) }}</td>
+                                    <td class="px-3 py-1.5">{{ $m['cliente'] ? trim($m['cliente']->nombres . ' ' . $m['cliente']->apellidos) : '-' }}</td>
+                                    <td class="px-3 py-1.5">{{ $m['nombre'] }}</td>
+                                    <td class="px-3 py-1.5">{{ $m['fecha_inicio']?->format('d/m/Y') }}</td>
+                                    <td class="px-3 py-1.5">{{ $m['fecha_fin']?->format('d/m/Y') ?? '-' }}</td>
+                                    <td class="px-3 py-1.5 text-right">S/ {{ number_format($m['precio_final'] ?? 0, 2) }}</td>
                                 </tr>
-                            @endforeach
-                            @foreach($matriculas_membresia_activas as $mat)
-                                <tr>
-                                    <td class="px-3 py-1.5">{{ $mat->cliente ? trim($mat->cliente->nombres . ' ' . $mat->cliente->apellidos) : '-' }}</td>
-                                    <td class="px-3 py-1.5">{{ $mat->nombre }}</td>
-                                    <td class="px-3 py-1.5">{{ $mat->fecha_inicio?->format('d/m/Y') }}</td>
-                                    <td class="px-3 py-1.5">{{ $mat->fecha_fin?->format('d/m/Y') ?? '-' }}</td>
-                                    <td class="px-3 py-1.5 text-right">S/ {{ number_format($mat->precio_final ?? 0, 2) }}</td>
-                                </tr>
-                            @endforeach
-                            @if($membresias_activas->isEmpty() && $matriculas_membresia_activas->isEmpty())
+                            @empty
                                 <tr><td colspan="5" class="px-3 py-2 text-center text-zinc-500">Sin membresías activas</td></tr>
-                            @endif
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
+                <x-reportes.table-pagination :paginator="$membresias_activas" model="perPageMembresiasActivas" />
             </div>
 
             <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -95,7 +86,7 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                            @foreach($matriculas_clase_activas as $mat)
+                            @forelse($matriculas_clase_activas as $mat)
                                 <tr>
                                     <td class="px-3 py-1.5">{{ $mat->cliente ? trim($mat->cliente->nombres . ' ' . $mat->cliente->apellidos) : '-' }}</td>
                                     <td class="px-3 py-1.5">{{ $mat->nombre }}</td>
@@ -103,13 +94,13 @@
                                     <td class="px-3 py-1.5">{{ $mat->fecha_fin?->format('d/m/Y') ?? '-' }}</td>
                                     <td class="px-3 py-1.5 text-right">S/ {{ number_format($mat->precio_final ?? 0, 2) }}</td>
                                 </tr>
-                            @endforeach
-                            @if($matriculas_clase_activas->isEmpty())
+                            @empty
                                 <tr><td colspan="5" class="px-3 py-2 text-center text-zinc-500">Sin clases activas</td></tr>
-                            @endif
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
+                <x-reportes.table-pagination :paginator="$matriculas_clase_activas" model="perPageClasesActivas" />
             </div>
         </div>
 
@@ -127,20 +118,20 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                            @foreach($pagos_membresia as $p)
+                            @forelse($pagos_membresia as $p)
                                 <tr>
                                     <td class="px-3 py-1.5">{{ $p->fecha_pago?->format('d/m/Y H:i') }}</td>
                                     <td class="px-3 py-1.5">{{ $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '-' }}</td>
                                     <td class="px-3 py-1.5">{{ $p->clienteMembresia?->membresia?->nombre ?? $p->clienteMatricula?->membresia?->nombre ?? '-' }}</td>
                                     <td class="px-3 py-1.5 text-right">S/ {{ number_format($p->monto, 2) }}</td>
                                 </tr>
-                            @endforeach
-                            @if($pagos_membresia->isEmpty())
+                            @empty
                                 <tr><td colspan="4" class="px-3 py-2 text-center text-zinc-500">Sin pagos en el período</td></tr>
-                            @endif
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
+                <x-reportes.table-pagination :paginator="$pagos_membresia" model="perPagePagosMembresia" />
             </div>
 
             <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
@@ -156,20 +147,20 @@
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                            @foreach($pagos_clase as $p)
+                            @forelse($pagos_clase as $p)
                                 <tr>
                                     <td class="px-3 py-1.5">{{ $p->fecha_pago?->format('d/m/Y H:i') }}</td>
                                     <td class="px-3 py-1.5">{{ $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '-' }}</td>
                                     <td class="px-3 py-1.5">{{ $p->clienteMatricula?->nombre ?? '-' }}</td>
                                     <td class="px-3 py-1.5 text-right">S/ {{ number_format($p->monto, 2) }}</td>
                                 </tr>
-                            @endforeach
-                            @if($pagos_clase->isEmpty())
+                            @empty
                                 <tr><td colspan="4" class="px-3 py-2 text-center text-zinc-500">Sin pagos en el período</td></tr>
-                            @endif
+                            @endforelse
                         </tbody>
                     </table>
                 </div>
+                <x-reportes.table-pagination :paginator="$pagos_clase" model="perPagePagosClase" />
             </div>
         </div>
     </div>

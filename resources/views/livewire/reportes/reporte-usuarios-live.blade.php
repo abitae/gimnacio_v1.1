@@ -45,6 +45,7 @@
                 @endforelse
             </tbody>
         </table>
+        <x-reportes.table-pagination :paginator="$porUsuario" model="perPageUsuarios" />
     </div>
     </div>
 </div>

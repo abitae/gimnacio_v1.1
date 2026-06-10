@@ -92,6 +92,18 @@
                     :isSearching="$isSearching"
                     :showCodigoField="true" />
             </div>
+            <div class="w-full sm:w-64">
+                <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                    {{ __('Responsable') }}
+                </label>
+                <select wire:model.live="responsableFilter"
+                    class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-violet-500 focus:ring-2 focus:ring-violet-500/20 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                    <option value="">{{ __('Todos') }}</option>
+                    @foreach ($responsables as $responsable)
+                        <option value="{{ $responsable->id }}">{{ $responsable->name }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="flex flex-wrap items-center gap-2">
                 <flux:button href="{{ route('clientes.index') }}" wire:navigate variant="ghost" size="xs"
                     class="h-auto min-h-0 px-2 py-1 text-xs font-medium text-zinc-600 hover:text-violet-600 dark:text-zinc-400 dark:hover:text-violet-400">
@@ -359,6 +371,7 @@
                                                                 <th class="px-3 py-2">{{ __('Vencimiento') }}</th>
                                                                 <th class="px-3 py-2 text-right">{{ __('Programado') }}</th>
                                                                 <th class="px-3 py-2 text-right">{{ __('Pagado') }}</th>
+                                                                <th class="px-3 py-2">{{ __('F. pago') }}</th>
                                                                 <th class="px-3 py-2 text-right">{{ __('Saldo') }}</th>
                                                                 <th class="px-3 py-2">{{ __('Estado') }}</th>
                                                                 <th class="px-3 py-2 text-right">{{ __('Acciones') }}</th>
@@ -380,6 +393,7 @@
                                                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($cuota['fecha_vencimiento'])->format('d/m/Y') ?? '—' }}</td>
                                                                     <td class="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">S/ {{ number_format((float) $cuota['monto'], 2) }}</td>
                                                                     <td class="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) $cuota['monto_pagado'], 2) }}</td>
+                                                                    <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($cuota['fecha_ultimo_pago'])->format('d/m/Y') ?? '—' }}</td>
                                                                     <td class="px-3 py-2 text-right {{ (float) $cuota['saldo'] > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">S/ {{ number_format((float) $cuota['saldo'], 2) }}</td>
                                                                     <td class="px-3 py-2">
                                                                         <span class="inline-flex rounded-full px-2 py-0.5 text-[11px] font-medium {{ $estadoCuotaBadge }}">
@@ -458,6 +472,7 @@
                                             <th class="px-3 py-2">{{ __('Inscripción') }}</th>
                                             <th class="px-3 py-2 text-right">{{ __('Total matrícula') }}</th>
                                             <th class="px-3 py-2 text-right">{{ __('Pagado') }}</th>
+                                            <th class="px-3 py-2">{{ __('F. pago') }}</th>
                                             <th class="px-3 py-2 text-right">{{ __('Saldo') }}</th>
                                             <th class="px-3 py-2">{{ __('Modalidad') }}</th>
                                             <th class="px-3 py-2 text-right">{{ __('Acciones') }}</th>
@@ -490,6 +505,7 @@
                                                 <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($matriculaFinanciera['fecha_matricula'])->format('d/m/Y') ?? '—' }}</td>
                                                 <td class="px-3 py-2 text-right text-zinc-900 dark:text-zinc-100">S/ {{ number_format((float) $matriculaFinanciera['precio_total'], 2) }}</td>
                                                 <td class="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) $matriculaFinanciera['pagado_total'], 2) }}</td>
+                                                <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($matriculaFinanciera['fecha_ultimo_pago'])->format('d/m/Y') ?? '—' }}</td>
                                                 <td class="px-3 py-2 text-right {{ (float) $matriculaFinanciera['saldo_total'] > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">S/ {{ number_format((float) $matriculaFinanciera['saldo_total'], 2) }}</td>
                                                 <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $matriculaFinanciera['modalidad_pago'] }}</td>
                                                 <td class="px-3 py-2 text-right">
@@ -514,7 +530,7 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="9" class="px-3 py-6 text-center text-zinc-500">{{ __('Sin matrículas registradas.') }}</td>
+                                                <td colspan="10" class="px-3 py-6 text-center text-zinc-500">{{ __('Sin matrículas registradas.') }}</td>
                                             </tr>
                                         @endforelse
                                     </tbody>
@@ -739,6 +755,7 @@
                                 <th class="px-3 py-2">F. Fin</th>
                                 <th class="px-3 py-2 text-right">Precio</th>
                                 <th class="px-3 py-2 text-right">A Cuenta</th>
+                                <th class="px-3 py-2">F. pago</th>
                                 <th class="px-3 py-2 text-right">Saldo</th>
                                 <th class="px-3 py-2 text-center">Freezing</th>
                                 <th class="px-3 py-2 text-center">Freez. Tom.</th>
@@ -772,6 +789,7 @@
                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($mem->fecha_fin)->format('d/m/Y') ?? '—' }}</td>
                                     <td class="px-3 py-2 text-right font-medium text-zinc-900 dark:text-zinc-100">{{ number_format((float) ($mem->precio_final ?? 0), 0) }}</td>
                                     <td class="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">{{ number_format((float) $pagados, 0) }}</td>
+                                    <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional(collect($mem->pagos ?? [])->filter(fn ($pago) => $pago?->fecha_pago)->sortByDesc(fn ($pago) => $pago->fecha_pago?->timestamp ?? 0)->first()?->fecha_pago)->format('d/m/Y') ?? '—' }}</td>
                                     <td class="px-3 py-2 text-right {{ $saldo > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">{{ number_format($saldo, 0) }}</td>
                                     <td class="px-3 py-2 text-center text-zinc-600 dark:text-zinc-400">0</td>
                                     <td class="px-3 py-2 text-center text-zinc-600 dark:text-zinc-400">0</td>
@@ -820,7 +838,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="16" class="px-3 py-10 text-center text-zinc-500">Sin membresías registradas.</td>
+                                    <td colspan="17" class="px-3 py-10 text-center text-zinc-500">Sin membresías registradas.</td>
                                 </tr>
                             @endforelse
                         </tbody>
@@ -839,6 +857,7 @@
                                 <th class="px-3 py-2">F. Fin</th>
                                 <th class="px-3 py-2 text-right">Precio</th>
                                 <th class="px-3 py-2 text-right">A Cuenta</th>
+                                <th class="px-3 py-2">F. pago</th>
                                 <th class="px-3 py-2 text-right">Saldo</th>
                                 <th class="px-3 py-2">Responsable</th>
                                 <th class="px-3 py-2 text-right">{{ __('Acciones') }}</th>
@@ -866,6 +885,7 @@
                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($mat->fecha_fin)->format('d/m/Y') ?? '—' }}</td>
                                     <td class="px-3 py-2 text-right font-medium text-zinc-900 dark:text-zinc-100">{{ number_format((float) ($mat->precio_final ?? 0), 0) }}</td>
                                     <td class="px-3 py-2 text-right text-emerald-700 dark:text-emerald-400">{{ number_format((float) $pagadosMat, 0) }}</td>
+                                    <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional(collect($mat->pagos ?? [])->filter(fn ($pago) => $pago?->fecha_pago)->sortByDesc(fn ($pago) => $pago->fecha_pago?->timestamp ?? 0)->first()?->fecha_pago)->format('d/m/Y') ?? '—' }}</td>
                                     <td class="px-3 py-2 text-right {{ $saldoMat > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">{{ number_format($saldoMat, 0) }}</td>
                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ strtoupper($mat->asesor->name ?? '—') }}</td>
                                     <td class="px-3 py-2 text-right">
@@ -901,7 +921,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="11" class="px-3 py-10 text-center text-zinc-500">Sin matrículas registradas.</td>
+                                    <td colspan="12" class="px-3 py-10 text-center text-zinc-500">Sin matrículas registradas.</td>
                                 </tr>
                             @endforelse
                         </tbody>
