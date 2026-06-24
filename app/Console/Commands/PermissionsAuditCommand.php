@@ -15,7 +15,7 @@ class PermissionsAuditCommand extends Command
                             {--sync : Crear permisos faltantes y re-sincronizar roles del catalogo}
                             {--json : Salida en JSON}';
 
-    protected $description = 'Verifica que los permisos y roles del catalogo existan en la base de datos';
+    protected $description = 'Sincroniza y verifica permisos y roles del catalogo en la base de datos';
 
     public function handle(): int
     {
@@ -144,7 +144,7 @@ class PermissionsAuditCommand extends Command
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
-        $this->components->info('Sincronizados '.count($synced).' permisos del catalogo.');
+        $this->components->info('Sincronizados '.count($synced).' permisos y '.count(PermissionCatalog::roleDefinitions()).' roles del catalogo.');
     }
 
     /**

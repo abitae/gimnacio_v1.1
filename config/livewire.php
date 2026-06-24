@@ -1,12 +1,14 @@
 <?php
 
+$backupRestoreMaxKb = max(1, (int) env('BACKUP_RESTORE_MAX_MB', 1024)) * 1024;
+
 return [
     'temporary_file_upload' => [
         'disk' => env('LIVEWIRE_TMP_DISK', env('FILESYSTEM_DISK', 'public')),
-        'rules' => ['required', 'file', 'mimes:zip,sql,txt,xlsx,xls,csv', 'max:512000'],
+        'rules' => ['required', 'file', 'mimes:zip,sql,txt,xlsx,xls,csv', 'max:'.$backupRestoreMaxKb],
         'directory' => 'livewire-tmp',
         'middleware' => null,
-        'max_upload_time' => 15,
+        'max_upload_time' => (int) env('LIVEWIRE_MAX_UPLOAD_TIME', 60),
         'cleanup' => true,
     ],
 

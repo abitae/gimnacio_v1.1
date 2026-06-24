@@ -143,13 +143,24 @@
 
         <div class="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-800">
             <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Restaurar base de datos</h2>
-            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Sube un <span class="font-mono">.zip</span> generado por el sistema o un <span class="font-mono">.sql</span> legado.</p>
+            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                Sube un <span class="font-mono">.zip</span> generado por el sistema o un <span class="font-mono">.sql</span> legado.
+                Tamaño máximo: {{ config('backups.restore_max_mb') }} MB.
+            </p>
 
             <form wire:submit="restoreBackup" class="mt-4 space-y-4">
                 <flux:field>
                     <flux:label>Archivo ZIP o SQL</flux:label>
                     <input type="file" wire:model="restoreFile" accept=".zip,.sql,.txt"
                         class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm file:mr-3 file:rounded-md file:border-0 file:bg-zinc-100 file:px-3 file:py-2 file:text-xs file:font-medium dark:border-zinc-600 dark:bg-zinc-900 dark:text-zinc-100 dark:file:bg-zinc-700" />
+                    <div wire:loading wire:target="restoreFile" class="mt-2 text-xs text-blue-600 dark:text-blue-400">
+                        Subiendo archivo… no cierres esta página hasta que termine.
+                    </div>
+                    @if($restoreFile)
+                        <p class="mt-2 text-xs text-green-700 dark:text-green-400">
+                            Archivo listo: {{ $restoreFile->getClientOriginalName() }}
+                        </p>
+                    @endif
                     <flux:error name="restoreFile" />
                 </flux:field>
 
@@ -164,8 +175,13 @@
                 </div>
 
                 <div class="flex justify-end">
-                    <flux:button type="submit" color="red" variant="primary" icon="arrow-path" :disabled="$restoreIsRunning">
-                        Restaurar base de datos
+                    <flux:button type="submit" color="red" variant="primary" icon="arrow-path"
+                        wire:loading.attr="disabled"
+                        wire:target="restoreFile,restoreBackup"
+                        :disabled="$restoreIsRunning || ! $restoreFile">
+                        <span wire:loading.remove wire:target="restoreFile,restoreBackup">Restaurar base de datos</span>
+                        <span wire:loading wire:target="restoreFile">Subiendo archivo…</span>
+                        <span wire:loading wire:target="restoreBackup">Iniciando restauración…</span>
                     </flux:button>
                 </div>
             </form>

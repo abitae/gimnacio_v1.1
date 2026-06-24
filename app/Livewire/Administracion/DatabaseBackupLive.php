@@ -8,6 +8,7 @@ use App\Services\System\DatabaseRestoreService;
 use App\Support\PermissionCatalog;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Livewire\WithFileUploads;
 
 class DatabaseBackupLive extends Component
@@ -15,13 +16,20 @@ class DatabaseBackupLive extends Component
     use FlashesToast;
     use WithFileUploads;
 
-    public $restoreFile = null;
+    public ?TemporaryUploadedFile $restoreFile = null;
+
     public string $restoreConfirmation = '';
+
     public array $backups = [];
+
     public ?string $restoreJobId = null;
+
     public ?array $restoreStatus = null;
+
     public array $restoreEvents = [];
+
     public int $restoreEventOffset = 0;
+
     public bool $showRestoreMonitorModal = false;
 
     public function mount(DatabaseBackupService $backupService, DatabaseRestoreService $restoreService): void
@@ -61,13 +69,23 @@ class DatabaseBackupLive extends Component
 
     public function restoreBackup(DatabaseRestoreService $restoreService): void
     {
+        $maxKb = $this->restoreMaxUploadKb();
+
         $this->validate([
-            'restoreFile' => 'required|file|max:2048',
+            'restoreFile' => ['required', 'file', 'mimes:zip,sql,txt', 'max:'.$maxKb],
             'restoreConfirmation' => 'required|string|in:RESTAURAR',
         ], [
-            'restoreFile.required' => 'Debes seleccionar un ZIP o un archivo SQL.',
+            'restoreFile.required' => 'Debes seleccionar un ZIP o un archivo SQL y esperar a que termine de subirse.',
+            'restoreFile.mimes' => 'El archivo debe ser .zip, .sql o .txt.',
+            'restoreFile.max' => 'El archivo no puede superar '.config('backups.restore_max_mb').' MB.',
             'restoreConfirmation.in' => 'Debes escribir RESTAURAR para confirmar.',
         ]);
+
+        if (! $this->restoreFile instanceof TemporaryUploadedFile) {
+            $this->addError('restoreFile', 'Debes seleccionar un ZIP o un archivo SQL y esperar a que termine de subirse.');
+
+            return;
+        }
 
         $this->restoreJobId = $restoreService->queueRestoreFromUploadedFile($this->restoreFile);
         $this->restoreStatus = $restoreService->readStatus($this->restoreJobId);
@@ -179,5 +197,10 @@ class DatabaseBackupLive extends Component
         }
 
         $this->restoreEventOffset = (int) ($payload['next_offset'] ?? $this->restoreEventOffset);
+    }
+
+    private function restoreMaxUploadKb(): int
+    {
+        return max(1, (int) config('backups.restore_max_mb')) * 1024;
     }
 }
