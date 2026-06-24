@@ -2,6 +2,7 @@
 
 namespace App\Services\System;
 
+use App\Models\User;
 use App\Support\PermissionCatalog;
 use Database\Seeders\AdminUserSeeder;
 use Database\Seeders\CategoriaProductoSeeder;
@@ -597,7 +598,31 @@ class DatabaseRestoreService
 
     private function restoreSuperAdminCredentials(string $restoreId): void
     {
-        $this->appendLog($restoreId, 'Sincronizando catalogos base.');
+        $restoredSuperAdmin = User::query()
+            ->role(PermissionCatalog::SUPER_ADMIN_ROLE_NAME)
+            ->where('estado', 'activo')
+            ->whereNotNull('email_verified_at')
+            ->first();
+
+        if ($restoredSuperAdmin !== null) {
+            $this->appendLog(
+                $restoreId,
+                'Super-admin restaurado desde el backup: '.$restoredSuperAdmin->email.' (id '.$restoredSuperAdmin->id.').'
+            );
+            $status = $this->readStatusOrFail($restoreId);
+            $status['super_admin_restored'] = true;
+            $this->persistStatusSnapshot($restoreId, $status);
+            $this->appendEvent($restoreId, [
+                'level' => 'success',
+                'stage' => 'restoring_super_admin',
+                'message' => 'Super-admin restaurado desde el backup: '.$restoredSuperAdmin->email.' (id '.$restoredSuperAdmin->id.').',
+                'progress' => null,
+            ]);
+
+            return;
+        }
+
+        $this->appendLog($restoreId, 'No se encontro super-admin valido en el backup. Sincronizando catalogos base.');
         foreach ([
             RoleSeeder::class,
             GymSettingSeeder::class,

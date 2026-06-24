@@ -66,6 +66,7 @@
             "@php artisan config:clear --ansi",
             "@php artisan test tests/Feature/Consistency"
         ],
+        "permissions:audit": "@php artisan permissions:audit --roles",
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"

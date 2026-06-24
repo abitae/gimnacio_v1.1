@@ -4,10 +4,12 @@ use App\Models\User;
 use App\Services\System\DatabaseBackupService;
 use App\Support\PermissionCatalog;
 use Database\Seeders\BaseCatalogSeeder;
+use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 
 beforeEach(function () {
+    $this->seed(RoleSeeder::class);
     $this->seed(BaseCatalogSeeder::class);
     File::ensureDirectoryExists(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
     File::cleanDirectory(storage_path('app'.DIRECTORY_SEPARATOR.'public'.DIRECTORY_SEPARATOR.'backups'));
@@ -49,7 +51,7 @@ it('creates a zip backup with a single internal sql file and data', function () 
     expect($contents)->toContain('CREATE TABLE');
     expect($contents)->toContain('INSERT INTO');
     expect($contents)->toContain('backup-user@example.test');
-    expect($contents)->not->toContain('super_administrador@example.test');
+    expect($contents)->toContain('super_administrador@example.test');
 });
 
 it('restores the database from a generated zip backup', function () {

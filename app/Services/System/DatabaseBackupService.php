@@ -2,8 +2,6 @@
 
 namespace App\Services\System;
 
-use App\Models\User;
-use App\Support\PermissionCatalog;
 use DateTimeInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
@@ -19,8 +17,6 @@ class DatabaseBackupService
     private const LARGE_RESTORE_THRESHOLD_BYTES = 5 * 1024 * 1024;
 
     private const MANIFEST_FORMAT_VERSION = 1;
-
-    private ?array $excludedSuperAdminContext = null;
 
     public function createBackup(): array
     {
@@ -424,7 +420,8 @@ class DatabaseBackupService
         $database = DB::connection()->getDatabaseName();
 
         return implode(PHP_EOL, [
-            '-- Backup generado por FitCenter OS',
+            '-- Backup completo generado por FitCenter OS',
+            '-- Incluye todas las tablas y todos los registros de la base de datos',
             '-- Fecha: '.now()->toDateTimeString(),
             '-- Driver: '.$driver,
             '-- Base de datos: '.$database,
@@ -504,10 +501,6 @@ class DatabaseBackupService
         $pdo = DB::connection()->getPdo();
 
         foreach (DB::table($table)->cursor() as $row) {
-            if ($this->shouldSkipRow($table, (array) $row)) {
-                continue;
-            }
-
             $values = [];
             foreach ($columns as $column) {
                 $values[] = $this->sqlLiteral($row->{$column} ?? null, $pdo);
@@ -517,28 +510,6 @@ class DatabaseBackupService
         }
 
         yield PHP_EOL;
-    }
-
-    /**
-     * @param  array<string, mixed>  $row
-     */
-    private function shouldSkipRow(string $table, array $row): bool
-    {
-        $context = $this->excludedSuperAdminContext();
-        if ($context['ids'] === []) {
-            return false;
-        }
-
-        return match ($table) {
-            'users' => in_array((int) ($row['id'] ?? 0), $context['ids'], true),
-            'model_has_roles', 'model_has_permissions' => ($row['model_type'] ?? null) === User::class
-                && in_array((int) ($row['model_id'] ?? 0), $context['ids'], true),
-            'personal_access_tokens' => ($row['tokenable_type'] ?? null) === User::class
-                && in_array((int) ($row['tokenable_id'] ?? 0), $context['ids'], true),
-            'sessions' => in_array((int) ($row['user_id'] ?? 0), $context['ids'], true),
-            'password_reset_tokens' => in_array(strtolower((string) ($row['email'] ?? '')), $context['emails'], true),
-            default => false,
-        };
     }
 
     private function sqlLiteral(mixed $value, \PDO $pdo): string
@@ -827,27 +798,6 @@ class DatabaseBackupService
         return mb_strlen($normalized) > 220
             ? mb_substr($normalized, 0, 220).'...'
             : $normalized;
-    }
-
-    /**
-     * @return array{ids:list<int>,emails:list<string>}
-     */
-    private function excludedSuperAdminContext(): array
-    {
-        if ($this->excludedSuperAdminContext !== null) {
-            return $this->excludedSuperAdminContext;
-        }
-
-        $users = User::query()
-            ->role(PermissionCatalog::SUPER_ADMIN_ROLE_NAME)
-            ->get(['id', 'email']);
-
-        $this->excludedSuperAdminContext = [
-            'ids' => $users->pluck('id')->map(fn ($id) => (int) $id)->values()->all(),
-            'emails' => $users->pluck('email')->filter()->map(fn ($email) => strtolower((string) $email))->values()->all(),
-        ];
-
-        return $this->excludedSuperAdminContext;
     }
 
     private function stagingDirectory(string $backupId): string
