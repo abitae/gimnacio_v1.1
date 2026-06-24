@@ -69,6 +69,15 @@
                         @endforeach
                     </select>
                 </flux:field>
+                <flux:field>
+                    <flux:label>Cupón promocional (opcional)</flux:label>
+                    <select wire:model="discount_coupon_id" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                        <option value="">Sin cupón</option>
+                        @foreach($coupons as $coupon)
+                        <option value="{{ $coupon->id }}">{{ $coupon->codigo }} — {{ $coupon->nombre }}</option>
+                        @endforeach
+                    </select>
+                </flux:field>
                 <div class="flex justify-end gap-2 pt-2">
                     <flux:button type="button" variant="ghost" wire:click="closeModal">Cancelar</flux:button>
                     <flux:button type="submit" variant="primary">Guardar</flux:button>

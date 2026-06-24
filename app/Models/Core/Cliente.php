@@ -28,6 +28,7 @@ class Cliente extends Model
         'email',
         'direccion',
         'origen',
+        'lead_origen_id',
         'observaciones',
         'ocupacion',
         'fecha_nacimiento',
@@ -140,6 +141,11 @@ class Cliente extends Model
     public function crmMensajes(): HasMany
     {
         return $this->hasMany(CrmMensaje::class);
+    }
+
+    public function leadOrigen(): BelongsTo
+    {
+        return $this->belongsTo(\App\Models\Crm\Lead::class, 'lead_origen_id');
     }
 
     public function fidelizacionMensajes(): HasMany

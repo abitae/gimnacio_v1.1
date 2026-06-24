@@ -19,7 +19,7 @@ class CampaignService
 
     public function find(int $id): ?Campaign
     {
-        return Campaign::with(['targets.lead', 'targets.cliente', 'targets.assignedTo'])->find($id);
+        return Campaign::with(['targets.lead', 'targets.cliente', 'targets.assignedTo', 'discountCoupon'])->find($id);
     }
 
     public function create(array $data): Campaign

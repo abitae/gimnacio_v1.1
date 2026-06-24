@@ -4,6 +4,7 @@ namespace App\Livewire\Crm;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Services\Crm\RenewalReactivationService;
+use App\Services\Crm\CrmOperationalSummaryService;
 use Livewire\Component;
 
 class RenewalReactivacionLive extends Component
@@ -28,9 +29,12 @@ class RenewalReactivacionLive extends Component
 
     protected RenewalReactivationService $renewalService;
 
-    public function boot(RenewalReactivationService $renewalService)
+    protected CrmOperationalSummaryService $summaryService;
+
+    public function boot(RenewalReactivationService $renewalService, CrmOperationalSummaryService $summaryService)
     {
         $this->renewalService = $renewalService;
+        $this->summaryService = $summaryService;
     }
 
     public function mount()
@@ -91,8 +95,15 @@ class RenewalReactivacionLive extends Component
         $this->modalCrearCampana = false;
     }
 
+    public function getSummaryProperty(): array
+    {
+        return $this->summaryService->getSummary();
+    }
+
     public function render()
     {
-        return view('livewire.crm.renewal-reactivacion-live');
+        return view('livewire.crm.renewal-reactivacion-live', [
+            'summary' => $this->getSummaryProperty(),
+        ]);
     }
 }

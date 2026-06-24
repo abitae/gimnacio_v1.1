@@ -2,27 +2,58 @@
     <div class="flex h-full w-full flex-1 flex-col gap-3">
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Mensajes WhatsApp</h1>
-            <p class="text-xs text-zinc-600 dark:text-zinc-400">Envía mensajes a clientes por WhatsApp (CRM)</p>
+            <p class="text-xs text-zinc-600 dark:text-zinc-400">Envía mensajes a clientes o leads por WhatsApp (CRM)</p>
         </div>
 
-        <x-cliente.search-input :clienteSearch="$clienteSearch" :clientes="$clientes" :selectedCliente="$selectedCliente" :isSearching="$isSearching ?? false" />
+        <div class="flex gap-2">
+            <flux:button size="sm" variant="{{ $contactMode === 'cliente' ? 'primary' : 'ghost' }}" wire:click="$set('contactMode', 'cliente')">Clientes</flux:button>
+            <flux:button size="sm" variant="{{ $contactMode === 'lead' ? 'primary' : 'ghost' }}" wire:click="$set('contactMode', 'lead')">Leads</flux:button>
+        </div>
 
-        @if ($selectedCliente)
+        @if ($contactMode === 'cliente')
+            <x-cliente.search-input :clienteSearch="$clienteSearch" :clientes="$clientes" :selectedCliente="$selectedCliente" :isSearching="$isSearching ?? false" />
+        @else
+            <div class="relative">
+                <flux:input icon="magnifying-glass" type="search" wire:model.live.debounce.300ms="leadSearch" placeholder="Buscar lead por nombre o teléfono..." />
+                @if($leads->isNotEmpty())
+                <ul class="absolute z-20 mt-1 w-full rounded-lg border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-800 max-h-48 overflow-y-auto">
+                    @foreach($leads as $lead)
+                    <li>
+                        <button type="button" wire:click="selectLead({{ $lead->id }})" class="w-full px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-700">
+                            {{ $lead->nombre_completo }} · {{ $lead->telefono }}
+                        </button>
+                    </li>
+                    @endforeach
+                </ul>
+                @endif
+            </div>
+            @if($selectedLead)
+            <div class="flex items-center justify-between rounded-lg border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-sm">
+                <span>{{ $selectedLead->nombre_completo }} ({{ $selectedLead->telefono }})</span>
+                <flux:button size="xs" variant="ghost" wire:click="clearLead">Cambiar</flux:button>
+            </div>
+            @endif
+        @endif
+
+        @if (($contactMode === 'cliente' && $selectedCliente) || ($contactMode === 'lead' && $selectedLead))
             <div class="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 p-4">
                 <h3 class="text-sm font-medium text-zinc-900 dark:text-zinc-100 mb-2">Enviar mensaje por WhatsApp</h3>
-                @if ($selectedCliente->telefono)
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Destino: {{ $selectedCliente->telefono }}</p>
+                @php
+                    $telefono = $contactMode === 'cliente' ? $selectedCliente?->telefono : ($selectedLead?->whatsapp ?: $selectedLead?->telefono);
+                @endphp
+                @if ($telefono)
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400 mb-2">Destino: {{ $telefono }}</p>
                     <div class="flex gap-2">
                         <textarea wire:model="contenido" rows="3" placeholder="Escribe el mensaje..." class="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"></textarea>
-                        @can('crm_mensaje.crear')
+                        @canany(['crm_mensaje.enviar', 'crm_mensaje.crear'])
                         <flux:button variant="primary" size="sm" wire:click="enviarWhatsApp" wire:loading.attr="disabled">
                             <span wire:loading.remove wire:target="enviarWhatsApp">Enviar</span>
                             <span wire:loading wire:target="enviarWhatsApp">Enviando...</span>
                         </flux:button>
-                        @endcan
+                        @endcanany
                     </div>
                 @else
-                    <p class="text-sm text-amber-600 dark:text-amber-400">Este cliente no tiene teléfono registrado. Añade un teléfono en su ficha para enviar WhatsApp.</p>
+                    <p class="text-sm text-amber-600 dark:text-amber-400">Este contacto no tiene teléfono registrado.</p>
                 @endif
             </div>
 
@@ -75,7 +106,9 @@
                 <div class="mt-4 flex justify-end">{{ $mensajes->links() }}</div>
             @endif
         @else
-            <div class="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 p-8 text-center text-zinc-500 dark:text-zinc-400">Selecciona un cliente para enviar mensajes y ver historial</div>
+            <div class="rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800 p-8 text-center text-zinc-500 dark:text-zinc-400">
+                Selecciona un {{ $contactMode === 'lead' ? 'lead' : 'cliente' }} para enviar mensajes y ver historial
+            </div>
         @endif
     </div>
 </div>

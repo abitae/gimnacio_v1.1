@@ -329,6 +329,14 @@ class POSLive extends Component
         }
     }
 
+    /**
+     * Recalcula totales del carrito (computed) y sincroniza montos de pago.
+     */
+    protected function calcularTotales(): void
+    {
+        $this->syncMontoPagoPrincipal();
+    }
+
     protected function refrescarEstadoCaja(): void
     {
         $this->cajaAbierta = $this->cajaService->validarCajaAbierta(auth()->id());

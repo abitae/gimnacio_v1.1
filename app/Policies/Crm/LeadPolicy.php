@@ -31,4 +31,9 @@ class LeadPolicy
     {
         return $user->can('crm.eliminar');
     }
+
+    public function convert(User $user, Lead $lead): bool
+    {
+        return $user->can('crm.convertir') || $user->can('crm.editar');
+    }
 }

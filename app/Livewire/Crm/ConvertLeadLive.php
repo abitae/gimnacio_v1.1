@@ -67,7 +67,15 @@ class ConvertLeadLive extends Component
 
     public function convert()
     {
-        $this->authorize('crm.editar');
+        $lead = Lead::find($this->leadId);
+        if (! $lead) {
+            $this->flashToast('error', 'Lead no encontrado');
+
+            return;
+        }
+
+        $this->authorize('convert', $lead);
+
         $this->validate([
             'tipo_documento' => 'required|in:DNI,CE',
             'numero_documento' => 'required|string|max:20',
@@ -78,13 +86,6 @@ class ConvertLeadLive extends Component
             'numero_documento.required' => 'El número de documento es obligatorio para convertir.',
             'membresia_id.required_if' => 'Debes seleccionar una membresía al activar membresía.',
         ]);
-
-        $lead = Lead::find($this->leadId);
-        if (! $lead) {
-            $this->flashToast('error', 'Lead no encontrado');
-
-            return;
-        }
 
         try {
             $data = [
@@ -103,10 +104,14 @@ class ConvertLeadLive extends Component
                     'descuento' => 0,
                 ],
             ];
-            $this->convertService->convert($lead, $data);
-            $this->dispatch('convert-done');
+            $result = $this->convertService->convert($lead, $data);
+            $this->dispatch('convert-done', clienteId: $result['cliente']->id);
+
+            return $this->redirect(route('clientes.perfil', $result['cliente']->id), navigate: true);
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->flashToast('error', $e->validator->errors()->first());
+        } catch (\InvalidArgumentException $e) {
+            $this->flashToast('error', $e->getMessage());
         } catch (\Exception $e) {
             $this->flashToast('error', $e->getMessage());
         }

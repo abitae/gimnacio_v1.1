@@ -30,7 +30,7 @@
                     <th class="px-4 py-2 text-right font-medium text-zinc-500">Precio</th>
                     <th class="px-4 py-2 text-left font-medium text-zinc-500">Estado</th>
                     <th class="px-4 py-2 text-left font-medium text-zinc-500">Asignado</th>
-                    <th></th>
+                    <th class="px-4 py-2 text-left font-medium text-zinc-500">Acciones</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -48,9 +48,17 @@
                     <td class="px-4 py-2">{{ $d->estado }}</td>
                     <td class="px-4 py-2">{{ $d->assignedTo?->name ?? '—' }}</td>
                     <td class="px-4 py-2">
-                        @if($d->lead)
-                        <a href="{{ route('crm.leads.show', $d->lead_id) }}" wire:navigate class="text-xs text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-300">Ver lead</a>
-                        @endif
+                        <div class="flex flex-wrap gap-1">
+                            @if($d->lead)
+                            <a href="{{ route('crm.leads.show', $d->lead_id) }}" wire:navigate class="text-xs text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-300">Ver lead</a>
+                            @endif
+                            @can('crm.editar')
+                            @if($d->estado === 'open')
+                            <flux:button size="xs" variant="ghost" wire:click="markWon({{ $d->id }})">Ganada</flux:button>
+                            <flux:button size="xs" variant="ghost" wire:click="openMarkLost({{ $d->id }})">Perdida</flux:button>
+                            @endif
+                            @endcan
+                        </div>
                     </td>
                 </tr>
                 @empty
@@ -65,4 +73,27 @@
         </table>
         <div class="p-2 border-t border-zinc-200 dark:border-zinc-700">{{ $deals->links() }}</div>
     </div>
+
+    <flux:modal name="mark-deal-lost" wire:model="showMarkLost" focusable class="md:w-md">
+        <flux:heading size="lg">Marcar oportunidad como perdida</flux:heading>
+        <form wire:submit="markLost" class="mt-4 space-y-3">
+            <flux:field>
+                <flux:label>Motivo</flux:label>
+                <select wire:model="motivo_perdida_id" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2" required>
+                    <option value="">Seleccionar...</option>
+                    @foreach($this->lossReasons as $reason)
+                    <option value="{{ $reason->id }}">{{ $reason->nombre }}</option>
+                    @endforeach
+                </select>
+            </flux:field>
+            <flux:field>
+                <flux:label>Observación</flux:label>
+                <flux:textarea wire:model="observacion_perdida" rows="2" />
+            </flux:field>
+            <div class="flex justify-end gap-2">
+                <flux:button type="button" variant="ghost" wire:click="closeMarkLost">Cancelar</flux:button>
+                <flux:button type="submit" variant="primary">Confirmar</flux:button>
+            </div>
+        </form>
+    </flux:modal>
 </div>

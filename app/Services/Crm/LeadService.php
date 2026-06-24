@@ -7,6 +7,7 @@ use App\Models\Crm\CrmStage;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
+use InvalidArgumentException;
 
 class LeadService
 {
@@ -143,18 +144,73 @@ class LeadService
 
     public function update(Lead $lead, array $data): Lead
     {
+        if (isset($data['stage_id']) && (int) $data['stage_id'] !== (int) $lead->stage_id) {
+            $stage = CrmStage::findOrFail($data['stage_id']);
+            if ($lead->isConvertido()) {
+                throw new InvalidArgumentException('No se puede cambiar la etapa de un lead convertido.');
+            }
+            $currentStage = $lead->stage;
+            if ($currentStage && ! $this->isValidTransition($currentStage, $stage)) {
+                throw new InvalidArgumentException("No se puede mover de «{$currentStage->nombre}» a «{$stage->nombre}».");
+            }
+            $data['estado'] = $this->mapStageToEstado($stage);
+        }
+
         $lead->update($data);
         return $lead->fresh();
     }
 
     public function moveToStage(Lead $lead, int $stageId): Lead
     {
+        if ($lead->isConvertido()) {
+            throw new InvalidArgumentException('No se puede mover un lead convertido.');
+        }
+
         $stage = CrmStage::findOrFail($stageId);
+        $currentStage = $lead->stage;
+
+        if ($currentStage && ! $this->isValidTransition($currentStage, $stage)) {
+            throw new InvalidArgumentException("No se puede mover de «{$currentStage->nombre}» a «{$stage->nombre}».");
+        }
+
         $lead->update([
             'stage_id' => $stageId,
             'estado' => $this->mapStageToEstado($stage),
         ]);
+
         return $lead->fresh();
+    }
+
+    public function canConvert(Lead $lead): bool
+    {
+        if ($lead->isConvertido()) {
+            return false;
+        }
+
+        if (! config('crm.conversion.require_qualified_stage', true)) {
+            return true;
+        }
+
+        $stage = $lead->stage;
+        if (! $stage) {
+            return false;
+        }
+
+        $minOrden = (int) config('crm.conversion.min_stage_orden', 5);
+
+        return $stage->is_won || $stage->orden >= $minOrden;
+    }
+
+    public function assertCanConvert(Lead $lead): void
+    {
+        if ($lead->isConvertido()) {
+            throw new InvalidArgumentException('Este lead ya fue convertido.');
+        }
+
+        if (! $this->canConvert($lead)) {
+            $stageName = $lead->stage?->nombre ?? 'desconocida';
+            throw new InvalidArgumentException("El lead debe estar en etapa calificada para convertir (actual: {$stageName}).");
+        }
     }
 
     public function assign(Lead $lead, ?int $userId): Lead
@@ -185,6 +241,54 @@ class LeadService
         return \App\Models\Core\Cliente::where('tipo_documento', $tipoDocumento)
             ->where('numero_documento', $numeroDocumento)
             ->first();
+    }
+
+    public function syncLeadStageFromDealOutcome(Lead $lead, string $outcome): Lead
+    {
+        if ($lead->isConvertido()) {
+            return $lead;
+        }
+
+        $stageQuery = CrmStage::query()->orderBy('orden');
+        $stage = $outcome === 'won'
+            ? $stageQuery->where('is_won', true)->first()
+            : $stageQuery->where('is_lost', true)->where('nombre', '!=', 'No responde')->first();
+
+        if (! $stage) {
+            return $lead;
+        }
+
+        $lead->update([
+            'stage_id' => $stage->id,
+            'estado' => $this->mapStageToEstado($stage),
+        ]);
+
+        return $lead->fresh();
+    }
+
+    private function isValidTransition(CrmStage $from, CrmStage $to): bool
+    {
+        if (! config('crm.pipeline.enforce_transitions', true)) {
+            return true;
+        }
+
+        if ($from->id === $to->id) {
+            return true;
+        }
+
+        if ($to->is_lost || $to->is_won) {
+            return true;
+        }
+
+        if ($to->orden >= $from->orden) {
+            return true;
+        }
+
+        if (config('crm.pipeline.allow_one_step_back', true) && $to->orden === $from->orden - 1) {
+            return true;
+        }
+
+        return false;
     }
 
     private function mapStageToEstado(CrmStage $stage): string

@@ -48,6 +48,8 @@ class TaskFormLive extends Component
 
     public function save()
     {
+        $this->authorize($this->taskId ? 'crm.editar' : 'crm.crear');
+
         $this->validate([
             'tipo' => 'required|in:call,whatsapp,schedule_visit,send_promo,follow_up,other',
             'fecha_hora_programada' => 'required|date',

@@ -3,6 +3,8 @@
 namespace App\Services\Crm;
 
 use App\Models\Core\Cliente;
+use App\Models\Crm\CrmStage;
+use App\Models\Crm\Deal;
 use App\Models\Crm\Lead;
 use App\Services\ClienteMatriculaService;
 use App\Services\ClienteService;
@@ -15,14 +17,19 @@ class ConvertLeadToClientService
         protected LeadService $leadService,
         protected ClienteMatriculaService $clienteMatriculaService,
         protected CrmActivityService $crmActivityService,
+        protected DealService $dealService,
     ) {}
 
     /**
      * Convierte un lead a cliente. Si ya existe cliente con mismo documento, vincula el lead a ese cliente.
      * Opcional: activar membresía y registrar pago.
+     *
+     * @return array{lead: Lead, cliente: Cliente, cliente_created: bool}
      */
     public function convert(Lead $lead, array $data): array
     {
+        $this->leadService->assertCanConvert($lead);
+
         $tipoDocumento = $data['tipo_documento'];
         $numeroDocumento = $data['numero_documento'];
 
@@ -30,6 +37,9 @@ class ConvertLeadToClientService
 
         return DB::transaction(function () use ($lead, $data, $existingCliente, $tipoDocumento, $numeroDocumento) {
             if ($existingCliente) {
+                $existingCliente->update([
+                    'lead_origen_id' => $existingCliente->lead_origen_id ?? $lead->id,
+                ]);
                 $lead->update([
                     'cliente_id' => $existingCliente->id,
                     'estado' => 'convertido',
@@ -37,6 +47,8 @@ class ConvertLeadToClientService
                     'numero_documento' => $numeroDocumento,
                     'nombres' => $data['nombres'] ?? $lead->nombres,
                     'apellidos' => $data['apellidos'] ?? $lead->apellidos,
+                    'converted_by' => auth()->id(),
+                    'converted_at' => now(),
                 ]);
                 $cliente = $existingCliente;
                 $created = false;
@@ -50,6 +62,7 @@ class ConvertLeadToClientService
                     'email' => $data['email'] ?? $lead->email,
                     'direccion' => $data['direccion'] ?? $lead->direccion ?? null,
                     'estado_cliente' => 'activo',
+                    'lead_origen_id' => $lead->id,
                     'created_by' => auth()->id(),
                 ]);
                 $lead->update([
@@ -59,13 +72,25 @@ class ConvertLeadToClientService
                     'numero_documento' => $numeroDocumento,
                     'nombres' => $data['nombres'],
                     'apellidos' => $data['apellidos'],
+                    'converted_by' => auth()->id(),
+                    'converted_at' => now(),
                 ]);
                 $created = true;
+            }
+
+            $wonStage = CrmStage::query()->where('is_won', true)->orderBy('orden')->first();
+            if ($wonStage) {
+                $lead->update([
+                    'stage_id' => $wonStage->id,
+                    'estado' => 'convertido',
+                ]);
             }
 
             if (! empty($data['activar_membresia']) && ! empty($data['membresia_id'])) {
                 $this->activateMembresia($cliente, $data);
             }
+
+            $this->finalizeDeals($lead, $cliente);
 
             $this->crmActivityService->create([
                 'lead_id' => $lead->id,
@@ -79,11 +104,24 @@ class ConvertLeadToClientService
             ]);
 
             return [
-                'lead' => $lead->fresh(),
+                'lead' => $lead->fresh(['stage', 'cliente']),
                 'cliente' => $cliente->fresh(),
                 'cliente_created' => $created,
             ];
         });
+    }
+
+    protected function finalizeDeals(Lead $lead, Cliente $cliente): void
+    {
+        $openDeals = $lead->deals()->where('estado', 'open')->get();
+
+        if ($openDeals->isEmpty()) {
+            return;
+        }
+
+        foreach ($openDeals as $deal) {
+            $this->dealService->markWon($deal, $cliente->id, syncLead: false);
+        }
     }
 
     protected function activateMembresia(Cliente $cliente, array $data): void

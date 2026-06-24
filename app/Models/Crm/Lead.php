@@ -47,6 +47,8 @@ class Lead extends Model
         'stage_id',
         'assigned_to',
         'cliente_id',
+        'converted_by',
+        'converted_at',
         'fecha_ultimo_contacto',
         'notas',
         'created_by',
@@ -56,6 +58,7 @@ class Lead extends Model
     {
         return [
             'fecha_ultimo_contacto' => 'datetime',
+            'converted_at' => 'datetime',
         ];
     }
 
@@ -72,6 +75,11 @@ class Lead extends Model
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    public function convertedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'converted_by');
     }
 
     public function createdBy(): BelongsTo

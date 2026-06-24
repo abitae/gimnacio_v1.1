@@ -97,6 +97,13 @@ class LeadFormLive extends Component
             'telefono.required' => 'El teléfono es obligatorio.',
         ]);
 
+        $duplicate = $this->leadService->findDuplicateByTelefono($this->telefono, $this->leadId);
+        if ($duplicate) {
+            $this->flashToast('error', 'Ya existe un lead con este teléfono: '.$duplicate->nombre_completo);
+
+            return;
+        }
+
         try {
             if ($this->leadId) {
                 $lead = $this->leadService->find($this->leadId);

@@ -4,6 +4,7 @@ namespace App\Livewire\Crm;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Crm\Lead;
+use App\Services\Crm\CrmOperationalSummaryService;
 use App\Services\Crm\LeadService;
 use Livewire\Component;
 
@@ -35,14 +36,26 @@ class CrmPipelineLive extends Component
 
     protected LeadService $leadService;
 
-    public function boot(LeadService $leadService)
+    protected CrmOperationalSummaryService $summaryService;
+
+    public function boot(LeadService $leadService, CrmOperationalSummaryService $summaryService)
     {
         $this->leadService = $leadService;
+        $this->summaryService = $summaryService;
     }
 
     public function mount()
     {
         $this->authorize('crm.ver');
+    }
+
+    public function getSummaryProperty(): array
+    {
+        $assignedTo = $this->assignedFilter === 'me'
+            ? auth()->id()
+            : ($this->assignedFilter ? (int) $this->assignedFilter : null);
+
+        return $this->summaryService->getSummary($assignedTo);
     }
 
     public function getStagesProperty()
@@ -92,10 +105,16 @@ class CrmPipelineLive extends Component
 
             return;
         }
-        $this->leadService->moveToStage($lead, $stageId);
-        $this->movingLeadId = null;
-        $this->movingToStageId = null;
-        $this->flashToast('success', 'Lead movido de etapa');
+
+        try {
+            $this->leadService->moveToStage($lead, $stageId);
+            $this->flashToast('success', 'Lead movido de etapa');
+        } catch (\InvalidArgumentException $e) {
+            $this->flashToast('error', $e->getMessage());
+        } finally {
+            $this->movingLeadId = null;
+            $this->movingToStageId = null;
+        }
     }
 
     public function closeLeadModal()
@@ -112,7 +131,10 @@ class CrmPipelineLive extends Component
 
     public function openConvertModal($id)
     {
-        $this->authorize('crm.editar');
+        $lead = Lead::find((int) $id);
+        if ($lead) {
+            $this->authorize('convert', $lead);
+        }
         $this->selectedLeadId = (int) $id;
         $this->modalConvert = true;
     }
@@ -123,9 +145,12 @@ class CrmPipelineLive extends Component
         $this->selectedLeadId = null;
     }
 
-    public function convertDone()
+    public function convertDone(?int $clienteId = null)
     {
         $this->closeConvertModal();
+        if ($clienteId) {
+            return $this->redirect(route('clientes.perfil', $clienteId), navigate: true);
+        }
         $this->flashToast('success', 'Lead convertido a cliente');
     }
 
@@ -140,6 +165,7 @@ class CrmPipelineLive extends Component
     {
         return view('livewire.crm.crm-pipeline-live', [
             'stages' => $this->getStagesProperty(),
+            'summary' => $this->getSummaryProperty(),
         ]);
     }
 }

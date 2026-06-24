@@ -25,7 +25,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(WhatsAppServiceInterface::class, MockWhatsAppService::class);
+        $this->app->bind(WhatsAppServiceInterface::class, function ($app) {
+            return match (config('services.whatsapp.driver', 'mock')) {
+                'twilio' => $app->make(\App\Services\WhatsApp\TwilioWhatsAppService::class),
+                'http' => $app->make(\App\Services\WhatsApp\HttpWebhookWhatsAppService::class),
+                default => $app->make(MockWhatsAppService::class),
+            };
+        });
         $this->app->singleton(SucursalContext::class);
         $this->app->singleton(BrandingResolver::class);
 

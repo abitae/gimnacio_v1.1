@@ -140,6 +140,14 @@ final class PermissionCatalog
                 'group' => 'Cajas',
                 'descripcion' => 'Registrar movimientos manuales y cruces de caja.',
             ],
+            'crm.convertir' => [
+                'group' => 'CRM',
+                'descripcion' => 'Convertir leads a clientes.',
+            ],
+            'crm_mensaje.enviar' => [
+                'group' => 'CRM mensajes',
+                'descripcion' => 'Enviar mensajes WhatsApp desde el CRM.',
+            ],
         ];
     }
 
@@ -227,8 +235,10 @@ final class PermissionCatalog
                     'crm.ver',
                     'crm.crear',
                     'crm.editar',
+                    'crm.convertir',
                     'crm_mensaje.ver',
                     'crm_mensaje.crear',
+                    'crm_mensaje.enviar',
                     'cupon.ver',
                     'producto.ver',
                     'categoria_producto.ver',
@@ -253,6 +263,7 @@ final class PermissionCatalog
                     'cliente.ver',
                     'crm_mensaje.ver',
                     'crm_mensaje.crear',
+                    'crm_mensaje.enviar',
                 ],
             ],
         ];

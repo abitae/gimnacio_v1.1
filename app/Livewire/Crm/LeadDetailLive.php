@@ -59,6 +59,10 @@ class LeadDetailLive extends Component
 
     public function openConvertModal()
     {
+        $lead = $this->getLeadProperty();
+        if ($lead) {
+            $this->authorize('convert', $lead);
+        }
         $this->modalConvert = true;
     }
 
@@ -70,6 +74,10 @@ class LeadDetailLive extends Component
     public function convertDone()
     {
         $this->closeConvertModal();
+        $lead = $this->getLeadProperty();
+        if ($lead?->cliente_id) {
+            return $this->redirect(route('clientes.perfil', $lead->cliente_id), navigate: true);
+        }
         $this->flashToast('success', 'Lead convertido a cliente');
     }
 

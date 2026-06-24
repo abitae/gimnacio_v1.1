@@ -45,6 +45,8 @@ class ActivityFormLive extends Component
 
     public function save()
     {
+        $this->authorize($this->activityId ? 'crm.editar' : 'crm.crear');
+
         $this->validate([
             'tipo' => 'required|in:call,whatsapp,visit,trial,email,note,other',
             'fecha_hora' => 'required|date',

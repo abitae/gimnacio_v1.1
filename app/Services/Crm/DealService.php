@@ -9,6 +9,11 @@ use Illuminate\Database\Eloquent\Builder;
 
 class DealService
 {
+    public function __construct(
+        protected LeadService $leadService,
+        protected CrmActivityService $crmActivityService,
+    ) {}
+
     public function query(array $filters = []): Builder
     {
         $q = Deal::query()->with(['lead', 'cliente', 'membresia', 'assignedTo', 'motivoPerdida']);
@@ -74,9 +79,29 @@ class DealService
         return $deal->fresh();
     }
 
-    public function markWon(Deal $deal): Deal
+    public function markWon(Deal $deal, ?int $clienteId = null, bool $syncLead = true): Deal
     {
-        $deal->update(['estado' => 'won']);
+        $deal->update([
+            'estado' => 'won',
+            'cliente_id' => $clienteId ?? $deal->cliente_id ?? $deal->lead?->cliente_id,
+        ]);
+
+        $lead = $deal->lead;
+        if ($syncLead && $lead && ! $lead->isConvertido()) {
+            $this->leadService->syncLeadStageFromDealOutcome($lead, 'won');
+        }
+
+        if ($lead) {
+            $this->crmActivityService->create([
+                'lead_id' => $lead->id,
+                'cliente_id' => $deal->cliente_id,
+                'tipo' => 'note',
+                'observaciones' => 'Oportunidad marcada como ganada.',
+                'fecha_hora' => now(),
+                'user_id' => auth()->id(),
+            ]);
+        }
+
         return $deal->fresh();
     }
 
@@ -87,6 +112,22 @@ class DealService
             'motivo_perdida_id' => $motivoPerdidaId,
             'notas' => $observacion ? trim($deal->notas . "\n" . $observacion) : $deal->notas,
         ]);
+
+        $lead = $deal->lead;
+        if ($lead && ! $lead->isConvertido()) {
+            $this->leadService->syncLeadStageFromDealOutcome($lead, 'lost');
+        }
+
+        if ($lead) {
+            $this->crmActivityService->create([
+                'lead_id' => $lead->id,
+                'tipo' => 'note',
+                'observaciones' => 'Oportunidad marcada como perdida.',
+                'fecha_hora' => now(),
+                'user_id' => auth()->id(),
+            ]);
+        }
+
         return $deal->fresh();
     }
 

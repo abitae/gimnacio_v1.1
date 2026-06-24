@@ -60,6 +60,8 @@ class DealFormLive extends Component
 
     public function save()
     {
+        $this->authorize($this->dealId ? 'crm.editar' : 'crm.crear');
+
         $this->validate([
             'precio_objetivo' => 'required|numeric|min:0',
             'probabilidad' => 'nullable|integer|min:0|max:100',
@@ -91,6 +93,7 @@ class DealFormLive extends Component
 
     public function markWon()
     {
+        $this->authorize('crm.editar');
         if (!$this->dealId) {
             return;
         }
@@ -101,6 +104,7 @@ class DealFormLive extends Component
 
     public function markLost()
     {
+        $this->authorize('crm.editar');
         $this->validate(['motivo_perdida_id' => 'required|exists:loss_reasons,id']);
         $deal = Deal::findOrFail($this->dealId);
         $this->dealService->markLost($deal, (int) $this->motivo_perdida_id, $this->observacion_perdida ?: null);

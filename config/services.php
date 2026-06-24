@@ -35,4 +35,17 @@ return [
         ],
     ],
 
+    'whatsapp' => [
+        'driver' => env('WHATSAPP_DRIVER', 'mock'),
+        'twilio' => [
+            'account_sid' => env('TWILIO_ACCOUNT_SID'),
+            'auth_token' => env('TWILIO_AUTH_TOKEN'),
+            'from' => env('TWILIO_WHATSAPP_FROM'),
+        ],
+        'http' => [
+            'url' => env('WHATSAPP_HTTP_URL'),
+            'token' => env('WHATSAPP_HTTP_TOKEN'),
+        ],
+    ],
+
 ];

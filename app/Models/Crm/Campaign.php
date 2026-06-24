@@ -2,6 +2,7 @@
 
 namespace App\Models\Crm;
 
+use App\Models\Core\DiscountCoupon;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -28,6 +29,7 @@ class Campaign extends Model
         'tipo',
         'estado',
         'filtros',
+        'discount_coupon_id',
         'created_by',
     ];
 
@@ -41,6 +43,11 @@ class Campaign extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function discountCoupon(): BelongsTo
+    {
+        return $this->belongsTo(DiscountCoupon::class, 'discount_coupon_id');
     }
 
     public function targets(): HasMany

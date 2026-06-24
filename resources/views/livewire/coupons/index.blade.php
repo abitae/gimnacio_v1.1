@@ -5,7 +5,7 @@
             <p class="text-xs text-zinc-600 dark:text-zinc-400">Gestiona cupones para POS, matrículas, membresías y clases</p>
         </div>
         @can('cupon.crear')
-        <flux:button icon="plus" color="purple" variant="primary" size="xs" href="{{ route('cupon.crear') }}" wire:navigate>
+        <flux:button icon="plus" color="purple" variant="primary" size="xs" href="{{ route('cupones.create') }}" wire:navigate>
             Nuevo cupón
         </flux:button>
         @endcan
@@ -53,6 +53,9 @@
                                 <flux:button size="xs" variant="ghost" href="{{ route('cupones.show', $c) }}" wire:navigate>Ver</flux:button>
                                 @can('cupon.editar')
                                 <flux:button size="xs" variant="ghost" href="{{ route('cupones.edit', $c) }}" wire:navigate>Editar</flux:button>
+                                @endcan
+                                @can('cupon.eliminar')
+                                <flux:button size="xs" variant="ghost" color="red" wire:click="delete({{ $c->id }})" wire:confirm="¿Eliminar este cupón?">Eliminar</flux:button>
                                 @endcan
                             </div>
                         </td>

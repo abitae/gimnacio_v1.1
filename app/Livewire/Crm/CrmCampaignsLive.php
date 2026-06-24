@@ -24,6 +24,8 @@ class CrmCampaignsLive extends Component
 
     public $estado = 'draft';
 
+    public $discount_coupon_id = '';
+
     protected CampaignService $campaignService;
 
     protected $paginationTheme = 'tailwind';
@@ -45,6 +47,7 @@ class CrmCampaignsLive extends Component
         $this->nombre = '';
         $this->tipo = 'captacion';
         $this->estado = 'draft';
+        $this->discount_coupon_id = '';
         $this->modalForm = true;
     }
 
@@ -59,6 +62,7 @@ class CrmCampaignsLive extends Component
         $this->nombre = $c->nombre;
         $this->tipo = $c->tipo;
         $this->estado = $c->estado;
+        $this->discount_coupon_id = $c->discount_coupon_id ? (string) $c->discount_coupon_id : '';
         $this->modalForm = true;
     }
 
@@ -66,19 +70,17 @@ class CrmCampaignsLive extends Component
     {
         $this->authorize($this->editingId ? 'crm.editar' : 'crm.crear');
         $this->validate(['nombre' => 'required|string|max:120']);
+        $payload = [
+            'nombre' => $this->nombre,
+            'tipo' => $this->tipo,
+            'estado' => $this->estado,
+            'discount_coupon_id' => $this->discount_coupon_id ? (int) $this->discount_coupon_id : null,
+        ];
         if ($this->editingId) {
             $c = Campaign::findOrFail($this->editingId);
-            $this->campaignService->update($c, [
-                'nombre' => $this->nombre,
-                'tipo' => $this->tipo,
-                'estado' => $this->estado,
-            ]);
+            $this->campaignService->update($c, $payload);
         } else {
-            $this->campaignService->create([
-                'nombre' => $this->nombre,
-                'tipo' => $this->tipo,
-                'estado' => $this->estado,
-            ]);
+            $this->campaignService->create($payload);
         }
         $this->modalForm = false;
         $this->editingId = null;
@@ -99,6 +101,9 @@ class CrmCampaignsLive extends Component
         }
         $campaigns = $q->paginate(15);
 
-        return view('livewire.crm.crm-campaigns-live', ['campaigns' => $campaigns]);
+        return view('livewire.crm.crm-campaigns-live', [
+            'campaigns' => $campaigns,
+            'coupons' => \App\Models\Core\DiscountCoupon::query()->where('estado', 'activo')->orderBy('codigo')->get(['id', 'codigo', 'nombre']),
+        ]);
     }
 }

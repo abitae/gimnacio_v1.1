@@ -11,6 +11,13 @@
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 bg-white dark:bg-zinc-800">
         <h1 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $campaign->nombre }}</h1>
         <p class="text-sm text-zinc-500">{{ \App\Models\Crm\Campaign::TIPOS[$campaign->tipo] ?? $campaign->tipo }} · {{ \App\Models\Crm\Campaign::ESTADOS[$campaign->estado] ?? $campaign->estado }}</p>
+        @if($campaign->discountCoupon)
+        <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
+            Cupón vinculado:
+            <a href="{{ route('cupones.show', $campaign->discountCoupon) }}" wire:navigate class="font-mono text-zinc-800 dark:text-zinc-200 hover:underline">{{ $campaign->discountCoupon->codigo }}</a>
+            ({{ $campaign->discountCoupon->usages()->count() }} usos)
+        </p>
+        @endif
     </div>
 
     <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">

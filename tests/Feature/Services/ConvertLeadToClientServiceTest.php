@@ -10,6 +10,8 @@ use App\Models\User;
 use App\Services\Crm\ConvertLeadToClientService;
 
 it('converts a lead and creates a cliente_matricula instead of a legacy membership', function () {
+    config(['crm.conversion.require_qualified_stage' => false]);
+
     $user = User::factory()->create();
     $this->actingAs($user);
 

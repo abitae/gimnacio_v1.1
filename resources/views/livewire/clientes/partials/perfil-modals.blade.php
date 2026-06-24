@@ -226,28 +226,28 @@
     <div class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Cronograma de cuotas') }}</h2>
         <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700">
-            <table class="min-w-full text-xs">
+            <table class="min-w-full text-sm">
                 <thead class="bg-zinc-50 dark:bg-zinc-900">
-                    <tr class="text-left text-zinc-500">
-                        <th class="px-2 py-2">#</th>
-                        <th class="px-2 py-2">{{ __('Vencimiento') }}</th>
-                        <th class="px-2 py-2">{{ __('Programado') }}</th>
-                        <th class="px-2 py-2">{{ __('Pagado') }}</th>
-                        <th class="px-2 py-2">{{ __('Saldo') }}</th>
-                        <th class="px-2 py-2">{{ __('Estado') }}</th>
-                        <th class="px-2 py-2"></th>
+                    <tr class="text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                        <th class="px-4 py-3">#</th>
+                        <th class="px-4 py-3">{{ __('Vencimiento') }}</th>
+                        <th class="px-4 py-3">{{ __('Programado') }}</th>
+                        <th class="px-4 py-3">{{ __('Pagado') }}</th>
+                        <th class="px-4 py-3">{{ __('Saldo') }}</th>
+                        <th class="px-4 py-3">{{ __('Estado') }}</th>
+                        <th class="px-4 py-3"></th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
                     @forelse ($cuotasModalInstallments as $cuota)
                         <tr>
-                            <td class="px-2 py-1.5">{{ $cuota->numero_cuota }}</td>
-                            <td class="px-2 py-1.5">{{ optional($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
-                            <td class="px-2 py-1.5">S/ {{ number_format((float) $cuota->monto, 2) }}</td>
-                            <td class="px-2 py-1.5">S/ {{ number_format((float) $cuota->monto_pagado_actual, 2) }}</td>
-                            <td class="px-2 py-1.5">S/ {{ number_format((float) $cuota->saldo_pendiente, 2) }}</td>
-                            <td class="px-2 py-1.5">{{ \App\Models\Core\EnrollmentInstallment::ESTADOS[$cuota->estado] ?? ucfirst((string) $cuota->estado) }}</td>
-                            <td class="px-2 py-1.5 text-right">
+                            <td class="px-4 py-3">{{ $cuota->numero_cuota }}</td>
+                            <td class="px-4 py-3">{{ optional($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
+                            <td class="px-4 py-3">S/ {{ number_format((float) $cuota->monto, 2) }}</td>
+                            <td class="px-4 py-3">S/ {{ number_format((float) $cuota->monto_pagado_actual, 2) }}</td>
+                            <td class="px-4 py-3">S/ {{ number_format((float) $cuota->saldo_pendiente, 2) }}</td>
+                            <td class="px-4 py-3">{{ \App\Models\Core\EnrollmentInstallment::ESTADOS[$cuota->estado] ?? ucfirst((string) $cuota->estado) }}</td>
+                            <td class="px-4 py-3 text-right">
                                 @can('matricula_cliente.editar')
                                     @if (in_array($cuota->estado, ['pendiente', 'vencida', 'parcial'], true))
                                         <flux:button size="xs" variant="primary" type="button" wire:click="openRegistrarPagoCuota({{ $cuota->id }})">{{ __('Pagar') }}</flux:button>
@@ -257,7 +257,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-2 py-6 text-center text-zinc-500">{{ __('Sin cuotas registradas.') }}</td>
+                            <td colspan="7" class="px-4 py-8 text-center text-zinc-500">{{ __('Sin cuotas registradas.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>

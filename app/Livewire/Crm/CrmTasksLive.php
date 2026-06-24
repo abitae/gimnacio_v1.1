@@ -4,6 +4,7 @@ namespace App\Livewire\Crm;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Crm\CrmTask;
+use App\Models\Crm\Lead;
 use App\Services\Crm\CrmTaskService;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -17,6 +18,14 @@ class CrmTasksLive extends Component
     public $statusFilter = '';
 
     public $perPage = 15;
+
+    public $modalTask = false;
+
+    public $taskLeadId = null;
+
+    public $taskClienteId = null;
+
+    public $taskEntityType = 'lead';
 
     protected CrmTaskService $taskService;
 
@@ -35,6 +44,40 @@ class CrmTasksLive extends Component
     public function getMyDayProperty(): array
     {
         return $this->taskService->getMyDay(auth()->id());
+    }
+
+    public function getAssignableLeadsProperty()
+    {
+        return Lead::query()
+            ->where('estado', '!=', 'convertido')
+            ->where(function ($q) {
+                $q->where('assigned_to', auth()->id())->orWhereNull('assigned_to');
+            })
+            ->orderByDesc('updated_at')
+            ->limit(30)
+            ->get(['id', 'nombres', 'apellidos', 'telefono']);
+    }
+
+    public function openNewTask()
+    {
+        $this->authorize('crm.crear');
+        $this->taskLeadId = null;
+        $this->taskClienteId = null;
+        $this->taskEntityType = 'lead';
+        $this->modalTask = true;
+    }
+
+    public function closeTaskModal()
+    {
+        $this->modalTask = false;
+        $this->taskLeadId = null;
+        $this->taskClienteId = null;
+    }
+
+    public function taskSaved()
+    {
+        $this->closeTaskModal();
+        $this->flashToast('success', 'Tarea creada');
     }
 
     public function completeTask(int $id)

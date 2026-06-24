@@ -14,6 +14,32 @@
     </div>
 
     <div class="flex flex-wrap gap-2 items-center">
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 w-full mb-2">
+            <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+                <p class="text-[10px] uppercase text-zinc-500">Leads semana</p>
+                <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $summary['leads_nuevos_semana'] }}</p>
+            </div>
+            <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+                <p class="text-[10px] uppercase text-zinc-500">Convertidos</p>
+                <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $summary['leads_convertidos_semana'] }}</p>
+            </div>
+            <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+                <p class="text-[10px] uppercase text-zinc-500">Tasa conv.</p>
+                <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $summary['tasa_conversion_semana'] }}%</p>
+            </div>
+            <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+                <p class="text-[10px] uppercase text-zinc-500">Deals abiertos</p>
+                <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $summary['deals_abiertos'] }}</p>
+            </div>
+            <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+                <p class="text-[10px] uppercase text-zinc-500">Valor pipeline</p>
+                <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">S/ {{ number_format($summary['deals_valor_abierto'], 0) }}</p>
+            </div>
+            <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+                <p class="text-[10px] uppercase text-zinc-500">Tareas vencidas</p>
+                <p class="text-lg font-semibold text-amber-700 dark:text-amber-300">{{ $summary['tareas_vencidas'] }}</p>
+            </div>
+        </div>
         <div class="min-w-[200px] flex-1">
             <flux:input icon="magnifying-glass" type="search" placeholder="Buscar por nombre, teléfono, email..."
                 wire:model.live.debounce.300ms="search" class="w-full" />
@@ -145,7 +171,10 @@
 @script
 <script>
     Livewire.on('lead-saved', () => { $wire.leadSaved(); });
-    Livewire.on('convert-done', () => { $wire.convertDone(); });
+    Livewire.on('convert-done', (payload) => {
+        const clienteId = payload?.clienteId ?? payload?.[0]?.clienteId ?? null;
+        $wire.convertDone(clienteId);
+    });
     Livewire.on('close-lead-modal', () => { $wire.closeLeadModal(); });
     Livewire.on('close-convert-modal', () => { $wire.closeConvertModal(); });
 </script>

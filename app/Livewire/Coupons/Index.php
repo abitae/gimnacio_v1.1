@@ -24,6 +24,19 @@ class Index extends Component
         $this->authorize('cupon.ver');
     }
 
+    public function delete(int $couponId): void
+    {
+        $this->authorize('cupon.eliminar');
+        $coupon = DiscountCoupon::findOrFail($couponId);
+        if ($coupon->usages()->exists()) {
+            $this->flashToast('error', 'No se puede eliminar un cupón con usos registrados.');
+
+            return;
+        }
+        $coupon->delete();
+        $this->flashToast('success', 'Cupón eliminado.');
+    }
+
     public function render()
     {
         $query = DiscountCoupon::query()

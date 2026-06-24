@@ -4,6 +4,25 @@
         <p class="text-xs text-zinc-600 dark:text-zinc-400">Listas por vencer y vencidos para crear campañas</p>
     </div>
 
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+            <p class="text-[10px] uppercase text-zinc-500">Tareas vencidas</p>
+            <p class="text-lg font-semibold text-amber-700 dark:text-amber-300">{{ $summary['tareas_vencidas'] }}</p>
+        </div>
+        <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+            <p class="text-[10px] uppercase text-zinc-500">Tareas hoy</p>
+            <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $summary['tareas_hoy'] }}</p>
+        </div>
+        <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+            <p class="text-[10px] uppercase text-zinc-500">Deals abiertos</p>
+            <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $summary['deals_abiertos'] }}</p>
+        </div>
+        <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2">
+            <p class="text-[10px] uppercase text-zinc-500">Conversión semana</p>
+            <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $summary['tasa_conversion_semana'] }}%</p>
+        </div>
+    </div>
+
     <div class="flex gap-2">
         <flux:button size="sm" variant="{{ $tab === 'renovacion' ? 'primary' : 'ghost' }}" wire:click="$set('tab', 'renovacion')">Por vencer</flux:button>
         <flux:button size="sm" variant="{{ $tab === 'reactivacion' ? 'primary' : 'ghost' }}" wire:click="$set('tab', 'reactivacion')">Vencidos</flux:button>

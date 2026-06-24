@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Crm\Lead;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,6 +16,7 @@ class CrmMensaje extends Model
 
     protected $fillable = [
         'cliente_id',
+        'lead_id',
         'canal',
         'destino',
         'contenido',
@@ -34,6 +36,11 @@ class CrmMensaje extends Model
     public function cliente(): BelongsTo
     {
         return $this->belongsTo(Cliente::class);
+    }
+
+    public function lead(): BelongsTo
+    {
+        return $this->belongsTo(Lead::class);
     }
 
     public function creadoPor(): BelongsTo

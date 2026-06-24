@@ -5,6 +5,9 @@
             <p class="text-xs text-zinc-600 dark:text-zinc-400">Mi día y seguimientos</p>
         </div>
         <div class="flex gap-2">
+            @can('crm.crear')
+            <flux:button size="sm" variant="primary" wire:click="openNewTask">Nueva tarea</flux:button>
+            @endcan
             <flux:button size="sm" variant="{{ $view === 'my-day' ? 'primary' : 'ghost' }}" wire:click="$set('view', 'my-day')">Mi día</flux:button>
             <flux:button size="sm" variant="{{ $view === 'list' ? 'primary' : 'ghost' }}" wire:click="$set('view', 'list')">Listado</flux:button>
         </div>
@@ -118,4 +121,32 @@
         </div>
     </div>
     @endif
+
+    <flux:modal name="new-task" wire:model="modalTask" focusable flyout variant="floating" class="md:w-lg">
+        @if($modalTask)
+        <flux:heading size="lg">Nueva tarea CRM</flux:heading>
+        <div class="mt-3 space-y-3">
+            <flux:field>
+                <flux:label>Lead</flux:label>
+                <select wire:model.live="taskLeadId" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                    <option value="">Sin lead</option>
+                    @foreach($this->assignableLeads as $lead)
+                    <option value="{{ $lead->id }}">{{ $lead->nombre_completo }} · {{ $lead->telefono }}</option>
+                    @endforeach
+                </select>
+            </flux:field>
+            @if($taskLeadId)
+            <livewire:crm.task-form-live :lead-id="(int) $taskLeadId" :key="'task-new-lead-'.$taskLeadId" />
+            @else
+            <p class="text-sm text-zinc-500">Selecciona un lead para programar la tarea.</p>
+            @endif
+        </div>
+        @endif
+    </flux:modal>
 </div>
+
+@script
+<script>
+    Livewire.on('task-saved', () => { $wire.taskSaved(); });
+</script>
+@endscript
