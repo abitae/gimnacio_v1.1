@@ -36,6 +36,15 @@ select:focus[data-flux-control] {
     @apply outline-hidden ring-2 ring-accent ring-offset-2 ring-offset-accent-foreground;
 }
 
+/* Sidebar colapsado: solo iconos, alineación centrada */
+[data-flux-sidebar][data-flux-sidebar-collapsed-desktop] [data-flux-sidebar-header] {
+    @apply justify-center gap-0;
+}
+
+[data-flux-sidebar][data-flux-sidebar-collapsed-desktop] [data-flux-sidebar-nav] {
+    @apply items-center;
+}
+
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */

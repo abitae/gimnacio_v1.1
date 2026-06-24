@@ -9,6 +9,10 @@ use App\Services\ClientDebtService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
+/**
+ * Bandeja operativa de cobros pendientes (solo transacciones).
+ * Vista analítica: ReporteCuentasPorCobrarLive en reportes.cuentas-por-cobrar.
+ */
 class CustomerDebts extends Component
 {
     use FlashesToast;
@@ -54,16 +58,25 @@ class CustomerDebts extends Component
 
     public function mount(): void
     {
-        if (! auth()->user()->can('punto_venta.ver') && ! auth()->user()->can('reporte.ver')) {
-            abort(403);
-        }
+        $this->authorize('punto_venta.ver');
 
         $this->fechaInicio = now()->startOfMonth()->format('Y-m-d');
         $this->fechaFin = now()->format('Y-m-d');
+
+        $clienteId = request()->integer('cliente');
+        if ($clienteId > 0) {
+            $cliente = \App\Models\Core\Cliente::query()->find($clienteId);
+            if ($cliente) {
+                $this->search = $cliente->codigo
+                    ?: $cliente->numero_documento
+                    ?: trim($cliente->nombres.' '.$cliente->apellidos);
+            }
+        }
     }
 
     public function abrirModalCobro(int $debtId): void
     {
+        $this->authorize('punto_venta.ver');
         $debt = ClientDebt::query()->find($debtId);
         if (! $debt) {
             $this->flashToast('error', 'Deuda no encontrada.');
@@ -96,6 +109,8 @@ class CustomerDebts extends Component
 
     public function procesarCobro(): void
     {
+        $this->authorize('punto_venta.ver');
+
         if (! $this->debtIdSeleccionada) {
             $this->flashToast('error', 'No hay una deuda seleccionada.');
 
@@ -121,6 +136,7 @@ class CustomerDebts extends Component
 
     public function abrirModalPagoCliente(int $clienteId): void
     {
+        $this->authorize('punto_venta.ver');
         $cliente = \App\Models\Core\Cliente::query()->find($clienteId);
         if (! $cliente) {
             $this->flashToast('error', 'Cliente no encontrado.');
@@ -154,6 +170,8 @@ class CustomerDebts extends Component
 
     public function procesarPagoCliente(): void
     {
+        $this->authorize('punto_venta.ver');
+
         if (! $this->clienteIdSeleccionado) {
             $this->flashToast('error', 'No hay cliente seleccionado.');
 
@@ -243,6 +261,6 @@ class CustomerDebts extends Component
             'selectedPaymentMethod' => $selectedPaymentMethod,
             'clienteSeleccionado' => $clienteSeleccionado,
             'totalClienteSeleccionado' => $totalClienteSeleccionado,
-        ])->layout('layouts.app', ['title' => 'Estado de cuenta - Deudas']);
+        ])->layout('layouts.app', ['title' => 'Cobros pendientes']);
     }
 }

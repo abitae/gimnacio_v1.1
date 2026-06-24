@@ -22,6 +22,25 @@
         </div>
     </div>
 
+    @if ($biotimeSyncSummary)
+        <div class="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+                <div class="flex items-center gap-2 font-medium text-zinc-800 dark:text-zinc-200">
+                    <flux:icon name="finger-print" class="size-4" />
+                    BioTime — última sincronización
+                </div>
+                <div class="text-xs text-zinc-600 dark:text-zinc-400">
+                    {{ $biotimeSyncSummary['received_at']?->format('d/m/Y H:i') ?? '—' }}
+                    · {{ ucfirst($biotimeSyncSummary['status']) }}
+                    · {{ $biotimeSyncSummary['processed'] }} ok / {{ $biotimeSyncSummary['failed'] }} error(es)
+                </div>
+                @can('biotime.ver')
+                    <a href="{{ route('biotime.index') }}" wire:navigate class="text-xs font-medium text-red-600 hover:underline dark:text-red-400">Ver panel BioTime</a>
+                @endcan
+            </div>
+        </div>
+    @endif
+
     <!-- Flash Messages -->
     <div>
     </div>
@@ -408,6 +427,13 @@
                                         @if ($asistencia->registradaPor)
                                             <p class="text-xs text-zinc-400 dark:text-zinc-500">
                                                 Por: {{ $asistencia->registradaPor->name }}
+                                                @if ($asistencia->origen)
+                                                    · Origen: {{ $asistencia->origen === 'biotime' ? 'BioTime' : ucfirst($asistencia->origen) }}
+                                                @endif
+                                            </p>
+                                        @elseif ($asistencia->origen)
+                                            <p class="text-xs text-zinc-400 dark:text-zinc-500">
+                                                Origen: {{ $asistencia->origen === 'biotime' ? 'BioTime' : ucfirst($asistencia->origen) }}
                                             </p>
                                         @endif
                                     </div>

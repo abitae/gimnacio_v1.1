@@ -3,6 +3,7 @@
 namespace App\Livewire\GestionNutricional;
 
 use App\Livewire\Concerns\FlashesToast;
+use App\Livewire\Concerns\LogsLivewireErrors;
 use App\Models\Core\RentableSpace;
 use App\Models\RoutineTemplate;
 use App\Services\CitaService;
@@ -18,7 +19,7 @@ use Livewire\WithPagination;
 
 class GestionNutricionalUnificadoLive extends Component
 {
-    use FlashesToast, WithPagination;
+    use FlashesToast, LogsLivewireErrors, WithPagination;
 
     // Cliente search
     public $clienteSearch = '';
@@ -318,7 +319,7 @@ class GestionNutricionalUnificadoLive extends Component
         } catch (\Illuminate\Validation\ValidationException $e) {
             $this->handleValidationErrors($e);
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en gestión nutricional unificada.');
         }
     }
 
@@ -331,7 +332,7 @@ class GestionNutricionalUnificadoLive extends Component
             $this->closeEvaluacionModal();
             $this->resetPage();
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en gestión nutricional unificada.');
         }
     }
 
@@ -409,7 +410,7 @@ class GestionNutricionalUnificadoLive extends Component
                 $this->flashToast('error', $result['message']);
             }
         } catch (\Throwable $e) {
-            $this->flashToast('error', 'No se pudo enviar el reporte. '.($e->getMessage()));
+            $this->reportLivewireError($e, 'Error al enviar reporte por WhatsApp.', 'No se pudo enviar el reporte. '.$e->getMessage());
         }
     }
 
@@ -529,7 +530,7 @@ class GestionNutricionalUnificadoLive extends Component
             $this->seguimientoId = null;
             $this->resetPage();
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en gestión nutricional unificada.');
         }
     }
 
@@ -543,7 +544,7 @@ class GestionNutricionalUnificadoLive extends Component
             $this->seguimientoId = null;
             $this->resetPage();
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en gestión nutricional unificada.');
         }
     }
 
@@ -630,7 +631,7 @@ class GestionNutricionalUnificadoLive extends Component
             $this->citaId = null;
             $this->resetPage();
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en gestión nutricional unificada.');
         }
     }
 
@@ -641,7 +642,7 @@ class GestionNutricionalUnificadoLive extends Component
             $this->flashToast('success', 'Cita cancelada');
             $this->resetPage();
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en gestión nutricional unificada.');
         }
     }
 
@@ -655,7 +656,7 @@ class GestionNutricionalUnificadoLive extends Component
             $this->citaId = null;
             $this->resetPage();
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en gestión nutricional unificada.');
         }
     }
 
@@ -775,7 +776,7 @@ class GestionNutricionalUnificadoLive extends Component
                 $this->clientWellnessService->freezePlan($this->selectedClienteId, $data, auth()->id());
             }
         } catch (\RuntimeException|\InvalidArgumentException $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en gestión nutricional unificada.');
 
             return;
         }

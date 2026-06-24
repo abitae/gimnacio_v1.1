@@ -13,7 +13,8 @@ class ConvertLeadToClientService
     public function __construct(
         protected ClienteService $clienteService,
         protected LeadService $leadService,
-        protected ClienteMatriculaService $clienteMatriculaService
+        protected ClienteMatriculaService $clienteMatriculaService,
+        protected CrmActivityService $crmActivityService,
     ) {}
 
     /**
@@ -65,6 +66,17 @@ class ConvertLeadToClientService
             if (! empty($data['activar_membresia']) && ! empty($data['membresia_id'])) {
                 $this->activateMembresia($cliente, $data);
             }
+
+            $this->crmActivityService->create([
+                'lead_id' => $lead->id,
+                'cliente_id' => $cliente->id,
+                'tipo' => 'note',
+                'observaciones' => $created
+                    ? 'Lead convertido: cliente creado.'
+                    : 'Lead convertido: vinculado a cliente existente.',
+                'fecha_hora' => now(),
+                'user_id' => auth()->id(),
+            ]);
 
             return [
                 'lead' => $lead->fresh(),

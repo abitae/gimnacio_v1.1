@@ -3,6 +3,7 @@
 namespace App\Livewire\Cajas;
 
 use App\Livewire\Concerns\FlashesToast;
+use App\Livewire\Concerns\LogsLivewireErrors;
 use App\Models\Core\Caja;
 use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Venta;
@@ -16,6 +17,7 @@ use Livewire\WithPagination;
 class CajaLive extends Component
 {
     use FlashesToast;
+    use LogsLivewireErrors;
     use WithPagination;
 
     public $fechaDesde = '';
@@ -163,7 +165,7 @@ class CajaLive extends Component
             $this->flashToast('success', 'Caja abierta exitosamente.');
             $this->cerrarModalApertura();
         } catch (\Throwable $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en operación de caja.');
         }
     }
 
@@ -215,7 +217,7 @@ class CajaLive extends Component
             $this->flashToast('success', 'Caja cerrada exitosamente.');
             $this->cerrarModalCierre();
         } catch (\Throwable $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en operación de caja.');
         }
     }
 
@@ -268,7 +270,7 @@ class CajaLive extends Component
             $this->mostrarModalIngresoManual = false;
             $this->syncTabsDesdeMovimientos();
         } catch (\Throwable $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en operación de caja.');
         }
     }
 
@@ -293,7 +295,7 @@ class CajaLive extends Component
             $this->mostrarModalSalidaManual = false;
             $this->syncTabsDesdeMovimientos();
         } catch (\Throwable $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en operación de caja.');
         }
     }
 
@@ -303,7 +305,7 @@ class CajaLive extends Component
             $this->cajaSeleccionada = Caja::with(['usuario', 'sucursal'])->findOrFail($cajaId);
             $this->mostrarModalReporte = true;
         } catch (\Throwable $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error en operación de caja.');
         }
     }
 

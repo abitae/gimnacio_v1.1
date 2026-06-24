@@ -4,9 +4,9 @@ namespace App\Services;
 
 use App\Models\Core\Caja;
 use App\Models\Core\Cliente;
+use App\Models\Core\RentableSpace;
 use App\Models\Core\Rental;
 use App\Models\Core\RentalPayment;
-use App\Models\Core\RentableSpace;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +17,47 @@ class RentalService
     public function __construct(
         protected SucursalContext $sucursalContext
     ) {}
+
+    public function createBooking(array $data): Rental
+    {
+        return $this->create($data);
+    }
+
+    public function updateBooking(Rental $rental, array $data): Rental
+    {
+        return $this->update($rental->id, array_merge($data, [
+            'cliente_id' => $data['cliente_id'] ?? $rental->cliente_id,
+        ]));
+    }
+
+    public function cancelBooking(Rental $rental, ?string $reason = null): Rental
+    {
+        return $this->update($rental->id, [
+            'estado' => 'cancelado',
+            'observaciones' => trim(($rental->observaciones ?? '').($reason ? "\nCancelado: {$reason}" : '')),
+        ]);
+    }
+
+    public function listForCliente(int $clienteId): \Illuminate\Support\Collection
+    {
+        return Rental::query()
+            ->with('rentableSpace')
+            ->where('cliente_id', $clienteId)
+            ->orderByDesc('fecha')
+            ->orderByDesc('hora_inicio')
+            ->get();
+    }
+
+    public function listForDate(\Carbon\Carbon $date, ?int $sucursalId = null): \Illuminate\Support\Collection
+    {
+        return Rental::query()
+            ->with(['rentableSpace', 'cliente'])
+            ->whereDate('fecha', $date->toDateString())
+            ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
+            ->whereNotIn('estado', ['cancelado'])
+            ->orderBy('hora_inicio')
+            ->get();
+    }
 
     public function find(int $id): ?Rental
     {

@@ -253,6 +253,18 @@
                                 <flux:text class="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Producto') }}</flux:text>
                                 @if ($deudaProductoPendiente > 0)
                                     <flux:badge color="amber" class="w-fit uppercase">{{ __('Debe S/ :monto', ['monto' => number_format($deudaProductoPendiente, 2)]) }}</flux:badge>
+                                    @can('punto_venta.ver')
+                                        <flux:button
+                                            href="{{ route('pos.cuentas-por-cobrar', ['cliente' => $selectedCliente->id]) }}"
+                                            wire:navigate
+                                            size="xs"
+                                            variant="outline"
+                                            icon="banknotes"
+                                            title="{{ __('Cobrar deuda de producto en Operaciones') }}"
+                                        >
+                                            {{ __('Cobrar en POS') }}
+                                        </flux:button>
+                                    @endcan
                                 @else
                                     <flux:badge color="zinc" class="w-fit uppercase">{{ __('Sin deuda en producto') }}</flux:badge>
                                 @endif
@@ -279,6 +291,18 @@
                             <flux:button size="xs" icon="calendar-days" variant="outline" type="button" wire:click="openPrimeraCuotasConPlan">
                                 {{ __('Ver cuotas') }}
                             </flux:button>
+                            @if ($selectedCliente)
+                                <flux:button
+                                    href="{{ route('clientes.cuotas', $selectedCliente->id) }}"
+                                    wire:navigate
+                                    size="xs"
+                                    icon="arrow-top-right-on-square"
+                                    variant="ghost"
+                                    title="{{ __('Abrir cronograma completo de cuotas') }}"
+                                >
+                                    {{ __('Cronograma') }}
+                                </flux:button>
+                            @endif
                         @endcan
                         @can('matricula_cliente.crear')
                             @if ($matriculasSinCronogramaCuotas->isNotEmpty())
@@ -308,7 +332,13 @@
                             <flux:button href="{{ route('crm.clientes.etiquetas', $selectedCliente->id) }}" wire:navigate variant="outline" size="xs"
                                 icon="tag" class="border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300">
                                 {{ __('Etiquetas CRM') }}
+                                @if (($crmSummary['tagsCount'] ?? 0) > 0)
+                                    <span class="ml-1 rounded-full bg-sky-200 px-1.5 text-[10px] font-bold text-sky-900 dark:bg-sky-800 dark:text-sky-100">{{ $crmSummary['tagsCount'] }}</span>
+                                @endif
                             </flux:button>
+                            @if (($crmSummary['openTasksCount'] ?? 0) > 0)
+                                <flux:badge color="sky" class="uppercase">{{ __(':n tareas CRM abiertas', ['n' => $crmSummary['openTasksCount']]) }}</flux:badge>
+                            @endif
                         @endcan
                     </div>
 
@@ -727,7 +757,7 @@
             </div>
         </div>
 
-        <div class="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900" wire:init="loadCommercialTabData">
             <div class="flex border-b border-zinc-200 dark:border-zinc-800">
                 @foreach (['membresias' => 'Membresías', 'matriculas' => 'Clases'] as $tabKey => $tabLabel)
                     <flux:button
@@ -743,6 +773,11 @@
             </div>
 
             @if ($tabActiva === 'membresias')
+                @if ($usesLegacyMembresiasHistory)
+                    <div class="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-900 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+                        {{ __('Este cliente solo tiene registros en el modelo legacy (cliente_membresias). Las nuevas altas deben hacerse como matrícula.') }}
+                    </div>
+                @endif
                 <div class="overflow-auto p-1">
                     <table class="min-w-full text-xs">
                         <thead class="bg-zinc-50 dark:bg-zinc-950">
@@ -781,7 +816,12 @@
                                     $planNombre = $mem->membresia->nombre ?? $mem->nombre ?? '—';
                                 @endphp
                                 <tr class="bg-white dark:bg-zinc-900">
-                                    <td class="px-3 py-2"><span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $estadoClass }}">{{ ucfirst($mem->estado ?? '—') }}</span></td>
+                                    <td class="px-3 py-2">
+                                        <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $estadoClass }}">{{ ucfirst($mem->estado ?? '—') }}</span>
+                                        @if ($mem instanceof \App\Models\Core\ClienteMembresia)
+                                            <flux:badge color="zinc" size="sm" class="ml-1 uppercase">{{ __('Legacy') }}</flux:badge>
+                                        @endif
+                                    </td>
                                     <td class="px-3 py-2 font-medium text-zinc-900 dark:text-zinc-100">{{ strtoupper($planNombre) }}</td>
                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ $mem->membresia->duracion_dias ?? $mem->sesiones_totales ?? '—' }}</td>
                                     <td class="px-3 py-2 text-zinc-600 dark:text-zinc-400">{{ optional($mem->fecha_matricula)->format('d/m/Y g:i A') ?? '—' }}</td>

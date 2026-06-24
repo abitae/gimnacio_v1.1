@@ -1,8 +1,8 @@
 <div class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
     <div class="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
         <div>
-            <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Cuentas por cobrar</h1>
-            <p class="text-xs text-zinc-600 dark:text-zinc-400">Deudas pendientes con búsqueda ampliada, filtros por fecha y cobro por cliente o por deuda.</p>
+            <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Cobros pendientes</h1>
+            <p class="text-xs text-zinc-600 dark:text-zinc-400">Bandeja operativa para registrar cobros. Para análisis use Analítica → Cuentas por cobrar.</p>
         </div>
         <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
             <flux:input icon="magnifying-glass" type="search" size="xs" wire:model.live.debounce.300ms="search" placeholder="DNI, código, celular o nombre" />

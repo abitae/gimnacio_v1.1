@@ -7,12 +7,12 @@ use App\Services\WhatsApp\MockWhatsAppService;
 use App\Services\WhatsApp\WhatsAppServiceInterface;
 use App\Support\BrandingResolver;
 use App\Support\PermissionCatalog;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Cache\RateLimiting\Limit;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Schedule;
 use Illuminate\Support\Facades\View;
@@ -28,6 +28,10 @@ class AppServiceProvider extends ServiceProvider
         $this->app->bind(WhatsAppServiceInterface::class, MockWhatsAppService::class);
         $this->app->singleton(SucursalContext::class);
         $this->app->singleton(BrandingResolver::class);
+
+        if ($this->app->environment('local')) {
+            $this->app->register(\App\Providers\TelescopeServiceProvider::class);
+        }
 
         // Registrar antes del boot de Spatie (p. ej. PermissionRegistrar::registerPermissions) para que el super
         // administrador se resuelva en el primer Gate::before y no dependa del orden respecto a checkPermissionTo.
@@ -68,6 +72,20 @@ class AppServiceProvider extends ServiceProvider
                     'connection' => $query->connectionName,
                 ]);
             });
+        }
+
+        if (app()->environment('local')) {
+            $missingEnv = collect([
+                'CRM_AUTOMATION_USER_ID' => 'Automatizaciones CRM sin usuario responsable',
+                'BIOTIME_WEBHOOK_SECRET' => 'Sync BioTime sin secreto de webhook',
+            ])->filter(fn (string $label, string $key) => blank(env($key)));
+
+            foreach ($missingEnv as $key => $label) {
+                Log::warning('Variable de entorno de dominio no configurada', [
+                    'variable' => $key,
+                    'detalle' => $label,
+                ]);
+            }
         }
 
         $this->app->booted(function () {

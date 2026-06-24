@@ -37,6 +37,7 @@ class BioTimeSyncService
                     $failed++;
                     $errors[] = "Registro #{$index}: no es un objeto JSON valido.";
                     $this->log($batchId, $entity, null, 'failed', null, null, $row, $errors[array_key_last($errors)]);
+
                     continue;
                 }
 
@@ -469,6 +470,25 @@ class BioTimeSyncService
             'biotime_id' => $biotimeId,
             'status' => $status,
             'action' => $model->wasRecentlyCreated ? 'created' : 'updated',
+        ];
+    }
+
+    /**
+     * @return array{received_at: ?Carbon, status: string, entity: ?string, processed: int, failed: int}|null
+     */
+    public function lastSyncSummary(): ?array
+    {
+        $batch = BioTimeSyncBatch::query()->orderByDesc('received_at')->first();
+        if (! $batch) {
+            return null;
+        }
+
+        return [
+            'received_at' => $batch->received_at,
+            'status' => (string) $batch->status,
+            'entity' => $batch->entity,
+            'processed' => (int) $batch->processed,
+            'failed' => (int) $batch->failed,
         ];
     }
 }

@@ -3,8 +3,10 @@
 /public/storage
 /storage/*.key
 /storage/pail
+/storage/debug-baseline.txt
 /vendor
 .env
+.env.testing
 .env.backup
 .env.production
 .phpactor.json

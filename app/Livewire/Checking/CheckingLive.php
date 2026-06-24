@@ -3,17 +3,19 @@
 namespace App\Livewire\Checking;
 
 use App\Livewire\Concerns\FlashesToast;
+use App\Livewire\Concerns\LogsLivewireErrors;
 use App\Services\AsistenciaService;
+use App\Services\BioTime\BioTimeSyncService;
 use App\Services\ClienteMatriculaService;
 use App\Services\ClientEnrollmentService;
 use App\Services\ClienteService;
 use App\Services\DailyOperationsDebtService;
-use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 
 class CheckingLive extends Component
 {
     use FlashesToast;
+    use LogsLivewireErrors;
 
     public $clienteSearch = '';
 
@@ -63,22 +65,27 @@ class CheckingLive extends Component
 
     protected DailyOperationsDebtService $dailyOperationsDebtService;
 
+    protected BioTimeSyncService $bioTimeSyncService;
+
     public function boot(
         AsistenciaService $asistenciaService,
         ClienteService $clienteService,
         ClientEnrollmentService $clientEnrollmentService,
         ClienteMatriculaService $clienteMatriculaService,
-        DailyOperationsDebtService $dailyOperationsDebtService
+        DailyOperationsDebtService $dailyOperationsDebtService,
+        BioTimeSyncService $bioTimeSyncService,
     ) {
         $this->asistenciaService = $asistenciaService;
         $this->clienteService = $clienteService;
         $this->clientEnrollmentService = $clientEnrollmentService;
         $this->clienteMatriculaService = $clienteMatriculaService;
         $this->dailyOperationsDebtService = $dailyOperationsDebtService;
+        $this->bioTimeSyncService = $bioTimeSyncService;
     }
 
     public function mount()
     {
+        $this->authorize('checking.ver');
         $this->clientes = collect([]);
     }
 
@@ -178,11 +185,7 @@ class CheckingLive extends Component
             $this->isSearching = false;
             $this->refreshSelectedClienteContext($clienteId);
         } catch (\Throwable $e) {
-            Log::error('Error al seleccionar cliente en checking.', [
-                'cliente_id' => $clienteId ?? null,
-                'exception' => $e,
-            ]);
-            $this->flashToast('error', 'No se pudo cargar el cliente seleccionado.');
+            $this->reportLivewireError($e, 'Error al seleccionar cliente en checking.', 'No se pudo cargar el cliente seleccionado.');
             $this->clearClienteSelection();
         }
     }
@@ -227,7 +230,7 @@ class CheckingLive extends Component
             session()->put('dashboard_last_cliente_id', $this->selectedClienteId);
             $this->flashToast('success', 'Ingreso registrado exitosamente.');
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error al registrar ingreso en checking.');
         }
     }
 
@@ -253,7 +256,7 @@ class CheckingLive extends Component
             session()->put('dashboard_last_cliente_id', $this->selectedClienteId);
             $this->flashToast('success', 'Salida registrada exitosamente.');
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error al registrar ingreso en checking.');
         }
     }
 
@@ -306,12 +309,8 @@ class CheckingLive extends Component
             $this->estadoOperacion = $this->resolverEstadoOperacion();
             $this->cargarHistorialComercial($clienteId);
         } catch (\Throwable $e) {
-            Log::error('Error al refrescar el contexto del cliente en checking.', [
-                'cliente_id' => $clienteId,
-                'exception' => $e,
-            ]);
+            $this->reportLivewireError($e, 'Error al refrescar el contexto del cliente en checking.', 'No se pudo cargar la información del cliente.');
             $this->resetearSeleccion();
-            $this->flashToast('error', 'No se pudo cargar la información del cliente.');
         }
     }
 
@@ -364,6 +363,8 @@ class CheckingLive extends Component
 
     public function render()
     {
-        return view('livewire.checking.checking-live');
+        return view('livewire.checking.checking-live', [
+            'biotimeSyncSummary' => $this->bioTimeSyncService->lastSyncSummary(),
+        ]);
     }
 }

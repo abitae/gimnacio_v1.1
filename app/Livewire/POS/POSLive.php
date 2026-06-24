@@ -3,6 +3,8 @@
 namespace App\Livewire\POS;
 
 use App\Livewire\Concerns\FlashesToast;
+use App\Livewire\Concerns\LogsLivewireErrors;
+use App\Livewire\POS\Concerns\ManagesPosCartTotals;
 use App\Models\Core\Cliente;
 use App\Models\Core\PaymentMethod;
 use App\Models\Core\Producto;
@@ -16,6 +18,8 @@ use App\Services\ClienteMembresiaService;
 use App\Services\ClienteService;
 use App\Services\DailyOperationsDebtService;
 use App\Services\EnrollmentInstallmentService;
+use App\Services\Pos\PosCartService;
+use App\Services\Pos\PosSaleOrchestrator;
 use App\Services\PosAlquilerReservaService;
 use App\Services\ProductoService;
 use App\Services\ServicioExternoService;
@@ -26,9 +30,17 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
+/**
+ * POS — orquestador de venta diaria.
+ *
+ * Dominios: catálogo/búsqueda, carrito (PosCartService), confirmación (PosSaleOrchestrator),
+ * cobro membresía/clase (DailyOperationsDebtService), modales comprador/pago.
+ */
 class POSLive extends Component
 {
     use FlashesToast;
+    use LogsLivewireErrors;
+    use ManagesPosCartTotals;
 
     // Búsqueda
     public $busqueda = '';
@@ -182,6 +194,8 @@ class POSLive extends Component
 
     protected PosAlquilerReservaService $posAlquilerReservaService;
 
+    protected PosSaleOrchestrator $posSaleOrchestrator;
+
     public function boot(
         CajaService $cajaService,
         ProductoService $productoService,
@@ -193,7 +207,9 @@ class POSLive extends Component
         EnrollmentInstallmentService $enrollmentInstallmentService,
         DailyOperationsDebtService $dailyOperationsDebtService,
         ClientDebtService $clientDebtService,
-        PosAlquilerReservaService $posAlquilerReservaService
+        PosAlquilerReservaService $posAlquilerReservaService,
+        PosCartService $posCartService,
+        PosSaleOrchestrator $posSaleOrchestrator,
     ) {
         $this->cajaService = $cajaService;
         $this->productoService = $productoService;
@@ -206,13 +222,8 @@ class POSLive extends Component
         $this->dailyOperationsDebtService = $dailyOperationsDebtService;
         $this->clientDebtService = $clientDebtService;
         $this->posAlquilerReservaService = $posAlquilerReservaService;
-    }
-
-    public function getCarritoTieneAlquilerProperty(): bool
-    {
-        return collect($this->carrito)->contains(
-            fn (array $item) => ($item['tipo'] ?? '') === 'alquiler'
-        );
+        $this->posCartService = $posCartService;
+        $this->posSaleOrchestrator = $posSaleOrchestrator;
     }
 
     public function mount()
@@ -666,64 +677,6 @@ class POSLive extends Component
     }
 
     /**
-     * Calcular totales
-     */
-    public function calcularTotales()
-    {
-        // Los totales se calculan en tiempo real en la vista
-    }
-
-    /**
-     * Obtener subtotal del carrito
-     */
-    public function getSubtotalProperty(): float
-    {
-        $subtotal = 0;
-        foreach ($this->carrito as $item) {
-            $precioItem = ($item['precio'] * $item['cantidad']) - ($item['descuento'] ?? 0);
-            $subtotal += $precioItem;
-        }
-
-        return $subtotal;
-    }
-
-    /**
-     * Base para totales (subtotal - descuento - cupón)
-     */
-    public function getBaseParaTotalProperty(): float
-    {
-        return $this->subtotal - (float) $this->descuento - (float) $this->montoDescuentoCupon;
-    }
-
-    /**
-     * Obtener IGV (desglosado, ya que está incluido en el precio)
-     */
-    public function getIgvProperty(): float
-    {
-        $base = max(0, $this->baseParaTotal);
-
-        return round($base * 18 / 118, 2);
-    }
-
-    /**
-     * Obtener subtotal sin IGV (para desglose)
-     */
-    public function getSubtotalSinIgvProperty(): float
-    {
-        $base = max(0, $this->baseParaTotal);
-
-        return round($base - $this->igv, 2);
-    }
-
-    /**
-     * Obtener total (subtotal - descuento - cupón)
-     */
-    public function getTotalProperty(): float
-    {
-        return max(0, $this->baseParaTotal);
-    }
-
-    /**
      * Abrir modal Procesar venta (solo si hay ítems en el carrito)
      */
     public function abrirModalProcesarVenta()
@@ -1009,8 +962,8 @@ class POSLive extends Component
             $carritoSnapshot = $this->carrito;
             $tieneAlquiler = $this->carritoTieneAlquiler;
 
-            $venta = DB::transaction(function () use ($items, $carritoSnapshot, $tieneAlquiler) {
-                $venta = $this->ventaService->procesarVenta([
+            $venta = $this->posSaleOrchestrator->completeSale(
+                [
                     'tipo_comprador' => $this->tipoComprador,
                     'cliente_id' => $this->tipoComprador === 'cliente' ? $this->clienteId : null,
                     'employee_id' => $this->tipoComprador === 'empleado' ? $this->employeeId : null,
@@ -1030,18 +983,15 @@ class POSLive extends Component
                     'monto_descuento_cupon' => (float) $this->montoDescuentoCupon,
                     'observaciones' => $this->observaciones,
                     'items' => $items,
-                ]);
-
-                if ($tieneAlquiler) {
-                    $this->posAlquilerReservaService->crearDesdeVenta($venta, $carritoSnapshot, [
-                        'fecha' => $this->alquilerFecha,
-                        'hora_inicio' => $this->alquilerHoraInicio,
-                        'hora_fin' => $this->alquilerHoraFin,
-                    ]);
-                }
-
-                return $venta;
-            });
+                ],
+                $carritoSnapshot,
+                $tieneAlquiler,
+                [
+                    'fecha' => $this->alquilerFecha,
+                    'hora_inicio' => $this->alquilerHoraInicio,
+                    'hora_fin' => $this->alquilerHoraFin,
+                ]
+            );
 
             $this->mostrarModalProcesarVenta = false;
             $this->limpiarCarrito();
@@ -1051,7 +1001,7 @@ class POSLive extends Component
             $this->refrescarEstadoCaja();
             $this->flashToast('success', 'Venta procesada exitosamente.');
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error al procesar venta en POS.');
         }
     }
 
@@ -1115,34 +1065,19 @@ class POSLive extends Component
     {
         $this->cuponAplicado = null;
         $this->montoDescuentoCupon = 0.0;
-        $codigo = strtoupper(trim((string) $this->codigoCupon));
-        if (! $codigo) {
-            $this->flashToast('error', 'Ingresa el código del cupón.');
 
-            return;
+        try {
+            $result = $this->posCartService->resolveCouponDiscount(
+                (string) $this->codigoCupon,
+                $this->carrito,
+                (float) $this->descuento
+            );
+            $this->cuponAplicado = $result['coupon_id'];
+            $this->montoDescuentoCupon = $result['monto'];
+            $this->flashToast('success', 'Cupón aplicado: -S/ '.number_format($result['monto'], 2));
+        } catch (\InvalidArgumentException $e) {
+            $this->reportLivewireError($e, 'Error al aplicar cupón en POS.');
         }
-        $coupon = \App\Models\Core\DiscountCoupon::where('codigo', $codigo)->first();
-        if (! $coupon) {
-            $this->flashToast('error', 'Cupón no encontrado.');
-
-            return;
-        }
-        if (! $coupon->puedeUsarse()) {
-            $this->flashToast('error', 'El cupón no está vigente o ya alcanzó el límite de usos.');
-
-            return;
-        }
-        if (! $coupon->aplicaA('pos')) {
-            $this->flashToast('error', 'Este cupón no aplica para ventas en POS.');
-
-            return;
-        }
-        $subtotalCarrito = collect($this->carrito)->sum(fn ($i) => ($i['precio'] * $i['cantidad']) - ($i['descuento'] ?? 0));
-        $base = $subtotalCarrito - (float) $this->descuento;
-        $monto = $coupon->calcularDescuento($base);
-        $this->cuponAplicado = $coupon->id;
-        $this->montoDescuentoCupon = $monto;
-        $this->flashToast('success', 'Cupón aplicado: -S/ '.number_format($monto, 2));
     }
 
     public function quitarCupon(): void
@@ -1245,60 +1180,6 @@ class POSLive extends Component
         $summary = $this->dailyOperationsDebtService->summarizeCliente($this->selectedClienteCobro->id);
         $this->debtSummaryCobro = $summary;
         $this->itemsConSaldo = $summary['items']->all();
-
-        return;
-
-        $clienteId = $this->selectedClienteCobro->id;
-
-        $matriculas = $this->clienteMatriculaService->getByCliente($clienteId, [], 100);
-        foreach ($matriculas->items() as $mat) {
-            if ($mat->usaPlanCuotas()) {
-                continue;
-            }
-            $saldo = $this->clienteMatriculaService->obtenerSaldoPendiente($mat->id);
-            if ($saldo > 0) {
-                $this->itemsConSaldo[] = [
-                    'tipo' => 'matricula',
-                    'id' => $mat->id,
-                    'nombre' => $mat->nombre,
-                    'saldo_pendiente' => $saldo,
-                ];
-            }
-        }
-
-        $membresias = $this->clienteMembresiaService->getByCliente($clienteId, null, 100);
-        foreach ($membresias->items() as $mem) {
-            $saldo = $this->clienteMembresiaService->obtenerSaldoPendiente($mem->id);
-            if ($saldo > 0) {
-                $this->itemsConSaldo[] = [
-                    'tipo' => 'membresia',
-                    'id' => $mem->id,
-                    'nombre' => $mem->membresia ? $mem->membresia->nombre : 'N/A',
-                    'saldo_pendiente' => $saldo,
-                ];
-            }
-        }
-
-        $installments = $this->enrollmentInstallmentService->installmentsForCliente($clienteId);
-        $installments->loadMissing(['plan.clienteMatricula', 'clienteMatricula']);
-        foreach ($installments as $installment) {
-            if (! in_array($installment->estado, ['pendiente', 'vencida', 'parcial'], true)) {
-                continue;
-            }
-            $matriculaId = $installment->cliente_matricula_id ?? $installment->plan?->cliente_matricula_id;
-            if (! $matriculaId) {
-                continue;
-            }
-            $matriculaNombre = $installment->clienteMatricula?->nombre
-                ?? $installment->plan?->clienteMatricula?->nombre;
-            $label = 'Cuota '.$installment->numero_cuota.($matriculaNombre ? ' — '.$matriculaNombre : '');
-            $this->itemsConSaldo[] = [
-                'tipo' => 'cuota',
-                'id' => $installment->id,
-                'nombre' => $label,
-                'saldo_pendiente' => (float) $installment->monto,
-            ];
-        }
     }
 
     public function openCobroModal(string $tipo, int $id)
@@ -1376,7 +1257,7 @@ class POSLive extends Component
             $this->pagoIdTicketCobro = $pago->id;
             $this->mostrarModalTicketPagoCobro = true;
         } catch (\Exception $e) {
-            $this->flashToast('error', $e->getMessage());
+            $this->reportLivewireError($e, 'Error al procesar venta en POS.');
         }
     }
 

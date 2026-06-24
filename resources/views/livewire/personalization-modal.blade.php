@@ -119,8 +119,8 @@ new class extends Component {
 }; ?>
 
 <div wire:key="personalization-modal">
-    <flux:sidebar.item icon="paint-brush" class="w-full justify-start gap-2" wire:click="openModal" as="button" type="button" title="{{ __('Personalize') }}">
-        <span class="truncate">{{ __('Personalize') }}</span>
+    <flux:sidebar.item icon="paint-brush" class="w-full justify-start gap-2" wire:click="openModal" as="button" type="button" :tooltip="__('Personalize')">
+        {{ __('Personalize') }}
     </flux:sidebar.item>
 
     <flux:modal name="personalization-modal" wire:model="showModal" focusable class="md:max-w-md">

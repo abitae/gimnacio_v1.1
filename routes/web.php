@@ -91,7 +91,7 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
 
     // Checking - Registro de Ingreso
     // Checking: acceso para cualquier usuario autenticado (recepción / operación diaria).
-    Route::get('checking', \App\Livewire\Checking\CheckingLive::class)->name('checking.index');
+    Route::get('checking', \App\Livewire\Checking\CheckingLive::class)->middleware('permission:checking.ver')->name('checking.index');
     Route::get('biotime', \App\Livewire\BioTime\BioTimeDashboard::class)
         ->middleware('permission:biotime.ver')
         ->name('biotime.index');
@@ -128,6 +128,7 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
 
     // Alquileres
     Route::prefix('alquileres')->name('rentals.')->middleware('permission:alquiler.ver')->group(function () {
+        Route::get('operaciones', \App\Livewire\Rentals\Operations\Dashboard::class)->name('operations.index');
         Route::get('espacios', \App\Livewire\Rentals\Spaces\Index::class)->name('spaces.index');
         Route::get('calendario', \App\Livewire\Rentals\Calendar\Index::class)->name('calendar.index');
         Route::get('reservas/crear', \App\Livewire\Rentals\Bookings\Form::class)->name('bookings.create')->middleware('permission:alquiler.crear');
@@ -161,7 +162,7 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
         Route::get('cajas', \App\Livewire\Reportes\ReporteCajasLive::class)->name('cajas');
         Route::get('productos-servicios', \App\Livewire\Reportes\ReporteProductosServiciosLive::class)->name('productos-servicios');
         Route::get('gimnasio', \App\Livewire\Reportes\ReporteGimnasioLive::class)->name('gimnasio');
-        Route::get('cuentas-por-cobrar', \App\Livewire\POS\CustomerDebts::class)->name('cuentas-por-cobrar');
+        Route::get('cuentas-por-cobrar', \App\Livewire\Reportes\ReporteCuentasPorCobrarLive::class)->name('cuentas-por-cobrar');
         Route::get('cuotas-vencidas', \App\Livewire\Reportes\ReporteCuotasVencidasLive::class)->name('cuotas-vencidas');
         // Exportación PDF
         Route::get('ventas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfVentas'])->name('ventas.exportar.pdf');

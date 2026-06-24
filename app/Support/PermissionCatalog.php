@@ -192,6 +192,9 @@ final class PermissionCatalog
                     'caja.crear',
                     'caja.editar',
                     'caja.movimiento_manual',
+                    'checking.ver',
+                    'checking.crear',
+                    'checking.editar',
                     'punto_venta.ver',
                     'punto_venta.crear',
                     'reporte.ver',
@@ -210,6 +213,9 @@ final class PermissionCatalog
             'vendedor' => [
                 'label' => 'Vendedor',
                 'permissions' => [
+                    'checking.ver',
+                    'checking.crear',
+                    'checking.editar',
                     'punto_venta.ver',
                     'punto_venta.crear',
                     'cliente.ver',
