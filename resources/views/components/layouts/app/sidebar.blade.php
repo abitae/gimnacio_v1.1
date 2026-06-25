@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="{{ $bodyAppearanceClass ?? 'dark' }} {{ $accentClass ?? 'accent-red' }}" data-appearance="{{ $appearanceValue ?? 'system' }}" data-appearance-sidebar="{{ $appearanceSidebarValue ?? 'dark' }}" data-appearance-header="{{ $appearanceHeaderValue ?? 'dark' }}" data-accent="{{ $accentValue ?? 'red' }}" data-sidebar-bg="{{ $sidebarBgValue ?? 'red' }}" data-header-bg="{{ $headerBgValue ?? 'red' }}" data-body-bg="{{ $bodyBgValue ?? 'default' }}" data-font-size="{{ $fontSizeValue ?? 'base' }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="{{ $bodyAppearanceClass ?? 'light' }} {{ $accentClass ?? 'accent-red' }}" data-appearance="{{ $appearanceValue ?? 'light' }}" data-appearance-sidebar="{{ $appearanceSidebarValue ?? 'light' }}" data-appearance-header="{{ $appearanceHeaderValue ?? 'light' }}" data-accent="{{ $accentValue ?? 'red' }}" data-sidebar-bg="{{ $sidebarBgValue ?? 'red' }}" data-header-bg="{{ $headerBgValue ?? 'red' }}" data-body-bg="{{ $bodyBgValue ?? 'default' }}" data-font-size="{{ $fontSizeValue ?? 'base' }}">
     <head>
         @include('partials.head')
     </head>
-    <body class="min-h-screen antialiased transition-colors {{ $fontSizeClass ?? 'text-base' }} {{ $bodyBgClass ?? 'bg-white dark:bg-zinc-800' }}">
-        <flux:sidebar id="app-sidebar" sticky collapsible class="{{ $sidebarAppearanceClass ?? 'dark' }} {{ $sidebarBgClass ?? 'bg-zinc-50 dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-700' }}">
+    <body class="min-h-screen antialiased transition-colors {{ $fontSizeClass ?? 'text-base' }} {{ $bodyBgClass ?? 'bg-white' }}">
+        <flux:sidebar id="app-sidebar" sticky collapsible class="{{ $sidebarAppearanceClass ?? 'light' }} {{ $sidebarBgClass ?? 'bg-zinc-50 border-r border-zinc-200' }}">
             <flux:sidebar.header>
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-2 px-2 py-2 min-w-0 in-data-flux-sidebar-collapsed-desktop:w-10 in-data-flux-sidebar-collapsed-desktop:justify-center in-data-flux-sidebar-collapsed-desktop:px-0 in-data-flux-sidebar-collapsed-desktop:py-0" wire:navigate>
                     @if (!empty($appBrandLogoUrl))
@@ -334,7 +334,7 @@
             </flux:dropdown>
         </flux:sidebar>
 
-        <flux:header id="app-header" class="block! {{ $headerAppearanceClass ?? 'dark' }} {{ $headerBgClass ?? 'bg-white lg:bg-zinc-50 dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-700' }}">
+        <flux:header id="app-header" class="block! {{ $headerAppearanceClass ?? 'light' }} {{ $headerBgClass ?? 'bg-white lg:bg-zinc-100 border-b-2 border-zinc-300' }}">
             <flux:navbar class="lg:hidden w-full">
                 <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
@@ -478,7 +478,7 @@
                     indigo: 'bg-indigo-50/50 dark:bg-indigo-950/50'
                 };
                 function resolveMode(val) {
-                    return val === 'system' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : val;
+                    return 'light';
                 }
                 function getStoredAppearance() {
                     try {
@@ -522,9 +522,9 @@
                 }
                 function applyAppearance(rawParams) {
                     var params = mergeAppearanceParams(rawParams);
-                    var appearance = params.appearance || 'system';
-                    var appearanceSidebar = params.appearance_sidebar || 'dark';
-                    var appearanceHeader = params.appearance_header || 'dark';
+                    var appearance = 'light';
+                    var appearanceSidebar = 'light';
+                    var appearanceHeader = 'light';
                     var accent = params.accent || 'red';
                     var sidebarBg = params.sidebar_bg || 'red';
                     var headerBg = params.header_bg || 'red';
@@ -581,9 +581,9 @@
                 }
                 function getParamsFromDocument() {
                     return {
-                        appearance: document.documentElement.getAttribute('data-appearance') || 'system',
-                        appearance_sidebar: document.documentElement.getAttribute('data-appearance-sidebar') || 'dark',
-                        appearance_header: document.documentElement.getAttribute('data-appearance-header') || 'dark',
+                        appearance: 'light',
+                        appearance_sidebar: 'light',
+                        appearance_header: 'light',
                         accent: document.documentElement.getAttribute('data-accent') || 'red',
                         sidebar_bg: document.documentElement.getAttribute('data-sidebar-bg') || 'red',
                         header_bg: document.documentElement.getAttribute('data-header-bg') || 'red',
@@ -596,6 +596,15 @@
                     return Object.assign({}, getStoredAppearance() || {}, getParamsFromDocument());
                 }
                 function restoreAppearanceFromStorage() {
+                    try {
+                        var stored = getStoredAppearance();
+                        if (stored) {
+                            stored.appearance = 'light';
+                            stored.appearance_sidebar = 'light';
+                            stored.appearance_header = 'light';
+                            localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+                        }
+                    } catch (e) {}
                     applyAppearance(mergedStoredAndDocument());
                 }
                 document.addEventListener('livewire:init', function() {

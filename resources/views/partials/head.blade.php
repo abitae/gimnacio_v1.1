@@ -1,7 +1,13 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="color-scheme" content="light" />
 
 <title>{{ $title ?? ($appBrandName ?? config('app.name')) }}</title>
+
+<script>
+    document.documentElement.classList.remove('dark');
+    document.documentElement.classList.add('light');
+</script>
 
 <link rel="icon" href="{{ asset('Open9/logo.ico') }}" sizes="any">
 <link rel="apple-touch-icon" href="{{ asset('Open9/logo_completo_sin_fondo.png') }}">

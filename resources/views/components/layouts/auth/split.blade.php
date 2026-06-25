@@ -1,18 +1,17 @@
 <!DOCTYPE html>
-<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}" class="light">
 
 <head>
-    <meta name="color-scheme" content="light dark">
     @include('partials.head')
 </head>
 
-<body class="min-h-screen bg-zinc-100 antialiased dark:bg-zinc-900">
+<body class="min-h-screen bg-zinc-100 antialiased">
     <div
         class="relative grid h-dvh flex-col items-center justify-center px-8 sm:px-0 lg:max-w-none lg:grid-cols-2 lg:px-0">
         <div
             class="relative hidden h-full flex-col justify-between p-10 text-white lg:flex lg:border-e lg:border-zinc-200 lg:dark:border-zinc-700 bg-no-repeat bg-center"
             style="background-image: url('{{ asset('Open9/b2-ejercitando.jpg') }}'); background-size: 100% 100%;">
-            <div class="absolute inset-0 bg-black/50 dark:bg-black/60" aria-hidden="true"></div>
+            <div class="absolute inset-0 bg-black/50" aria-hidden="true"></div>
 
             
 

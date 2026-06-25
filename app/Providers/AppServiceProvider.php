@@ -156,12 +156,12 @@ class AppServiceProvider extends ServiceProvider
         ];
 
         View::composer('components.layouts.app.sidebar', function ($view) use ($sidebarBgClasses, $headerBgClasses, $bodyBgClasses) {
-            $bodyAppearanceClass = 'dark';
-            $appearanceValue = 'system';
-            $sidebarAppearanceClass = 'dark';
-            $appearanceSidebarValue = 'dark';
-            $headerAppearanceClass = 'dark';
-            $appearanceHeaderValue = 'dark';
+            $bodyAppearanceClass = 'light';
+            $appearanceValue = 'light';
+            $sidebarAppearanceClass = 'light';
+            $appearanceSidebarValue = 'light';
+            $headerAppearanceClass = 'light';
+            $appearanceHeaderValue = 'light';
             $accentClass = 'accent-red';
             $sidebarBgClass = $sidebarBgClasses['red'];
             $headerBgClass = $headerBgClasses['red'];
@@ -175,12 +175,6 @@ class AppServiceProvider extends ServiceProvider
 
             if (Auth::check()) {
                 $user = Auth::user();
-                $appearanceValue = $user->appearance ?? 'system';
-                $bodyAppearanceClass = $appearanceValue === 'system' ? 'dark' : $appearanceValue;
-                $appearanceSidebarValue = $user->appearance_sidebar ?? 'dark';
-                $sidebarAppearanceClass = $appearanceSidebarValue === 'system' ? 'dark' : $appearanceSidebarValue;
-                $appearanceHeaderValue = $user->appearance_header ?? 'dark';
-                $headerAppearanceClass = $appearanceHeaderValue === 'system' ? 'dark' : $appearanceHeaderValue;
                 $accentValue = $user->accent ?? 'red';
                 $accentClass = 'accent-'.$accentValue;
                 $sidebarBgValue = $user->sidebar_bg ?? 'red';

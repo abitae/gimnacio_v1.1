@@ -4,15 +4,30 @@
     <meta charset="utf-8">
     <title>Ticket {{ $venta->serie_comprobante }}-{{ $venta->numero_comprobante }}</title>
     <style>
-        body { font-family: DejaVu Sans, sans-serif; font-size: 8pt; color: #000; }
+        html, body, body * {
+            color: #000;
+        }
+        body {
+            font-family: DejaVu Sans, sans-serif;
+            font-size: 8pt;
+            margin: 0;
+        }
         table { width: 100%; border-collapse: collapse; }
-        th, td { padding: 2px 0; border-bottom: 1px dotted #999; font-size: 8pt; }
+        th, td {
+            padding: 2px 0;
+            border-bottom: 1px dotted #000;
+            font-size: 8pt;
+            color: #000;
+        }
+        p, strong, span, div {
+            color: #000;
+        }
         .text-right { text-align: right; }
         .text-center { text-align: center; }
         .font-bold { font-weight: 700; }
         .line { border-bottom: 1px dashed #000; margin: 4px 0; }
         .brand-logo { max-width: 80px; max-height: 40px; margin: 0 auto 4px; display: block; }
-        .muted { font-size: 7pt; color: #444; }
+        .muted { font-size: 7pt; color: #000; }
     </style>
 </head>
 <body>

@@ -141,4 +141,13 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Sucursal::class, 'default_sucursal_id');
     }
+
+    protected static function booted(): void
+    {
+        static::saving(function (User $user) {
+            $user->appearance = 'light';
+            $user->appearance_sidebar = 'light';
+            $user->appearance_header = 'light';
+        });
+    }
 }
