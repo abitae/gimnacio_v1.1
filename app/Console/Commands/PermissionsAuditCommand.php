@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Support\PermissionCatalog;
+use App\Support\RolePermissionSynchronizer;
 use Illuminate\Console\Command;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -130,21 +131,11 @@ class PermissionsAuditCommand extends Command
     {
         $this->info('Sincronizando permisos y roles desde PermissionCatalog...');
 
-        foreach (PermissionCatalog::roleNames() as $roleName) {
-            Role::firstOrCreate(['name' => $roleName, 'guard_name' => $guard]);
-        }
+        $result = RolePermissionSynchronizer::sync($guard);
 
-        $synced = PermissionCatalog::sync($guard);
-        PermissionCatalog::migrateLegacyRoles($guard);
-
-        foreach (PermissionCatalog::roleDefinitions() as $roleName => $definition) {
-            $role = Role::findByName($roleName, $guard);
-            $role->syncPermissions($definition['permissions']);
-        }
-
-        app(PermissionRegistrar::class)->forgetCachedPermissions();
-
-        $this->components->info('Sincronizados '.count($synced).' permisos y '.count(PermissionCatalog::roleDefinitions()).' roles del catalogo.');
+        $this->components->info(
+            'Sincronizados '.$result['permissions'].' permisos y '.$result['roles'].' roles del catalogo.'
+        );
     }
 
     /**

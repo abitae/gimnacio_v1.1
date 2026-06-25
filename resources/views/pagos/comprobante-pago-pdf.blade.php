@@ -32,7 +32,7 @@
     <p class="text-center muted" style="margin-bottom: 6px;">{{ $pago->sucursal?->nombre ?? 'Sucursal principal' }}</p>
     <p class="text-center font-bold" style="font-size: 9pt; margin-bottom: 4px;">TICKET DE COBRO</p>
     <p class="text-center muted" style="margin-bottom: 6px;">
-        {{ strtoupper((string) ($pago->comprobante_tipo ?? 'ticket')) }} {{ $pago->comprobante_numero ?? '—' }} · Pago #{{ $pago->id }} · {{ $pago->fecha_pago?->format('d/m/Y H:i') }}
+        {{ strtoupper((string) ($pago->comprobante_tipo ?? 'ticket')) }} {{ $pago->comprobante_numero ?? '—' }} · Pago #{{ $pago->id }} · {{ $pago->fechaHoraPago()->format('d/m/Y H:i') }}
     </p>
     <div class="line"></div>
 

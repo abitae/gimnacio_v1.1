@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -42,6 +43,49 @@ class Pago extends Model
             'es_pago_parcial' => 'boolean',
             'sucursal_id' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $pago): void {
+            if ($pago->fecha_pago === null) {
+                $pago->fecha_pago = now();
+
+                return;
+            }
+
+            $pago->fecha_pago = static::normalizeFechaPago($pago->fecha_pago);
+        });
+    }
+
+    /**
+     * Si la fecha viene solo con día (00:00), asigna la hora del registro.
+     */
+    public static function normalizeFechaPago(mixed $fecha): Carbon
+    {
+        $parsed = $fecha instanceof Carbon ? $fecha->copy() : Carbon::parse($fecha);
+
+        if ($parsed->format('H:i:s') === '00:00:00') {
+            return $parsed->setTimeFrom(now());
+        }
+
+        return $parsed;
+    }
+
+    /**
+     * Fecha/hora para comprobantes: usa created_at si fecha_pago no tiene hora.
+     */
+    public function fechaHoraPago(): Carbon
+    {
+        if ($this->fecha_pago === null) {
+            return $this->created_at ?? now();
+        }
+
+        if ($this->fecha_pago->format('H:i:s') === '00:00:00' && $this->created_at !== null) {
+            return $this->fecha_pago->copy()->setTimeFrom($this->created_at);
+        }
+
+        return $this->fecha_pago;
     }
 
     // Relaciones
