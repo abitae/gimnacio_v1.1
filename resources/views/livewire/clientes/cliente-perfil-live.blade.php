@@ -129,9 +129,7 @@
             $deudaProductoVencida = $deudaItemsResumen
                 ->where('tipo', 'client_debt')
                 ->contains(fn (array $item) => (bool) ($item['es_vencida'] ?? false));
-            $deudaMembresiaVencida = $deudaItemsResumen
-                ->whereIn('tipo', ['cuota', 'matricula', 'membresia', 'client_debt_membership'])
-                ->contains(fn (array $item) => (bool) ($item['es_vencida'] ?? false));
+            $deudaMembresiaVencida = count($deudasVencidasPerfil ?? []) > 0;
             $stats = $estadisticasAsistencia;
             $efectividad = (float) ($stats['porcentaje_efectividad'] ?? 0);
             $totalSesiones = (int) ($stats['total_sesiones'] ?? 0);

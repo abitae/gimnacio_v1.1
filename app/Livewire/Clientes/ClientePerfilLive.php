@@ -380,7 +380,11 @@ class ClientePerfilLive extends Component
      */
     protected function resolveDeudasVencidasPerfilItems(): array
     {
-        $tiposMembresia = ['cuota', 'matricula', 'membresia', 'client_debt_membership'];
+        if (! $this->membresiaActiva instanceof ClienteMatricula && ! $this->membresiaActiva instanceof ClienteMembresia) {
+            return [];
+        }
+
+        $tiposMembresia = ['cuota', 'matricula', 'membresia'];
 
         return collect($this->operacionDiariaDebtSummary['items'] ?? [])
             ->map(function ($item) {
@@ -392,9 +396,30 @@ class ClientePerfilLive extends Component
             })
             ->filter(fn (array $item) => $this->itemDeudaEstaVencida($item))
             ->filter(fn (array $item) => in_array($item['tipo'] ?? '', $tiposMembresia, true))
+            ->filter(fn (array $item) => $this->itemDeudaPerteneceAMembresiaActiva($item))
             ->sortBy(fn (array $item) => $this->timestampFechaVencimientoDeuda($item))
             ->values()
             ->all();
+    }
+
+    protected function itemDeudaPerteneceAMembresiaActiva(array $item): bool
+    {
+        if ($this->membresiaActiva instanceof ClienteMatricula) {
+            $matriculaId = (int) $this->membresiaActiva->id;
+
+            return match ($item['tipo'] ?? '') {
+                'matricula' => (int) ($item['id'] ?? 0) === $matriculaId,
+                'cuota' => (int) ($item['cliente_matricula_id'] ?? 0) === $matriculaId,
+                default => false,
+            };
+        }
+
+        if ($this->membresiaActiva instanceof ClienteMembresia) {
+            return ($item['tipo'] ?? '') === 'membresia'
+                && (int) ($item['id'] ?? 0) === (int) $this->membresiaActiva->id;
+        }
+
+        return false;
     }
 
     protected function itemDeudaEstaVencida(array $item): bool
@@ -772,6 +797,8 @@ class ClientePerfilLive extends Component
         if (! $this->membresiaActiva && $context->commercial->membresiaActivaFromHistory) {
             $this->membresiaActiva = $context->commercial->membresiaActivaFromHistory;
         }
+
+        $this->deudasVencidasPerfil = $this->resolveDeudasVencidasPerfilItems();
 
         $this->reservasEspacios = $context->wellness->reservasEspacios;
         $this->fidelizacionMensajes = $context->fidelity->mensajes;

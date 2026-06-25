@@ -78,6 +78,7 @@ class DailyOperationsDebtService
             $items->push([
                 'tipo' => 'cuota',
                 'id' => $installment->id,
+                'cliente_matricula_id' => $installment->cliente_matricula_id,
                 'nombre' => 'Cuota '.$installment->numero_cuota.($matriculaNombre ? ' - '.$matriculaNombre : ''),
                 'saldo_pendiente' => round((float) $installment->saldo_pendiente, 2),
                 'estado' => $installment->estado,
