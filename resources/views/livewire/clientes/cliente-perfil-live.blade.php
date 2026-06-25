@@ -139,7 +139,11 @@
             $pendientes = (int) ($stats['asistencias_pendientes'] ?? 0);
         @endphp
 
-        <div class="grid gap-4 xl:grid-cols-[minmax(240px,280px)_1fr_290px]" wire:key="perfil-cliente-{{ $selectedClienteId }}">
+        <div
+            class="grid gap-4 xl:grid-cols-[minmax(240px,280px)_1fr_290px]"
+            wire:key="perfil-cliente-{{ $selectedClienteId }}"
+            wire:init="abrirModalDeudaVencidaSiPendiente"
+        >
             <div class="space-y-4">
                 <div class="rounded-2xl border border-zinc-200 bg-white p-1 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
                     <x-cliente.profile-card

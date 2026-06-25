@@ -410,7 +410,7 @@
 </flux:modal>
 @endcan
 
-<flux:modal wire:model.self="mostrarModalDeudaVencida" focusable class="md:max-w-3xl">
+<flux:modal name="deuda-vencida-perfil-modal" wire:model.self="mostrarModalDeudaVencida" focusable class="md:max-w-3xl">
     <div class="flex flex-col">
         <div class="border-b border-red-200 bg-red-50 px-5 py-4 dark:border-red-900/60 dark:bg-red-950/40">
             <div class="flex items-start gap-3">
@@ -456,7 +456,13 @@
                                 S/ {{ number_format((float) ($deudaVencida['saldo_pendiente'] ?? 0), 2) }}
                             </td>
                             <td class="whitespace-nowrap px-2 py-1 tabular-nums text-zinc-600 dark:text-zinc-400">
-                                {{ optional($deudaVencida['fecha_vencimiento'])->format('d/m/Y') ?? '—' }}
+                                @php
+                                    $fechaVencimientoDeuda = $deudaVencida['fecha_vencimiento'] ?? null;
+                                    $fechaVencimientoDeudaFormateada = $fechaVencimientoDeuda instanceof \Carbon\CarbonInterface
+                                        ? $fechaVencimientoDeuda->format('d/m/Y')
+                                        : (filled($fechaVencimientoDeuda) ? \Illuminate\Support\Carbon::parse($fechaVencimientoDeuda)->format('d/m/Y') : null);
+                                @endphp
+                                {{ $fechaVencimientoDeudaFormateada ?? '—' }}
                             </td>
                         </tr>
                     @endforeach
