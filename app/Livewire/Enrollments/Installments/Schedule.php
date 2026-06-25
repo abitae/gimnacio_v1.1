@@ -101,7 +101,7 @@ class Schedule extends Component
         $plan = $this->cliente->enrollmentInstallmentPlan;
         $installments = $plan
             ? $plan->installments()
-                ->with(['clienteMatricula.membresia', 'clienteMatricula.clase'])
+                ->with(['clienteMatricula.membresia', 'clienteMatricula.clase', 'pagos', 'pago'])
                 ->orderBy('fecha_vencimiento')
                 ->orderBy('numero_cuota')
                 ->get()

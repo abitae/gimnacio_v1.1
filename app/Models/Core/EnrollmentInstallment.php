@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
@@ -91,5 +92,23 @@ class EnrollmentInstallment extends Model
     public function estaVencida(): bool
     {
         return $this->estado === 'vencida' || ($this->estado === 'pendiente' && $this->fecha_vencimiento->isPast());
+    }
+
+    public function fechaHoraUltimoPago(): ?Carbon
+    {
+        $latestPayment = $this->pagos
+            ->filter(fn ($payment) => $payment?->fecha_pago)
+            ->sortByDesc(fn ($payment) => $payment->fecha_pago?->timestamp ?? 0)
+            ->first();
+
+        if ($latestPayment) {
+            return $latestPayment->fechaHoraPago();
+        }
+
+        if ($this->pago?->fecha_pago) {
+            return $this->pago->fechaHoraPago();
+        }
+
+        return $this->fecha_pago ? Carbon::parse($this->fecha_pago) : null;
     }
 }

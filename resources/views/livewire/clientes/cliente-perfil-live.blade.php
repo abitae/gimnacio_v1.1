@@ -125,6 +125,13 @@
             };
             $nombrePlanActivo = $membresiaActiva->membresia->nombre ?? $membresiaActiva->nombre ?? $membresiaActiva->clase->nombre ?? 'Sin plan';
             $deudaMembresiaResumen = max(0, round((float) (($deudaPlanesPendiente ?? 0) + ($deudaMembresiaPendiente ?? 0)), 2));
+            $deudaItemsResumen = collect($operacionDiariaDebtSummary['items'] ?? []);
+            $deudaProductoVencida = $deudaItemsResumen
+                ->where('tipo', 'client_debt')
+                ->contains(fn (array $item) => (bool) ($item['es_vencida'] ?? false));
+            $deudaMembresiaVencida = $deudaItemsResumen
+                ->whereIn('tipo', ['cuota', 'matricula', 'membresia', 'client_debt_membership'])
+                ->contains(fn (array $item) => (bool) ($item['es_vencida'] ?? false));
             $stats = $estadisticasAsistencia;
             $efectividad = (float) ($stats['porcentaje_efectividad'] ?? 0);
             $totalSesiones = (int) ($stats['total_sesiones'] ?? 0);
@@ -249,10 +256,10 @@
                     <div class="mb-3">
                         <flux:subheading size="sm" class="mb-2 font-semibold text-zinc-800 dark:text-zinc-200">{{ __('Resumen de deudas') }}</flux:subheading>
                         <div class="grid gap-2 md:grid-cols-2">
-                            <flux:card class="flex flex-col gap-2 p-3 {{ $deudaProductoPendiente > 0 ? 'ring-1 ring-amber-200/80 dark:ring-amber-900/60' : 'ring-1 ring-zinc-200/80 dark:ring-zinc-700' }}">
+                            <flux:card class="flex flex-col gap-2 p-3 {{ $deudaProductoPendiente > 0 ? ($deudaProductoVencida ? 'ring-1 ring-red-200/80 dark:ring-red-900/60' : 'ring-1 ring-amber-200/80 dark:ring-amber-900/60') : 'ring-1 ring-zinc-200/80 dark:ring-zinc-700' }}">
                                 <flux:text class="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Producto') }}</flux:text>
                                 @if ($deudaProductoPendiente > 0)
-                                    <flux:badge color="amber" class="w-fit uppercase">{{ __('Debe S/ :monto', ['monto' => number_format($deudaProductoPendiente, 2)]) }}</flux:badge>
+                                    <flux:badge :color="$deudaProductoVencida ? 'red' : 'amber'" class="w-fit uppercase">{{ __('Debe S/ :monto', ['monto' => number_format($deudaProductoPendiente, 2)]) }}</flux:badge>
                                     @can('punto_venta.ver')
                                         <flux:button
                                             href="{{ route('pos.cuentas-por-cobrar', ['cliente' => $selectedCliente->id]) }}"
@@ -269,10 +276,10 @@
                                     <flux:badge color="zinc" class="w-fit uppercase">{{ __('Sin deuda en producto') }}</flux:badge>
                                 @endif
                             </flux:card>
-                            <flux:card class="flex flex-col gap-2 p-3 {{ $deudaMembresiaResumen > 0 ? 'ring-1 ring-red-200/80 dark:ring-red-900/60' : 'ring-1 ring-zinc-200/80 dark:ring-zinc-700' }}">
+                            <flux:card class="flex flex-col gap-2 p-3 {{ $deudaMembresiaResumen > 0 ? ($deudaMembresiaVencida ? 'ring-1 ring-red-200/80 dark:ring-red-900/60' : 'ring-1 ring-amber-200/80 dark:ring-amber-900/60') : 'ring-1 ring-zinc-200/80 dark:ring-zinc-700' }}">
                                 <flux:text class="text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Membresía y planes') }}</flux:text>
                                 @if ($deudaMembresiaResumen > 0)
-                                    <flux:badge color="red" class="w-fit uppercase">{{ __('Debe S/ :monto en membresía', ['monto' => number_format($deudaMembresiaResumen, 2)]) }}</flux:badge>
+                                    <flux:badge :color="$deudaMembresiaVencida ? 'red' : 'amber'" class="w-fit uppercase">{{ __('Debe S/ :monto en membresía', ['monto' => number_format($deudaMembresiaResumen, 2)]) }}</flux:badge>
                                 @else
                                     <flux:badge color="zinc" class="w-fit uppercase">{{ __('Sin deuda en membresía') }}</flux:badge>
                                 @endif

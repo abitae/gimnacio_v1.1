@@ -410,6 +410,73 @@
 </flux:modal>
 @endcan
 
+<flux:modal name="deuda-vencida-perfil-modal" wire:model="mostrarModalDeudaVencida" focusable class="md:max-w-3xl">
+    <div class="flex flex-col">
+        <div class="border-b border-red-200 bg-red-50 px-5 py-4 dark:border-red-900/60 dark:bg-red-950/40">
+            <div class="flex items-start gap-3">
+                <div class="flex size-10 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50">
+                    <flux:icon name="exclamation-triangle" class="size-5 text-red-600 dark:text-red-400" />
+                </div>
+                <div class="min-w-0 flex-1">
+                    <h2 class="text-lg font-bold text-red-800 dark:text-red-200">{{ __('Deudas vencidas') }}</h2>
+                    <p class="mt-1 text-sm text-red-700 dark:text-red-300">
+                        {{ __('Este cliente tiene cuotas o membresías con saldo vencido. Revise el detalle y gestione el cobro.') }}
+                    </p>
+                    @if ($selectedCliente)
+                        <p class="mt-1 text-xs font-medium text-red-600/90 dark:text-red-400/90">
+                            {{ $selectedCliente->nombres }} {{ $selectedCliente->apellidos }}
+                            · {{ __('Total vencido') }}:
+                            S/ {{ number_format(collect($deudasVencidasPerfil)->sum(fn ($item) => (float) ($item['saldo_pendiente'] ?? 0)), 2) }}
+                        </p>
+                    @endif
+                </div>
+            </div>
+        </div>
+
+        <div class="max-h-[50vh] overflow-auto px-5 py-4">
+            <table class="min-w-full text-[11px] leading-tight">
+                <thead class="bg-red-50 dark:bg-red-950/30">
+                    <tr class="text-left uppercase tracking-wide text-red-700 dark:text-red-300">
+                        <th class="px-2 py-1.5 font-semibold">{{ __('Concepto') }}</th>
+                        <th class="px-2 py-1.5 font-semibold">{{ __('Tipo') }}</th>
+                        <th class="px-2 py-1.5 text-right font-semibold">{{ __('Monto') }}</th>
+                        <th class="px-2 py-1.5 font-semibold">{{ __('Vencimiento') }}</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-red-100 dark:divide-red-900/40">
+                    @foreach ($deudasVencidasPerfil as $deudaVencida)
+                        <tr class="text-zinc-800 dark:text-zinc-200">
+                            <td class="max-w-[14rem] truncate px-2 py-1" title="{{ $deudaVencida['nombre'] ?? '—' }}">
+                                {{ $deudaVencida['nombre'] ?? '—' }}
+                            </td>
+                            <td class="whitespace-nowrap px-2 py-1 text-zinc-600 dark:text-zinc-400">
+                                {{ $deudaVencida['detalle'] ?? ucfirst((string) ($deudaVencida['tipo'] ?? '—')) }}
+                            </td>
+                            <td class="whitespace-nowrap px-2 py-1 text-right font-semibold tabular-nums text-red-700 dark:text-red-400">
+                                S/ {{ number_format((float) ($deudaVencida['saldo_pendiente'] ?? 0), 2) }}
+                            </td>
+                            <td class="whitespace-nowrap px-2 py-1 tabular-nums text-zinc-600 dark:text-zinc-400">
+                                {{ optional($deudaVencida['fecha_vencimiento'])->format('d/m/Y') ?? '—' }}
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+
+        <div class="flex flex-wrap justify-end gap-2 border-t border-zinc-200 px-5 py-3 dark:border-zinc-700">
+            @can('matricula_cliente.ver')
+                <flux:button type="button" variant="outline" size="xs" wire:click="irACuotasPendientesDesdeAviso">
+                    {{ __('Ver cuotas pendientes') }}
+                </flux:button>
+            @endcan
+            <flux:button type="button" variant="primary" size="xs" wire:click="cerrarModalDeudaVencida">
+                {{ __('Entendido') }}
+            </flux:button>
+        </div>
+    </div>
+</flux:modal>
+
 <flux:modal name="ticket-pago-perfil-modal" wire:model="mostrarModalTicketPago" focusable class="md:max-w-4xl">
     <div class="flex flex-col p-4">
         <div class="mb-3 flex items-center justify-between">

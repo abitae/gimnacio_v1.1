@@ -80,6 +80,11 @@ class ClientePerfilLive extends Component
 
     public array $operacionDiariaDebtSummary = [];
 
+    /** @var array<int, array<string, mixed>> */
+    public array $deudasVencidasPerfil = [];
+
+    public bool $mostrarModalDeudaVencida = false;
+
     public array $historialMembresias = [];
 
     public array $historialClases = [];
@@ -315,6 +320,37 @@ class ClientePerfilLive extends Component
         $this->commercialTabDataLoaded = false;
 
         $this->refreshSelectedClienteContext($clienteId);
+        $this->maybeOpenDeudaVencidaModal();
+    }
+
+    public function cerrarModalDeudaVencida(): void
+    {
+        $this->mostrarModalDeudaVencida = false;
+    }
+
+    public function irACuotasPendientesDesdeAviso(): void
+    {
+        $this->mostrarModalDeudaVencida = false;
+        $this->perfilFinanzasTab = 'cuotas_pendientes';
+    }
+
+    protected function maybeOpenDeudaVencidaModal(): void
+    {
+        $this->deudasVencidasPerfil = $this->resolveDeudasVencidasPerfilItems();
+        $this->mostrarModalDeudaVencida = $this->deudasVencidasPerfil !== [];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    protected function resolveDeudasVencidasPerfilItems(): array
+    {
+        return collect($this->operacionDiariaDebtSummary['items'] ?? [])
+            ->filter(fn (array $item) => (bool) ($item['es_vencida'] ?? false))
+            ->filter(fn (array $item) => in_array($item['tipo'] ?? '', ['cuota', 'matricula', 'membresia', 'client_debt_membership'], true))
+            ->sortBy(fn (array $item) => optional($item['fecha_vencimiento'])->timestamp ?? PHP_INT_MAX)
+            ->values()
+            ->all();
     }
 
     public function clearClienteSelection(): void
@@ -342,6 +378,8 @@ class ClientePerfilLive extends Component
         $this->trainerAsignacionId = null;
         $this->fidelizacionHistorialModalAbierto = false;
         $this->fidelizacionNuevoModalAbierto = false;
+        $this->mostrarModalDeudaVencida = false;
+        $this->deudasVencidasPerfil = [];
         $this->resetFidelizacionForm();
     }
 
@@ -714,6 +752,8 @@ class ClientePerfilLive extends Component
         $this->deudaProductoPendiente = 0.0;
         $this->deudaMembresiaPendiente = 0.0;
         $this->operacionDiariaDebtSummary = [];
+        $this->deudasVencidasPerfil = [];
+        $this->mostrarModalDeudaVencida = false;
         $this->historialMembresias = [];
         $this->historialClases = [];
         $this->pagosRecientes = [];

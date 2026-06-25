@@ -45,6 +45,7 @@
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Vencimiento</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Programado</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Pagado</th>
+                    <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ __('F. pago') }}</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Saldo</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Estado</th>
                     <th class="px-4 py-2 text-left text-xs font-medium text-zinc-700 dark:text-zinc-300">Acciones</th>
@@ -79,6 +80,9 @@
                             @endif
                         </td>
                         <td class="px-4 py-2 text-emerald-700 dark:text-emerald-400">S/ {{ number_format($cuota->monto_pagado_actual, 2) }}</td>
+                        <td class="whitespace-nowrap px-4 py-2 text-zinc-600 dark:text-zinc-400">
+                            {{ optional($cuota->fechaHoraUltimoPago())->format('d/m/Y H:i') ?? '—' }}
+                        </td>
                         <td class="px-4 py-2 {{ $cuota->saldo_pendiente > 0 ? 'font-medium text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">S/ {{ number_format($cuota->saldo_pendiente, 2) }}</td>
                         <td class="px-4 py-2">
                             <span class="rounded-full px-1.5 py-0.5 text-xs
