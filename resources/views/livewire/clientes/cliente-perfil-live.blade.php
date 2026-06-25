@@ -388,7 +388,7 @@
                                                             {{ __('Matrícula #:id · Total S/ :total · Saldo S/ :saldo', ['id' => $matriculaCuotas['id'], 'total' => number_format((float) $matriculaCuotas['precio_total'], 2), 'saldo' => number_format((float) $matriculaCuotas['saldo_total'], 2)]) }}
                                                         </p>
                                                     </div>
-                                                    <flux:button href="{{ route('clientes.cuotas', ['cliente' => $selectedClienteId, 'matricula' => $matriculaCuotas['id']]) }}" wire:navigate size="xs" variant="ghost" class="min-h-0 px-2 py-1 text-violet-600 hover:underline dark:text-violet-400">
+                                                    <flux:button href="{{ route('clientes.cuotas', ['cliente' => $selectedClienteId, 'matricula' => $matriculaCuotas['id']]) }}" wire:navigate size="xs" variant="outline">
                                                         {{ __('Ver cuotas') }}
                                                     </flux:button>
                                                 </div>
@@ -423,7 +423,7 @@
                                                                     <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ optional($cuota['fecha_vencimiento'])->format('d/m/Y') ?? '—' }}</td>
                                                                     <td class="px-4 py-3 text-right text-zinc-900 dark:text-zinc-100">S/ {{ number_format((float) $cuota['monto'], 2) }}</td>
                                                                     <td class="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) $cuota['monto_pagado'], 2) }}</td>
-                                                                    <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ optional($cuota['fecha_ultimo_pago'])->format('d/m/Y') ?? '—' }}</td>
+                                                                    <td class="whitespace-nowrap px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ optional($cuota['fecha_ultimo_pago'])->format('d/m/Y H:i') ?? '—' }}</td>
                                                                     <td class="px-4 py-3 text-right {{ (float) $cuota['saldo'] > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">S/ {{ number_format((float) $cuota['saldo'], 2) }}</td>
                                                                     <td class="px-4 py-3">
                                                                         <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $estadoCuotaBadge }}">
@@ -433,12 +433,12 @@
                                                                     <td class="px-4 py-3 text-right">
                                                                         @if ($cuota['puede_pagar'])
                                                                             @can('matricula_cliente.editar')
-                                                                                <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $cuota['id'] }})" size="xs" variant="ghost" class="min-h-0 px-2 py-0.5 text-violet-600 hover:underline dark:text-violet-400">
+                                                                                <flux:button type="button" wire:click="openRegistrarPagoCuota({{ $cuota['id'] }})" size="xs" variant="primary">
                                                                                     {{ __('Pagar') }}
                                                                                 </flux:button>
                                                                             @endcan
                                                                         @else
-                                                                            <span class="text-[11px] text-zinc-400">—</span>
+                                                                            <span class="text-xs text-zinc-400">—</span>
                                                                         @endif
                                                                     </td>
                                                                 </tr>
@@ -450,7 +450,7 @@
                                                         {{ __('Esta matrícula está en cuotas pero aún no tiene cronograma.') }}
                                                         @if ($matriculasSinCronogramaCuotas->contains('id', $matriculaCuotas['id']))
                                                             @can('matricula_cliente.crear')
-                                                                <flux:button type="button" wire:click="openCrearPlanCuotasModal" size="xs" variant="ghost" class="ml-2 min-h-0 px-2 py-0.5 text-amber-700 hover:underline dark:text-amber-300">
+                                                                <flux:button type="button" wire:click="openCrearPlanCuotasModal" size="xs" variant="outline" class="ml-2">
                                                                     {{ __('Crear plan de cuotas') }}
                                                                 </flux:button>
                                                             @endcan

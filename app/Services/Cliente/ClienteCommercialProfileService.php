@@ -176,8 +176,8 @@ class ClienteCommercialProfileService
                     'numero_cuota' => (int) $installment->numero_cuota,
                     'fecha_vencimiento' => $installment->fecha_vencimiento,
                     'fecha_ultimo_pago' => $ultimaFechaPago
-                        ?? $installment->fecha_pago
-                        ?? $installment->pago?->fecha_pago,
+                        ?? ($installment->pago ? $installment->pago->fechaHoraPago() : null)
+                        ?? $installment->fecha_pago,
                     'monto' => round((float) $installment->monto, 2),
                     'monto_pagado' => round((float) $installment->monto_pagado_actual, 2),
                     'saldo' => round((float) $installment->saldo_pendiente, 2),
@@ -202,9 +202,11 @@ class ClienteCommercialProfileService
 
     protected function latestPaymentDateFromCollection($payments)
     {
-        return collect($payments)
+        $payment = collect($payments)
             ->filter(fn ($payment) => $payment?->fecha_pago)
             ->sortByDesc(fn ($payment) => $payment->fecha_pago?->timestamp ?? 0)
-            ->first()?->fecha_pago;
+            ->first();
+
+        return $payment?->fechaHoraPago();
     }
 }
