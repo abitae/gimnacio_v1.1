@@ -346,6 +346,13 @@ class ClientePerfilLive extends Component
     protected function resolveDeudasVencidasPerfilItems(): array
     {
         return collect($this->operacionDiariaDebtSummary['items'] ?? [])
+            ->map(function ($item) {
+                if (is_array($item)) {
+                    return $item;
+                }
+
+                return (array) $item;
+            })
             ->filter(fn (array $item) => (bool) ($item['es_vencida'] ?? false))
             ->filter(fn (array $item) => in_array($item['tipo'] ?? '', ['cuota', 'matricula', 'membresia', 'client_debt_membership'], true))
             ->sortBy(fn (array $item) => optional($item['fecha_vencimiento'])->timestamp ?? PHP_INT_MAX)

@@ -91,7 +91,15 @@ class EnrollmentInstallment extends Model
 
     public function estaVencida(): bool
     {
-        return $this->estado === 'vencida' || ($this->estado === 'pendiente' && $this->fecha_vencimiento->isPast());
+        if ($this->estado === 'vencida') {
+            return true;
+        }
+
+        if (in_array($this->estado, ['pendiente', 'parcial'], true) && $this->fecha_vencimiento?->isPast()) {
+            return true;
+        }
+
+        return false;
     }
 
     public function fechaHoraUltimoPago(): ?Carbon

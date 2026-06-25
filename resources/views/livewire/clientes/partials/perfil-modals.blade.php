@@ -410,7 +410,7 @@
 </flux:modal>
 @endcan
 
-<flux:modal name="deuda-vencida-perfil-modal" wire:model="mostrarModalDeudaVencida" focusable class="md:max-w-3xl">
+<flux:modal wire:model.self="mostrarModalDeudaVencida" focusable class="md:max-w-3xl">
     <div class="flex flex-col">
         <div class="border-b border-red-200 bg-red-50 px-5 py-4 dark:border-red-900/60 dark:bg-red-950/40">
             <div class="flex items-start gap-3">

@@ -38,7 +38,7 @@ class DailyOperationsDebtService
                 'nombre' => $matricula->nombre,
                 'saldo_pendiente' => round($saldo, 2),
                 'estado' => $matricula->estado,
-                'es_vencida' => false,
+                'es_vencida' => $this->contratoEstaVencido($matricula->fecha_fin, $matricula->estado),
                 'fecha_vencimiento' => $matricula->fecha_fin,
                 'detalle' => $matricula->esClase() ? 'Clase' : 'Matrícula',
             ]);
@@ -57,7 +57,7 @@ class DailyOperationsDebtService
                 'nombre' => $membresia->membresia?->nombre ?? 'Membresía legacy',
                 'saldo_pendiente' => round($saldo, 2),
                 'estado' => $membresia->estado,
-                'es_vencida' => false,
+                'es_vencida' => $this->contratoEstaVencido($membresia->fecha_fin, $membresia->estado),
                 'fecha_vencimiento' => $membresia->fecha_fin,
                 'detalle' => 'Membresía legacy',
             ]);
@@ -130,7 +130,7 @@ class DailyOperationsDebtService
             ->first();
 
         return [
-            'items' => $items,
+            'items' => $items->values()->all(),
             'total_pendiente' => round((float) $items->sum('saldo_pendiente'), 2),
             'cantidad_items' => $items->count(),
             'tiene_deuda' => $items->isNotEmpty(),
@@ -188,5 +188,16 @@ class DailyOperationsDebtService
             })
             ->filter(fn (Cliente $cliente) => (float) $cliente->operacion_diaria_deuda_total > 0)
             ->values();
+    }
+
+    protected function contratoEstaVencido(?\Carbon\CarbonInterface $fechaFin, ?string $estado): bool
+    {
+        $estadoNormalizado = strtolower((string) $estado);
+
+        if (in_array($estadoNormalizado, ['vencida', 'vencido'], true)) {
+            return true;
+        }
+
+        return $fechaFin !== null && $fechaFin->isPast();
     }
 }
