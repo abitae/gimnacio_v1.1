@@ -11,6 +11,7 @@ use App\Livewire\Concerns\LogsLivewireErrors;
 use App\Livewire\Concerns\ManagesClienteMatriculaForm;
 use App\Livewire\Concerns\ManagesCuotaPagoModal;
 use App\Models\Core\Cliente;
+use App\Models\Core\ClienteFidelizacionMensaje;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\ClienteMembresia;
 use App\Models\Core\Pago;
