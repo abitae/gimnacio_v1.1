@@ -35,10 +35,6 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(SucursalContext::class);
         $this->app->singleton(BrandingResolver::class);
 
-        if ($this->app->environment('local')) {
-            $this->app->register(\App\Providers\TelescopeServiceProvider::class);
-        }
-
         // Registrar antes del boot de Spatie (p. ej. PermissionRegistrar::registerPermissions) para que el super
         // administrador se resuelva en el primer Gate::before y no dependa del orden respecto a checkPermissionTo.
         Gate::before(function ($user, $ability) {

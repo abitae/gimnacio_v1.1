@@ -50,10 +50,6 @@ Tests omitidos conocidos (6): 2FA deshabilitado en Fortify, restore en Windows.
 
 Errores de POS, caja, checking y BioTime se escriben en `storage/logs/operations.log` (canal `operations`).
 
-## Telescope (solo local)
-
-Con `APP_ENV=local`, Telescope se registra automáticamente. Acceso: `/telescope`. En tests y CI está deshabilitado (`TELESCOPE_ENABLED=false` en `phpunit.xml`).
-
 ## Playbook operaciones (tests automatizados)
 
 ```bash
