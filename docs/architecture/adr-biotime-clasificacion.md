@@ -19,3 +19,7 @@ La configuración avanzada (token, mapeos) permanece en `BioTimeDashboard` bajo 
 ## Alternativa rechazada
 
 Opción B (solo Administración + widget en Checking): descartada para reducir fricción operativa; el widget en Checking se implementa igualmente.
+
+## Ver también
+
+- [adr-biotime-puente-acceso.md](./adr-biotime-puente-acceso.md) — puente Python, polling y control de acceso Laravel → BioTime.

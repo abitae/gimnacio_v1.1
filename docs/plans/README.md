@@ -16,12 +16,14 @@ Cada plan describe el estado actual, objetivos, fases, pasos accionables, criter
 | 6 | Recursos | Media | [04-recursos-plan-mejora.md](./04-recursos-plan-mejora.md) |
 | 7 | Administracion | Media | [06-administracion-plan-mejora.md](./06-administracion-plan-mejora.md) |
 | 8 | Plataforma | Media | [07-plataforma-plan-mejora.md](./07-plataforma-plan-mejora.md) |
+| 9 | BioTime (integracion acceso) | Alta | [08-biotime-integracion-plan.md](./08-biotime-integracion-plan.md) |
 
 ## Plan transversal
 
 | Documento | Contenido |
 | --- | --- |
 | [99-transversal-plan-mejora.md](./99-transversal-plan-mejora.md) | Agregadores compartidos, legacy, multi-sucursal, nomenclatura y criterios globales |
+| [08-biotime-integracion-plan.md](./08-biotime-integracion-plan.md) | Config BioTime por sedes, API commands/roster, elegibilidad por matricula, puente Python + prompts Cursor |
 
 ## Convenciones de los planes
 
