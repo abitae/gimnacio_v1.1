@@ -4,8 +4,8 @@
 > **Clasificacion UI:** [adr-biotime-clasificacion.md](../architecture/adr-biotime-clasificacion.md)  
 > **Prioridad:** Alta (integracion operativa multi-sede)  
 > **Ultima actualizacion:** 2026-07-15  
-> **Estado:** Plan documentado — pendiente de ejecucion por fases  
-> **Hosting:** Banahosting (Laravel); BioTime 8.x local por sede (`:8090`)
+> **Estado:** Fases 0–5 implementadas; ADR puente en estado Aceptado  
+> **Hosting:** Banahosting (Laravel); BioTime 8.x local por sede (`:8085` / `:8090`)
 
 ---
 
@@ -15,7 +15,9 @@
 | --- | --- |
 | Fuente de verdad de acceso | Laravel |
 | Elegibilidad | Solo **matricula vigente** (tipo membresia; legacy `cliente_membresias` NO otorga acceso fisico) |
-| Bloqueo en BioTime | Quitar areas del empleado (conservar biometria) |
+| Gracia post-vencimiento | **0 dias** (`BioTimeAccessEligibilityService`: `fecha_fin >= hoy`) |
+| Alerta operativa | Dashboard BioTime por sede (`biotime.ver`); reconcile con `biotime.editar` |
+| Bloqueo en BioTime | Area denegada / quitar area autorizada (conservar biometria; BioTime rechaza `area: []`) |
 | Identidad | `emp_code` = `cliente.id` (string) |
 | Sedes | Una instalacion BioTime + un puente Python por sucursal |
 | Roster | Solo clientes de la sucursal autenticada |
@@ -507,7 +509,7 @@ X-BioTime-Secret: <webhook_secret_sede>
 
 ---
 
-## 7. Runbook operativo (borrador)
+## 7. Runbook operativo
 
 ### Alta de cliente con acceso biometrico
 
@@ -563,28 +565,36 @@ X-BioTime-Secret: <webhook_secret_sede>
 
 ## 10. Checklist global de cierre
 
-- [ ] PoC areas ↔ dispositivo OK en sede piloto
-- [ ] Token por sede en UI y API
-- [ ] Commands/ack/roster testeados multi-sede
-- [ ] Elegibilidad solo matricula vigente
-- [ ] Puente en Task Scheduler / servicio
-- [ ] Activate/deactivate refleja en terminal ≤ poll_interval
-- [ ] Heartbeat visible; alerta > 2 h
+- [ ] PoC areas ↔ dispositivo OK en sede piloto (validacion en terminal)
+- [x] Token por sede en UI y API
+- [x] Commands/ack/roster testeados multi-sede
+- [x] Elegibilidad solo matricula vigente (gracia 0 dias)
+- [x] Puente empaquetado (`tools/biotime-bridge` + scripts Task Scheduler)
+- [ ] Activate/deactivate refleja en terminal ≤ poll_interval (ops sede)
+- [x] Heartbeat visible; alerta > 2 h en dashboard
 - [ ] Runbook usado por recepcion al menos una vez
-- [ ] ADR puente en estado Aceptado
+- [x] ADR puente en estado Aceptado
 
 ---
 
 ## 11. Avance de implementacion
 
-| Fase | Estado |
-| --- | --- |
-| 0 PoC | Pendiente |
-| 1 Config por sede | Pendiente |
-| 2 API commands | Pendiente |
-| 3 Elegibilidad | Pendiente |
-| 4 Puente Python | Pendiente |
-| 5 Ops / ADR | Pendiente |
+Actualizado: 2026-07-15.
+
+| Fase | Estado | Notas |
+| --- | --- | --- |
+| 0 PoC | Hecho (script) | `tools/biotime-poc/`; validacion area→dispositivo en terminal queda a ops de sede |
+| 1 Config por sede | Hecho | `bio_time_sucursal_settings`, middleware token→sede, UI Sedes |
+| 2 API commands | Hecho | `commands` / `ack` / `roster` + tests Feature |
+| 3 Elegibilidad | Hecho | Solo matricula vigente; gracia **0 dias**; job reconcile + hook matricula |
+| 4 Puente Python | Hecho | `tools/biotime-bridge` (poll, areas, ack, roster, scripts Windows) |
+| 5 Ops / ADR | Hecho | Panel operacional (5.1); ADR **Aceptado** + runbook + este avance (5.2) |
+
+Decisiones cerradas en ADR / codigo:
+
+- Elegibilidad = solo matricula vigente (no legacy).
+- Gracia = 0 dias (`BioTimeAccessEligibilityService`).
+- Alerta = dashboard BioTime (`biotime.ver`); CTA reconcile (`biotime.editar`).
 
 ---
 

@@ -1,0 +1,92 @@
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+
+import argparse
+import os
+import sys
+
+from .config import default_config_path, load_config
+from .logging_setup import setup_logging
+from .runner import BridgeRunner
+
+
+def build_parser():
+    p = argparse.ArgumentParser(description="Puente BioTime ↔ Laravel (gimnasio)")
+    p.add_argument(
+        "--config",
+        default=os.environ.get("BIOTIME_BRIDGE_CONFIG") or default_config_path(),
+        help="Ruta a config.yaml",
+    )
+    sub = p.add_subparsers(dest="command")
+    sub.required = True
+
+    sub.add_parser("gui", help="Interfaz grafica (tkinter)")
+    sub.add_parser("run", help="Loop continuo: poll commands + opcional roster/sync")
+    sub.add_parser("once", help="Un ciclo: commands (+ roster/sync si toca por timers=0 forzado)")
+    sub.add_parser("doctor", help="Verifica Laravel health + BioTime login")
+    p_roster = sub.add_parser("roster", help="Ejecuta solo reconcile de roster")
+    p_sync = sub.add_parser("sync-employees", help="Push employees a Laravel")
+    # silence unused
+    _ = p_roster
+    _ = p_sync
+    return p
+
+
+def main(argv=None):
+    parser = build_parser()
+    args = parser.parse_args(argv)
+
+    if args.command == "gui":
+        from .gui import run_gui
+
+        return run_gui(args.config)
+
+    try:
+        cfg = load_config(args.config)
+    except Exception as exc:
+        print("Config error: {0}".format(exc), file=sys.stderr)
+        return 2
+
+    setup_logging(cfg.log_dir, cfg.log_level)
+    runner = BridgeRunner(cfg)
+
+    try:
+        if args.command == "doctor":
+            return runner.doctor()
+
+        if args.command == "run":
+            runner.start()
+            return 0
+
+        # once / roster / sync need biotime login first
+        runner.biotime.login(
+            cfg.biotime_user, cfg.biotime_password, mode=cfg.biotime_auth_mode
+        )
+
+        if args.command == "once":
+            runner.poll_commands()
+            if cfg.roster_reconcile_seconds > 0:
+                runner.roster_reconcile()
+            if cfg.sync_push_seconds > 0:
+                runner.push_employees()
+            return 0
+
+        if args.command == "roster":
+            runner.roster_reconcile()
+            return 0
+
+        if args.command == "sync-employees":
+            runner.push_employees()
+            return 0
+
+        parser.print_help()
+        return 1
+    except KeyboardInterrupt:
+        print("Detenido por usuario")
+        return 0
+    finally:
+        runner.close()
+
+
+if __name__ == "__main__":
+    sys.exit(main())

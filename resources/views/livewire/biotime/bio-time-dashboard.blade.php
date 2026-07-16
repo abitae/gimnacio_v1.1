@@ -3,7 +3,7 @@
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
                 <h1 class="text-2xl font-semibold text-white">BioTime</h1>
-                <p class="mt-1 text-sm text-white/80">Recepcion, homologacion y monitoreo del agente ZKTeco.</p>
+                <p class="mt-1 text-sm text-white/80">Recepcion, homologacion y monitoreo del agente ZKTeco por sede.</p>
             </div>
             <div class="inline-flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 text-sm text-white">
                 <span class="h-2.5 w-2.5 rounded-full {{ $isHealthy ? 'bg-emerald-300' : 'bg-rose-300' }}"></span>
@@ -16,7 +16,7 @@
         <nav class="-mb-px flex flex-wrap gap-2">
             @foreach ([
                 'dashboard' => 'Dashboard',
-                'security' => 'Seguridad',
+                'sedes' => 'Sedes',
                 'mapping' => 'Mapeo',
                 'history' => 'Historial',
             ] as $key => $label)
@@ -53,47 +53,89 @@
                 <div>
                     <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Estado de salud</h2>
                     <p class="text-sm text-zinc-600 dark:text-zinc-400">
-                        Ultimo lote recibido:
+                        Ultimo heartbeat / sync de sedes permitidas:
                         <span class="font-medium">{{ $lastReceivedAt ? $lastReceivedAt->diffForHumans() : 'sin registros' }}</span>
                     </p>
                 </div>
                 <div class="rounded-lg px-3 py-2 text-sm font-medium {{ $isHealthy ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200' : 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-200' }}">
-                    {{ $isHealthy ? 'Webhook activo en los ultimos 5 minutos' : 'Webhook sin datos recientes' }}
+                    {{ $isHealthy ? 'Actividad en los ultimos 5 minutos' : 'Sin datos recientes' }}
                 </div>
+            </div>
+            <p class="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
+                Configura tokens y areas por sede en la pestana <button type="button" wire:click="setTab('sedes')" class="font-medium text-red-600 underline dark:text-red-300">Sedes</button>.
+            </p>
+        </section>
+
+        <section class="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+            <div class="mb-3 flex items-center justify-between gap-3">
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Operacion por sede</h2>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
+                    <thead class="text-xs uppercase text-zinc-500 dark:text-zinc-400">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Sede</th>
+                            <th class="px-3 py-2 text-left">Estado</th>
+                            <th class="px-3 py-2 text-left">Heartbeat</th>
+                            <th class="px-3 py-2 text-left">Ultimo sync</th>
+                            <th class="px-3 py-2 text-right">Pending</th>
+                            <th class="px-3 py-2 text-right">Failed 24h</th>
+                            <th class="px-3 py-2 text-right"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
+                        @forelse ($allowedSucursales as $sucursal)
+                            @php
+                                $setting = $settingsBySucursal->get($sucursal->id);
+                                $ops = $opsBySucursal[$sucursal->id] ?? ['pending' => 0, 'failed_24h' => 0, 'heartbeat_stale' => true];
+                            @endphp
+                            <tr wire:key="ops-{{ $sucursal->id }}" class="{{ ($ops['heartbeat_stale'] ?? true) ? 'bg-rose-50/60 dark:bg-rose-950/20' : '' }}">
+                                <td class="px-3 py-2">
+                                    <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $sucursal->nombre }}</div>
+                                    <div class="text-xs text-zinc-500">{{ $sucursal->codigo }}</div>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <span class="rounded-full px-2 py-1 text-xs font-medium {{ $setting?->enabled ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200' : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' }}">
+                                        {{ $setting?->enabled ? 'enabled' : 'disabled' }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <span class="text-xs font-medium {{ ($ops['heartbeat_stale'] ?? true) ? 'text-rose-600 dark:text-rose-300' : 'text-emerald-700 dark:text-emerald-300' }}">
+                                        @if ($ops['heartbeat_stale'] ?? true)
+                                            Aviso &gt; 2h
+                                        @endif
+                                        {{ $setting?->last_heartbeat_at?->diffForHumans() ?? 'nunca' }}
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 text-xs text-zinc-600 dark:text-zinc-400">
+                                    {{ $setting?->last_received_at?->diffForHumans() ?? 'nunca' }}
+                                </td>
+                                <td class="px-3 py-2 text-right font-mono text-xs">{{ $ops['pending'] ?? 0 }}</td>
+                                <td class="px-3 py-2 text-right font-mono text-xs {{ ($ops['failed_24h'] ?? 0) > 0 ? 'text-rose-600 dark:text-rose-300' : '' }}">{{ $ops['failed_24h'] ?? 0 }}</td>
+                                <td class="px-3 py-2 text-right">
+                                    @can('biotime.editar')
+                                        <button
+                                            type="button"
+                                            wire:click="reconcileAccess({{ $sucursal->id }})"
+                                            wire:confirm="Encolar reconciliacion de acceso BioTime para esta sede?"
+                                            class="rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+                                        >
+                                            Reconciliar acceso
+                                        </button>
+                                    @endcan
+                                </td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="7" class="px-3 py-6 text-center text-zinc-500">Sin sedes permitidas.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </section>
     @endif
 
-    @if ($tab === 'security')
-        <section class="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900" x-data="{ copied: false }">
-            <div class="flex flex-col gap-4 lg:flex-row lg:items-end">
-                <div class="flex-1">
-                    <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Token global del webhook</label>
-                    <input
-                        type="text"
-                        readonly
-                        value="{{ $secret }}"
-                        x-ref="token"
-                        class="mt-2 w-full rounded-lg border border-zinc-300 bg-zinc-50 px-3 py-2 font-mono text-sm text-zinc-900 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-100"
-                    >
-                    <p class="mt-2 text-xs text-zinc-500 dark:text-zinc-400">El agente puede enviar este valor como Bearer Token o X-BioTime-Secret.</p>
-                </div>
-                <div class="flex gap-2">
-                    <button
-                        type="button"
-                        x-on:click="navigator.clipboard.writeText($refs.token.value); copied = true; setTimeout(() => copied = false, 1500)"
-                        class="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                    >
-                        <span x-text="copied ? 'Copiado' : 'Copiar'"></span>
-                    </button>
-                    @can('biotime.editar')
-                        <button type="button" wire:click="regenerateToken" wire:confirm="Regenerar el token invalidara el token usado actualmente por el agente." class="rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700">
-                            Regenerar
-                        </button>
-                    @endcan
-                </div>
-            </div>
-        </section>
+    @if ($tab === 'sedes')
+        @include('livewire.biotime.partials.sucursal-settings')
     @endif
 
     @if ($tab === 'mapping')

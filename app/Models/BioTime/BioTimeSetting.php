@@ -36,6 +36,11 @@ class BioTimeSetting extends Model
         return $setting;
     }
 
+    /**
+     * Legacy: secret singleton / env. Ya no lo usa el path de sync API (paso 1.2):
+     * VerifyBioTimeSyncToken resuelve BioTimeSucursalSetting por sede.
+     * Se mantiene para UI dashboard (paso 1.3 migrará lecturas) y migraciones viejas.
+     */
     public static function activeSecret(): ?string
     {
         $secret = self::current()->webhook_secret;

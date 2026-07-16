@@ -4,20 +4,23 @@ declare(strict_types=1);
 
 namespace App\Livewire\BioTime;
 
+use App\Jobs\BioTime\ReconcileBioTimeAccessForSucursal;
 use App\Livewire\Concerns\FlashesToast;
+use App\Models\BioTime\BioTimeAccessCommand;
 use App\Models\BioTime\BioTimeArea;
 use App\Models\BioTime\BioTimeDepartment;
 use App\Models\BioTime\BioTimeDevice;
 use App\Models\BioTime\BioTimeEmployee;
 use App\Models\BioTime\BioTimeMapping;
-use App\Models\BioTime\BioTimeSetting;
+use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\BioTime\BioTimeSyncBatch;
 use App\Models\BioTime\BioTimeSyncLog;
 use App\Models\BioTime\BioTimeTransaction;
 use App\Models\Core\Cliente;
 use App\Models\System\Sucursal;
-use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
+use App\Models\User;
+use App\Services\SucursalContext;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -53,23 +56,114 @@ class BioTimeDashboard extends Component
     /** @var array<int|string, int|string> */
     public array $employeeTargets = [];
 
+    /**
+     * Formularios editables por sucursal_id.
+     *
+     * @var array<int|string, array{
+     *     area_biotime_id: string,
+     *     biotime_base_url: string,
+     *     poll_interval_seconds: int|string,
+     *     enabled: bool
+     * }>
+     */
+    public array $settingForms = [];
+
+    /**
+     * Sucursal IDs cuyo token se muestra en claro (solo biotime.editar).
+     *
+     * @var array<int, true>
+     */
+    public array $revealedTokenIds = [];
+
     public function mount(): void
     {
         Gate::authorize('biotime.ver');
         $this->loadMappings();
+        $this->loadSettingForms();
     }
 
     public function setTab(string $tab): void
     {
-        $this->tab = in_array($tab, ['dashboard', 'security', 'mapping', 'history'], true) ? $tab : 'dashboard';
+        // "security" legacy redirige al modulo por sedes.
+        if ($tab === 'security') {
+            $tab = 'sedes';
+        }
+
+        $this->tab = in_array($tab, ['dashboard', 'sedes', 'mapping', 'history'], true) ? $tab : 'dashboard';
         $this->resetPage();
+
+        if ($this->tab === 'sedes') {
+            $this->loadSettingForms();
+        }
     }
 
-    public function regenerateToken(): void
+    public function saveSucursalSetting(int $sucursalId): void
     {
         Gate::authorize('biotime.editar');
-        BioTimeSetting::current()->regenerateSecret();
-        $this->flashToast('success', 'Token BioTime regenerado.');
+        $this->assertSucursalAllowed($sucursalId);
+
+        $form = $this->settingForms[$sucursalId] ?? [];
+        $areaRaw = $form['area_biotime_id'] ?? '';
+        $url = trim((string) ($form['biotime_base_url'] ?? ''));
+        $poll = (int) ($form['poll_interval_seconds'] ?? 3600);
+        $enabled = (bool) ($form['enabled'] ?? true);
+
+        if ($poll < 60) {
+            $this->flashToast('error', 'El intervalo de poll minimo es 60 segundos.');
+
+            return;
+        }
+
+        $setting = BioTimeSucursalSetting::forSucursal($sucursalId);
+        $setting->forceFill([
+            'area_biotime_id' => $areaRaw === '' || $areaRaw === null ? null : (int) $areaRaw,
+            'biotime_base_url' => $url !== '' ? $url : null,
+            'poll_interval_seconds' => $poll,
+            'enabled' => $enabled,
+        ])->save();
+
+        $this->loadSettingForms();
+        $this->flashToast('success', 'Configuracion BioTime de la sede guardada.');
+    }
+
+    public function regenerateSucursalToken(int $sucursalId): void
+    {
+        Gate::authorize('biotime.editar');
+        $this->assertSucursalAllowed($sucursalId);
+
+        $setting = BioTimeSucursalSetting::forSucursal($sucursalId);
+        $setting->regenerateSecret();
+        $this->revealedTokenIds[$sucursalId] = true;
+        $this->loadSettingForms();
+        $this->flashToast('success', 'Token regenerado. Actualiza el config del puente en esa sede.');
+    }
+
+    public function revealSucursalToken(int $sucursalId): void
+    {
+        Gate::authorize('biotime.editar');
+        $this->assertSucursalAllowed($sucursalId);
+        $this->revealedTokenIds[$sucursalId] = true;
+    }
+
+    public function hideSucursalToken(int $sucursalId): void
+    {
+        unset($this->revealedTokenIds[$sucursalId]);
+    }
+
+    public function reconcileAccess(int $sucursalId): void
+    {
+        Gate::authorize('biotime.editar');
+        $this->assertSucursalAllowed($sucursalId);
+
+        $setting = BioTimeSucursalSetting::forSucursal($sucursalId);
+        if (! $setting->enabled) {
+            $this->flashToast('error', 'La sede esta deshabilitada; no se puede reconciliar acceso.');
+
+            return;
+        }
+
+        ReconcileBioTimeAccessForSucursal::dispatch($sucursalId);
+        $this->flashToast('success', 'Reconciliacion de acceso encolada para la sede.');
     }
 
     public function saveSucursalMapping(string $type, int $biotimeId): void
@@ -134,15 +228,41 @@ class BioTimeDashboard extends Component
 
     public function render()
     {
-        $secret = BioTimeSetting::activeSecret() ?: '';
-        $lastReceived = Cache::get('biotime:last_received_at') ?? BioTimeSetting::current()->last_received_at?->toIso8601String();
-        $lastReceivedAt = $lastReceived ? Carbon::parse($lastReceived) : null;
+        $allowedSucursales = $this->allowedSucursales();
+        $settingsBySucursal = BioTimeSucursalSetting::query()
+            ->whereIn('sucursal_id', $allowedSucursales->pluck('id'))
+            ->get()
+            ->keyBy('sucursal_id');
+
+        foreach ($allowedSucursales as $sucursal) {
+            if (! $settingsBySucursal->has($sucursal->id)) {
+                $settingsBySucursal->put($sucursal->id, BioTimeSucursalSetting::forSucursal($sucursal->id));
+            }
+        }
+
+        $latestHeartbeat = $settingsBySucursal
+            ->map(fn (BioTimeSucursalSetting $s) => $s->last_heartbeat_at ?? $s->last_received_at)
+            ->filter()
+            ->sortDesc()
+            ->first();
+
+        $isHealthy = $latestHeartbeat !== null && $latestHeartbeat->gt(now()->subMinutes(5));
+
+        $plainTokens = [];
+        foreach (array_keys($this->revealedTokenIds) as $sucursalId) {
+            $plainTokens[(int) $sucursalId] = (string) ($settingsBySucursal->get((int) $sucursalId)?->webhook_secret ?? '');
+        }
+
+        $opsBySucursal = $this->opsBySucursal($allowedSucursales);
 
         return view('livewire.biotime.bio-time-dashboard', [
             'stats' => $this->stats(),
-            'secret' => $secret,
-            'lastReceivedAt' => $lastReceivedAt,
-            'isHealthy' => $lastReceivedAt !== null && $lastReceivedAt->gt(now()->subMinutes(5)),
+            'lastReceivedAt' => $latestHeartbeat,
+            'isHealthy' => $isHealthy,
+            'allowedSucursales' => $allowedSucursales,
+            'settingsBySucursal' => $settingsBySucursal,
+            'opsBySucursal' => $opsBySucursal,
+            'plainTokens' => $plainTokens,
             'sucursales' => Sucursal::query()->orderBy('nombre')->get(['id', 'nombre']),
             'clientes' => $this->clientesForSelect(),
             'areas' => $this->areasForMapping(),
@@ -151,6 +271,89 @@ class BioTimeDashboard extends Component
             'employees' => $this->employeesForMapping(),
             'logs' => $this->logs(),
         ])->layout('layouts.app', ['title' => 'BioTime']);
+    }
+
+    /**
+     * @param  Collection<int, Sucursal>  $sucursales
+     * @return array<int, array{pending:int, failed_24h:int, heartbeat_stale:bool}>
+     */
+    private function opsBySucursal(Collection $sucursales): array
+    {
+        $ids = $sucursales->pluck('id')->map(fn ($id) => (int) $id)->all();
+        if ($ids === []) {
+            return [];
+        }
+
+        $since = now()->subDay();
+
+        $pending = BioTimeAccessCommand::query()
+            ->selectRaw('sucursal_id, count(*) as aggregate')
+            ->whereIn('sucursal_id', $ids)
+            ->whereIn('status', [
+                BioTimeAccessCommand::STATUS_PENDING,
+                BioTimeAccessCommand::STATUS_PROCESSING,
+            ])
+            ->groupBy('sucursal_id')
+            ->pluck('aggregate', 'sucursal_id');
+
+        $failed = BioTimeAccessCommand::query()
+            ->selectRaw('sucursal_id, count(*) as aggregate')
+            ->whereIn('sucursal_id', $ids)
+            ->where('status', BioTimeAccessCommand::STATUS_FAILED)
+            ->where(function ($query) use ($since): void {
+                $query->where('acked_at', '>=', $since)
+                    ->orWhere(function ($inner) use ($since): void {
+                        $inner->whereNull('acked_at')->where('updated_at', '>=', $since);
+                    });
+            })
+            ->groupBy('sucursal_id')
+            ->pluck('aggregate', 'sucursal_id');
+
+        $settings = BioTimeSucursalSetting::query()
+            ->whereIn('sucursal_id', $ids)
+            ->get()
+            ->keyBy('sucursal_id');
+
+        $ops = [];
+        foreach ($ids as $sucursalId) {
+            $setting = $settings->get($sucursalId);
+            $heartbeat = $setting?->last_heartbeat_at;
+            $ops[$sucursalId] = [
+                'pending' => (int) ($pending[$sucursalId] ?? 0),
+                'failed_24h' => (int) ($failed[$sucursalId] ?? 0),
+                'heartbeat_stale' => $heartbeat === null || $heartbeat->lt(now()->subHours(2)),
+            ];
+        }
+
+        return $ops;
+    }
+
+    private function loadSettingForms(): void
+    {
+        foreach ($this->allowedSucursales() as $sucursal) {
+            $setting = BioTimeSucursalSetting::forSucursal($sucursal->id);
+            $this->settingForms[$sucursal->id] = [
+                'area_biotime_id' => $setting->area_biotime_id !== null ? (string) $setting->area_biotime_id : '',
+                'biotime_base_url' => (string) ($setting->biotime_base_url ?? ''),
+                'poll_interval_seconds' => (int) ($setting->poll_interval_seconds ?: 3600),
+                'enabled' => (bool) $setting->enabled,
+            ];
+        }
+    }
+
+    private function allowedSucursales(): Collection
+    {
+        /** @var User $user */
+        $user = auth()->user();
+
+        return app(SucursalContext::class)->availableForUser($user);
+    }
+
+    private function assertSucursalAllowed(int $sucursalId): void
+    {
+        if (! $this->allowedSucursales()->contains('id', $sucursalId)) {
+            abort(403);
+        }
     }
 
     private function loadMappings(): void

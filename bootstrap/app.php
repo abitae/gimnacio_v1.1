@@ -14,6 +14,26 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withSchedule(function (\Illuminate\Console\Scheduling\Schedule $schedule): void {
+        $minutes = max(1, (int) config('biotime.access_reconcile_minutes', 60));
+
+        $event = $schedule->call(function (): void {
+            \App\Models\BioTime\BioTimeSucursalSetting::query()
+                ->where('enabled', true)
+                ->pluck('sucursal_id')
+                ->each(function ($sucursalId): void {
+                    \App\Jobs\BioTime\ReconcileBioTimeAccessForSucursal::dispatch((int) $sucursalId);
+                });
+        })
+            ->name('biotime-access-reconcile')
+            ->withoutOverlapping();
+
+        if ($minutes === 60) {
+            $event->hourly();
+        } else {
+            $event->everyMinutes(min(59, $minutes));
+        }
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,

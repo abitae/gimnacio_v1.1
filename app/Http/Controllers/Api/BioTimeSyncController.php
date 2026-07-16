@@ -10,10 +10,11 @@ use App\Jobs\BioTime\ProcessBioTimeDepartments;
 use App\Jobs\BioTime\ProcessBioTimeDevices;
 use App\Jobs\BioTime\ProcessBioTimeEmployees;
 use App\Jobs\BioTime\ProcessBioTimeTransactions;
-use App\Models\BioTime\BioTimeSetting;
+use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\BioTime\BioTimeSyncBatch;
 use App\Services\BioTime\BioTimeSyncService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
@@ -33,7 +34,18 @@ class BioTimeSyncController extends Controller
         $records = $payload['data'];
         $receivedAt = now();
 
-        BioTimeSetting::current()->forceFill(['last_received_at' => $receivedAt])->save();
+        $setting = $this->authenticatedSetting($request);
+        $setting->forceFill([
+            'last_received_at' => $receivedAt,
+            'last_heartbeat_at' => $receivedAt,
+        ])->save();
+
+        Cache::put(
+            'biotime:last_received_at:'.$setting->sucursal_id,
+            $receivedAt->toIso8601String(),
+            now()->addMinutes(10)
+        );
+        // Compat UI global hasta paso 1.3 (dashboard por sede).
         Cache::put('biotime:last_received_at', $receivedAt->toIso8601String(), now()->addMinutes(10));
 
         BioTimeSyncBatch::query()->create([
@@ -62,6 +74,7 @@ class BioTimeSyncController extends Controller
                 'failed' => 0,
                 'queued' => true,
                 'batch_id' => $batchId,
+                'sucursal_id' => $setting->sucursal_id,
             ], 202);
         }
 
@@ -75,16 +88,41 @@ class BioTimeSyncController extends Controller
             'failed' => $result['failed'],
             'queued' => false,
             'batch_id' => $batchId,
+            'sucursal_id' => $setting->sucursal_id,
         ]);
     }
 
-    public function health(): JsonResponse
+    public function health(Request $request): JsonResponse
     {
+        $setting = $this->authenticatedSetting($request);
+        $heartbeatAt = now();
+        $setting->forceFill(['last_heartbeat_at' => $heartbeatAt])->save();
+
         return response()->json([
             'status' => 'ok',
             'service' => 'biotime-sync-receiver',
+            'sucursal_id' => $setting->sucursal_id,
+            'last_heartbeat_at' => $heartbeatAt->toIso8601String(),
             'entities' => ['transactions', 'devices', 'areas', 'departments', 'employees'],
+            'endpoints' => [
+                'GET /api/biotime/health',
+                'POST /api/biotime/sync',
+                'GET /api/biotime/commands',
+                'POST /api/biotime/commands/{id}/ack',
+                'GET /api/biotime/roster',
+            ],
         ]);
+    }
+
+    private function authenticatedSetting(Request $request): BioTimeSucursalSetting
+    {
+        $setting = $request->attributes->get('biotime_sucursal_setting');
+
+        if (! $setting instanceof BioTimeSucursalSetting) {
+            abort(401, 'Unauthorized');
+        }
+
+        return $setting;
     }
 
     private function parseDate(?string $value): ?Carbon

@@ -23,6 +23,14 @@ class ClienteMatricula extends Model
 
             app(\App\Services\ClienteService::class)
                 ->syncEstadoDesdeMembresiaActiva((int) $clienteMatricula->cliente_id);
+
+            $sucursalId = (int) ($clienteMatricula->sucursal_id
+                ?: $clienteMatricula->cliente()?->sucursal_id
+                ?: 0);
+
+            if ($sucursalId > 0) {
+                \App\Jobs\BioTime\ReconcileBioTimeAccessForSucursal::dispatch($sucursalId);
+            }
         });
     }
 
