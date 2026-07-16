@@ -12,6 +12,7 @@ class BioTimeSyncBatch extends Model
 
     protected $fillable = [
         'batch_id',
+        'sucursal_id',
         'entity',
         'status',
         'received',
@@ -26,6 +27,7 @@ class BioTimeSyncBatch extends Model
     protected function casts(): array
     {
         return [
+            'sucursal_id' => 'integer',
             'received' => 'integer',
             'processed' => 'integer',
             'failed' => 'integer',

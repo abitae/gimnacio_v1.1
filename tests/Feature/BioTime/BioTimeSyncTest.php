@@ -308,7 +308,8 @@ it('renders operational dashboard per sucursal and dispatches reconcile', functi
     session([\App\Services\SucursalContext::SUCURSAL_ID_KEY => $sucursal->id]);
 
     Livewire::test(BioTimeDashboard::class)
-        ->assertSee('Operacion por sede')
+        ->assertSee('Salud del puente')
+        ->assertSee('Todas las sedes')
         ->assertSee($sucursal->nombre)
         ->assertSeeHtml('Aviso &gt; 2h')
         ->assertSee('Reconciliar acceso')

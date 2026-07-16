@@ -19,6 +19,8 @@ class BioTimeAccessCommand extends Model
 
     public const ACTION_DEACTIVATE = 'deactivate';
 
+    public const ACTION_DELETE = 'delete';
+
     public const STATUS_PENDING = 'pending';
 
     public const STATUS_PROCESSING = 'processing';
@@ -35,6 +37,9 @@ class BioTimeAccessCommand extends Model
         'emp_code',
         'action',
         'desired_area_biotime_id',
+        'ensure_create',
+        'first_name',
+        'last_name',
         'status',
         'attempts',
         'last_error',
@@ -47,6 +52,7 @@ class BioTimeAccessCommand extends Model
             'sucursal_id' => 'integer',
             'cliente_id' => 'integer',
             'desired_area_biotime_id' => 'integer',
+            'ensure_create' => 'boolean',
             'attempts' => 'integer',
             'acked_at' => 'datetime',
         ];
@@ -69,6 +75,10 @@ class BioTimeAccessCommand extends Model
 
     public static function isValidAction(string $action): bool
     {
-        return in_array($action, [self::ACTION_ACTIVATE, self::ACTION_DEACTIVATE], true);
+        return in_array($action, [
+            self::ACTION_ACTIVATE,
+            self::ACTION_DEACTIVATE,
+            self::ACTION_DELETE,
+        ], true);
     }
 }

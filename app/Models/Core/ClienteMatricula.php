@@ -17,12 +17,15 @@ class ClienteMatricula extends Model
     protected static function booted(): void
     {
         static::saved(function (ClienteMatricula $clienteMatricula): void {
-            if ($clienteMatricula->tipo !== 'membresia') {
-                return;
+            if ($clienteMatricula->tipo === 'membresia') {
+                app(\App\Services\ClienteService::class)
+                    ->syncEstadoDesdeMembresiaActiva((int) $clienteMatricula->cliente_id);
             }
 
-            app(\App\Services\ClienteService::class)
-                ->syncEstadoDesdeMembresiaActiva((int) $clienteMatricula->cliente_id);
+            // BioTime: membresia y clase disparan reconcile de acceso fisico.
+            if (! in_array($clienteMatricula->tipo, ['membresia', 'clase'], true)) {
+                return;
+            }
 
             $sucursalId = (int) ($clienteMatricula->sucursal_id
                 ?: $clienteMatricula->cliente()?->sucursal_id

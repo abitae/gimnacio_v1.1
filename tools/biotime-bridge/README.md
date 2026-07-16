@@ -18,8 +18,21 @@ O doble clic en `start-gui.bat` (usa `.venv` si existe).
 | --- | --- |
 | Doctor | Valida Laravel health + login BioTime |
 | Una vez | Un ciclo `once` (commands / roster / sync según config) |
-| Iniciar / Detener | Loop `run` en segundo plano, stop cooperativo |
+| Iniciar / Detener | Loop `run` en hilo; stop cooperativo |
+| Segundo plano | Inicia (si hace falta) y **oculta la ventana**; el poll sigue activo |
+| Mostrar ventana | Restaura la GUI si estaba minimizada |
+| Cerrar (X) | Si está corriendo: pregunta minimizar vs detener |
 | Configuración | Editar y **guardar** `config.yaml` (URLs, token, áreas, tiempos) |
+
+### Segundo plano (sin GUI)
+
+```bat
+REM Sin consola (pythonw):
+start-background.bat
+
+REM O Task Scheduler continuo (recomendado en producción):
+powershell -ExecutionPolicy Bypass -File scripts\install-task-continuous.ps1
+```
 
 Pestaña **Configuración**: cambia valores y pulsa **Guardar config.yaml**. Token/password ocultos por defecto (checkbox para mostrar). No se puede guardar mientras el loop está en marcha.
 
@@ -76,6 +89,8 @@ Pestaña **Configuración**: cambia valores y pulsa **Guardar config.yaml**. Tok
 6. Registrar tarea Windows (abajo) o NSSM.
 
 > BioTime 8 **rechaza** `area: []`. El deactivate asigna `denied_area_id` (conserva biometría).
+> El `activate` con `ensure_create` **crea** el empleado si no existe (requiere `company_id` y `department_id` en config).
+> El comando `delete` borra empleados inelegibles para liberar cupo (pierde biometría).
 
 ## URLs Laravel (API)
 

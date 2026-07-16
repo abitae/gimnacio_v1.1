@@ -102,7 +102,7 @@ class BridgeGuiApp(object):
         footer.pack(fill=tk.X, **pad)
         ttk.Label(
             footer,
-            text="Guarda la config antes de Doctor / Iniciar. En producción puedes usar Task Scheduler.",
+            text="Segundo plano: botón o cerrar ventana (minimizar). Producción: Task Scheduler / start-background.bat",
             foreground="#555555",
         ).pack(side=tk.LEFT)
 
@@ -126,8 +126,16 @@ class BridgeGuiApp(object):
         self.btn_once.pack(side=tk.LEFT, padx=6)
         self.btn_start = ttk.Button(actions, text="Iniciar (run)", command=self._do_start)
         self.btn_start.pack(side=tk.LEFT)
+        self.btn_background = ttk.Button(
+            actions, text="Segundo plano", command=self._do_background
+        )
+        self.btn_background.pack(side=tk.LEFT, padx=6)
         self.btn_stop = ttk.Button(actions, text="Detener", command=self._do_stop, state=tk.DISABLED)
         self.btn_stop.pack(side=tk.LEFT, padx=6)
+        self.btn_restore = ttk.Button(
+            actions, text="Mostrar ventana", command=self._restore_window, state=tk.DISABLED
+        )
+        self.btn_restore.pack(side=tk.LEFT, padx=6)
 
         log_frame = ttk.LabelFrame(parent, text="Registro")
         log_frame.pack(fill=tk.BOTH, expand=True, **pad)
@@ -179,6 +187,8 @@ class BridgeGuiApp(object):
         areas.pack(fill=tk.X, **pad)
         self._add_field(areas, "area_id", "Área autorizada (id)", width=12)
         self._add_field(areas, "denied_area_id", "Área denegada (id)", width=12)
+        self._add_field(areas, "company_id", "Company (id, create)", width=12)
+        self._add_field(areas, "department_id", "Department (id, create)", width=12)
         self._add_field(areas, "sucursal_codigo", "Código sede", width=28)
 
         timing = ttk.LabelFrame(form, text="Tiempos y opciones")
@@ -271,6 +281,8 @@ class BridgeGuiApp(object):
             "biotime_auth_mode": c.biotime_auth_mode,
             "area_id": str(c.area_id),
             "denied_area_id": str(c.denied_area_id),
+            "company_id": str(c.company_id),
+            "department_id": str(c.department_id),
             "sucursal_codigo": c.sucursal_codigo,
             "poll_seconds": str(c.poll_seconds),
             "roster_reconcile_seconds": str(c.roster_reconcile_seconds),
@@ -324,6 +336,8 @@ class BridgeGuiApp(object):
             "biotime_auth_mode": text("biotime_auth_mode") or "auto",
             "area_id": as_int("area_id", "area_id"),
             "denied_area_id": as_int("denied_area_id", "denied_area_id"),
+            "company_id": as_int("company_id", "company_id"),
+            "department_id": as_int("department_id", "department_id"),
             "sucursal_codigo": text("sucursal_codigo"),
             "poll_seconds": as_int("poll_seconds", "poll_seconds"),
             "roster_reconcile_seconds": as_int(
@@ -431,15 +445,19 @@ class BridgeGuiApp(object):
         self.btn_doctor.configure(state=state_idle)
         self.btn_once.configure(state=state_idle)
         self.btn_start.configure(state=state_idle)
+        self.btn_background.configure(state=state_idle)
         self.btn_save.configure(state=state_idle)
         if running_loop:
             self.btn_stop.configure(state=tk.NORMAL)
+            self.btn_background.configure(state=tk.NORMAL)
             self.btn_doctor.configure(state=tk.DISABLED)
             self.btn_once.configure(state=tk.DISABLED)
             self.btn_start.configure(state=tk.DISABLED)
             self.btn_save.configure(state=tk.DISABLED)
         elif not busy:
             self.btn_stop.configure(state=tk.DISABLED)
+            self.btn_background.configure(state=tk.DISABLED)
+            self.btn_restore.configure(state=tk.DISABLED)
 
     def _ensure_config(self):
         if self.cfg is None:
@@ -528,12 +546,58 @@ class BridgeGuiApp(object):
 
         self._run_job("En ejecucion", job, running_loop=True)
 
+    def _do_background(self):
+        """Inicia (si no corre) y oculta la ventana; el puente sigue en segundo plano."""
+        if not self._busy:
+            self._do_start()
+        self.root.after(300, self._withdraw_to_background)
+
+    def _withdraw_to_background(self):
+        self.root.withdraw()
+        self.status_var.set("Segundo plano (poll activo)")
+        self.btn_restore.configure(state=tk.NORMAL)
+        try:
+            self.root.iconify()
+        except Exception:
+            pass
+        logging.getLogger(__name__).info(
+            "Puente en segundo plano. Usa 'Mostrar ventana' o la barra de tareas."
+        )
+
+    def _restore_window(self):
+        try:
+            self.root.deiconify()
+        except Exception:
+            pass
+        self.root.lift()
+        self.btn_restore.configure(state=tk.DISABLED)
+        if self._busy:
+            self.status_var.set("En ejecucion")
+
     def _do_stop(self):
         self._stop_event.set()
         self.status_var.set("Deteniendo…")
         self.btn_stop.configure(state=tk.DISABLED)
+        self._restore_window()
 
     def _on_close(self):
+        if self._busy and not self._stop_event.is_set():
+            choice = messagebox.askyesnocancel(
+                "Puente BioTime",
+                "El puente esta en ejecucion.\n\n"
+                "Si = minimizar a segundo plano (sigue corriendo)\n"
+                "No = detener y salir\n"
+                "Cancelar = volver",
+            )
+            if choice is None:
+                return
+            if choice:
+                self._withdraw_to_background()
+                return
+            self._stop_event.set()
+            if self._worker is not None and self._worker.is_alive():
+                self._worker.join(timeout=3.0)
+
         self._stop_event.set()
         if self.runner is not None:
             try:

@@ -140,8 +140,11 @@ class LaravelClient(object):
             resp.status_code, resp.request.method, resp.url, detail
         )
 
-    def health(self):
-        return self._request("GET", "/api/biotime/health")
+    def health(self, employees_count=None):
+        params = {}
+        if employees_count is not None:
+            params["employees_count"] = int(employees_count)
+        return self._request("GET", "/api/biotime/health", params=params or None)
 
     def get_commands(self, limit=100):
         data = self._request("GET", "/api/biotime/commands", params={"limit": limit})

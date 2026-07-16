@@ -1,0 +1,25 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('bio_time_sync_batches', function (Blueprint $table) {
+            $table->foreignId('sucursal_id')->nullable()->after('batch_id')->constrained('sucursales')->nullOnDelete();
+            $table->index('sucursal_id');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('bio_time_sync_batches', function (Blueprint $table) {
+            $table->dropConstrainedForeignId('sucursal_id');
+        });
+    }
+};

@@ -234,3 +234,147 @@ it('dispatches reconcile job when cliente matricula is saved', function () {
         return $job->sucursalId === $sucursal->id;
     });
 });
+
+it('dispatches reconcile job when clase matricula is saved', function () {
+    Queue::fake();
+
+    $sucursal = reconcileSucursal('hook-clase');
+    BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill(['enabled' => true])->save();
+    $user = User::factory()->create();
+    $clase = \App\Models\Core\Clase::factory()->create(['sucursal_id' => $sucursal->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'RC-HOOK-CLASE',
+    ]);
+
+    ClienteMatricula::query()->create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'clase',
+        'clase_id' => $clase->id,
+        'membresia_id' => null,
+        'fecha_matricula' => '2026-01-01',
+        'fecha_inicio' => '2026-01-01',
+        'fecha_fin' => null,
+        'estado' => 'activa',
+        'precio_lista' => 50,
+        'descuento_monto' => 0,
+        'precio_final' => 50,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    Queue::assertPushed(ReconcileBioTimeAccessForSucursal::class, function (ReconcileBioTimeAccessForSucursal $job) use ($sucursal) {
+        return $job->sucursalId === $sucursal->id;
+    });
+});
+
+it('reconciles eligible clase-only cliente into pending activate with ensure_create', function () {
+    $sucursal = reconcileSucursal('clase-act');
+    BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
+        'enabled' => true,
+        'area_biotime_id' => 2,
+    ])->save();
+
+    $user = User::factory()->create();
+    $clase = \App\Models\Core\Clase::factory()->create(['sucursal_id' => $sucursal->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'RC-CLASE-001',
+        'nombres' => 'Ana',
+        'apellidos' => 'Clase',
+    ]);
+
+    ClienteMatricula::withoutEvents(fn () => ClienteMatricula::query()->create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'clase',
+        'clase_id' => $clase->id,
+        'membresia_id' => null,
+        'fecha_matricula' => '2026-01-01',
+        'fecha_inicio' => '2026-01-01',
+        'fecha_fin' => null,
+        'estado' => 'activa',
+        'precio_lista' => 50,
+        'descuento_monto' => 0,
+        'precio_final' => 50,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]));
+
+    $result = app(BioTimeAccessCommandService::class)->reconcileSucursal($sucursal->id);
+
+    $command = BioTimeAccessCommand::query()
+        ->where('cliente_id', $cliente->id)
+        ->where('action', 'activate')
+        ->where('status', 'pending')
+        ->first();
+
+    expect($result['activated'])->toBe(1)
+        ->and($command)->not->toBeNull()
+        ->and($command->ensure_create)->toBeTrue()
+        ->and($command->first_name)->toBe('Ana')
+        ->and($command->last_name)->toBe('Clase');
+});
+
+it('enqueues delete purge candidates when capacity is full', function () {
+    $sucursal = reconcileSucursal('cupo');
+    BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
+        'enabled' => true,
+        'area_biotime_id' => 2,
+        'employee_limit' => 1,
+        'employees_count' => 1,
+    ])->save();
+
+    $user = User::factory()->create();
+    $membresia = Membresia::factory()->create(['sucursal_id' => $sucursal->id]);
+
+    $inactive = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'RC-PURGE-OLD',
+    ]);
+    BioTimeEmployee::query()->create([
+        'biotime_id' => 8001,
+        'emp_code' => 'RC-PURGE-OLD',
+        'cliente_id' => $inactive->id,
+        'first_name' => 'Old',
+    ]);
+    BioTimeAccessCommand::query()->create([
+        'sucursal_id' => $sucursal->id,
+        'cliente_id' => $inactive->id,
+        'emp_code' => 'RC-PURGE-OLD',
+        'action' => BioTimeAccessCommand::ACTION_DEACTIVATE,
+        'status' => BioTimeAccessCommand::STATUS_ACKED,
+        'acked_at' => now()->subDays(10),
+        'ensure_create' => false,
+    ]);
+
+    $active = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'RC-PURGE-NEW',
+        'nombres' => 'Nuevo',
+        'apellidos' => 'Cliente',
+    ]);
+    reconcileMatricula($active, $sucursal, $user, $membresia);
+
+    $command = app(BioTimeAccessCommandService::class)->enqueue(
+        $sucursal,
+        $active,
+        BioTimeAccessCommand::ACTION_ACTIVATE
+    );
+
+    expect($command)->not->toBeNull()
+        ->and(BioTimeAccessCommand::query()
+            ->where('cliente_id', $inactive->id)
+            ->where('action', BioTimeAccessCommand::ACTION_DELETE)
+            ->where('status', 'pending')
+            ->exists())->toBeTrue();
+});

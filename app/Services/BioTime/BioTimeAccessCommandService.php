@@ -17,10 +17,11 @@ class BioTimeAccessCommandService
 {
     public function __construct(
         private readonly BioTimeAccessEligibilityService $eligibility,
+        private readonly BioTimeCapacityService $capacity,
     ) {}
 
     /**
-     * Encola activate/deactivate evitando pending identicos (misma sede+cliente+action).
+     * Encola activate/deactivate/delete evitando pending identicos (misma sede+cliente+action).
      * emp_code = cliente.codigo. Si codigo vacio: no encola (null).
      */
     public function enqueue(Sucursal|int $sucursal, Cliente $cliente, string $action): ?BioTimeAccessCommand
@@ -47,6 +48,10 @@ class BioTimeAccessCommandService
             return null;
         }
 
+        if ($action === BioTimeAccessCommand::ACTION_ACTIVATE) {
+            $this->ensureCapacityForActivate($sucursalId, (int) $cliente->id);
+        }
+
         $existing = BioTimeAccessCommand::query()
             ->where('sucursal_id', $sucursalId)
             ->where('cliente_id', $cliente->id)
@@ -62,8 +67,15 @@ class BioTimeAccessCommandService
         $this->supersedeOppositePending($sucursalId, (int) $cliente->id, $action);
 
         $desiredArea = null;
+        $ensureCreate = false;
+        $firstName = null;
+        $lastName = null;
+
         if ($action === BioTimeAccessCommand::ACTION_ACTIVATE) {
             $desiredArea = $setting->area_biotime_id;
+            $ensureCreate = true;
+            $firstName = (string) ($cliente->nombres ?? '');
+            $lastName = (string) ($cliente->apellidos ?? '');
         }
 
         return BioTimeAccessCommand::query()->create([
@@ -72,6 +84,9 @@ class BioTimeAccessCommandService
             'emp_code' => $empCode,
             'action' => $action,
             'desired_area_biotime_id' => $desiredArea,
+            'ensure_create' => $ensureCreate,
+            'first_name' => $firstName,
+            'last_name' => $lastName,
             'status' => BioTimeAccessCommand::STATUS_PENDING,
             'attempts' => 0,
         ]);
@@ -80,14 +95,14 @@ class BioTimeAccessCommandService
     /**
      * Compara elegibles vs ultimo estado deseado / empleados conocidos y encola faltantes.
      *
-     * @return array{activated:int, deactivated:int, skipped:bool}
+     * @return array{activated:int, deactivated:int, deleted:int, skipped:bool}
      */
     public function reconcileSucursal(int $sucursalId): array
     {
         $setting = BioTimeSucursalSetting::forSucursal($sucursalId);
 
         if (! $setting->enabled) {
-            return ['activated' => 0, 'deactivated' => 0, 'skipped' => true];
+            return ['activated' => 0, 'deactivated' => 0, 'deleted' => 0, 'skipped' => true];
         }
 
         $eligibleIds = $this->eligibility->listEligibleClienteIds($sucursalId);
@@ -96,6 +111,7 @@ class BioTimeAccessCommandService
         $clienteIds = $this->clienteIdsForReconcile($sucursalId, $eligibleIds);
         $activated = 0;
         $deactivated = 0;
+        $deleted = 0;
 
         foreach ($clienteIds as $clienteId) {
             $cliente = Cliente::query()->find($clienteId);
@@ -113,8 +129,29 @@ class BioTimeAccessCommandService
 
             if ($shouldBeActive) {
                 if ($lastAction !== BioTimeAccessCommand::ACTION_ACTIVATE) {
-                    if ($this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_ACTIVATE) !== null) {
-                        $activated++;
+                    try {
+                        if ($this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_ACTIVATE) !== null) {
+                            $activated++;
+                        }
+                    } catch (InvalidArgumentException $e) {
+                        Log::warning('BioTime reconcile activate skipped: '.$e->getMessage(), [
+                            'cliente_id' => $clienteId,
+                            'sucursal_id' => $sucursalId,
+                        ]);
+                        BioTimeAccessCommand::query()->create([
+                            'sucursal_id' => $sucursalId,
+                            'cliente_id' => $cliente->id,
+                            'emp_code' => BioTimeEmpCode::forCliente($cliente) ?? '',
+                            'action' => BioTimeAccessCommand::ACTION_ACTIVATE,
+                            'desired_area_biotime_id' => $setting->area_biotime_id,
+                            'ensure_create' => true,
+                            'first_name' => (string) ($cliente->nombres ?? ''),
+                            'last_name' => (string) ($cliente->apellidos ?? ''),
+                            'status' => BioTimeAccessCommand::STATUS_FAILED,
+                            'attempts' => 0,
+                            'last_error' => $e->getMessage(),
+                            'acked_at' => now(),
+                        ]);
                     }
                 }
 
@@ -129,7 +166,64 @@ class BioTimeAccessCommandService
             }
         }
 
-        return ['activated' => $activated, 'deactivated' => $deactivated, 'skipped' => false];
+        return [
+            'activated' => $activated,
+            'deactivated' => $deactivated,
+            'deleted' => $deleted,
+            'skipped' => false,
+        ];
+    }
+
+    /**
+     * Encola borrados destructivos de clientes inelegibles para liberar cupo.
+     *
+     * @return int cantidad encolada
+     */
+    public function enqueuePurgeForCapacity(int $sucursalId, int $slotsNeeded = 1): int
+    {
+        $needed = max(1, $slotsNeeded);
+        $candidates = $this->capacity->purgeCandidates($sucursalId, $needed + 5);
+        $enqueued = 0;
+
+        foreach ($candidates as $cliente) {
+            if ($enqueued >= $needed) {
+                break;
+            }
+            if ($this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_DELETE) !== null) {
+                $enqueued++;
+            }
+        }
+
+        return $enqueued;
+    }
+
+    private function ensureCapacityForActivate(int $sucursalId, int $clienteId): void
+    {
+        if (! $this->capacity->isAtOrOverLimit($sucursalId)) {
+            return;
+        }
+
+        // Ya existe en BioTime: activate no consume slot nuevo.
+        $cliente = Cliente::query()->find($clienteId);
+        if ($cliente instanceof Cliente && $this->isKnownInBioTime($cliente)) {
+            return;
+        }
+
+        $purged = $this->enqueuePurgeForCapacity($sucursalId, 1);
+        if ($purged > 0) {
+            // Cupo se liberara cuando el puente borre; no bloqueamos el activate
+            // si tras purga proyectada hay espacio (employees_count - purged).
+            $projected = $this->capacity->occupiedForSucursal($sucursalId) - $purged;
+            if ($projected < $this->capacity->limitForSucursal($sucursalId)) {
+                return;
+            }
+        }
+
+        throw new InvalidArgumentException(
+            'Cupo BioTime lleno ('.$this->capacity->occupiedForSucursal($sucursalId)
+            .'/'.$this->capacity->limitForSucursal($sucursalId)
+            .'). No hay clientes inactivos para liberar.'
+        );
     }
 
     /**
@@ -173,6 +267,11 @@ class BioTimeAccessCommandService
                 BioTimeAccessCommand::STATUS_PROCESSING,
                 BioTimeAccessCommand::STATUS_ACKED,
             ])
+            ->whereIn('action', [
+                BioTimeAccessCommand::ACTION_ACTIVATE,
+                BioTimeAccessCommand::ACTION_DEACTIVATE,
+                BioTimeAccessCommand::ACTION_DELETE,
+            ])
             ->latest('id')
             ->first();
 
@@ -195,14 +294,29 @@ class BioTimeAccessCommandService
 
     private function supersedeOppositePending(int $sucursalId, int $clienteId, string $action): void
     {
-        $opposite = $action === BioTimeAccessCommand::ACTION_ACTIVATE
-            ? BioTimeAccessCommand::ACTION_DEACTIVATE
-            : BioTimeAccessCommand::ACTION_ACTIVATE;
+        $opposites = match ($action) {
+            BioTimeAccessCommand::ACTION_ACTIVATE => [
+                BioTimeAccessCommand::ACTION_DEACTIVATE,
+                BioTimeAccessCommand::ACTION_DELETE,
+            ],
+            BioTimeAccessCommand::ACTION_DEACTIVATE => [
+                BioTimeAccessCommand::ACTION_ACTIVATE,
+            ],
+            BioTimeAccessCommand::ACTION_DELETE => [
+                BioTimeAccessCommand::ACTION_ACTIVATE,
+                BioTimeAccessCommand::ACTION_DEACTIVATE,
+            ],
+            default => [],
+        };
+
+        if ($opposites === []) {
+            return;
+        }
 
         BioTimeAccessCommand::query()
             ->where('sucursal_id', $sucursalId)
             ->where('cliente_id', $clienteId)
-            ->where('action', $opposite)
+            ->whereIn('action', $opposites)
             ->whereIn('status', [
                 BioTimeAccessCommand::STATUS_PENDING,
                 BioTimeAccessCommand::STATUS_PROCESSING,

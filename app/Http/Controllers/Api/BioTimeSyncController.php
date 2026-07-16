@@ -50,6 +50,7 @@ class BioTimeSyncController extends Controller
 
         BioTimeSyncBatch::query()->create([
             'batch_id' => $batchId,
+            'sucursal_id' => $setting->sucursal_id,
             'entity' => $entity,
             'status' => 'pending',
             'received' => count($records),
@@ -96,13 +97,22 @@ class BioTimeSyncController extends Controller
     {
         $setting = $this->authenticatedSetting($request);
         $heartbeatAt = now();
-        $setting->forceFill(['last_heartbeat_at' => $heartbeatAt])->save();
+        $updates = ['last_heartbeat_at' => $heartbeatAt];
+
+        $countRaw = $request->query('employees_count', $request->input('employees_count'));
+        if ($countRaw !== null && $countRaw !== '') {
+            $updates['employees_count'] = max(0, (int) $countRaw);
+        }
+
+        $setting->forceFill($updates)->save();
 
         return response()->json([
             'status' => 'ok',
             'service' => 'biotime-sync-receiver',
             'sucursal_id' => $setting->sucursal_id,
             'last_heartbeat_at' => $heartbeatAt->toIso8601String(),
+            'employees_count' => $setting->employees_count,
+            'employee_limit' => (int) ($setting->employee_limit ?: config('biotime.employee_limit_default', 500)),
             'entities' => ['transactions', 'devices', 'areas', 'departments', 'employees'],
             'endpoints' => [
                 'GET /api/biotime/health',

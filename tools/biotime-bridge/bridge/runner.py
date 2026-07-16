@@ -103,8 +103,11 @@ class BridgeRunner(object):
         action = (cmd.get("action") or "").lower()
         emp_code = str(cmd.get("emp_code") or "")
         desired_area = cmd.get("desired_area_biotime_id")
+        ensure_create = bool(cmd.get("ensure_create"))
+        first_name = cmd.get("first_name") or emp_code
+        last_name = cmd.get("last_name") or ""
 
-        if not cmd_id or not emp_code or action not in ("activate", "deactivate"):
+        if not cmd_id or not emp_code or action not in ("activate", "deactivate", "delete"):
             logger.error("Command invalido: %s", cmd)
             if cmd_id:
                 self._safe_ack(cmd_id, "failed", "invalid command payload")
@@ -112,16 +115,64 @@ class BridgeRunner(object):
 
         try:
             emp = self.biotime.find_employee_by_code(emp_code)
-            if not emp or emp.get("id") is None:
-                raise BioTimeError("Empleado no encontrado emp_code={0}".format(emp_code))
 
-            emp_id = int(emp["id"])
+            if action == "delete":
+                if not emp or emp.get("id") is None:
+                    logger.info("Delete: empleado ya ausente emp_code=%s", emp_code)
+                    self._safe_ack(cmd_id, "acked")
+                    return
+                if self.cfg.dry_run:
+                    logger.info("[dry_run] cmd=%s action=delete emp_code=%s biotime_id=%s", cmd_id, emp_code, emp.get("id"))
+                    self._safe_ack(cmd_id, "acked")
+                    return
+                self.biotime.delete_employee(int(emp["id"]))
+                logger.info("OK cmd=%s action=delete emp_code=%s biotime_id=%s", cmd_id, emp_code, emp.get("id"))
+                self._safe_ack(cmd_id, "acked")
+                return
+
             if action == "activate":
                 area = int(desired_area) if desired_area else self.cfg.area_id
                 areas = [area]
             else:
-                # BioTime rechaza []; se usa area denegada ("No autorizado")
                 areas = [self.cfg.denied_area_id]
+
+            if not emp or emp.get("id") is None:
+                if action != "activate" or not ensure_create:
+                    raise BioTimeError("Empleado no encontrado emp_code={0}".format(emp_code))
+                if self.cfg.dry_run:
+                    logger.info(
+                        "[dry_run] cmd=%s create emp_code=%s areas=%s",
+                        cmd_id,
+                        emp_code,
+                        areas,
+                    )
+                    self._safe_ack(cmd_id, "acked")
+                    return
+                emp = self.biotime.create_employee(
+                    emp_code=emp_code,
+                    first_name=first_name,
+                    last_name=last_name,
+                    company_id=self.cfg.company_id,
+                    department_id=self.cfg.department_id,
+                    area_ids=areas,
+                )
+                logger.info("OK cmd=%s created emp_code=%s biotime_id=%s", cmd_id, emp_code, emp.get("id") if isinstance(emp, dict) else None)
+                self._safe_ack(cmd_id, "acked")
+                return
+
+            emp_id = int(emp["id"])
+            current_areas = sorted(self.biotime.employee_area_ids(emp))
+            desired_sorted = sorted(int(a) for a in areas)
+            if current_areas == desired_sorted:
+                logger.info(
+                    "OK cmd=%s action=%s emp_code=%s areas already=%s (skip patch)",
+                    cmd_id,
+                    action,
+                    emp_code,
+                    current_areas,
+                )
+                self._safe_ack(cmd_id, "acked")
+                return
 
             if self.cfg.dry_run:
                 logger.info(
@@ -169,7 +220,7 @@ class BridgeRunner(object):
     def roster_reconcile(self):
         """
         Aplica el roster de Laravel directamente en BioTime.
-        active=true → area autorizada; active=false → denied_area_id.
+        active=true → area autorizada (create-if-missing); active=false → denied_area_id.
         """
         try:
             rows = self.laravel.roster()
@@ -185,10 +236,22 @@ class BridgeRunner(object):
                 continue
             try:
                 emp = self.biotime.find_employee_by_code(emp_code)
-                if not emp or emp.get("id") is None:
-                    logger.warning("Roster: sin empleado BioTime emp_code=%s", emp_code)
-                    continue
                 areas = [self.cfg.area_id] if active else [self.cfg.denied_area_id]
+                if not emp or emp.get("id") is None:
+                    if not active:
+                        continue
+                    if self.cfg.dry_run:
+                        logger.info("[dry_run] roster create emp_code=%s", emp_code)
+                        continue
+                    self.biotime.create_employee(
+                        emp_code=emp_code,
+                        first_name=emp_code,
+                        last_name="",
+                        company_id=self.cfg.company_id,
+                        department_id=self.cfg.department_id,
+                        area_ids=areas,
+                    )
+                    continue
                 if self.cfg.dry_run:
                     logger.info(
                         "[dry_run] roster emp_code=%s active=%s areas=%s",
@@ -196,6 +259,10 @@ class BridgeRunner(object):
                         active,
                         areas,
                     )
+                    continue
+                current = sorted(self.biotime.employee_area_ids(emp))
+                desired = sorted(int(a) for a in areas)
+                if current == desired:
                     continue
                 self.biotime.set_employee_areas(int(emp["id"]), areas, employee=emp)
             except BioTimeError as exc:
@@ -210,12 +277,19 @@ class BridgeRunner(object):
         self.push_employees()
 
     def push_employees(self):
-        """POST /api/biotime/sync entity=employees (pagina 1 basica)."""
+        """POST /api/biotime/sync entity=employees + reporta employees_count en health."""
         try:
             rows = self.biotime.list_employees(page=1, page_size=200)
+            try:
+                total = self.biotime.count_employees(page_size=200)
+            except BioTimeError:
+                total = len(rows)
+            self.laravel.health(employees_count=total)
         except BioTimeError as exc:
             logger.error("No se pudieron listar employees BioTime: %s", exc)
             return
+        except LaravelError as exc:
+            logger.error("Health employees_count fallo: %s", exc)
 
         records = []
         for row in rows:

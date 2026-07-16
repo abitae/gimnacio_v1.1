@@ -115,9 +115,13 @@
                 $parentLabel = __('Clientes');
                 $parentRoute = 'clientes.perfil.index';
             }
-            if (str_starts_with($routeName, 'checking.') || str_starts_with($routeName, 'biotime.') || str_starts_with($routeName, 'cajas.') || str_starts_with($routeName, 'pos.')) {
+            if (str_starts_with($routeName, 'checking.') || str_starts_with($routeName, 'cajas.') || str_starts_with($routeName, 'pos.')) {
                 $parentLabel = __('Operaciones');
                 $parentRoute = 'checking.index';
+            }
+            if (str_starts_with($routeName, 'biotime.')) {
+                $parentLabel = __('BioTime');
+                $parentRoute = 'biotime.index';
             }
             if (str_starts_with($routeName, 'gestion-nutricional.') && $routeName !== 'gestion-nutricional.index') {
                 $parentLabel = __('Bienestar');

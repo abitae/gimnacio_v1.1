@@ -122,6 +122,61 @@ class BioTimeClient(object):
         )
         return self._extract_list(data)
 
+    def count_employees(self, page_size=200):
+        """Cuenta empleados paginando. Retorna total aproximado."""
+        total = 0
+        page = 1
+        while True:
+            rows = self.list_employees(page=page, page_size=page_size)
+            total += len(rows)
+            if len(rows) < page_size:
+                break
+            page += 1
+            if page > 100:
+                break
+        return total
+
+    def create_employee(self, emp_code, first_name, last_name, company_id, department_id, area_ids):
+        payload = {
+            "emp_code": str(emp_code),
+            "first_name": first_name or emp_code,
+            "last_name": last_name or "",
+            "company": int(company_id),
+            "department": int(department_id),
+            "area": [int(a) for a in area_ids],
+        }
+        data = self._request("POST", "personnel/api/employees/", json=payload)
+        if isinstance(data, dict) and "emp_code" not in data and isinstance(data.get("data"), dict):
+            return data["data"]
+        return data if isinstance(data, dict) else {"result": data}
+
+    def delete_employee(self, employee_id):
+        self._request("DELETE", "personnel/api/employees/{0}/".format(employee_id))
+        return True
+
+    def employee_area_ids(self, employee):
+        """Normaliza area del empleado a lista de ints."""
+        if not isinstance(employee, dict):
+            return []
+        raw = employee.get("area")
+        if raw is None:
+            return []
+        if isinstance(raw, list):
+            ids = []
+            for item in raw:
+                if isinstance(item, dict) and item.get("id") is not None:
+                    ids.append(int(item["id"]))
+                else:
+                    try:
+                        ids.append(int(item))
+                    except (TypeError, ValueError):
+                        pass
+            return ids
+        try:
+            return [int(raw)]
+        except (TypeError, ValueError):
+            return []
+
     @staticmethod
     def _pk(value, field_name):
         if value is None:

@@ -47,7 +47,7 @@
                 </flux:sidebar.item>
 
                 @auth
-                <flux:sidebar.group expandable icon="briefcase" heading="Operaciones" class="grid" :expanded="request()->routeIs('checking.*') || request()->routeIs('cajas.*') || request()->routeIs('pos.*') || request()->routeIs('biotime.*')">
+                <flux:sidebar.group expandable icon="briefcase" heading="Operaciones" class="grid" :expanded="request()->routeIs('checking.*') || request()->routeIs('cajas.*') || request()->routeIs('pos.*')">
                     @can('checking.ver')
                     <flux:sidebar.item icon="check-circle" :href="route('checking.index')" :current="request()->routeIs('checking.*')" wire:navigate>
                         {{ __('Checking') }}
@@ -69,12 +69,24 @@
                         {{ __('Cobros pendientes') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('biotime.ver')
-                    <flux:sidebar.item icon="finger-print" :href="route('biotime.index')" :current="request()->routeIs('biotime.*')" wire:navigate>
-                        {{ __('BioTime') }}
-                    </flux:sidebar.item>
-                    @endcan
                 </flux:sidebar.group>
+
+                @can('biotime.ver')
+                <flux:sidebar.group expandable icon="finger-print" heading="BioTime" class="grid" :expanded="request()->routeIs('biotime.*')">
+                    <flux:sidebar.item icon="chart-bar" :href="route('biotime.index', ['tab' => 'dashboard'])" :current="request()->routeIs('biotime.*') && request()->query('tab', 'dashboard') === 'dashboard'" wire:navigate>
+                        {{ __('Dashboard') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="building-office-2" :href="route('biotime.index', ['tab' => 'sedes'])" :current="request()->routeIs('biotime.*') && request()->query('tab') === 'sedes'" wire:navigate>
+                        {{ __('Sedes') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="map" :href="route('biotime.index', ['tab' => 'mapping'])" :current="request()->routeIs('biotime.*') && request()->query('tab') === 'mapping'" wire:navigate>
+                        {{ __('Mapeo') }}
+                    </flux:sidebar.item>
+                    <flux:sidebar.item icon="clock" :href="route('biotime.index', ['tab' => 'history'])" :current="request()->routeIs('biotime.*') && request()->query('tab') === 'history'" wire:navigate>
+                        {{ __('Historial') }}
+                    </flux:sidebar.item>
+                </flux:sidebar.group>
+                @endcan
                 @endauth
 
                 @canany(['cliente.ver', 'membresia.ver', 'matricula_cliente.ver', 'clase.ver'])

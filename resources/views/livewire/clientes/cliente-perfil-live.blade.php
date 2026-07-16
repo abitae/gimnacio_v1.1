@@ -149,6 +149,7 @@
                         :hide-actions="true"
                         :minimized="$perfilClienteMinimizado"
                         :deuda-total="$deudaProductoPendiente + $deudaMembresiaResumen"
+                        :biotime-snapshot="$biotimeSnapshot"
                     />
                 </div>
                 <div class="space-y-2 px-1">

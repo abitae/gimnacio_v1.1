@@ -20,6 +20,8 @@ class BioTimeSucursalSetting extends Model
         'biotime_base_url',
         'poll_interval_seconds',
         'enabled',
+        'employee_limit',
+        'employees_count',
         'last_received_at',
         'last_heartbeat_at',
     ];
@@ -32,6 +34,8 @@ class BioTimeSucursalSetting extends Model
             'area_biotime_id' => 'integer',
             'poll_interval_seconds' => 'integer',
             'enabled' => 'boolean',
+            'employee_limit' => 'integer',
+            'employees_count' => 'integer',
             'last_received_at' => 'datetime',
             'last_heartbeat_at' => 'datetime',
         ];
@@ -50,6 +54,7 @@ class BioTimeSucursalSetting extends Model
             [
                 'poll_interval_seconds' => 3600,
                 'enabled' => true,
+                'employee_limit' => (int) config('biotime.employee_limit_default', 500),
             ]
         );
 

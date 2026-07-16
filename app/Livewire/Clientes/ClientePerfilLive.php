@@ -760,6 +760,44 @@ class ClientePerfilLive extends Component
         $this->flashToast('success', $trainerId ? __('Trainer asignado correctamente.') : __('Trainer removido correctamente.'));
     }
 
+    public function activateClienteEstado(): void
+    {
+        $this->authorize('biotime.editar');
+
+        if (! $this->selectedCliente) {
+            return;
+        }
+
+        try {
+            app(\App\Services\BioTime\BioTimeClienteEstadoService::class)
+                ->activateEstadoCliente($this->selectedCliente);
+            $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+            $this->flashToast('success', 'Cliente activado correctamente.');
+        } catch (\InvalidArgumentException $e) {
+            $this->flashToast('error', $e->getMessage());
+        } catch (\Throwable $e) {
+            $this->flashToast('error', $e->getMessage());
+        }
+    }
+
+    public function deactivateClienteEstado(): void
+    {
+        $this->authorize('biotime.editar');
+
+        if (! $this->selectedCliente) {
+            return;
+        }
+
+        try {
+            app(\App\Services\BioTime\BioTimeClienteEstadoService::class)
+                ->deactivateEstadoCliente($this->selectedCliente);
+            $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+            $this->flashToast('success', 'Cliente desactivado correctamente.');
+        } catch (\Throwable $e) {
+            $this->flashToast('error', $e->getMessage());
+        }
+    }
+
     protected function refreshSelectedClienteContext(int $clienteId): void
     {
         $this->profileContextService->clearCache($clienteId);
@@ -1014,6 +1052,10 @@ class ClientePerfilLive extends Component
             'responsables' => $this->responsables,
             'membresiasActivas' => $this->membresiasActivas,
             'clasesActivas' => $this->clasesActivas,
+            'biotimeSnapshot' => $this->selectedCliente
+                ? app(\App\Services\BioTime\BioTimeClienteEstadoService::class)
+                    ->profileBioTimeSnapshot($this->selectedCliente)
+                : null,
         ]);
     }
 

@@ -473,7 +473,7 @@ No rediseñar branding global. No commits salvo que se pida.
 Contexto: plan paso 5.2. ADR docs/architecture/adr-biotime-puente-acceso.md.
 
 Objetivo: Actualizar el ADR (estado Aceptado si el piloto paso) quitando preguntas abiertas ya resueltas:
-- elegibilidad = solo matricula vigente
+- elegibilidad = matricula vigente tipo membresia o clase; create-if-missing; cupo 500 con purge destructivo de clientes inelegibles
 - gracia = 0 dias (salvo que el codigo implemente otra; documentar la real)
 - alerta = visible en dashboard BioTime (admin/biotime.ver)
 

@@ -10,7 +10,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 
 /**
- * Fuente de verdad de acceso fisico BioTime: solo matricula de membresia vigente.
+ * Fuente de verdad de acceso fisico BioTime: matricula vigente tipo membresia o clase.
  * Legacy cliente_membresias NO otorga acceso.
  */
 class BioTimeAccessEligibilityService
@@ -43,16 +43,16 @@ class BioTimeAccessEligibilityService
     }
 
     /**
-     * Matricula vigente: tipo membresia, estado activa, fechas vigentes, de la sucursal.
+     * Matricula vigente: tipo membresia o clase, estado activa, fechas vigentes, de la sucursal.
      *
      * @return \Illuminate\Database\Eloquent\Builder<ClienteMatricula>
      */
-    private function eligibleMatriculaQuery(int $sucursalId, Carbon $today)
+    public function eligibleMatriculaQuery(int $sucursalId, Carbon $today)
     {
         $date = $today->toDateString();
 
         return ClienteMatricula::query()
-            ->where('tipo', 'membresia')
+            ->whereIn('tipo', ['membresia', 'clase'])
             ->where('estado', 'activa')
             ->where('sucursal_id', $sucursalId)
             ->whereDate('fecha_inicio', '<=', $date)

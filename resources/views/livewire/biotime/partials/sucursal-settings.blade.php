@@ -137,6 +137,27 @@
                             class="mt-2 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 disabled:opacity-60"
                         >
                     </div>
+                    <div>
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Cupo empleados (max)</label>
+                        <input
+                            type="number"
+                            min="1"
+                            wire:model="settingForms.{{ $sucursal->id }}.employee_limit"
+                            @disabled(! auth()->user()?->can('biotime.editar'))
+                            class="mt-2 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 disabled:opacity-60"
+                        >
+                        @php
+                            $cap = $capacityBySucursal[$sucursal->id] ?? null;
+                        @endphp
+                        @if ($cap)
+                            <p class="mt-1 text-xs {{ ($cap['alert'] ?? false) ? 'text-amber-600 dark:text-amber-300' : 'text-zinc-500 dark:text-zinc-400' }}">
+                                Ocupados: {{ $cap['occupied'] }}/{{ $cap['limit'] }}
+                                @if ($cap['alert'] ?? false)
+                                    · alerta ≥90%
+                                @endif
+                            </p>
+                        @endif
+                    </div>
                     <div class="flex items-center gap-2 sm:col-span-2">
                         <input
                             id="enabled-{{ $sucursal->id }}"

@@ -18,15 +18,18 @@ Ya existe sync **BioTime → Laravel** (`POST /api/biotime/sync`: employees, dev
 | Versión | BioTime 8.x local |
 | Dispositivos | Huella + facial |
 | Fuente de verdad de acceso | **Laravel** (matrícula vigente) |
-| Elegibilidad | Solo **matrícula vigente** tipo membresía; legacy `cliente_membresias` no otorga acceso físico |
+| Elegibilidad | Matrícula vigente tipo **membresía o clase**; legacy `cliente_membresias` no otorga acceso físico |
+| Create-if-missing | Al `activate`, el puente **crea** el empleado si no existe (`emp_code`, nombres; `company_id`/`department_id` en config) |
+| Cupo | **500** empleados por sede (configurable); al llenar se **borran** clientes inelegibles en BioTime (pierde biometría; nunca staff) |
 | Gracia post-vencimiento | **0 días** (corte el día en que `fecha_fin` deja de ser ≥ hoy; ver `BioTimeAccessEligibilityService`) |
-| Alerta operativa | Dashboard BioTime: heartbeat/comandos por sede; permiso `biotime.ver` (CTA reconcile con `biotime.editar`) |
-| Objetivo | Bloquear acceso físico si no hay membresía vigente |
-| Latencia aceptable | ~1 hora |
+| Alerta operativa | Dashboard BioTime: heartbeat/comandos/cupo por sede; permiso `biotime.ver` (CTA reconcile con `biotime.editar`) |
+| Botón perfil | Solo cambia `estado_cliente` (activar requiere suscripción vigente); **no** escribe acceso BioTime |
+| Objetivo | Bloquear acceso físico si no hay suscripción vigente (membresía o clase) |
+| Latencia aceptable | ~1 hora (más inmediato al guardar matrícula) |
 | Sedes | Varias; **cada sede** con su BioTime + su puente |
 | Roster por sede | Solo clientes de **esa** sucursal |
 | Identidad | `emp_code` = `cliente.codigo` Laravel |
-| Inactivo en BioTime | Mover a área denegada / quitar área autorizada (no borrar empleado; conserva biometría) |
+| Inactivo en BioTime | Mover a área denegada (conserva biometría); `delete` solo para liberar cupo |
 | Alta biométrica | Recepción enrolla solo en BioTime |
 | Áreas | Una área BioTime autorizada = una sucursal Laravel |
 | Puente | Python en el **mismo PC** que BioTime |
@@ -74,7 +77,7 @@ Ya existe sync **BioTime → Laravel** (`POST /api/biotime/sync`: employees, dev
 
 ### Laravel → puente
 
-- `GET /api/biotime/commands` — comandos pendientes de la sede autenticada (`activate` / `deactivate`).
+- `GET /api/biotime/commands` — comandos pendientes (`activate` / `deactivate` / `delete`) con `ensure_create`, `first_name`, `last_name`.
 - `POST /api/biotime/commands/{id}/ack` — resultado ok/error.
 - `GET /api/biotime/roster` — snapshot activo/inactivo para reconciliación periódica.
 - Auth: token por sede (`VerifyBioTimeSyncToken` → `BioTimeSucursalSetting`).
@@ -82,16 +85,17 @@ Ya existe sync **BioTime → Laravel** (`POST /api/biotime/sync`: employees, dev
 ### Puente → Laravel
 
 - `POST /api/biotime/sync` — employees, areas, devices, transactions.
-- Health / heartbeat: endpoint de salud del agente actualiza `last_heartbeat_at` por sede.
+- Health / heartbeat: `GET /api/biotime/health?employees_count=N` actualiza `last_heartbeat_at` y cupo.
 
 ### Regla de elegibilidad (cerrada)
 
 Un cliente está **activo para acceso** en una sucursal si y solo si:
 
 1. Pertenece a esa sucursal (`cliente.sucursal_id`).
-2. Tiene al menos una **matrícula** `tipo = membresia`, `estado = activa`, con `fecha_inicio <= hoy` y (`fecha_fin` nula o `fecha_fin >= hoy`).
+2. Tiene al menos una **matrícula** `tipo` en (`membresia`, `clase`), `estado = activa`, con `fecha_inicio <= hoy` y (`fecha_fin` nula o `fecha_fin >= hoy`).
 3. **Sin días de gracia** después del vencimiento (implementación actual: 0 días).
 4. Legacy `cliente_membresias` **no** otorga acceso físico.
+5. Deuda / `estado_cliente` **no** intervienen en elegibilidad BioTime.
 
 Detalle operativo: [08-biotime-integracion-plan.md](../plans/08-biotime-integracion-plan.md) (runbook + avance).
 

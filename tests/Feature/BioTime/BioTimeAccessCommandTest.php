@@ -59,6 +59,7 @@ it('enqueues activate with desired area and emp_code = cliente.codigo', function
         ->and($command->emp_code)->toBe('CLI-ACT-001')
         ->and($command->action)->toBe('activate')
         ->and($command->desired_area_biotime_id)->toBe(2)
+        ->and($command->ensure_create)->toBeTrue()
         ->and($command->status)->toBe('pending')
         ->and($command->attempts)->toBe(0);
 });

@@ -1,4 +1,12 @@
-@props(['cliente', 'hideActions' => false, 'saludLinkOnly' => false, 'dismissible' => true, 'minimized' => false, 'deudaTotal' => null])
+@props([
+    'cliente',
+    'hideActions' => false,
+    'saludLinkOnly' => false,
+    'dismissible' => true,
+    'minimized' => false,
+    'deudaTotal' => null,
+    'biotimeSnapshot' => null,
+])
 
 @php
     $deudaTotal = (float) ($deudaTotal ?? $cliente->deuda_total);
@@ -6,6 +14,15 @@
         'activo' => 'green',
         'inactivo' => 'zinc',
         default => 'red',
+    };
+    $biotimeStatus = is_array($biotimeSnapshot) ? ($biotimeSnapshot['status'] ?? null) : null;
+    $biotimeLabel = is_array($biotimeSnapshot) ? ($biotimeSnapshot['label'] ?? null) : null;
+    $biotimeBadge = match ($biotimeStatus) {
+        'activo' => 'green',
+        'pendiente' => 'amber',
+        'inactivo' => 'zinc',
+        'no_existe' => 'zinc',
+        default => 'zinc',
     };
 @endphp
 
@@ -119,6 +136,39 @@
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Estado') }}</p>
                 <flux:badge :color="$estadoClienteBadge">{{ ucfirst($cliente->estado_cliente) }}</flux:badge>
             </div>
+
+            @if ($biotimeLabel)
+                <div>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">BioTime</p>
+                    <flux:badge :color="$biotimeBadge">{{ $biotimeLabel }}</flux:badge>
+                </div>
+            @endif
+
+            @can('biotime.editar')
+                <div class="sm:col-span-2 flex flex-wrap gap-2">
+                    @if ($cliente->estado_cliente !== 'activo')
+                        <flux:button
+                            type="button"
+                            size="xs"
+                            variant="primary"
+                            wire:click="activateClienteEstado"
+                            wire:confirm="¿Activar estado del cliente? Requiere membresía o clase vigente."
+                        >
+                            Activar cliente
+                        </flux:button>
+                    @else
+                        <flux:button
+                            type="button"
+                            size="xs"
+                            variant="danger"
+                            wire:click="deactivateClienteEstado"
+                            wire:confirm="¿Desactivar estado del cliente?"
+                        >
+                            Desactivar cliente
+                        </flux:button>
+                    @endif
+                </div>
+            @endcan
 
             <x-cliente.info-field label="Teléfono" :value="$cliente->telefono" />
             <x-cliente.info-field label="Email" :value="$cliente->email" />

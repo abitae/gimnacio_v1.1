@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\BioTime\BioTimeCommandAckRequest;
 use App\Http\Requests\BioTime\BioTimeCommandsIndexRequest;
 use App\Models\BioTime\BioTimeAccessCommand;
+use App\Models\BioTime\BioTimeEmployee;
 use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\Core\Cliente;
 use App\Services\BioTime\BioTimeAccessEligibilityService;
@@ -52,6 +53,9 @@ class BioTimeBridgeController extends Controller
                 'cliente_id' => $cmd->cliente_id,
                 'action' => $cmd->action,
                 'desired_area_biotime_id' => $cmd->desired_area_biotime_id,
+                'ensure_create' => (bool) $cmd->ensure_create,
+                'first_name' => $cmd->first_name,
+                'last_name' => $cmd->last_name,
                 'status' => $cmd->status,
             ])->values(),
         ]);
@@ -81,6 +85,10 @@ class BioTimeBridgeController extends Controller
                 'last_error' => null,
                 'acked_at' => $now,
             ])->save();
+
+            if ($command->action === BioTimeAccessCommand::ACTION_DELETE) {
+                $this->forgetEmployeeAfterDelete($command);
+            }
         } else {
             $command->forceFill([
                 'status' => BioTimeAccessCommand::STATUS_FAILED,
@@ -102,6 +110,22 @@ class BioTimeBridgeController extends Controller
             ],
             'sucursal_id' => $sucursalId,
         ]);
+    }
+
+    private function forgetEmployeeAfterDelete(BioTimeAccessCommand $command): void
+    {
+        BioTimeEmployee::query()
+            ->where(function ($query) use ($command): void {
+                $query->where('cliente_id', $command->cliente_id);
+                if (filled($command->emp_code)) {
+                    $query->orWhere('emp_code', $command->emp_code);
+                }
+            })
+            ->delete();
+
+        Cliente::query()
+            ->whereKey($command->cliente_id)
+            ->update(['biotime_id' => null]);
     }
 
     public function roster(Request $request): JsonResponse

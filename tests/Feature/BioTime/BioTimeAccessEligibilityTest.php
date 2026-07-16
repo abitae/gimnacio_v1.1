@@ -120,3 +120,87 @@ it('rejects cliente without matricula', function () {
     expect(app(BioTimeAccessEligibilityService::class)->isEligible($cliente, $sucursal->id))->toBeFalse()
         ->and(app(BioTimeAccessEligibilityService::class)->listEligibleClienteIds($sucursal->id))->toBeEmpty();
 });
+
+it('marks cliente with activa clase matricula as eligible', function () {
+    $sucursal = eligibilitySucursal('clase');
+    $user = User::factory()->create();
+    $clase = \App\Models\Core\Clase::factory()->create(['sucursal_id' => $sucursal->id]);
+    $cliente = Cliente::factory()->create(['sucursal_id' => $sucursal->id, 'created_by' => $user->id]);
+
+    ClienteMatricula::withoutEvents(fn () => ClienteMatricula::query()->create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'clase',
+        'clase_id' => $clase->id,
+        'membresia_id' => null,
+        'fecha_matricula' => '2026-01-01',
+        'fecha_inicio' => '2026-01-01',
+        'fecha_fin' => null,
+        'estado' => 'activa',
+        'precio_lista' => 50,
+        'descuento_monto' => 0,
+        'precio_final' => 50,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]));
+
+    expect(app(BioTimeAccessEligibilityService::class)->isEligible($cliente, $sucursal->id))->toBeTrue();
+});
+
+it('rejects cancelada clase matricula', function () {
+    $sucursal = eligibilitySucursal('clase-cancel');
+    $user = User::factory()->create();
+    $clase = \App\Models\Core\Clase::factory()->create(['sucursal_id' => $sucursal->id]);
+    $cliente = Cliente::factory()->create(['sucursal_id' => $sucursal->id, 'created_by' => $user->id]);
+
+    ClienteMatricula::withoutEvents(fn () => ClienteMatricula::query()->create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'clase',
+        'clase_id' => $clase->id,
+        'membresia_id' => null,
+        'fecha_matricula' => '2026-01-01',
+        'fecha_inicio' => '2026-01-01',
+        'fecha_fin' => null,
+        'estado' => 'cancelada',
+        'precio_lista' => 50,
+        'descuento_monto' => 0,
+        'precio_final' => 50,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]));
+
+    expect(app(BioTimeAccessEligibilityService::class)->isEligible($cliente, $sucursal->id))->toBeFalse();
+});
+
+it('rejects clase with fecha_fin in the past', function () {
+    $sucursal = eligibilitySucursal('clase-venc');
+    $user = User::factory()->create();
+    $clase = \App\Models\Core\Clase::factory()->create(['sucursal_id' => $sucursal->id]);
+    $cliente = Cliente::factory()->create(['sucursal_id' => $sucursal->id, 'created_by' => $user->id]);
+
+    ClienteMatricula::withoutEvents(fn () => ClienteMatricula::query()->create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'clase',
+        'clase_id' => $clase->id,
+        'membresia_id' => null,
+        'fecha_matricula' => '2026-01-01',
+        'fecha_inicio' => '2026-01-01',
+        'fecha_fin' => '2026-06-01',
+        'estado' => 'activa',
+        'precio_lista' => 50,
+        'descuento_monto' => 0,
+        'precio_final' => 50,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]));
+
+    expect(app(BioTimeAccessEligibilityService::class)->isEligible($cliente, $sucursal->id))->toBeFalse();
+});
