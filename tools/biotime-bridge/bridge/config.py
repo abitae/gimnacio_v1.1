@@ -16,12 +16,15 @@ class BridgeConfig(object):
         self.biotime_auth_mode = data.get("biotime_auth_mode") or "auto"
         self.area_id = int(data.get("area_id") or 0)
         self.denied_area_id = int(data.get("denied_area_id") or 1)
+        # Opcional/deprecado: Create Employee API no requiere company (solo department + area).
         self.company_id = int(data.get("company_id") or 0)
         self.department_id = int(data.get("department_id") or 0)
         self.sucursal_codigo = data.get("sucursal_codigo") or ""
         self.poll_seconds = max(5, int(data.get("poll_seconds") or 60))
         self.roster_reconcile_seconds = int(data.get("roster_reconcile_seconds") or 0)
         self.sync_push_seconds = int(data.get("sync_push_seconds") or 0)
+        # Tras create/cambio de area: POST resync_to_device (default true).
+        self.resync_after_area = bool(data.get("resync_after_area", True))
         self.dry_run = bool(data.get("dry_run", False))
         # True por defecto (produccion). false solo para HTTPS local con cert auto-firmado.
         self.laravel_verify_ssl = bool(data.get("laravel_verify_ssl", True))
@@ -51,6 +54,7 @@ class BridgeConfig(object):
             "poll_seconds": self.poll_seconds,
             "roster_reconcile_seconds": self.roster_reconcile_seconds,
             "sync_push_seconds": self.sync_push_seconds,
+            "resync_after_area": self.resync_after_area,
             "dry_run": self.dry_run,
             "http_timeout_seconds": self.http_timeout_seconds,
             "max_retries": self.max_retries,
@@ -73,8 +77,6 @@ class BridgeConfig(object):
             errors.append("denied_area_id debe ser > 0")
         if self.area_id == self.denied_area_id:
             errors.append("area_id y denied_area_id no deben ser iguales")
-        if self.company_id <= 0:
-            errors.append("company_id debe ser > 0 (requerido para create employee)")
         if self.department_id <= 0:
             errors.append("department_id debe ser > 0 (requerido para create employee)")
         return errors

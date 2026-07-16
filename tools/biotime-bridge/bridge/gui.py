@@ -187,8 +187,8 @@ class BridgeGuiApp(object):
         areas.pack(fill=tk.X, **pad)
         self._add_field(areas, "area_id", "Área autorizada (id)", width=12)
         self._add_field(areas, "denied_area_id", "Área denegada (id)", width=12)
-        self._add_field(areas, "company_id", "Company (id, create)", width=12)
         self._add_field(areas, "department_id", "Department (id, create)", width=12)
+        self._add_field(areas, "company_id", "Company (id, opcional)", width=12)
         self._add_field(areas, "sucursal_codigo", "Código sede", width=28)
 
         timing = ttk.LabelFrame(form, text="Tiempos y opciones")
@@ -196,6 +196,11 @@ class BridgeGuiApp(object):
         self._add_field(timing, "poll_seconds", "Poll (seg)", width=12)
         self._add_field(timing, "roster_reconcile_seconds", "Roster (seg, 0=off)", width=12)
         self._add_field(timing, "sync_push_seconds", "Sync employees (seg, 0=off)", width=12)
+        self._add_check(
+            timing,
+            "resync_after_area",
+            "resync_after_area (empujar a dispositivos tras create/área)",
+        )
         self._add_check(timing, "dry_run", "dry_run (no escribe áreas en BioTime)")
         self._add_field(timing, "http_timeout_seconds", "Timeout HTTP", width=12)
         self._add_field(timing, "max_retries", "Reintentos", width=12)
@@ -281,12 +286,13 @@ class BridgeGuiApp(object):
             "biotime_auth_mode": c.biotime_auth_mode,
             "area_id": str(c.area_id),
             "denied_area_id": str(c.denied_area_id),
-            "company_id": str(c.company_id),
+            "company_id": str(c.company_id) if c.company_id else "",
             "department_id": str(c.department_id),
             "sucursal_codigo": c.sucursal_codigo,
             "poll_seconds": str(c.poll_seconds),
             "roster_reconcile_seconds": str(c.roster_reconcile_seconds),
             "sync_push_seconds": str(c.sync_push_seconds),
+            "resync_after_area": c.resync_after_area,
             "dry_run": c.dry_run,
             "http_timeout_seconds": str(int(c.http_timeout_seconds)
                 if c.http_timeout_seconds == int(c.http_timeout_seconds)
@@ -336,7 +342,7 @@ class BridgeGuiApp(object):
             "biotime_auth_mode": text("biotime_auth_mode") or "auto",
             "area_id": as_int("area_id", "area_id"),
             "denied_area_id": as_int("denied_area_id", "denied_area_id"),
-            "company_id": as_int("company_id", "company_id"),
+            "company_id": int(text("company_id") or 0),
             "department_id": as_int("department_id", "department_id"),
             "sucursal_codigo": text("sucursal_codigo"),
             "poll_seconds": as_int("poll_seconds", "poll_seconds"),
@@ -344,6 +350,7 @@ class BridgeGuiApp(object):
                 "roster_reconcile_seconds", "roster_reconcile_seconds"
             ),
             "sync_push_seconds": as_int("sync_push_seconds", "sync_push_seconds"),
+            "resync_after_area": bool(self._form["resync_after_area"]["var"].get()),
             "dry_run": bool(self._form["dry_run"]["var"].get()),
             "http_timeout_seconds": as_float("http_timeout_seconds", "http_timeout_seconds"),
             "max_retries": as_int("max_retries", "max_retries"),

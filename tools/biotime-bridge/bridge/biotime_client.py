@@ -115,36 +115,62 @@ class BioTimeClient(object):
         return data
 
     def list_employees(self, page=1, page_size=100):
+        """Lista empleados. Retorna (rows, meta) donde meta tiene count/next si vienen en la respuesta."""
         data = self._request(
             "GET",
             "personnel/api/employees/",
             params={"page": page, "page_size": page_size},
         )
-        return self._extract_list(data)
+        rows = self._extract_list(data)
+        meta = self._extract_list_meta(data)
+        return rows, meta
 
     def count_employees(self, page_size=200):
-        """Cuenta empleados paginando. Retorna total aproximado."""
-        total = 0
-        page = 1
-        while True:
-            rows = self.list_employees(page=page, page_size=page_size)
-            total += len(rows)
-            if len(rows) < page_size:
-                break
-            page += 1
+        """
+        Cuenta empleados usando el campo count del envelope documentado.
+        Si no hay count, pagina siguiendo next.
+        """
+        rows, meta = self.list_employees(page=1, page_size=page_size)
+        if meta.get("count") is not None:
+            try:
+                return int(meta["count"])
+            except (TypeError, ValueError):
+                pass
+
+        total = len(rows)
+        page = 2
+        next_url = meta.get("next")
+        while next_url or (len(rows) >= page_size and page <= 100):
             if page > 100:
                 break
+            rows, meta = self.list_employees(page=page, page_size=page_size)
+            total += len(rows)
+            next_url = meta.get("next")
+            if not next_url and len(rows) < page_size:
+                break
+            page += 1
         return total
 
-    def create_employee(self, emp_code, first_name, last_name, company_id, department_id, area_ids):
+    def create_employee(self, emp_code, first_name, last_name, department_id, area_ids):
+        """
+        POST /personnel/api/employees/
+        Docs: requeridos emp_code, department, area. Opcionales first_name, last_name, …
+        """
+        if not area_ids:
+            raise BioTimeError("area=[] rechazado por BioTime; usa denied_area_id")
+
         payload = {
             "emp_code": str(emp_code),
-            "first_name": first_name or emp_code,
-            "last_name": last_name or "",
-            "company": int(company_id),
             "department": int(department_id),
             "area": [int(a) for a in area_ids],
         }
+        if first_name:
+            payload["first_name"] = first_name
+        elif emp_code:
+            payload["first_name"] = str(emp_code)
+        if last_name:
+            payload["last_name"] = last_name
+
         data = self._request("POST", "personnel/api/employees/", json=payload)
         if isinstance(data, dict) and "emp_code" not in data and isinstance(data.get("data"), dict):
             return data["data"]
@@ -188,43 +214,77 @@ class BioTimeClient(object):
         except (TypeError, ValueError):
             raise BioTimeError("No se pudo resolver {0} desde {1!r}".format(field_name, value))
 
+    def adjust_employee_areas(self, employee_ids, area_ids):
+        """
+        POST /personnel/api/employees/adjust_area/
+        Body: { employees: [id…], areas: [id…] }
+        """
+        if not area_ids:
+            raise BioTimeError("areas=[] rechazado; usa denied_area_id")
+        if not employee_ids:
+            raise BioTimeError("employees=[] requerido por adjust_area")
+
+        payload = {
+            "employees": [int(x) for x in employee_ids],
+            "areas": [int(a) for a in area_ids],
+        }
+        return self._request("POST", "personnel/api/employees/adjust_area/", json=payload)
+
+    def resync_employees_to_device(self, employee_ids):
+        """POST /personnel/api/employees/resync_to_device/"""
+        if not employee_ids:
+            return None
+        payload = {"employees": [int(x) for x in employee_ids]}
+        return self._request("POST", "personnel/api/employees/resync_to_device/", json=payload)
+
     def set_employee_areas(self, employee_id, area_ids, employee=None):
         """
-        BioTime 8 requiere company + department en el PATCH.
+        Cambia areas: primero adjust_area (docs oficiales); si falla, PUT del empleado
+        con emp_code + department + area (sin company / sin PATCH).
         La lista area no puede estar vacia: usar denied_area_id para bloquear.
         """
         if not area_ids:
             raise BioTimeError("area=[] rechazado por BioTime; usa denied_area_id")
 
-        if employee is None:
-            employee = self.get_employee(employee_id)
+        emp_id = int(employee_id)
+        areas = [int(a) for a in area_ids]
 
-        company_id = self._pk(employee.get("company"), "company")
+        try:
+            data = self.adjust_employee_areas([emp_id], areas)
+            logger.info("adjust_area OK employee_id=%s areas=%s", emp_id, areas)
+            return data if isinstance(data, dict) else {"result": data}
+        except BioTimeError as adj_exc:
+            logger.warning(
+                "adjust_area fallo employee_id=%s; fallback PUT: %s",
+                emp_id,
+                adj_exc,
+            )
+
+        if employee is None:
+            employee = self.get_employee(emp_id)
+        if not isinstance(employee, dict):
+            raise BioTimeError("Empleado invalido para PUT fallback")
+
+        emp_code = employee.get("emp_code")
         department_id = self._pk(employee.get("department"), "department")
-        if company_id is None or department_id is None:
-            raise BioTimeError("Empleado sin company/department")
+        if not emp_code or department_id is None:
+            raise BioTimeError(
+                "Empleado sin emp_code/department; no se puede hacer PUT fallback "
+                "(adjust_area previo: ver log)"
+            )
 
         payload = {
-            "company": company_id,
+            "emp_code": str(emp_code),
             "department": department_id,
-            "area": [int(a) for a in area_ids],
+            "area": areas,
         }
-
-        last_error = None
-        for method in ("PATCH", "PUT"):
-            try:
-                data = self._request(
-                    method,
-                    "personnel/api/employees/{0}/".format(employee_id),
-                    json=payload,
-                )
-                return data if isinstance(data, dict) else {"result": data}
-            except BioTimeError as exc:
-                last_error = exc
-                if method == "PATCH":
-                    continue
-                raise
-        raise last_error
+        data = self._request(
+            "PUT",
+            "personnel/api/employees/{0}/".format(emp_id),
+            json=payload,
+        )
+        logger.info("PUT employee areas OK employee_id=%s areas=%s", emp_id, areas)
+        return data if isinstance(data, dict) else {"result": data}
 
     @staticmethod
     def _extract_list(data):
@@ -239,3 +299,13 @@ class BioTimeClient(object):
             if isinstance(data.get("results"), list):
                 return [x for x in data["results"] if isinstance(x, dict)]
         return []
+
+    @staticmethod
+    def _extract_list_meta(data):
+        meta = {"count": None, "next": None, "previous": None}
+        if not isinstance(data, dict):
+            return meta
+        for key in ("count", "next", "previous"):
+            if key in data:
+                meta[key] = data.get(key)
+        return meta

@@ -17,9 +17,10 @@ biotime_auth_mode: "auto"   # auto | jwt | token
 area_id: 2
 # Area denegada: BioTime 8 rechaza area=[]; deactivate asigna este id (ej. "No autorizado"=1).
 denied_area_id: 1
-# Company/department requeridos al crear empleados desde Laravel (activate ensure_create).
-company_id: 1
+# Department requerido al crear empleados (POST /personnel/api/employees/).
 department_id: 1
+# Opcional/deprecado: la Employee API documentada no exige company en Create.
+# company_id: 1
 
 sucursal_codigo: "principal"
 poll_seconds: 60
@@ -28,6 +29,8 @@ poll_seconds: 60
 roster_reconcile_seconds: 3600
 # Push employees hacia Laravel POST /api/biotime/sync (0 = desactivado)
 sync_push_seconds: 300
+# Tras create o cambio de area: POST /personnel/api/employees/resync_to_device/
+resync_after_area: true
 
 dry_run: false
 http_timeout_seconds: 30

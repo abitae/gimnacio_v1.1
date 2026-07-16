@@ -769,10 +769,13 @@ class ClientePerfilLive extends Component
         }
 
         try {
-            app(\App\Services\BioTime\BioTimeClienteEstadoService::class)
+            $result = app(\App\Services\BioTime\BioTimeClienteEstadoService::class)
                 ->activateEstadoCliente($this->selectedCliente);
             $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
-            $this->flashToast('success', 'Cliente activado correctamente.');
+            $message = $result['biotime_command'] !== null
+                ? 'Cliente activado; acceso BioTime encolado.'
+                : 'Cliente activado correctamente.';
+            $this->flashToast('success', $message);
         } catch (\InvalidArgumentException $e) {
             $this->flashToast('error', $e->getMessage());
         } catch (\Throwable $e) {
@@ -789,10 +792,13 @@ class ClientePerfilLive extends Component
         }
 
         try {
-            app(\App\Services\BioTime\BioTimeClienteEstadoService::class)
+            $result = app(\App\Services\BioTime\BioTimeClienteEstadoService::class)
                 ->deactivateEstadoCliente($this->selectedCliente);
             $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
-            $this->flashToast('success', 'Cliente desactivado correctamente.');
+            $message = $result['biotime_command'] !== null
+                ? 'Cliente desactivado; acceso BioTime encolado.'
+                : 'Cliente desactivado correctamente.';
+            $this->flashToast('success', $message);
         } catch (\Throwable $e) {
             $this->flashToast('error', $e->getMessage());
         }

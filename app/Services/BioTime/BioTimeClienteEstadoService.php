@@ -6,8 +6,10 @@ namespace App\Services\BioTime;
 
 use App\Models\BioTime\BioTimeAccessCommand;
 use App\Models\BioTime\BioTimeEmployee;
+use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\Core\Cliente;
 use App\Services\ClienteService;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 /**
@@ -18,6 +20,7 @@ class BioTimeClienteEstadoService
     public function __construct(
         private readonly BioTimeAccessEligibilityService $eligibility,
         private readonly ClienteService $clienteService,
+        private readonly BioTimeAccessCommandService $commands,
     ) {}
 
     /**
@@ -60,12 +63,7 @@ class BioTimeClienteEstadoService
             ];
         }
 
-        $known = $empCode !== null && BioTimeEmployee::query()
-            ->where(function ($query) use ($cliente, $empCode): void {
-                $query->where('cliente_id', $cliente->id)
-                    ->orWhere('emp_code', $empCode);
-            })
-            ->exists();
+        $known = $this->isKnownInBioTime($cliente);
 
         if (! $known && $cliente->biotime_id === null) {
             $status = 'no_existe';
@@ -92,7 +90,10 @@ class BioTimeClienteEstadoService
         ];
     }
 
-    public function activateEstadoCliente(Cliente $cliente): Cliente
+    /**
+     * @return array{cliente: Cliente, biotime_command: ?BioTimeAccessCommand}
+     */
+    public function activateEstadoCliente(Cliente $cliente): array
     {
         if (! $this->hasActiveSubscription($cliente)) {
             throw new InvalidArgumentException(
@@ -100,16 +101,96 @@ class BioTimeClienteEstadoService
             );
         }
 
-        return $this->clienteService->update((int) $cliente->id, [
+        $updated = $this->clienteService->update((int) $cliente->id, [
             'estado_cliente' => 'activo',
         ]);
+
+        $command = $this->tryEnqueue($updated, BioTimeAccessCommand::ACTION_ACTIVATE);
+
+        return [
+            'cliente' => $updated,
+            'biotime_command' => $command,
+        ];
     }
 
-    public function deactivateEstadoCliente(Cliente $cliente): Cliente
+    /**
+     * @return array{cliente: Cliente, biotime_command: ?BioTimeAccessCommand}
+     */
+    public function deactivateEstadoCliente(Cliente $cliente): array
     {
-        return $this->clienteService->update((int) $cliente->id, [
+        $updated = $this->clienteService->update((int) $cliente->id, [
             'estado_cliente' => 'inactivo',
         ]);
+
+        $command = null;
+        if ($this->isKnownInBioTime($updated)) {
+            $command = $this->tryEnqueue($updated, BioTimeAccessCommand::ACTION_DEACTIVATE);
+        }
+
+        return [
+            'cliente' => $updated,
+            'biotime_command' => $command,
+        ];
+    }
+
+    private function tryEnqueue(Cliente $cliente, string $action): ?BioTimeAccessCommand
+    {
+        $sucursalId = (int) $cliente->sucursal_id;
+        if ($sucursalId <= 0) {
+            return null;
+        }
+
+        if (BioTimeEmpCode::forCliente($cliente) === null) {
+            Log::warning('BioTime perfil: skip enqueue, cliente sin codigo', [
+                'cliente_id' => $cliente->id,
+                'action' => $action,
+            ]);
+
+            return null;
+        }
+
+        $setting = BioTimeSucursalSetting::forSucursal($sucursalId);
+        if (! $setting->enabled) {
+            Log::warning('BioTime perfil: skip enqueue, sede deshabilitada', [
+                'cliente_id' => $cliente->id,
+                'sucursal_id' => $sucursalId,
+                'action' => $action,
+            ]);
+
+            return null;
+        }
+
+        try {
+            return $this->commands->enqueue($sucursalId, $cliente, $action);
+        } catch (InvalidArgumentException $e) {
+            Log::warning('BioTime perfil: enqueue falló', [
+                'cliente_id' => $cliente->id,
+                'sucursal_id' => $sucursalId,
+                'action' => $action,
+                'error' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+    }
+
+    private function isKnownInBioTime(Cliente $cliente): bool
+    {
+        if ($cliente->biotime_id !== null) {
+            return true;
+        }
+
+        $empCode = BioTimeEmpCode::forCliente($cliente);
+        if ($empCode === null) {
+            return false;
+        }
+
+        return BioTimeEmployee::query()
+            ->where(function ($query) use ($cliente, $empCode): void {
+                $query->where('cliente_id', $cliente->id)
+                    ->orWhere('emp_code', $empCode);
+            })
+            ->exists();
     }
 
     private function lastAckedAction(Cliente $cliente, int $sucursalId): ?string

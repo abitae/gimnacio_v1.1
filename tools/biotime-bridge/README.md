@@ -89,8 +89,25 @@ Pestaña **Configuración**: cambia valores y pulsa **Guardar config.yaml**. Tok
 6. Registrar tarea Windows (abajo) o NSSM.
 
 > BioTime 8 **rechaza** `area: []`. El deactivate asigna `denied_area_id` (conserva biometría).
-> El `activate` con `ensure_create` **crea** el empleado si no existe (requiere `company_id` y `department_id` en config).
+> El `activate` con `ensure_create` **crea** el empleado si no existe (requiere `department_id` en config; Create API: `emp_code` + `department` + `area`).
+> Cambio de área: `POST …/adjust_area/` (fallback `PUT` del empleado). Tras create/área: `resync_to_device` si `resync_after_area: true`.
 > El comando `delete` borra empleados inelegibles para liberar cupo (pierde biometría).
+
+## Employee API BioTime (local)
+
+Docs en el servidor: `http://<biotime>:8085/docs/api-docs/employee_api.html`
+
+| Operación | Método / ruta | Uso en el puente |
+| --- | --- | --- |
+| List | `GET /personnel/api/employees/` | Buscar por `emp_code`, sync push (`count`/`next`) |
+| Read | `GET /personnel/api/employees/{id}/` | Fallback PUT (leer department) |
+| Create | `POST /personnel/api/employees/` | `ensure_create` / roster activo ausente |
+| Update | `PUT /personnel/api/employees/{id}/` | Solo fallback si `adjust_area` falla |
+| Delete | `DELETE /personnel/api/employees/{id}/` | Comando `delete` (cupo) |
+| Adjust area | `POST /personnel/api/employees/adjust_area/` | Activate / deactivate / roster |
+| Resync | `POST /personnel/api/employees/resync_to_device/` | Tras create o cambio de área |
+
+Create documentado (requeridos): `emp_code`, `department`, `area`. **No** se envía `company` (el PoC antiguo con PATCH+`company` quedó reemplazado).
 
 ## URLs Laravel (API)
 
@@ -226,7 +243,11 @@ nssm start BioTimeBridge
 3. [ ] `python -m bridge --config config.yaml doctor` → OK  
 4. [ ] Tarea `once` o `run` instalada  
 5. [ ] En UI Sedes: `last_heartbeat_at` fresco tras 1–2 min  
-6. [ ] Activate/deactivate de prueba reflejado en BioTime + dispositivo  
+6. [ ] Smoke acceso (con `dry_run: false`):  
+   - [ ] Activate cliente con `codigo` nuevo → Create + área sede (log `created` / `adjust_area`)  
+   - [ ] Deactivate → `adjust_area` a `denied_area_id`  
+   - [ ] Re-activate → `adjust_area` a `area_id`  
+   - [ ] Confirmar área en BioTime UI + dispositivo (`resync_to_device` en log)  
 
 ## Relacionado
 

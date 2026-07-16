@@ -152,11 +152,18 @@ class BridgeRunner(object):
                     emp_code=emp_code,
                     first_name=first_name,
                     last_name=last_name,
-                    company_id=self.cfg.company_id,
                     department_id=self.cfg.department_id,
                     area_ids=areas,
                 )
-                logger.info("OK cmd=%s created emp_code=%s biotime_id=%s", cmd_id, emp_code, emp.get("id") if isinstance(emp, dict) else None)
+                created_id = emp.get("id") if isinstance(emp, dict) else None
+                logger.info(
+                    "OK cmd=%s created emp_code=%s biotime_id=%s",
+                    cmd_id,
+                    emp_code,
+                    created_id,
+                )
+                if created_id is not None:
+                    self._maybe_resync([int(created_id)])
                 self._safe_ack(cmd_id, "acked")
                 return
 
@@ -165,7 +172,7 @@ class BridgeRunner(object):
             desired_sorted = sorted(int(a) for a in areas)
             if current_areas == desired_sorted:
                 logger.info(
-                    "OK cmd=%s action=%s emp_code=%s areas already=%s (skip patch)",
+                    "OK cmd=%s action=%s emp_code=%s areas already=%s (skip adjust)",
                     cmd_id,
                     action,
                     emp_code,
@@ -187,6 +194,7 @@ class BridgeRunner(object):
                 return
 
             self.biotime.set_employee_areas(emp_id, areas, employee=emp)
+            self._maybe_resync([emp_id])
             logger.info(
                 "OK cmd=%s action=%s emp_code=%s biotime_id=%s areas=%s",
                 cmd_id,
@@ -208,6 +216,18 @@ class BridgeRunner(object):
             self.laravel.ack(cmd_id, status, error=error)
         except LaravelError as exc:
             logger.error("No se pudo ACK cmd=%s: %s", cmd_id, exc)
+
+    def _maybe_resync(self, employee_ids):
+        if self.cfg.dry_run or not self.cfg.resync_after_area:
+            return
+        ids = [int(x) for x in employee_ids if x is not None]
+        if not ids:
+            return
+        try:
+            self.biotime.resync_employees_to_device(ids)
+            logger.info("resync_to_device OK employees=%s", ids)
+        except BioTimeError as exc:
+            logger.warning("resync_to_device fallo employees=%s: %s", ids, exc)
 
     def maybe_roster_reconcile(self):
         if self.cfg.roster_reconcile_seconds <= 0:
@@ -243,14 +263,16 @@ class BridgeRunner(object):
                     if self.cfg.dry_run:
                         logger.info("[dry_run] roster create emp_code=%s", emp_code)
                         continue
-                    self.biotime.create_employee(
+                    created = self.biotime.create_employee(
                         emp_code=emp_code,
                         first_name=emp_code,
                         last_name="",
-                        company_id=self.cfg.company_id,
                         department_id=self.cfg.department_id,
                         area_ids=areas,
                     )
+                    created_id = created.get("id") if isinstance(created, dict) else None
+                    if created_id is not None:
+                        self._maybe_resync([int(created_id)])
                     continue
                 if self.cfg.dry_run:
                     logger.info(
@@ -264,7 +286,9 @@ class BridgeRunner(object):
                 desired = sorted(int(a) for a in areas)
                 if current == desired:
                     continue
-                self.biotime.set_employee_areas(int(emp["id"]), areas, employee=emp)
+                emp_id = int(emp["id"])
+                self.biotime.set_employee_areas(emp_id, areas, employee=emp)
+                self._maybe_resync([emp_id])
             except BioTimeError as exc:
                 logger.error("Roster emp_code=%s: %s", emp_code, exc)
 
@@ -279,7 +303,7 @@ class BridgeRunner(object):
     def push_employees(self):
         """POST /api/biotime/sync entity=employees + reporta employees_count en health."""
         try:
-            rows = self.biotime.list_employees(page=1, page_size=200)
+            rows, _meta = self.biotime.list_employees(page=1, page_size=200)
             try:
                 total = self.biotime.count_employees(page_size=200)
             except BioTimeError:
