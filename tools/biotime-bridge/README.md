@@ -27,13 +27,39 @@ Pestaña **Configuración**: cambia valores y pulsa **Guardar config.yaml**. Tok
 
 ## Puesta en marcha rápida (sede)
 
+> **Python:** usa **Python 3.10+** de [python.org](https://www.python.org/downloads/windows/) (instalador Windows, marca *“Add python.exe to PATH”*).  
+> **No uses** el Python embebido de ZKBioTime (`C:\ZKBioTime\Python37`) contra hosting HTTPS: suele fallar con `ConnectionResetError 10054` / TLS antiguo.  
+> Si `py` no existe en PowerShell, es normal: usa el `python.exe` del instalador de python.org.
+>
+> **Crítico — `PYTHONHOME`:** BioTime suele dejar `PYTHONHOME=C:\ZKBioTime\Python37` en el entorno de Windows. Eso hace que **cualquier** `python` (incluso 3.13) cargue las libs de BioTime y falle con `SRE module mismatch`. Antes de crear el venv o correr el bridge:
+> ```bat
+> set PYTHONHOME=
+> set PYTHONPATH=
+> ```
+> O usa `start-gui.bat` / `bridge.bat` (ya limpian esas variables).
+
 1. **Copiar config**
    ```bat
    cd tools\biotime-bridge
-   python -m venv .venv
+   set PYTHONHOME=
+   set PYTHONPATH=
+
+   REM Tras instalar Python 3.12/3.13 desde python.org:
+   "C:\Program Files\Python313\python.exe" --version
+   REM Debe mostrar 3.10+ (NO 3.7.7 de ZKBioTime)
+
+   "C:\Program Files\Python313\python.exe" -m venv .venv
    .venv\Scripts\activate
+   python -m pip install -U pip
    pip install -r requirements.txt
    copy config.yaml.example config.yaml
+   ```
+
+   CLI rápida (sin activar venv):
+   ```bat
+   set PYTHONHOME=
+   bridge.bat doctor
+   bridge.bat gui
    ```
 2. **Editar `config.yaml`**
    - `laravel_base_url` — ej. `https://tudominio.com`
@@ -63,7 +89,7 @@ Auth: `Authorization: Bearer <token_sede>` (o `X-BioTime-Secret`).
 | `GET` | `/api/biotime/roster` | Snapshot acceso |
 | `POST` | `/api/biotime/sync` | Push (`employees`, …) |
 
-`emp_code` = string del `cliente.id` Laravel.
+`emp_code` = `cliente.codigo` Laravel (no el id interno).
 
 ## Comandos CLI
 
@@ -102,6 +128,33 @@ laravel_verify_ssl: false
 ```
 
 En Banahosting / producción deja `true` (o omite la clave).
+
+### laravel_user_agent
+
+Por defecto `BioTimeBridge/0.1 (+gimnasio)`. Si el WAF del hosting bloquea ese UA, cámbialo en config o en la GUI (pestaña Configuración).
+
+## Troubleshooting: Connection reset / 10054 hacia Laravel
+
+Si `doctor` muestra BioTime OK pero Laravel FAIL con `ConnectionResetError (10054)`:
+
+1. El endpoint en hosting suele estar bien (401 sin token = ruta existe).
+2. Desde **el mismo PC Windows**, prueba:
+
+```powershell
+curl.exe -v https://TU_DOMINIO/api/biotime/health
+
+curl.exe -v -H "Authorization: Bearer bt_..." -H "Accept: application/json" https://TU_DOMINIO/api/biotime/health
+
+curl.exe -v -A "Mozilla/5.0" -H "Authorization: Bearer bt_..." https://TU_DOMINIO/api/biotime/health
+```
+
+| Resultado | Acción |
+| --- | --- |
+| curl OK (401/200), bridge FAIL | Recrear `.venv` con **Python 3.10+** (no ZKBioTime Python37) |
+| curl también reset | Red, firewall, antivirus o WAF del hosting / allowlist IP |
+| curl 401 → 200 con token | Hosting OK; revisa token en config |
+
+El cliente envía `User-Agent` fijo y en errores de red loguea la URL completa + hint de Python.
 
 ## Logging
 

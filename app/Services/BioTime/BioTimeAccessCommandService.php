@@ -10,6 +10,7 @@ use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\Core\Cliente;
 use App\Models\System\Sucursal;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
 
 class BioTimeAccessCommandService
@@ -20,8 +21,9 @@ class BioTimeAccessCommandService
 
     /**
      * Encola activate/deactivate evitando pending identicos (misma sede+cliente+action).
+     * emp_code = cliente.codigo. Si codigo vacio: no encola (null).
      */
-    public function enqueue(Sucursal|int $sucursal, Cliente $cliente, string $action): BioTimeAccessCommand
+    public function enqueue(Sucursal|int $sucursal, Cliente $cliente, string $action): ?BioTimeAccessCommand
     {
         if (! BioTimeAccessCommand::isValidAction($action)) {
             throw new InvalidArgumentException("Accion BioTime no soportada: {$action}");
@@ -32,6 +34,17 @@ class BioTimeAccessCommandService
         $setting = BioTimeSucursalSetting::forSucursal($sucursalId);
         if (! $setting->enabled) {
             throw new InvalidArgumentException("BioTime sync deshabilitado para sucursal {$sucursalId}");
+        }
+
+        $empCode = BioTimeEmpCode::forCliente($cliente);
+        if ($empCode === null) {
+            Log::warning('BioTime access: skip enqueue, cliente sin codigo', [
+                'cliente_id' => $cliente->id,
+                'sucursal_id' => $sucursalId,
+                'action' => $action,
+            ]);
+
+            return null;
         }
 
         $existing = BioTimeAccessCommand::query()
@@ -56,7 +69,7 @@ class BioTimeAccessCommandService
         return BioTimeAccessCommand::query()->create([
             'sucursal_id' => $sucursalId,
             'cliente_id' => $cliente->id,
-            'emp_code' => (string) $cliente->id,
+            'emp_code' => $empCode,
             'action' => $action,
             'desired_area_biotime_id' => $desiredArea,
             'status' => BioTimeAccessCommand::STATUS_PENDING,
@@ -90,14 +103,19 @@ class BioTimeAccessCommandService
                 continue;
             }
 
+            if (BioTimeEmpCode::forCliente($cliente) === null) {
+                continue;
+            }
+
             $shouldBeActive = isset($eligibleSet[$clienteId]);
             $lastAction = $this->lastDesiredAction($sucursalId, $clienteId);
-            $knownInBioTime = $this->isKnownInBioTime($clienteId);
+            $knownInBioTime = $this->isKnownInBioTime($cliente);
 
             if ($shouldBeActive) {
                 if ($lastAction !== BioTimeAccessCommand::ACTION_ACTIVATE) {
-                    $this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_ACTIVATE);
-                    $activated++;
+                    if ($this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_ACTIVATE) !== null) {
+                        $activated++;
+                    }
                 }
 
                 continue;
@@ -105,8 +123,9 @@ class BioTimeAccessCommandService
 
             // Inactivo: solo desactivar si hubo activate previo o ya existe en BioTime.
             if ($lastAction === BioTimeAccessCommand::ACTION_ACTIVATE || ($lastAction === null && $knownInBioTime)) {
-                $this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_DEACTIVATE);
-                $deactivated++;
+                if ($this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_DEACTIVATE) !== null) {
+                    $deactivated++;
+                }
             }
         }
 
@@ -160,12 +179,16 @@ class BioTimeAccessCommandService
         return $command?->action;
     }
 
-    private function isKnownInBioTime(int $clienteId): bool
+    private function isKnownInBioTime(Cliente $cliente): bool
     {
+        $empCode = BioTimeEmpCode::forCliente($cliente);
+
         return BioTimeEmployee::query()
-            ->where(function ($query) use ($clienteId): void {
-                $query->where('cliente_id', $clienteId)
-                    ->orWhere('emp_code', (string) $clienteId);
+            ->where(function ($query) use ($cliente, $empCode): void {
+                $query->where('cliente_id', $cliente->id);
+                if ($empCode !== null) {
+                    $query->orWhere('emp_code', $empCode);
+                }
             })
             ->exists();
     }

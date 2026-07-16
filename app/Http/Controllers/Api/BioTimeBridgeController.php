@@ -10,6 +10,7 @@ use App\Models\BioTime\BioTimeAccessCommand;
 use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\Core\Cliente;
 use App\Services\BioTime\BioTimeAccessEligibilityService;
+use App\Services\BioTime\BioTimeEmpCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -115,14 +116,16 @@ class BioTimeBridgeController extends Controller
 
         $clientes = Cliente::query()
             ->where('sucursal_id', $sucursalId)
+            ->whereNotNull('codigo')
+            ->where('codigo', '!=', '')
             ->orderBy('id')
-            ->get(['id']);
+            ->get(['id', 'codigo']);
 
         return response()->json([
             'sucursal_id' => $sucursalId,
             'data' => $clientes->map(fn (Cliente $cliente) => [
                 'cliente_id' => $cliente->id,
-                'emp_code' => (string) $cliente->id,
+                'emp_code' => BioTimeEmpCode::forCliente($cliente),
                 'active' => isset($eligibleLookup[$cliente->id]),
             ])->values(),
         ]);

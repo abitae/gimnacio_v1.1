@@ -86,7 +86,11 @@ it('reconciles eligible cliente into pending activate', function () {
 
     $user = User::factory()->create();
     $membresia = Membresia::factory()->create(['sucursal_id' => $sucursal->id]);
-    $cliente = Cliente::factory()->create(['sucursal_id' => $sucursal->id, 'created_by' => $user->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'RC-ACT-001',
+    ]);
     reconcileMatricula($cliente, $sucursal, $user, $membresia);
 
     $result = app(BioTimeAccessCommandService::class)->reconcileSucursal($sucursal->id);
@@ -98,6 +102,7 @@ it('reconciles eligible cliente into pending activate', function () {
             ->where('action', 'activate')
             ->where('status', 'pending')
             ->where('desired_area_biotime_id', 2)
+            ->where('emp_code', 'RC-ACT-001')
             ->exists())->toBeTrue();
 });
 
@@ -110,7 +115,11 @@ it('enqueues deactivate when cliente becomes vencido after being active', functi
 
     $user = User::factory()->create();
     $membresia = Membresia::factory()->create(['sucursal_id' => $sucursal->id]);
-    $cliente = Cliente::factory()->create(['sucursal_id' => $sucursal->id, 'created_by' => $user->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'RC-VENC-001',
+    ]);
     $matricula = reconcileMatricula($cliente, $sucursal, $user, $membresia);
 
     $service = app(BioTimeAccessCommandService::class);
@@ -145,14 +154,18 @@ it('enqueues activate again when matricula is reactivated', function () {
 
     $user = User::factory()->create();
     $membresia = Membresia::factory()->create(['sucursal_id' => $sucursal->id]);
-    $cliente = Cliente::factory()->create(['sucursal_id' => $sucursal->id, 'created_by' => $user->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'RC-RE-001',
+    ]);
     $matricula = reconcileMatricula($cliente, $sucursal, $user, $membresia, [
         'fecha_fin' => '2026-06-01',
     ]);
 
     BioTimeEmployee::query()->create([
         'biotime_id' => 9001,
-        'emp_code' => (string) $cliente->id,
+        'emp_code' => 'RC-RE-001',
         'cliente_id' => $cliente->id,
         'first_name' => 'Test',
     ]);
@@ -189,7 +202,11 @@ it('skips reconcile when sucursal setting is disabled', function () {
 
     $user = User::factory()->create();
     $membresia = Membresia::factory()->create(['sucursal_id' => $sucursal->id]);
-    $cliente = Cliente::factory()->create(['sucursal_id' => $sucursal->id, 'created_by' => $user->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'RC-OFF-001',
+    ]);
     reconcileMatricula($cliente, $sucursal, $user, $membresia);
 
     $result = app(BioTimeAccessCommandService::class)->reconcileSucursal($sucursal->id);
@@ -205,7 +222,11 @@ it('dispatches reconcile job when cliente matricula is saved', function () {
     BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill(['enabled' => true])->save();
     $user = User::factory()->create();
     $membresia = Membresia::factory()->create(['sucursal_id' => $sucursal->id]);
-    $cliente = Cliente::factory()->create(['sucursal_id' => $sucursal->id, 'created_by' => $user->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'RC-HOOK-001',
+    ]);
 
     reconcileMatricula($cliente, $sucursal, $user, $membresia, fireEvents: true);
 

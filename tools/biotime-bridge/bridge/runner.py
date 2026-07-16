@@ -20,6 +20,7 @@ class BridgeRunner(object):
             max_retries=cfg.max_retries,
             backoff=cfg.retry_backoff_seconds,
             verify_ssl=cfg.laravel_verify_ssl,
+            user_agent=cfg.laravel_user_agent,
         )
         self.biotime = BioTimeClient(cfg.biotime_base_url, timeout=cfg.http_timeout_seconds)
         self._last_roster = 0
@@ -243,9 +244,17 @@ class BridgeRunner(object):
 
     def doctor(self):
         """Verifica Laravel health (token sede) + BioTime auth. Return code 0/1."""
+        import sys
+
+        from .laravel_client import NETWORK_HINT
+
         ok = True
         print("=== BioTime bridge doctor ===")
         print("Laravel: {0}".format(self.cfg.laravel_base_url))
+        print("Health URL: {0}".format(self.laravel.health_url()))
+        print("verify_ssl: {0}".format(self.cfg.laravel_verify_ssl))
+        print("User-Agent: {0}".format(self.cfg.laravel_user_agent))
+        print("Python: {0}".format(sys.version.split()[0]))
         print("BioTime: {0}".format(self.cfg.biotime_base_url))
         print("Sede cfg: {0}".format(self.cfg.sucursal_codigo or "(sin codigo)"))
         print("dry_run: {0}".format(self.cfg.dry_run))
@@ -260,6 +269,7 @@ class BridgeRunner(object):
             logger.info("doctor Laravel OK: %s", health)
         except Exception as exc:
             print("Laravel health: FAIL — {0}".format(exc))
+            print(NETWORK_HINT)
             logger.error("doctor Laravel FAIL: %s", exc)
             ok = False
 

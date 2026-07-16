@@ -3,11 +3,18 @@ from __future__ import print_function
 
 import json
 import logging
+import sys
 import time
 
 import requests
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_USER_AGENT = "BioTimeBridge/0.1 (+gimnasio)"
+NETWORK_HINT = (
+    "Hint: probar curl.exe hacia la misma URL; si curl OK y bridge FAIL, "
+    "usar Python 3.10+ (no el Python embebido de ZKBioTime)."
+)
 
 
 class LaravelError(Exception):
@@ -20,13 +27,23 @@ class LaravelError(Exception):
 class LaravelClient(object):
     """Cliente HTTPS hacia Laravel Banahosting (Bearer token por sede)."""
 
-    def __init__(self, base_url, token, timeout=30.0, max_retries=3, backoff=2.0, verify_ssl=True):
+    def __init__(
+        self,
+        base_url,
+        token,
+        timeout=30.0,
+        max_retries=3,
+        backoff=2.0,
+        verify_ssl=True,
+        user_agent=None,
+    ):
         self.base = base_url.rstrip("/")
         self.token = token
         self._timeout = timeout
         self.max_retries = max_retries
         self.backoff = backoff
         self.verify_ssl = verify_ssl
+        self.user_agent = (user_agent or DEFAULT_USER_AGENT).strip() or DEFAULT_USER_AGENT
         self._session = requests.Session()
         if not verify_ssl:
             # Local HTTPS con cert auto-firmado (Herd/Valet). No usar en produccion.
@@ -47,11 +64,15 @@ class LaravelClient(object):
     def __exit__(self, *args):
         self.close()
 
+    def health_url(self):
+        return self.base + "/api/biotime/health"
+
     def _headers(self):
         return {
             "Authorization": "Bearer {0}".format(self.token),
             "Accept": "application/json",
             "Content-Type": "application/json",
+            "User-Agent": self.user_agent,
         }
 
     def _request(self, method, path, **kwargs):
@@ -68,7 +89,21 @@ class LaravelClient(object):
                     **kwargs
                 )
             except requests.RequestException as exc:
-                last_exc = LaravelError("Red Laravel: {0}".format(exc))
+                last_exc = LaravelError(
+                    "Red Laravel [{0} {1}]: {2}".format(method, url, exc)
+                )
+                logger.error(
+                    "Laravel red FAIL attempt=%s/%s method=%s url=%s verify_ssl=%s py=%s: %s",
+                    attempt,
+                    self.max_retries,
+                    method,
+                    url,
+                    self.verify_ssl,
+                    sys.version.split()[0],
+                    exc,
+                )
+                if attempt >= self.max_retries:
+                    logger.error(NETWORK_HINT)
                 self._sleep(attempt)
                 continue
 

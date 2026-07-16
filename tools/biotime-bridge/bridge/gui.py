@@ -161,6 +161,7 @@ class BridgeGuiApp(object):
         self._add_field(laravel, "laravel_base_url", "URL base", width=56)
         self._add_field(laravel, "laravel_token", "Token sede", width=56, secret=True)
         self._add_check(laravel, "laravel_verify_ssl", "Verificar SSL (desmarcar en HTTPS local)")
+        self._add_field(laravel, "laravel_user_agent", "User-Agent HTTP", width=56)
 
         biotime = ttk.LabelFrame(form, text="BioTime local")
         biotime.pack(fill=tk.X, **pad)
@@ -263,6 +264,7 @@ class BridgeGuiApp(object):
             "laravel_base_url": c.laravel_base_url,
             "laravel_token": c.laravel_token,
             "laravel_verify_ssl": c.laravel_verify_ssl,
+            "laravel_user_agent": c.laravel_user_agent,
             "biotime_base_url": c.biotime_base_url,
             "biotime_user": c.biotime_user,
             "biotime_password": c.biotime_password,
@@ -315,6 +317,7 @@ class BridgeGuiApp(object):
             "laravel_base_url": text("laravel_base_url").rstrip("/"),
             "laravel_token": text("laravel_token"),
             "laravel_verify_ssl": bool(self._form["laravel_verify_ssl"]["var"].get()),
+            "laravel_user_agent": text("laravel_user_agent") or "BioTimeBridge/0.1 (+gimnasio)",
             "biotime_base_url": text("biotime_base_url").rstrip("/"),
             "biotime_user": text("biotime_user"),
             "biotime_password": text("biotime_password"),

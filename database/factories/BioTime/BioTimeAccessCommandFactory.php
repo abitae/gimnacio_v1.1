@@ -25,8 +25,9 @@ class BioTimeAccessCommandFactory extends Factory
             'cliente_id' => fn (array $attributes) => Cliente::factory()->create([
                 'sucursal_id' => $attributes['sucursal_id'],
                 'created_by' => User::factory(),
+                'codigo' => 'C'.fake()->unique()->numerify('######'),
             ])->id,
-            'emp_code' => fn (array $attributes) => (string) $attributes['cliente_id'],
+            'emp_code' => fn (array $attributes) => (string) Cliente::query()->findOrFail($attributes['cliente_id'])->codigo,
             'action' => BioTimeAccessCommand::ACTION_ACTIVATE,
             'desired_area_biotime_id' => 2,
             'status' => BioTimeAccessCommand::STATUS_PENDING,

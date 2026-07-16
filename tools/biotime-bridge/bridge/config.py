@@ -23,6 +23,8 @@ class BridgeConfig(object):
         self.dry_run = bool(data.get("dry_run", False))
         # True por defecto (produccion). false solo para HTTPS local con cert auto-firmado.
         self.laravel_verify_ssl = bool(data.get("laravel_verify_ssl", True))
+        ua = data.get("laravel_user_agent")
+        self.laravel_user_agent = (ua or "BioTimeBridge/0.1 (+gimnasio)").strip() or "BioTimeBridge/0.1 (+gimnasio)"
         self.http_timeout_seconds = float(data.get("http_timeout_seconds") or 30)
         self.max_retries = max(1, int(data.get("max_retries") or 3))
         self.retry_backoff_seconds = float(data.get("retry_backoff_seconds") or 2)
@@ -34,6 +36,7 @@ class BridgeConfig(object):
             "laravel_base_url": self.laravel_base_url,
             "laravel_token": self.laravel_token,
             "laravel_verify_ssl": self.laravel_verify_ssl,
+            "laravel_user_agent": self.laravel_user_agent,
             "biotime_base_url": self.biotime_base_url,
             "biotime_user": self.biotime_user,
             "biotime_password": self.biotime_password,

@@ -5,6 +5,8 @@ laravel_base_url: "https://tudominio.com"   # sin slash final; rutas bajo /api/b
 laravel_token: "bt_REEMPLAZAR"
 # false solo en HTTPS local con cert auto-firmado. En Banahosting/produccion: true (default).
 laravel_verify_ssl: true
+# Override si el WAF del hosting bloquea el UA por defecto.
+laravel_user_agent: "BioTimeBridge/0.1 (+gimnasio)"
 
 biotime_base_url: "http://127.0.0.1:8085"
 biotime_user: "admin"

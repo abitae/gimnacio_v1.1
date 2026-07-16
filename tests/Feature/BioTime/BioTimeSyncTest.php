@@ -284,18 +284,21 @@ it('renders operational dashboard per sucursal and dispatches reconcile', functi
         'enabled' => true,
     ])->save();
 
-    $cliente = Cliente::factory()->create(['sucursal_id' => $sucursal->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'codigo' => 'OPS-001',
+    ]);
 
     BioTimeAccessCommand::factory()->create([
         'sucursal_id' => $sucursal->id,
         'cliente_id' => $cliente->id,
-        'emp_code' => (string) $cliente->id,
+        'emp_code' => 'OPS-001',
         'status' => BioTimeAccessCommand::STATUS_PENDING,
     ]);
     BioTimeAccessCommand::factory()->create([
         'sucursal_id' => $sucursal->id,
         'cliente_id' => $cliente->id,
-        'emp_code' => (string) $cliente->id,
+        'emp_code' => 'OPS-001',
         'status' => BioTimeAccessCommand::STATUS_FAILED,
         'acked_at' => now()->subHours(2),
         'last_error' => 'timeout',
