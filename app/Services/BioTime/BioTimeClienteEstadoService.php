@@ -64,19 +64,28 @@ class BioTimeClienteEstadoService
         }
 
         $known = $this->isKnownInBioTime($cliente);
+        $last = $sucursalId > 0 ? $this->lastAckedAction($cliente, $sucursalId) : null;
+
+        // Comando ACK previo = evidencia de existencia aunque sync employees no haya corrido.
+        if (! $known && in_array($last, [
+            BioTimeAccessCommand::ACTION_ACTIVATE,
+            BioTimeAccessCommand::ACTION_DEACTIVATE,
+        ], true)) {
+            $known = true;
+        }
 
         if (! $known && $cliente->biotime_id === null) {
             $status = 'no_existe';
             $label = 'No existe en BioTime';
+        } elseif ($last === BioTimeAccessCommand::ACTION_DEACTIVATE) {
+            $status = 'inactivo';
+            $label = 'Inactivo en BioTime';
         } elseif ($sucursalId > 0 && $this->eligibility->isEligible($cliente, $sucursalId)) {
-            $last = $this->lastAckedAction($cliente, $sucursalId);
-            if ($last === BioTimeAccessCommand::ACTION_DEACTIVATE) {
-                $status = 'inactivo';
-                $label = 'Inactivo en BioTime';
-            } else {
-                $status = 'activo';
-                $label = 'Activo en BioTime';
-            }
+            $status = 'activo';
+            $label = 'Activo en BioTime';
+        } elseif ($last === BioTimeAccessCommand::ACTION_ACTIVATE) {
+            $status = 'activo';
+            $label = 'Activo en BioTime';
         } else {
             $status = $known ? 'inactivo' : 'no_existe';
             $label = $known ? 'Inactivo en BioTime' : 'No existe en BioTime';
@@ -185,11 +194,29 @@ class BioTimeClienteEstadoService
             return false;
         }
 
-        return BioTimeEmployee::query()
+        if (BioTimeEmployee::query()
             ->where(function ($query) use ($cliente, $empCode): void {
                 $query->where('cliente_id', $cliente->id)
                     ->orWhere('emp_code', $empCode);
             })
+            ->exists()) {
+            return true;
+        }
+
+        // Fallback: activate/deactivate ACK sin fila en bio_time_employees (sync pendiente).
+        $sucursalId = (int) $cliente->sucursal_id;
+        if ($sucursalId <= 0) {
+            return false;
+        }
+
+        return BioTimeAccessCommand::query()
+            ->where('sucursal_id', $sucursalId)
+            ->where('cliente_id', $cliente->id)
+            ->where('status', BioTimeAccessCommand::STATUS_ACKED)
+            ->whereIn('action', [
+                BioTimeAccessCommand::ACTION_ACTIVATE,
+                BioTimeAccessCommand::ACTION_DEACTIVATE,
+            ])
             ->exists();
     }
 

@@ -141,6 +141,43 @@ it('accepts a department batch and updates last_received_at for that sucursal', 
         ->and($setting->last_heartbeat_at)->not->toBeNull();
 });
 
+it('processes employees sync inline even when queue is enabled', function () {
+    Queue::fake();
+    config(['biotime.queue' => true]);
+
+    $sucursal = biotimeSucursal('emp-inline');
+    biotimeAgentSetting($sucursal, 'emp-inline-token');
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'EMP-INLINE-1',
+        'biotime_id' => null,
+    ]);
+
+    $this->postJson('/api/biotime/sync', [
+        'entity' => 'employees',
+        'timestamp' => '2026-05-28 16:00:00',
+        'data' => [
+            [
+                'id' => 55,
+                'emp_code' => 'EMP-INLINE-1',
+                'first_name' => 'Ana',
+                'last_name' => 'Lopez',
+                'department' => ['id' => 1, 'dept_name' => 'Gym'],
+                'area' => [['id' => 2]],
+            ],
+        ],
+    ], ['Authorization' => 'Bearer emp-inline-token'])
+        ->assertOk()
+        ->assertJsonPath('queued', false)
+        ->assertJsonPath('processed', 1);
+
+    Queue::assertNothingPushed();
+    expect($cliente->fresh()->biotime_id)->toBe(55)
+        ->and(\App\Models\BioTime\BioTimeEmployee::query()->where('biotime_id', 55)->where('cliente_id', $cliente->id)->exists())->toBeTrue();
+});
+
 it('isolates tokens per sucursal (multi-sede)', function () {
     Queue::fake();
 

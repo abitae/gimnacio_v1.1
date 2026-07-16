@@ -172,7 +172,7 @@ class BridgeRunner(object):
                 )
                 if created_id is not None:
                     self._maybe_resync([int(created_id)])
-                self._safe_ack(cmd_id, "acked")
+                self._safe_ack(cmd_id, "acked", biotime_id=created_id)
                 return
 
             emp_id = int(emp["id"])
@@ -196,7 +196,7 @@ class BridgeRunner(object):
                 )
                 if not self.cfg.dry_run:
                     self._maybe_resync([emp_id])
-                self._safe_ack(cmd_id, "acked")
+                self._safe_ack(cmd_id, "acked", biotime_id=emp_id)
                 return
 
             if self.cfg.dry_run:
@@ -208,7 +208,7 @@ class BridgeRunner(object):
                     emp_id,
                     areas,
                 )
-                self._safe_ack(cmd_id, "acked")
+                self._safe_ack(cmd_id, "acked", biotime_id=emp_id)
                 return
 
             self.biotime.set_employee_areas(emp_id, areas, employee=emp)
@@ -221,17 +221,17 @@ class BridgeRunner(object):
                 emp_id,
                 areas,
             )
-            self._safe_ack(cmd_id, "acked")
+            self._safe_ack(cmd_id, "acked", biotime_id=emp_id)
         except (BioTimeError, LaravelError, Exception) as exc:
             logger.error("FAIL cmd=%s emp_code=%s: %s", cmd_id, emp_code, exc)
             self._safe_ack(cmd_id, "failed", str(exc))
 
-    def _safe_ack(self, cmd_id, status, error=None):
+    def _safe_ack(self, cmd_id, status, error=None, biotime_id=None):
         if self.cfg.dry_run and status == "failed":
             logger.info("[dry_run] ack skipped failed cmd=%s error=%s", cmd_id, error)
             return
         try:
-            self.laravel.ack(cmd_id, status, error=error)
+            self.laravel.ack(cmd_id, status, error=error, biotime_id=biotime_id)
         except LaravelError as exc:
             logger.error("No se pudo ACK cmd=%s: %s", cmd_id, exc)
 

@@ -58,7 +58,11 @@ class BioTimeSyncController extends Controller
             'received_at' => $receivedAt,
         ]);
 
-        if ((bool) config('biotime.queue', true)) {
+        // Employees: siempre síncrono. En Banahosting sin queue worker el job
+        // nunca corre y el perfil queda en "No existe en BioTime".
+        $processInline = $entity === 'employees' || ! (bool) config('biotime.queue', true);
+
+        if (! $processInline) {
             match ($entity) {
                 'transactions' => ProcessBioTimeTransactions::dispatch($payload['timestamp'], $records, $batchId),
                 'devices' => ProcessBioTimeDevices::dispatch($payload['timestamp'], $records, $batchId),

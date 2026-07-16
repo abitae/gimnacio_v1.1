@@ -152,10 +152,12 @@ class LaravelClient(object):
             return data["data"]
         return []
 
-    def ack(self, command_id, status, error=None):
+    def ack(self, command_id, status, error=None, biotime_id=None):
         body = {"status": status}
         if error:
             body["error"] = str(error)[:2000]
+        if biotime_id is not None:
+            body["biotime_id"] = int(biotime_id)
         return self._request("POST", "/api/biotime/commands/{0}/ack".format(command_id), json=body)
 
     def roster(self):

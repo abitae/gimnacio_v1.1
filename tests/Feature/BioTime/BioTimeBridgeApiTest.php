@@ -69,13 +69,16 @@ it('acks a command only for its own sucursal and updates heartbeat', function ()
 
     $this->postJson("/api/biotime/commands/{$command->id}/ack", [
         'status' => 'acked',
+        'biotime_id' => 4401,
     ], ['Authorization' => 'Bearer ack-token-a'])
         ->assertOk()
         ->assertJsonPath('command.status', 'acked');
 
     expect($command->fresh()->status)->toBe('acked')
         ->and($command->fresh()->acked_at)->not->toBeNull()
-        ->and(BioTimeSucursalSetting::forSucursal($sedeA->id)->fresh()->last_heartbeat_at)->not->toBeNull();
+        ->and(BioTimeSucursalSetting::forSucursal($sedeA->id)->fresh()->last_heartbeat_at)->not->toBeNull()
+        ->and($cliente->fresh()->biotime_id)->toBe(4401)
+        ->and(\App\Models\BioTime\BioTimeEmployee::query()->where('biotime_id', 4401)->where('cliente_id', $cliente->id)->exists())->toBeTrue();
 });
 
 it('increments attempts on failed ack', function () {

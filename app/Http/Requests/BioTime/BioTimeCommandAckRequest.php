@@ -27,6 +27,7 @@ class BioTimeCommandAckRequest extends FormRequest
                 ]),
             ],
             'error' => ['nullable', 'string', 'max:2000'],
+            'biotime_id' => ['nullable', 'integer', 'min:1'],
         ];
     }
 }
