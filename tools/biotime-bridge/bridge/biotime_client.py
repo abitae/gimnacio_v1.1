@@ -151,16 +151,22 @@ class BioTimeClient(object):
             page += 1
         return total
 
-    def create_employee(self, emp_code, first_name, last_name, department_id, area_ids):
+    def create_employee(self, emp_code, first_name, last_name, department_id, area_ids, company_id=None):
         """
         POST /personnel/api/employees/
-        Docs: requeridos emp_code, department, area. Opcionales first_name, last_name, …
+        Docs: emp_code, department, area. En BioTime 8 real, company debe coincidir
+        con el department ("Mismatched company pk and deparment pk" si falta o no cuadra).
         """
         if not area_ids:
             raise BioTimeError("area=[] rechazado por BioTime; usa denied_area_id")
+        if company_id is None or int(company_id) <= 0:
+            raise BioTimeError(
+                "company_id requerido al crear (debe coincidir con el department en BioTime)"
+            )
 
         payload = {
             "emp_code": str(emp_code),
+            "company": int(company_id),
             "department": int(department_id),
             "area": [int(a) for a in area_ids],
         }
@@ -239,8 +245,10 @@ class BioTimeClient(object):
 
     def set_employee_areas(self, employee_id, area_ids, employee=None):
         """
-        Cambia areas: primero adjust_area (docs oficiales); si falla, PUT del empleado
-        con emp_code + department + area (sin company / sin PATCH).
+        Cambia areas del empleado.
+        1) POST adjust_area (docs) — en algunas instalaciones BioTime 8 responde 500.
+        2) Fallback PATCH/PUT con company + department + area (requerido en runtime;
+           sin company → "Mismatched company pk and deparment pk").
         La lista area no puede estar vacia: usar denied_area_id para bloquear.
         """
         if not area_ids:
@@ -255,7 +263,7 @@ class BioTimeClient(object):
             return data if isinstance(data, dict) else {"result": data}
         except BioTimeError as adj_exc:
             logger.warning(
-                "adjust_area fallo employee_id=%s; fallback PUT: %s",
+                "adjust_area fallo employee_id=%s; fallback PATCH/PUT: %s",
                 emp_id,
                 adj_exc,
             )
@@ -263,28 +271,53 @@ class BioTimeClient(object):
         if employee is None:
             employee = self.get_employee(emp_id)
         if not isinstance(employee, dict):
-            raise BioTimeError("Empleado invalido para PUT fallback")
+            raise BioTimeError("Empleado invalido para fallback de areas")
 
         emp_code = employee.get("emp_code")
+        company_id = self._pk(employee.get("company"), "company")
         department_id = self._pk(employee.get("department"), "department")
-        if not emp_code or department_id is None:
+        if company_id is None or department_id is None:
             raise BioTimeError(
-                "Empleado sin emp_code/department; no se puede hacer PUT fallback "
-                "(adjust_area previo: ver log)"
+                "Empleado sin company/department; no se puede actualizar areas "
+                "(adjust_area previo fallo; ver log)"
             )
 
+        # BioTime 8 exige company + department en el mismo body al actualizar areas.
         payload = {
-            "emp_code": str(emp_code),
+            "company": company_id,
             "department": department_id,
             "area": areas,
         }
-        data = self._request(
-            "PUT",
-            "personnel/api/employees/{0}/".format(emp_id),
-            json=payload,
-        )
-        logger.info("PUT employee areas OK employee_id=%s areas=%s", emp_id, areas)
-        return data if isinstance(data, dict) else {"result": data}
+        if emp_code:
+            payload["emp_code"] = str(emp_code)
+
+        last_error = None
+        for method in ("PATCH", "PUT"):
+            try:
+                data = self._request(
+                    method,
+                    "personnel/api/employees/{0}/".format(emp_id),
+                    json=payload,
+                )
+                logger.info(
+                    "%s employee areas OK employee_id=%s areas=%s",
+                    method,
+                    emp_id,
+                    areas,
+                )
+                return data if isinstance(data, dict) else {"result": data}
+            except BioTimeError as exc:
+                last_error = exc
+                if method == "PATCH":
+                    logger.warning(
+                        "PATCH areas fallo employee_id=%s; intento PUT: %s",
+                        emp_id,
+                        exc,
+                    )
+                    continue
+                raise
+        raise last_error
+
 
     @staticmethod
     def _extract_list(data):

@@ -187,7 +187,7 @@ it('deactivates and enqueues biotime deactivate when employee is known', functio
         ->and($result['biotime_command']->emp_code)->toBe('EST-DEACT-001');
 });
 
-it('deactivates without biotime command when employee is unknown', function () {
+it('deactivates and enqueues biotime deactivate even when employee is unknown locally', function () {
     $sucursal = estadoSucursal('deact-unk');
     enableBioTimeSede($sucursal);
     $user = User::factory()->create();
@@ -221,6 +221,7 @@ it('deactivates without biotime command when employee is unknown', function () {
     $result = app(BioTimeClienteEstadoService::class)->deactivateEstadoCliente($cliente);
 
     expect($result['cliente']->estado_cliente)->toBe('inactivo')
-        ->and($result['biotime_command'])->toBeNull()
-        ->and(BioTimeAccessCommand::query()->where('cliente_id', $cliente->id)->count())->toBe(0);
+        ->and($result['biotime_command'])->not->toBeNull()
+        ->and($result['biotime_command']->action)->toBe(BioTimeAccessCommand::ACTION_DEACTIVATE)
+        ->and($result['biotime_command']->emp_code)->toBe('EST-UNK-001');
 });

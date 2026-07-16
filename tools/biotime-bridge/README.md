@@ -23,6 +23,8 @@ O doble clic en `start-gui.bat` (usa `.venv` si existe).
 | Mostrar ventana | Restaura la GUI si estaba minimizada |
 | Cerrar (X) | Si está corriendo: pregunta minimizar vs detener |
 | Configuración | Editar y **guardar** `config.yaml` (URLs, token, áreas, tiempos) |
+| Pruebas | Crear / buscar / cambiar área / eliminar empleados **directo en BioTime** (sin Laravel) |
+| Log | Vista en vivo + recargar `logs/biotime-bridge.log` |
 
 ### Segundo plano (sin GUI)
 
@@ -89,7 +91,7 @@ Pestaña **Configuración**: cambia valores y pulsa **Guardar config.yaml**. Tok
 6. Registrar tarea Windows (abajo) o NSSM.
 
 > BioTime 8 **rechaza** `area: []`. El deactivate asigna `denied_area_id` (conserva biometría).
-> El `activate` con `ensure_create` **crea** el empleado si no existe (requiere `department_id` en config; Create API: `emp_code` + `department` + `area`).
+> El `activate` con `ensure_create` **crea** el empleado si no existe (requiere `company_id` + `department_id` alineados en BioTime; Create falla con *Mismatched company pk…* si no coinciden).
 > Cambio de área: `POST …/adjust_area/` (fallback `PUT` del empleado). Tras create/área: `resync_to_device` si `resync_after_area: true`.
 > El comando `delete` borra empleados inelegibles para liberar cupo (pierde biometría).
 
@@ -101,13 +103,13 @@ Docs en el servidor: `http://<biotime>:8085/docs/api-docs/employee_api.html`
 | --- | --- | --- |
 | List | `GET /personnel/api/employees/` | Buscar por `emp_code`, sync push (`count`/`next`) |
 | Read | `GET /personnel/api/employees/{id}/` | Fallback PUT (leer department) |
-| Create | `POST /personnel/api/employees/` | `ensure_create` / roster activo ausente |
+| Create | `POST /personnel/api/employees/` | `ensure_create` / roster activo ausente (`company`+`department`+`area`) |
 | Update | `PUT /personnel/api/employees/{id}/` | Solo fallback si `adjust_area` falla |
 | Delete | `DELETE /personnel/api/employees/{id}/` | Comando `delete` (cupo) |
-| Adjust area | `POST /personnel/api/employees/adjust_area/` | Activate / deactivate / roster |
+| Adjust area | `POST /personnel/api/employees/adjust_area/` | Preferido; si 500 → PATCH/PUT |
 | Resync | `POST /personnel/api/employees/resync_to_device/` | Tras create o cambio de área |
 
-Create documentado (requeridos): `emp_code`, `department`, `area`. **No** se envía `company` (el PoC antiguo con PATCH+`company` quedó reemplazado).
+Create y update de áreas en runtime BioTime 8 requieren **`company` + `department` coherentes** (sin `company` → *Mismatched company pk and deparment pk*). `adjust_area` puede devolver 500 en algunas instalaciones; el puente hace fallback a PATCH/PUT con esos campos.
 
 ## URLs Laravel (API)
 

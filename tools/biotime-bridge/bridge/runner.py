@@ -137,6 +137,13 @@ class BridgeRunner(object):
                 areas = [self.cfg.denied_area_id]
 
             if not emp or emp.get("id") is None:
+                if action == "deactivate":
+                    logger.info(
+                        "Deactivate: empleado ausente emp_code=%s (nada que hacer)",
+                        emp_code,
+                    )
+                    self._safe_ack(cmd_id, "acked")
+                    return
                 if action != "activate" or not ensure_create:
                     raise BioTimeError("Empleado no encontrado emp_code={0}".format(emp_code))
                 if self.cfg.dry_run:
@@ -152,6 +159,7 @@ class BridgeRunner(object):
                     emp_code=emp_code,
                     first_name=first_name,
                     last_name=last_name,
+                    company_id=self.cfg.company_id,
                     department_id=self.cfg.department_id,
                     area_ids=areas,
                 )
@@ -168,16 +176,26 @@ class BridgeRunner(object):
                 return
 
             emp_id = int(emp["id"])
+            # Releer detalle: el listado a veces trae area desactualizada.
+            try:
+                fresh = self.biotime.get_employee(emp_id)
+                if isinstance(fresh, dict) and fresh.get("id") is not None:
+                    emp = fresh
+            except BioTimeError as exc:
+                logger.warning("get_employee %s fallo; uso listado: %s", emp_id, exc)
+
             current_areas = sorted(self.biotime.employee_area_ids(emp))
             desired_sorted = sorted(int(a) for a in areas)
             if current_areas == desired_sorted:
                 logger.info(
-                    "OK cmd=%s action=%s emp_code=%s areas already=%s (skip adjust)",
+                    "OK cmd=%s action=%s emp_code=%s areas already=%s (resync)",
                     cmd_id,
                     action,
                     emp_code,
                     current_areas,
                 )
+                if not self.cfg.dry_run:
+                    self._maybe_resync([emp_id])
                 self._safe_ack(cmd_id, "acked")
                 return
 
@@ -267,6 +285,7 @@ class BridgeRunner(object):
                         emp_code=emp_code,
                         first_name=emp_code,
                         last_name="",
+                        company_id=self.cfg.company_id,
                         department_id=self.cfg.department_id,
                         area_ids=areas,
                     )

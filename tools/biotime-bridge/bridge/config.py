@@ -16,7 +16,8 @@ class BridgeConfig(object):
         self.biotime_auth_mode = data.get("biotime_auth_mode") or "auto"
         self.area_id = int(data.get("area_id") or 0)
         self.denied_area_id = int(data.get("denied_area_id") or 1)
-        # Opcional/deprecado: Create Employee API no requiere company (solo department + area).
+        # Opcional en docs oficiales, pero requerido en runtime BioTime 8
+        # (company debe coincidir con department: "Mismatched company pk…").
         self.company_id = int(data.get("company_id") or 0)
         self.department_id = int(data.get("department_id") or 0)
         self.sucursal_codigo = data.get("sucursal_codigo") or ""
@@ -77,6 +78,10 @@ class BridgeConfig(object):
             errors.append("denied_area_id debe ser > 0")
         if self.area_id == self.denied_area_id:
             errors.append("area_id y denied_area_id no deben ser iguales")
+        if self.company_id <= 0:
+            errors.append(
+                "company_id debe ser > 0 (requerido al crear; debe coincidir con department)"
+            )
         if self.department_id <= 0:
             errors.append("department_id debe ser > 0 (requerido para create employee)")
         return errors

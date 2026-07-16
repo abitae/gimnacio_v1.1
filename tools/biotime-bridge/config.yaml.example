@@ -17,10 +17,10 @@ biotime_auth_mode: "auto"   # auto | jwt | token
 area_id: 2
 # Area denegada: BioTime 8 rechaza area=[]; deactivate asigna este id (ej. "No autorizado"=1).
 denied_area_id: 1
-# Department requerido al crear empleados (POST /personnel/api/employees/).
+# Department y company deben coincidir en BioTime (Create falla con
+# "Mismatched company pk and deparment pk" si no).
 department_id: 1
-# Opcional/deprecado: la Employee API documentada no exige company en Create.
-# company_id: 1
+company_id: 1
 
 sucursal_codigo: "principal"
 poll_seconds: 60
