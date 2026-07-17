@@ -601,7 +601,6 @@ class ReporteModuloService
         $totalIngresos = 0;
         $totalSalidas = 0;
         $totalVendido = 0;
-        $totalesPorMetodo = [];
         $totalesPorUsuario = [];
         $detalleMovimientos = collect();
         /** @var \App\Models\Core\Caja $caja */
@@ -613,10 +612,6 @@ class ReporteModuloService
                 ->where('categoria', \App\Models\Core\CajaMovimiento::CATEGORIA_POS)
                 ->where('tipo', 'entrada')
                 ->sum('monto');
-
-            foreach (($resumenCaja['desglose_por_metodo'] ?? []) as $metodo => $row) {
-                $totalesPorMetodo[$metodo] = round(($totalesPorMetodo[$metodo] ?? 0) + (float) ($row['total'] ?? 0), 2);
-            }
 
             $usuarioNombre = $caja->usuario?->name ?? 'Sin usuario';
             $totalesPorUsuario[$usuarioNombre] = round(($totalesPorUsuario[$usuarioNombre] ?? 0) + (float) ($resumenCaja['total_ingresos'] ?? 0), 2);
@@ -630,6 +625,9 @@ class ReporteModuloService
             }));
         }
 
+        $detalleMovimientos = $detalleMovimientos->sortByDesc('fecha')->values();
+        $totalesPorMetodo = $this->agregarTotalesPorMetodoYTipoCaja($detalleMovimientos);
+
         return [
             'cajas' => $cajas,
             'resumen' => [
@@ -642,8 +640,80 @@ class ReporteModuloService
                 'por_metodo_pago' => $totalesPorMetodo,
                 'por_usuario' => $totalesPorUsuario,
             ],
-            'detalle_movimientos' => $detalleMovimientos->sortByDesc('fecha')->values(),
+            'detalle_movimientos' => $detalleMovimientos,
         ];
+    }
+
+    /**
+     * Totales por método de pago, disgregados por tipo (POS, membresías, clases, alquileres…).
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $movimientos
+     * @return array<string, array{total: float, cantidad: int, por_tipo: array<string, array{total: float, cantidad: int, categoria: string|null}>}>
+     */
+    protected function agregarTotalesPorMetodoYTipoCaja($movimientos): array
+    {
+        $totales = [];
+
+        foreach ($movimientos as $movimiento) {
+            if (($movimiento['tipo'] ?? null) !== 'entrada') {
+                continue;
+            }
+
+            if (($movimiento['categoria'] ?? null) === \App\Models\Core\CajaMovimiento::CATEGORIA_APERTURA) {
+                continue;
+            }
+
+            $metodo = filled($movimiento['metodo_pago'] ?? null)
+                ? (string) $movimiento['metodo_pago']
+                : 'Sin método';
+            $tipoLabel = $this->etiquetaTipoMovimientoCaja($movimiento);
+            $monto = round((float) ($movimiento['monto'] ?? 0), 2);
+
+            $totales[$metodo] ??= [
+                'total' => 0.0,
+                'cantidad' => 0,
+                'por_tipo' => [],
+            ];
+            $totales[$metodo]['total'] = round($totales[$metodo]['total'] + $monto, 2);
+            $totales[$metodo]['cantidad']++;
+
+            $totales[$metodo]['por_tipo'][$tipoLabel] ??= [
+                'total' => 0.0,
+                'cantidad' => 0,
+                'categoria' => $movimiento['categoria'] ?? null,
+            ];
+            $totales[$metodo]['por_tipo'][$tipoLabel]['total'] = round(
+                $totales[$metodo]['por_tipo'][$tipoLabel]['total'] + $monto,
+                2
+            );
+            $totales[$metodo]['por_tipo'][$tipoLabel]['cantidad']++;
+        }
+
+        uasort($totales, fn (array $a, array $b): int => $b['total'] <=> $a['total']);
+
+        foreach ($totales as &$metodoRow) {
+            uasort($metodoRow['por_tipo'], fn (array $a, array $b): int => $b['total'] <=> $a['total']);
+        }
+        unset($metodoRow);
+
+        return $totales;
+    }
+
+    /**
+     * @param  array<string, mixed>  $movimiento
+     */
+    protected function etiquetaTipoMovimientoCaja(array $movimiento): string
+    {
+        return match ($movimiento['categoria'] ?? null) {
+            \App\Models\Core\CajaMovimiento::CATEGORIA_POS => 'Venta POS',
+            \App\Models\Core\CajaMovimiento::CATEGORIA_MEMBRESIA => 'Membresías',
+            \App\Models\Core\CajaMovimiento::CATEGORIA_CLASE => 'Clases',
+            \App\Models\Core\CajaMovimiento::CATEGORIA_ALQUILER => 'Alquileres',
+            \App\Models\Core\CajaMovimiento::CATEGORIA_CUOTA => 'Cuotas',
+            \App\Models\Core\CajaMovimiento::CATEGORIA_MANUAL_INGRESO => 'Ingreso manual',
+            \App\Models\Core\CajaMovimiento::CATEGORIA_MANUAL_SALIDA => 'Salida manual',
+            default => (string) ($movimiento['tipo_visual'] ?? 'Otros'),
+        };
     }
 
     /**

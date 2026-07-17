@@ -28,9 +28,13 @@ class ReporteCajasLive extends Component
 
     public bool $mostrarModalTicketVenta = false;
 
+    public bool $mostrarModalTicketPago = false;
+
     public ?int $cajaDetalleId = null;
 
     public ?int $ventaIdTicketReporte = null;
+
+    public ?int $pagoIdTicketReporte = null;
 
     protected $paginationTheme = 'tailwind';
 
@@ -93,6 +97,18 @@ class ReporteCajasLive extends Component
     {
         $this->mostrarModalTicketVenta = false;
         $this->ventaIdTicketReporte = null;
+    }
+
+    public function abrirTicketPago(int $pagoId): void
+    {
+        $this->pagoIdTicketReporte = $pagoId;
+        $this->mostrarModalTicketPago = true;
+    }
+
+    public function cerrarTicketPago(): void
+    {
+        $this->mostrarModalTicketPago = false;
+        $this->pagoIdTicketReporte = null;
     }
 
     public function render()

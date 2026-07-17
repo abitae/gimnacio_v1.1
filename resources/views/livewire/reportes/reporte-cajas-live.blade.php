@@ -62,11 +62,28 @@
         <div class="grid gap-4 xl:grid-cols-2">
             <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
                 <h2 class="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Totales por método de pago</h2>
-                <div class="space-y-2">
-                    @forelse(($resumen['por_metodo_pago'] ?? []) as $metodo => $monto)
-                        <div class="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-900/50">
-                            <span>{{ $metodo ?: 'Sin método' }}</span>
-                            <span class="font-semibold">S/ {{ number_format((float) $monto, 2) }}</span>
+                <div class="space-y-3">
+                    @forelse(($resumen['por_metodo_pago'] ?? []) as $metodo => $datos)
+                        @php
+                            $esDetalle = is_array($datos);
+                            $totalMetodo = $esDetalle ? (float) ($datos['total'] ?? 0) : (float) $datos;
+                            $porTipo = $esDetalle ? ($datos['por_tipo'] ?? []) : [];
+                        @endphp
+                        <div class="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-900/50">
+                            <div class="flex items-center justify-between text-sm">
+                                <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ $metodo ?: 'Sin método' }}</span>
+                                <span class="font-semibold text-zinc-900 dark:text-zinc-100">S/ {{ number_format($totalMetodo, 2) }}</span>
+                            </div>
+                            @if (! empty($porTipo))
+                                <div class="mt-1.5 space-y-1 border-t border-zinc-200 pt-1.5 dark:border-zinc-700">
+                                    @foreach ($porTipo as $tipo => $fila)
+                                        <div class="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
+                                            <span>{{ $tipo }}@if (! empty($fila['cantidad'])) <span class="text-zinc-400">({{ $fila['cantidad'] }})</span>@endif</span>
+                                            <span class="font-medium">S/ {{ number_format((float) ($fila['total'] ?? 0), 2) }}</span>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     @empty
                         <p class="text-sm text-zinc-500 dark:text-zinc-400">Sin movimientos por método de pago.</p>
@@ -199,6 +216,12 @@
                                         title="Ver ticket de venta">
                                         Detalle
                                     </flux:button>
+                                @elseif (! empty($movimiento['ticket_pago_id']))
+                                    <flux:button type="button" size="xs" variant="ghost" icon="printer"
+                                        wire:click="abrirTicketPago({{ $movimiento['ticket_pago_id'] }})"
+                                        title="Ver ticket de pago / membresía">
+                                        Detalle
+                                    </flux:button>
                                 @else
                                     <span class="text-zinc-400">-</span>
                                 @endif
@@ -278,6 +301,31 @@
                     class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
                     style="height: 75vh; min-height: 400px;"
                     title="Ticket PDF de venta">
+                </iframe>
+            @endif
+        </div>
+    </flux:modal>
+
+    <flux:modal wire:model="mostrarModalTicketPago" focusable class="md:max-w-4xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Ticket de pago</h2>
+                <div class="flex gap-2">
+                    @if ($pagoIdTicketReporte)
+                        <a href="{{ route('pagos.ticket.pdf', ['pago' => $pagoIdTicketReporte]) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestana
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarTicketPago">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($pagoIdTicketReporte)
+                <iframe
+                    src="{{ route('pagos.ticket.pdf', ['pago' => $pagoIdTicketReporte]) }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Ticket PDF de pago">
                 </iframe>
             @endif
         </div>

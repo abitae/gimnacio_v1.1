@@ -92,14 +92,27 @@
         @if (! empty($resumen['por_metodo_pago']))
             <div class="section">
                 <div class="strong">Totales por método</div>
-                <table class="row totals">
-                    @foreach ($resumen['por_metodo_pago'] as $metodo => $total)
-                        <tr>
-                            <td>{{ strtoupper(str_replace('_', ' ', (string) $metodo)) }}</td>
-                            <td class="right">S/ {{ number_format((float) $total, 2) }}</td>
-                        </tr>
-                    @endforeach
-                </table>
+                @foreach ($resumen['por_metodo_pago'] as $metodo => $datos)
+                    @php
+                        $esDetalle = is_array($datos);
+                        $totalMetodo = $esDetalle ? (float) ($datos['total'] ?? 0) : (float) $datos;
+                        $porTipo = $esDetalle ? ($datos['por_tipo'] ?? []) : [];
+                    @endphp
+                    <div class="item">
+                        <table class="row totals">
+                            <tr>
+                                <td class="strong">{{ strtoupper(str_replace('_', ' ', (string) $metodo)) }}</td>
+                                <td class="right strong">S/ {{ number_format($totalMetodo, 2) }}</td>
+                            </tr>
+                            @foreach ($porTipo as $tipo => $fila)
+                                <tr>
+                                    <td>{{ $tipo }}</td>
+                                    <td class="right">S/ {{ number_format((float) ($fila['total'] ?? 0), 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </table>
+                    </div>
+                @endforeach
             </div>
         @endif
 
