@@ -257,12 +257,169 @@ it('creates BioTime attendance when a transaction is linked to a client', functi
         'sucursal_id' => $sucursal->id,
     ]);
 
+    \App\Models\BioTime\BioTimeDevice::query()->create([
+        'biotime_id' => 501,
+        'serial_number' => 'SN-TX-IN',
+        'alias' => 'Entrada',
+        'access_role' => \App\Models\BioTime\BioTimeDevice::ACCESS_ROLE_ENTRADA,
+        'is_attendance' => true,
+    ]);
+    BioTimeMapping::query()->create([
+        'mapping_type' => 'device',
+        'biotime_id' => 501,
+        'target_type' => 'sucursal',
+        'target_id' => $sucursal->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+
     app(BioTimeSyncService::class)->process('transactions', '2026-05-28 16:00:00', [
-        ['id' => 100, 'emp_code' => 'C002', 'department_id' => 1, 'punch_time' => '2026-05-28 08:00:00', 'punch_state' => '0'],
+        [
+            'id' => 100,
+            'emp_code' => 'C002',
+            'department_id' => 1,
+            'punch_time' => '2026-05-28 08:00:00',
+            'punch_state' => '1',
+            'terminal_sn' => 'SN-TX-IN',
+        ],
     ], (string) Str::uuid());
 
     expect(BioTimeTransaction::query()->where('biotime_id', 100)->where('cliente_id', $cliente->id)->exists())->toBeTrue()
-        ->and(Asistencia::query()->where('cliente_id', $cliente->id)->where('origen', 'biotime')->exists())->toBeTrue();
+        ->and(Asistencia::query()->where('cliente_id', $cliente->id)->where('origen', 'biotime')->whereNull('fecha_hora_salida')->exists())->toBeTrue();
+});
+
+it('uses terminal access_role for entry/exit and ignores punch_state', function () {
+    $sucursal = biotimeSucursal('role-sede');
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'codigo' => 'ROLE-01',
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+    ]);
+
+    $deviceIn = \App\Models\BioTime\BioTimeDevice::query()->create([
+        'biotime_id' => 601,
+        'serial_number' => 'SN-IN',
+        'alias' => 'In',
+        'access_role' => 'entrada',
+    ]);
+    $deviceOut = \App\Models\BioTime\BioTimeDevice::query()->create([
+        'biotime_id' => 602,
+        'serial_number' => 'SN-OUT',
+        'alias' => 'Out',
+        'access_role' => 'salida',
+    ]);
+    foreach ([$deviceIn, $deviceOut] as $d) {
+        BioTimeMapping::query()->create([
+            'mapping_type' => 'device',
+            'biotime_id' => $d->biotime_id,
+            'target_type' => 'sucursal',
+            'target_id' => $sucursal->id,
+            'sucursal_id' => $sucursal->id,
+        ]);
+    }
+
+    $svc = app(BioTimeSyncService::class);
+
+    // Entrada aunque punch_state diga Check Out
+    $svc->process('transactions', '2026-07-16 10:00:00', [[
+        'id' => 2001,
+        'emp_code' => 'ROLE-01',
+        'punch_time' => '2026-07-16 10:00:00',
+        'punch_state' => '1',
+        'terminal_sn' => 'SN-IN',
+    ]], (string) Str::uuid());
+
+    $open = Asistencia::query()->where('cliente_id', $cliente->id)->whereNull('fecha_hora_salida')->first();
+    expect($open)->not->toBeNull()
+        ->and($open->sucursal_id)->toBe($sucursal->id);
+
+    // Salida cierra
+    $svc->process('transactions', '2026-07-16 11:00:00', [[
+        'id' => 2002,
+        'emp_code' => 'ROLE-01',
+        'punch_time' => '2026-07-16 11:00:00',
+        'punch_state' => '0',
+        'terminal_sn' => 'SN-OUT',
+    ]], (string) Str::uuid());
+
+    expect($open->fresh()->fecha_hora_salida)->not->toBeNull()
+        ->and(Asistencia::query()->where('cliente_id', $cliente->id)->whereNull('fecha_hora_salida')->count())->toBe(0);
+
+    // Salida huérfana: se ignora
+    $before = Asistencia::query()->where('cliente_id', $cliente->id)->count();
+    $svc->process('transactions', '2026-07-16 12:00:00', [[
+        'id' => 2003,
+        'emp_code' => 'ROLE-01',
+        'punch_time' => '2026-07-16 12:00:00',
+        'punch_state' => '1',
+        'terminal_sn' => 'SN-OUT',
+    ]], (string) Str::uuid());
+
+    expect(Asistencia::query()->where('cliente_id', $cliente->id)->count())->toBe($before)
+        ->and(BioTimeTransaction::query()->where('biotime_id', 2003)->exists())->toBeTrue();
+});
+
+it('toggles entry/exit on terminal access_role ambos', function () {
+    $sucursal = biotimeSucursal('ambos-sede');
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'codigo' => 'AMB-01',
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+    ]);
+
+    \App\Models\BioTime\BioTimeDevice::query()->create([
+        'biotime_id' => 701,
+        'serial_number' => 'SN-BOTH',
+        'access_role' => 'ambos',
+    ]);
+
+    $svc = app(BioTimeSyncService::class);
+    $svc->process('transactions', '2026-07-16 10:00:00', [[
+        'id' => 3001,
+        'emp_code' => 'AMB-01',
+        'punch_time' => '2026-07-16 10:00:00',
+        'terminal_sn' => 'SN-BOTH',
+    ]], (string) Str::uuid());
+
+    $open = Asistencia::query()->where('cliente_id', $cliente->id)->whereNull('fecha_hora_salida')->first();
+    expect($open)->not->toBeNull();
+
+    $svc->process('transactions', '2026-07-16 11:00:00', [[
+        'id' => 3002,
+        'emp_code' => 'AMB-01',
+        'punch_time' => '2026-07-16 11:00:00',
+        'terminal_sn' => 'SN-BOTH',
+    ]], (string) Str::uuid());
+
+    expect($open->fresh()->fecha_hora_salida)->not->toBeNull();
+});
+
+it('skips asistencia when terminal has no access_role', function () {
+    $sucursal = biotimeSucursal('norole-sede');
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'codigo' => 'NOROLE-01',
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+    ]);
+
+    \App\Models\BioTime\BioTimeDevice::query()->create([
+        'biotime_id' => 801,
+        'serial_number' => 'SN-NONE',
+        'access_role' => null,
+    ]);
+
+    app(BioTimeSyncService::class)->process('transactions', '2026-07-16 10:00:00', [[
+        'id' => 4001,
+        'emp_code' => 'NOROLE-01',
+        'punch_time' => '2026-07-16 10:00:00',
+        'terminal_sn' => 'SN-NONE',
+        'punch_state' => '0',
+    ]], (string) Str::uuid());
+
+    expect(BioTimeTransaction::query()->where('biotime_id', 4001)->exists())->toBeTrue()
+        ->and(Asistencia::query()->where('cliente_id', $cliente->id)->count())->toBe(0);
 });
 
 it('renders BioTime sedes tab and regenerates per-sucursal token', function () {

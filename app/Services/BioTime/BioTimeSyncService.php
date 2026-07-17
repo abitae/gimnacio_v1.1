@@ -212,13 +212,29 @@ class BioTimeSyncService
         $departmentId = $this->nullableInt($row['department_id'] ?? null);
         $punchTime = $this->parseDate($row['punch_time'] ?? null);
         $cliente = $this->resolveClienteForTransaction($empCode, $terminalSn, $departmentId);
-        $asistencia = $cliente && $punchTime ? $this->syncAsistencia($cliente, $row, $punchTime) : null;
+
+        $existing = BioTimeTransaction::query()->where('biotime_id', $biotimeId)->first();
+        $asistencia = null;
+        $message = null;
+
+        if ($existing?->asistencia_id) {
+            $asistencia = Asistencia::query()->find($existing->asistencia_id);
+        } elseif ($cliente && $punchTime) {
+            $device = $terminalSn
+                ? BioTimeDevice::query()->where('serial_number', $terminalSn)->first()
+                : null;
+            $syncResult = $this->syncAsistencia($cliente, $device, $punchTime);
+            $asistencia = $syncResult['asistencia'];
+            $message = $syncResult['message'];
+        } elseif (! $cliente) {
+            $message = "Marcacion sin cliente enlazado para codigo {$empCode}.";
+        }
 
         $model = BioTimeTransaction::query()->updateOrCreate(
             ['biotime_id' => $biotimeId],
             [
                 'cliente_id' => $cliente?->id,
-                'asistencia_id' => $asistencia?->id,
+                'asistencia_id' => $asistencia?->id ?? $existing?->asistencia_id,
                 'emp_code' => $empCode,
                 'punch_time' => $punchTime,
                 'punch_state' => $this->nullableString($row['punch_state'] ?? null),
@@ -234,50 +250,96 @@ class BioTimeSyncService
             ]
         );
 
+        $status = 'success';
+        if (! $cliente) {
+            $status = 'pending';
+        } elseif ($message !== null && $asistencia === null) {
+            $status = 'pending';
+        }
+
         return [
             'biotime_id' => $biotimeId,
-            'status' => $cliente ? 'success' : 'pending',
+            'status' => $status,
             'action' => $model->wasRecentlyCreated ? 'created' : 'updated',
-            'message' => $cliente ? null : "Marcacion sin cliente enlazado para codigo {$empCode}.",
+            'message' => $message,
         ];
     }
 
-    private function syncAsistencia(Cliente $cliente, array $row, Carbon $punchTime): Asistencia
+    /**
+     * Direccion por access_role del terminal (ignora punch_state).
+     *
+     * @return array{asistencia: ?Asistencia, message: ?string}
+     */
+    private function syncAsistencia(Cliente $cliente, ?BioTimeDevice $device, Carbon $punchTime): array
     {
-        $isExit = $this->isExitPunch($row);
+        $direction = $this->resolvePunchDirection($device, $cliente);
+
+        if ($direction === null) {
+            return [
+                'asistencia' => null,
+                'message' => 'Terminal sin rol de acceso; transaccion guardada sin asistencia.',
+            ];
+        }
+
         $open = Asistencia::query()
             ->where('cliente_id', $cliente->id)
             ->whereNull('fecha_hora_salida')
             ->orderByDesc('fecha_hora_ingreso')
             ->first();
 
-        if ($isExit && $open) {
-            $open->forceFill(['fecha_hora_salida' => $punchTime, 'checkout_origen' => 'biotime'])->save();
+        $sucursalId = $this->resolveSucursalId(
+            $device,
+            $device?->area_biotime_id ? [(int) $device->area_biotime_id] : [],
+            null
+        ) ?? $cliente->sucursal_id;
 
-            return $open;
+        if ($direction === 'exit') {
+            if (! $open) {
+                return [
+                    'asistencia' => null,
+                    'message' => 'Salida ignorada: no hay ingreso abierto.',
+                ];
+            }
+
+            $open->forceFill([
+                'fecha_hora_salida' => $punchTime,
+                'checkout_origen' => 'biotime',
+            ])->save();
+
+            return ['asistencia' => $open, 'message' => null];
         }
 
-        if (! $isExit) {
-            return Asistencia::query()->create([
-                'cliente_id' => $cliente->id,
-                'fecha_hora_ingreso' => $punchTime,
-                'origen' => 'biotime',
-                'valido_por_membresia' => true,
-                'registrada_por' => null,
-                'sucursal_id' => $cliente->sucursal_id,
-            ]);
-        }
-
-        return Asistencia::query()->create([
+        $asistencia = Asistencia::query()->create([
             'cliente_id' => $cliente->id,
             'fecha_hora_ingreso' => $punchTime,
-            'fecha_hora_salida' => $punchTime,
             'origen' => 'biotime',
-            'checkout_origen' => 'biotime',
             'valido_por_membresia' => true,
             'registrada_por' => null,
-            'sucursal_id' => $cliente->sucursal_id,
+            'sucursal_id' => $sucursalId,
         ]);
+
+        return ['asistencia' => $asistencia, 'message' => null];
+    }
+
+    /**
+     * @return 'entry'|'exit'|null null = no generar asistencia
+     */
+    private function resolvePunchDirection(?BioTimeDevice $device, Cliente $cliente): ?string
+    {
+        $role = $device?->access_role;
+        if ($role === null || $role === '') {
+            return null;
+        }
+
+        return match ($role) {
+            BioTimeDevice::ACCESS_ROLE_ENTRADA => 'entry',
+            BioTimeDevice::ACCESS_ROLE_SALIDA => 'exit',
+            BioTimeDevice::ACCESS_ROLE_AMBOS => Asistencia::query()
+                ->where('cliente_id', $cliente->id)
+                ->whereNull('fecha_hora_salida')
+                ->exists() ? 'exit' : 'entry',
+            default => null,
+        };
     }
 
     private function resolveClienteForEmployee(?int $biotimeId, ?string $empCode, ?int $departmentId, array $areaIds): ?Cliente
@@ -404,6 +466,7 @@ class BioTimeSyncService
 
     private function isExitPunch(array $row): bool
     {
+        // Legacy: la direccion de asistencia ahora usa BioTimeDevice.access_role.
         $state = strtolower((string) ($row['punch_state'] ?? ''));
         $display = strtolower((string) ($row['punch_state_display'] ?? ''));
 

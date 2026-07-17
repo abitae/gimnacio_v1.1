@@ -342,6 +342,9 @@ class BridgeGuiApp(object):
         self._add_field(timing, "poll_seconds", "Poll (seg)", width=12)
         self._add_field(timing, "roster_reconcile_seconds", "Roster (seg, 0=off)", width=12)
         self._add_field(timing, "sync_push_seconds", "Sync employees (seg, 0=off)", width=12)
+        self._add_field(timing, "devices_push_seconds", "Sync devices (seg, 0=off)", width=12)
+        self._add_field(timing, "transactions_push_seconds", "Sync transactions (seg, 0=off)", width=12)
+        self._add_field(timing, "transactions_lookback_minutes", "Tx lookback (min)", width=12)
         self._add_check(
             timing,
             "resync_after_area",
@@ -438,6 +441,9 @@ class BridgeGuiApp(object):
             "poll_seconds": str(c.poll_seconds),
             "roster_reconcile_seconds": str(c.roster_reconcile_seconds),
             "sync_push_seconds": str(c.sync_push_seconds),
+            "devices_push_seconds": str(c.devices_push_seconds),
+            "transactions_push_seconds": str(c.transactions_push_seconds),
+            "transactions_lookback_minutes": str(c.transactions_lookback_minutes),
             "resync_after_area": c.resync_after_area,
             "dry_run": c.dry_run,
             "http_timeout_seconds": str(int(c.http_timeout_seconds)
@@ -496,6 +502,13 @@ class BridgeGuiApp(object):
                 "roster_reconcile_seconds", "roster_reconcile_seconds"
             ),
             "sync_push_seconds": as_int("sync_push_seconds", "sync_push_seconds"),
+            "devices_push_seconds": as_int("devices_push_seconds", "devices_push_seconds"),
+            "transactions_push_seconds": as_int(
+                "transactions_push_seconds", "transactions_push_seconds"
+            ),
+            "transactions_lookback_minutes": as_int(
+                "transactions_lookback_minutes", "transactions_lookback_minutes"
+            ),
             "resync_after_area": bool(self._form["resync_after_area"]["var"].get()),
             "dry_run": bool(self._form["dry_run"]["var"].get()),
             "http_timeout_seconds": as_float("http_timeout_seconds", "http_timeout_seconds"),
@@ -1014,6 +1027,10 @@ class BridgeGuiApp(object):
                 runner.roster_reconcile()
             if self.cfg.sync_push_seconds > 0:
                 runner.push_employees()
+            if self.cfg.devices_push_seconds > 0:
+                runner.push_devices()
+            if self.cfg.transactions_push_seconds > 0:
+                runner.push_transactions()
             return 0
 
         self._run_job("Once", job)

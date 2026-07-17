@@ -24,11 +24,10 @@ def build_parser():
     sub.add_parser("run", help="Loop continuo: poll commands + opcional roster/sync")
     sub.add_parser("once", help="Un ciclo: commands (+ roster/sync si toca por timers=0 forzado)")
     sub.add_parser("doctor", help="Verifica Laravel health + BioTime login")
-    p_roster = sub.add_parser("roster", help="Ejecuta solo reconcile de roster")
-    p_sync = sub.add_parser("sync-employees", help="Push employees a Laravel")
-    # silence unused
-    _ = p_roster
-    _ = p_sync
+    sub.add_parser("roster", help="Ejecuta solo reconcile de roster")
+    sub.add_parser("sync-employees", help="Push employees a Laravel")
+    sub.add_parser("sync-devices", help="Push terminals/devices a Laravel")
+    sub.add_parser("sync-transactions", help="Push transactions (marcaciones) a Laravel")
     return p
 
 
@@ -69,6 +68,10 @@ def main(argv=None):
                 runner.roster_reconcile()
             if cfg.sync_push_seconds > 0:
                 runner.push_employees()
+            if cfg.devices_push_seconds > 0:
+                runner.push_devices()
+            if cfg.transactions_push_seconds > 0:
+                runner.push_transactions()
             return 0
 
         if args.command == "roster":
@@ -77,6 +80,14 @@ def main(argv=None):
 
         if args.command == "sync-employees":
             runner.push_employees()
+            return 0
+
+        if args.command == "sync-devices":
+            runner.push_devices()
+            return 0
+
+        if args.command == "sync-transactions":
+            runner.push_transactions()
             return 0
 
         parser.print_help()

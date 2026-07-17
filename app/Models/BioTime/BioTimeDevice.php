@@ -8,6 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class BioTimeDevice extends Model
 {
+    public const ACCESS_ROLE_ENTRADA = 'entrada';
+
+    public const ACCESS_ROLE_SALIDA = 'salida';
+
+    public const ACCESS_ROLE_AMBOS = 'ambos';
+
     protected $table = 'bio_time_devices';
 
     protected $fillable = [
@@ -19,6 +25,7 @@ class BioTimeDevice extends Model
         'area_biotime_id',
         'last_activity',
         'is_attendance',
+        'access_role',
         'raw_payload',
         'synced_at',
     ];
@@ -34,6 +41,15 @@ class BioTimeDevice extends Model
             'raw_payload' => 'array',
             'synced_at' => 'datetime',
         ];
+    }
+
+    public static function isValidAccessRole(?string $role): bool
+    {
+        return $role === null || $role === '' || in_array($role, [
+            self::ACCESS_ROLE_ENTRADA,
+            self::ACCESS_ROLE_SALIDA,
+            self::ACCESS_ROLE_AMBOS,
+        ], true);
     }
 
     public function getIsOnlineAttribute(): bool

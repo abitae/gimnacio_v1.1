@@ -25,6 +25,8 @@ class BridgeRunner(object):
         self.biotime = BioTimeClient(cfg.biotime_base_url, timeout=cfg.http_timeout_seconds)
         self._last_roster = 0
         self._last_sync = 0
+        self._last_devices = 0
+        self._last_transactions = 0
 
     def close(self):
         try:
@@ -54,12 +56,16 @@ class BridgeRunner(object):
         )
         self._last_roster = time.time()
         self._last_sync = time.time()
+        self._last_devices = time.time()
+        self._last_transactions = time.time()
 
         logger.info(
-            "Loop iniciado poll=%ss roster=%ss sync_push=%ss sede=%s",
+            "Loop iniciado poll=%ss roster=%ss sync_push=%ss devices=%ss tx=%ss sede=%s",
             self.cfg.poll_seconds,
             self.cfg.roster_reconcile_seconds,
             self.cfg.sync_push_seconds,
+            self.cfg.devices_push_seconds,
+            self.cfg.transactions_push_seconds,
             self.cfg.sucursal_codigo,
         )
 
@@ -71,6 +77,8 @@ class BridgeRunner(object):
                 self.poll_commands()
                 self.maybe_roster_reconcile()
                 self.maybe_sync_push()
+                self.maybe_devices_push()
+                self.maybe_transactions_push()
             except Exception:
                 logger.exception("Error en ciclo del puente")
             # Sleep en trozos para reaccionar al stop sin esperar poll_seconds entero
@@ -319,6 +327,22 @@ class BridgeRunner(object):
         self._last_sync = time.time()
         self.push_employees()
 
+    def maybe_devices_push(self):
+        if self.cfg.devices_push_seconds <= 0:
+            return
+        if time.time() - self._last_devices < self.cfg.devices_push_seconds:
+            return
+        self._last_devices = time.time()
+        self.push_devices()
+
+    def maybe_transactions_push(self):
+        if self.cfg.transactions_push_seconds <= 0:
+            return
+        if time.time() - self._last_transactions < self.cfg.transactions_push_seconds:
+            return
+        self._last_transactions = time.time()
+        self.push_transactions()
+
     def push_employees(self):
         """POST /api/biotime/sync entity=employees + reporta employees_count en health."""
         try:
@@ -352,12 +376,91 @@ class BridgeRunner(object):
         except LaravelError as exc:
             logger.error("Sync push employees fallo: %s", exc)
 
+    def push_devices(self):
+        """POST /api/biotime/sync entity=devices (terminals BioTime)."""
+        try:
+            rows = self.biotime.list_all_terminals(page_size=100)
+        except BioTimeError as exc:
+            logger.error("No se pudieron listar terminals BioTime: %s", exc)
+            return
+
+        records = [self._normalize_device_payload(row) for row in rows]
+        if not records:
+            logger.info("Sync push: sin devices")
+            return
+
+        if self.cfg.dry_run:
+            logger.info("[dry_run] sync push devices count=%s", len(records))
+            return
+
+        try:
+            result = self.laravel.sync("devices", records)
+            logger.info("Sync push devices OK: %s", result)
+        except LaravelError as exc:
+            logger.error("Sync push devices fallo: %s", exc)
+
+    def push_transactions(self):
+        """POST /api/biotime/sync entity=transactions (ventana lookback)."""
+        from datetime import datetime, timedelta
+
+        end = datetime.now()
+        start = end - timedelta(minutes=int(self.cfg.transactions_lookback_minutes))
+        start_s = start.strftime("%Y-%m-%d %H:%M:%S")
+        end_s = end.strftime("%Y-%m-%d %H:%M:%S")
+
+        try:
+            rows = self.biotime.list_transactions_window(start_time=start_s, end_time=end_s)
+        except BioTimeError as exc:
+            logger.error("No se pudieron listar transactions BioTime: %s", exc)
+            return
+
+        records = [self._normalize_transaction_payload(row) for row in rows]
+        if not records:
+            logger.info("Sync push: sin transactions (%s .. %s)", start_s, end_s)
+            return
+
+        if self.cfg.dry_run:
+            logger.info(
+                "[dry_run] sync push transactions count=%s window=%s..%s",
+                len(records),
+                start_s,
+                end_s,
+            )
+            return
+
+        try:
+            result = self.laravel.sync("transactions", records)
+            logger.info(
+                "Sync push transactions OK count=%s window=%s..%s: %s",
+                len(records),
+                start_s,
+                end_s,
+                result,
+            )
+        except LaravelError as exc:
+            logger.error("Sync push transactions fallo: %s", exc)
+
     @staticmethod
     def _normalize_employee_payload(row):
         """Ajusta forma tipica BioTime → lo que espera BioTimeSyncService."""
         payload = dict(row)
-        # Laravel espera id biotime y emp_code; area puede venir como lista de objetos.
         return payload
+
+    @staticmethod
+    def _normalize_device_payload(row):
+        if not isinstance(row, dict):
+            return {}
+        payload = dict(row)
+        # Laravel upsertDevice acepta sn / id / area objeto.
+        if "sn" not in payload and payload.get("serial_number"):
+            payload["sn"] = payload["serial_number"]
+        return payload
+
+    @staticmethod
+    def _normalize_transaction_payload(row):
+        if not isinstance(row, dict):
+            return {}
+        return dict(row)
 
     def doctor(self):
         """Verifica Laravel health (token sede) + BioTime auth. Return code 0/1."""

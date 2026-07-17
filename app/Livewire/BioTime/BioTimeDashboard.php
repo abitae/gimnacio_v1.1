@@ -56,6 +56,9 @@ class BioTimeDashboard extends Component
     /** @var array<int|string, int|string> */
     public array $deviceTargets = [];
 
+    /** @var array<int|string, string> Rol entrada|salida|ambos|'' por biotime_id de device */
+    public array $deviceRoles = [];
+
     /** @var array<int|string, int|string> */
     public array $employeeTargets = [];
 
@@ -223,7 +226,80 @@ class BioTimeDashboard extends Component
             ['target_type' => 'sucursal', 'target_id' => $targetId, 'sucursal_id' => $targetId]
         );
 
+        if ($type === 'device') {
+            $this->persistDeviceAccessRole($biotimeId, $targetId);
+        }
+
         $this->flashToast('success', 'Mapeo guardado.');
+    }
+
+    public function saveDeviceAccessRole(int $biotimeId): void
+    {
+        Gate::authorize('biotime.editar');
+        $role = (string) ($this->deviceRoles[$biotimeId] ?? '');
+        $role = $role === '' ? null : $role;
+
+        if (! BioTimeDevice::isValidAccessRole($role)) {
+            $this->flashToast('error', 'Rol de terminal invalido.');
+
+            return;
+        }
+
+        $device = BioTimeDevice::query()->where('biotime_id', $biotimeId)->first();
+        if (! $device) {
+            $this->flashToast('error', 'Dispositivo no encontrado.');
+
+            return;
+        }
+
+        $device->forceFill(['access_role' => $role])->save();
+
+        $sucursalId = (int) ($this->deviceTargets[$biotimeId] ?? 0);
+        $warning = $this->deviceRoleCountWarning($sucursalId);
+        $this->flashToast(
+            'success',
+            $warning ?? 'Rol de terminal guardado.'
+        );
+    }
+
+    private function persistDeviceAccessRole(int $biotimeId, int $sucursalId): void
+    {
+        $role = (string) ($this->deviceRoles[$biotimeId] ?? '');
+        $role = $role === '' ? null : $role;
+        if (! BioTimeDevice::isValidAccessRole($role)) {
+            return;
+        }
+
+        BioTimeDevice::query()->where('biotime_id', $biotimeId)->update(['access_role' => $role]);
+
+        $warning = $this->deviceRoleCountWarning($sucursalId);
+        if ($warning !== null) {
+            $this->flashToast('success', 'Mapeo guardado. '.$warning);
+        }
+    }
+
+    private function deviceRoleCountWarning(int $sucursalId): ?string
+    {
+        if ($sucursalId <= 0) {
+            return null;
+        }
+
+        $deviceIds = BioTimeMapping::query()
+            ->where('mapping_type', 'device')
+            ->where('sucursal_id', $sucursalId)
+            ->pluck('biotime_id');
+
+        $withRole = BioTimeDevice::query()
+            ->whereIn('biotime_id', $deviceIds)
+            ->whereNotNull('access_role')
+            ->where('access_role', '!=', '')
+            ->count();
+
+        if ($withRole > 2) {
+            return "Atencion: la sede tiene {$withRole} terminales con rol (recomendado maximo 2).";
+        }
+
+        return null;
     }
 
     public function saveEmployeeMapping(int $biotimeId): void
@@ -445,6 +521,13 @@ class BioTimeDashboard extends Component
                 default => null,
             };
         });
+
+        BioTimeDevice::query()
+            ->whereNotNull('biotime_id')
+            ->get(['biotime_id', 'access_role'])
+            ->each(function (BioTimeDevice $device): void {
+                $this->deviceRoles[$device->biotime_id] = (string) ($device->access_role ?? '');
+            });
     }
 
     private function statsForSucursal(?int $sucursalId): array

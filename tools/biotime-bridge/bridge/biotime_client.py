@@ -151,6 +151,67 @@ class BioTimeClient(object):
             page += 1
         return total
 
+    def list_terminals(self, page=1, page_size=100):
+        """GET /iclock/api/terminals/ → (rows, meta)."""
+        data = self._request(
+            "GET",
+            "iclock/api/terminals/",
+            params={"page": page, "page_size": page_size},
+        )
+        return self._extract_list(data), self._extract_list_meta(data)
+
+    def list_all_terminals(self, page_size=100):
+        rows, meta = self.list_terminals(page=1, page_size=page_size)
+        all_rows = list(rows)
+        page = 2
+        while meta.get("next") or (len(rows) >= page_size and page <= 50):
+            if page > 50:
+                break
+            rows, meta = self.list_terminals(page=page, page_size=page_size)
+            if not rows:
+                break
+            all_rows.extend(rows)
+            if not meta.get("next") and len(rows) < page_size:
+                break
+            page += 1
+        return all_rows
+
+    def list_transactions(self, page=1, page_size=100, start_time=None, end_time=None, terminal_sn=None):
+        """GET /iclock/api/transactions/ → (rows, meta)."""
+        params = {"page": page, "page_size": page_size}
+        if start_time:
+            params["start_time"] = start_time
+        if end_time:
+            params["end_time"] = end_time
+        if terminal_sn:
+            params["terminal_sn"] = terminal_sn
+        data = self._request("GET", "iclock/api/transactions/", params=params)
+        return self._extract_list(data), self._extract_list_meta(data)
+
+    def list_transactions_window(self, start_time, end_time=None, page_size=200):
+        """Todas las transacciones en la ventana start_time..end_time."""
+        rows, meta = self.list_transactions(
+            page=1, page_size=page_size, start_time=start_time, end_time=end_time
+        )
+        all_rows = list(rows)
+        page = 2
+        while meta.get("next") or (len(rows) >= page_size and page <= 100):
+            if page > 100:
+                break
+            rows, meta = self.list_transactions(
+                page=page,
+                page_size=page_size,
+                start_time=start_time,
+                end_time=end_time,
+            )
+            if not rows:
+                break
+            all_rows.extend(rows)
+            if not meta.get("next") and len(rows) < page_size:
+                break
+            page += 1
+        return all_rows
+
     def create_employee(self, emp_code, first_name, last_name, department_id, area_ids, company_id=None):
         """
         POST /personnel/api/employees/

@@ -24,6 +24,17 @@ class BridgeConfig(object):
         self.poll_seconds = max(5, int(data.get("poll_seconds") or 60))
         self.roster_reconcile_seconds = int(data.get("roster_reconcile_seconds") or 0)
         self.sync_push_seconds = int(data.get("sync_push_seconds") or 0)
+        # Push devices (terminals) a Laravel; 0 = off. Default: mismo ritmo que employees si sync>0.
+        self.devices_push_seconds = int(
+            data.get("devices_push_seconds")
+            if data.get("devices_push_seconds") is not None
+            else (self.sync_push_seconds or 0)
+        )
+        # Push transactions (marcaciones) a Laravel.
+        self.transactions_push_seconds = int(data.get("transactions_push_seconds") or 0)
+        self.transactions_lookback_minutes = max(
+            1, int(data.get("transactions_lookback_minutes") or 15)
+        )
         # Tras create/cambio de area: POST resync_to_device (default true).
         self.resync_after_area = bool(data.get("resync_after_area", True))
         self.dry_run = bool(data.get("dry_run", False))
@@ -55,6 +66,9 @@ class BridgeConfig(object):
             "poll_seconds": self.poll_seconds,
             "roster_reconcile_seconds": self.roster_reconcile_seconds,
             "sync_push_seconds": self.sync_push_seconds,
+            "devices_push_seconds": self.devices_push_seconds,
+            "transactions_push_seconds": self.transactions_push_seconds,
+            "transactions_lookback_minutes": self.transactions_lookback_minutes,
             "resync_after_area": self.resync_after_area,
             "dry_run": self.dry_run,
             "http_timeout_seconds": self.http_timeout_seconds,

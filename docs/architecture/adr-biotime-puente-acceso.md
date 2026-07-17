@@ -86,6 +86,7 @@ Ya existe sync **BioTime → Laravel** (`POST /api/biotime/sync`: employees, dev
 
 - `POST /api/biotime/sync` — employees, areas, devices, transactions.
 - Health / heartbeat: `GET /api/biotime/health?employees_count=N` actualiza `last_heartbeat_at` y cupo.
+- **Asistencia:** la dirección entrada/salida la define `BioTimeDevice.access_role` (`entrada` / `salida` / `ambos`=toggle), no el `punch_state` del dispositivo. Terminal sin rol: se guarda la transacción sin crear asistencia. Salida sin ingreso abierto: se ignora.
 
 ### Regla de elegibilidad (cerrada)
 

@@ -95,22 +95,6 @@ Pestaña **Configuración**: cambia valores y pulsa **Guardar config.yaml**. Tok
 > Cambio de área: `POST …/adjust_area/` (fallback `PUT` del empleado). Tras create/área: `resync_to_device` si `resync_after_area: true`.
 > El comando `delete` borra empleados inelegibles para liberar cupo (pierde biometría).
 
-## Employee API BioTime (local)
-
-Docs en el servidor: `http://<biotime>:8085/docs/api-docs/employee_api.html`
-
-| Operación | Método / ruta | Uso en el puente |
-| --- | --- | --- |
-| List | `GET /personnel/api/employees/` | Buscar por `emp_code`, sync push (`count`/`next`) |
-| Read | `GET /personnel/api/employees/{id}/` | Fallback PUT (leer department) |
-| Create | `POST /personnel/api/employees/` | `ensure_create` / roster activo ausente (`company`+`department`+`area`) |
-| Update | `PUT /personnel/api/employees/{id}/` | Solo fallback si `adjust_area` falla |
-| Delete | `DELETE /personnel/api/employees/{id}/` | Comando `delete` (cupo) |
-| Adjust area | `POST /personnel/api/employees/adjust_area/` | Preferido; si 500 → PATCH/PUT |
-| Resync | `POST /personnel/api/employees/resync_to_device/` | Tras create o cambio de área |
-
-Create y update de áreas en runtime BioTime 8 requieren **`company` + `department` coherentes** (sin `company` → *Mismatched company pk and deparment pk*). `adjust_area` puede devolver 500 en algunas instalaciones; el puente hace fallback a PATCH/PUT con esos campos.
-
 ## URLs Laravel (API)
 
 Auth: `Authorization: Bearer <token_sede>` (o `X-BioTime-Secret`).
@@ -136,6 +120,8 @@ python -m bridge --config config.yaml once
 python -m bridge --config config.yaml run
 python -m bridge --config config.yaml roster
 python -m bridge --config config.yaml sync-employees
+python -m bridge --config config.yaml sync-devices
+python -m bridge --config config.yaml sync-transactions
 ```
 
 | Comando | Qué hace | Exit code |
@@ -146,6 +132,30 @@ python -m bridge --config config.yaml sync-employees
 | `run` | Loop continuo (producción) | |
 | `roster` | Solo reconcile roster | |
 | `sync-employees` | Push employees a Laravel | |
+| `sync-devices` | Push terminals (`iclock/api/terminals`) | |
+| `sync-transactions` | Push marcaciones (`iclock/api/transactions`) | |
+
+## Employee / Terminal / Transaction API BioTime
+
+Docs: `http://<biotime>:8085/docs/api-docs/` (`employee_api.html`, `terminal_api.html`, `transaction_api.html`).
+
+| Operación | Método / ruta | Uso en el puente |
+| --- | --- | --- |
+| List employees | `GET /personnel/api/employees/` | Sync employees + commands |
+| Create employee | `POST /personnel/api/employees/` | `ensure_create` |
+| Adjust area | `POST …/adjust_area/` (fallback PATCH/PUT) | Activate / deactivate |
+| List terminals | `GET /iclock/api/terminals/` | Sync `devices` → Laravel |
+| List transactions | `GET /iclock/api/transactions/` | Sync `transactions` → asistencia |
+
+**Asistencia Laravel:** la dirección entrada/salida la define el **rol del terminal** en UI BioTime (Entrada / Salida / Ambos), no el `punch_state` del dispositivo. Terminal sin rol: se guarda la transacción pero no crea asistencia. Create employee requiere `company`+`department` coherentes en BioTime 8.
+
+Config bridge:
+
+```yaml
+devices_push_seconds: 300
+transactions_push_seconds: 60
+transactions_lookback_minutes: 15
+```
 
 Variable opcional: `BIOTIME_BRIDGE_CONFIG=C:\ruta\config.yaml`
 
