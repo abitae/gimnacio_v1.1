@@ -176,6 +176,56 @@ class BioTimeClient(object):
             page += 1
         return all_rows
 
+    def list_areas(self, page=1, page_size=100):
+        """GET /personnel/api/areas/ → (rows, meta)."""
+        data = self._request(
+            "GET",
+            "personnel/api/areas/",
+            params={"page": page, "page_size": page_size},
+        )
+        return self._extract_list(data), self._extract_list_meta(data)
+
+    def list_all_areas(self, page_size=100):
+        rows, meta = self.list_areas(page=1, page_size=page_size)
+        all_rows = list(rows)
+        page = 2
+        while meta.get("next") or (len(rows) >= page_size and page <= 50):
+            if page > 50:
+                break
+            rows, meta = self.list_areas(page=page, page_size=page_size)
+            if not rows:
+                break
+            all_rows.extend(rows)
+            if not meta.get("next") and len(rows) < page_size:
+                break
+            page += 1
+        return all_rows
+
+    def list_departments(self, page=1, page_size=100):
+        """GET /personnel/api/departments/ → (rows, meta)."""
+        data = self._request(
+            "GET",
+            "personnel/api/departments/",
+            params={"page": page, "page_size": page_size},
+        )
+        return self._extract_list(data), self._extract_list_meta(data)
+
+    def list_all_departments(self, page_size=100):
+        rows, meta = self.list_departments(page=1, page_size=page_size)
+        all_rows = list(rows)
+        page = 2
+        while meta.get("next") or (len(rows) >= page_size and page <= 50):
+            if page > 50:
+                break
+            rows, meta = self.list_departments(page=page, page_size=page_size)
+            if not rows:
+                break
+            all_rows.extend(rows)
+            if not meta.get("next") and len(rows) < page_size:
+                break
+            page += 1
+        return all_rows
+
     def list_transactions(self, page=1, page_size=100, start_time=None, end_time=None, terminal_sn=None):
         """GET /iclock/api/transactions/ → (rows, meta)."""
         params = {"page": page, "page_size": page_size}

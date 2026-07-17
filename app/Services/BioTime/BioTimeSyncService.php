@@ -162,6 +162,8 @@ class BioTimeSyncService
             throw new RuntimeException('employee.id o emp_code requerido');
         }
 
+        $this->upsertCatalogFromEmployee($row, $timestamp);
+
         $department = is_array($row['department'] ?? null) ? $row['department'] : null;
         $departmentId = $department ? $this->nullableInt($department['id'] ?? null) : $this->nullableInt($row['department'] ?? null);
         $areaIds = $this->areaIds($row['area'] ?? []);
@@ -447,6 +449,50 @@ class BioTimeSyncService
             'error_message' => $error,
             'processed_at' => now(),
         ]);
+    }
+
+    /**
+     * Extrae areas/departamentos embebidos en el payload de employee para el mapeo UI.
+     */
+    private function upsertCatalogFromEmployee(array $row, string $timestamp): void
+    {
+        $department = is_array($row['department'] ?? null) ? $row['department'] : null;
+        if (is_array($department) && $this->nullableInt($department['id'] ?? null) !== null) {
+            $this->upsertDepartment([
+                'id' => $department['id'],
+                'dept_code' => $department['dept_code'] ?? null,
+                'dept_name' => $department['dept_name'] ?? null,
+                'parent_dept' => $department['parent_dept'] ?? null,
+            ], $timestamp);
+        }
+
+        $areas = $row['area'] ?? [];
+        if (! is_array($areas)) {
+            return;
+        }
+
+        foreach ($areas as $area) {
+            if (! is_array($area)) {
+                $areaId = $this->nullableInt($area);
+                if ($areaId === null) {
+                    continue;
+                }
+                $this->upsertArea(['id' => $areaId], $timestamp);
+
+                continue;
+            }
+
+            if ($this->nullableInt($area['id'] ?? null) === null) {
+                continue;
+            }
+
+            $this->upsertArea([
+                'id' => $area['id'],
+                'area_code' => $area['area_code'] ?? null,
+                'area_name' => $area['area_name'] ?? null,
+                'parent_area' => $area['parent_area'] ?? null,
+            ], $timestamp);
+        }
     }
 
     /**

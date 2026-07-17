@@ -69,6 +69,12 @@ class BridgeRunner(object):
             self.cfg.sucursal_codigo,
         )
 
+        # Catalogo inmediato: areas/departamentos/dispositivos para el mapeo Laravel.
+        if self.cfg.devices_push_seconds > 0:
+            self.push_catalog()
+        if self.cfg.sync_push_seconds > 0:
+            self.push_employees()
+
         while True:
             if should_stop is not None and should_stop():
                 logger.info("Loop detenido por solicitud")
@@ -333,7 +339,7 @@ class BridgeRunner(object):
         if time.time() - self._last_devices < self.cfg.devices_push_seconds:
             return
         self._last_devices = time.time()
-        self.push_devices()
+        self.push_catalog()
 
     def maybe_transactions_push(self):
         if self.cfg.transactions_push_seconds <= 0:
@@ -342,6 +348,12 @@ class BridgeRunner(object):
             return
         self._last_transactions = time.time()
         self.push_transactions()
+
+    def push_catalog(self):
+        """Empuja areas + departments + devices a Laravel (mapeo UI)."""
+        self.push_areas()
+        self.push_departments()
+        self.push_devices()
 
     def push_employees(self):
         """POST /api/biotime/sync entity=employees + reporta employees_count en health."""
@@ -375,6 +387,56 @@ class BridgeRunner(object):
             logger.info("Sync push employees OK: %s", result)
         except LaravelError as exc:
             logger.error("Sync push employees fallo: %s", exc)
+
+    def push_areas(self):
+        """POST /api/biotime/sync entity=areas."""
+        try:
+            rows = self.biotime.list_all_areas(page_size=100)
+        except BioTimeError as exc:
+            logger.error("No se pudieron listar areas BioTime: %s", exc)
+            return
+
+        records = [self._normalize_area_payload(row) for row in rows if isinstance(row, dict)]
+        records = [r for r in records if r.get("id") is not None]
+        if not records:
+            logger.info("Sync push: sin areas")
+            return
+
+        if self.cfg.dry_run:
+            logger.info("[dry_run] sync push areas count=%s", len(records))
+            return
+
+        try:
+            result = self.laravel.sync("areas", records)
+            logger.info("Sync push areas OK: %s", result)
+        except LaravelError as exc:
+            logger.error("Sync push areas fallo: %s", exc)
+
+    def push_departments(self):
+        """POST /api/biotime/sync entity=departments."""
+        try:
+            rows = self.biotime.list_all_departments(page_size=100)
+        except BioTimeError as exc:
+            logger.error("No se pudieron listar departments BioTime: %s", exc)
+            return
+
+        records = [
+            self._normalize_department_payload(row) for row in rows if isinstance(row, dict)
+        ]
+        records = [r for r in records if r.get("id") is not None]
+        if not records:
+            logger.info("Sync push: sin departments")
+            return
+
+        if self.cfg.dry_run:
+            logger.info("[dry_run] sync push departments count=%s", len(records))
+            return
+
+        try:
+            result = self.laravel.sync("departments", records)
+            logger.info("Sync push departments OK: %s", result)
+        except LaravelError as exc:
+            logger.error("Sync push departments fallo: %s", exc)
 
     def push_devices(self):
         """POST /api/biotime/sync entity=devices (terminals BioTime)."""
@@ -444,6 +506,24 @@ class BridgeRunner(object):
     def _normalize_employee_payload(row):
         """Ajusta forma tipica BioTime → lo que espera BioTimeSyncService."""
         payload = dict(row)
+        return payload
+
+    @staticmethod
+    def _normalize_area_payload(row):
+        if not isinstance(row, dict):
+            return {}
+        payload = dict(row)
+        if "id" not in payload and payload.get("pk") is not None:
+            payload["id"] = payload["pk"]
+        return payload
+
+    @staticmethod
+    def _normalize_department_payload(row):
+        if not isinstance(row, dict):
+            return {}
+        payload = dict(row)
+        if "id" not in payload and payload.get("pk") is not None:
+            payload["id"] = payload["pk"]
         return payload
 
     @staticmethod

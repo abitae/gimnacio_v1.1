@@ -132,7 +132,7 @@ python -m bridge --config config.yaml sync-transactions
 | `run` | Loop continuo (producción) | |
 | `roster` | Solo reconcile roster | |
 | `sync-employees` | Push employees a Laravel | |
-| `sync-devices` | Push terminals (`iclock/api/terminals`) | |
+| `sync-devices` / `sync-catalog` | Push areas + departments + terminals | |
 | `sync-transactions` | Push marcaciones (`iclock/api/transactions`) | |
 
 ## Employee / Terminal / Transaction API BioTime

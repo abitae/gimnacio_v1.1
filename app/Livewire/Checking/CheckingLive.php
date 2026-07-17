@@ -55,6 +55,12 @@ class CheckingLive extends Component
 
     public $ingresoEnCurso = null;
 
+    /** @var \Illuminate\Support\Collection|array */
+    public $ingresosEnCursoHoy = [];
+
+    /** @var \Illuminate\Support\Collection|array */
+    public $marcacionesBioTimeRecientes = [];
+
     protected AsistenciaService $asistenciaService;
 
     protected ClienteService $clienteService;
@@ -87,6 +93,26 @@ class CheckingLive extends Component
     {
         $this->authorize('checking.ver');
         $this->clientes = collect([]);
+        $this->refreshLiveBoard();
+    }
+
+    /**
+     * Refresca el tablero en vivo (ingresos abiertos + marcaciones BioTime).
+     * Invocado al montar y por wire:poll para reflejar check-ins biométricos.
+     */
+    public function refreshLiveBoard(): void
+    {
+        try {
+            $this->ingresosEnCursoHoy = $this->asistenciaService->obtenerIngresosEnCursoHoy();
+            $this->marcacionesBioTimeRecientes = $this->asistenciaService->obtenerMarcacionesBioTimeRecientes();
+
+            if ($this->selectedClienteId) {
+                $this->ingresoEnCurso = $this->asistenciaService->obtenerIngresoEnCurso((int) $this->selectedClienteId);
+                $this->asistenciasRecientes = $this->asistenciaService->obtenerAsistenciasRecientes((int) $this->selectedClienteId, 5) ?? [];
+            }
+        } catch (\Throwable $e) {
+            $this->reportLivewireError($e, 'Error al refrescar el tablero de checking.', 'No se pudo actualizar el tablero en vivo.');
+        }
     }
 
     public function updatingClienteSearch($value)
@@ -225,6 +251,7 @@ class CheckingLive extends Component
             $this->tipoRegistroModal = 'ingreso';
             $this->mostrarModalConfirmacion = true;
             $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+            $this->refreshLiveBoard();
 
             $this->dispatch('checking-registro', clienteId: $this->selectedClienteId);
             session()->put('dashboard_last_cliente_id', $this->selectedClienteId);
@@ -251,6 +278,7 @@ class CheckingLive extends Component
             $this->tipoRegistroModal = 'salida';
             $this->mostrarModalConfirmacion = true;
             $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+            $this->refreshLiveBoard();
 
             $this->dispatch('checking-registro', clienteId: $this->selectedClienteId);
             session()->put('dashboard_last_cliente_id', $this->selectedClienteId);
@@ -359,6 +387,7 @@ class CheckingLive extends Component
         $this->historialMembresias = [];
         $this->historialClases = [];
         $this->ingresoEnCurso = null;
+        $this->refreshLiveBoard();
     }
 
     public function render()

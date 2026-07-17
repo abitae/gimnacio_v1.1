@@ -29,7 +29,7 @@ poll_seconds: 60
 roster_reconcile_seconds: 3600
 # Push employees hacia Laravel POST /api/biotime/sync (0 = desactivado)
 sync_push_seconds: 300
-# Push terminals/devices (0 = off; por defecto igual que sync_push si se omite en GUI)
+# Push catalogo areas + departments + terminals (0 = off)
 devices_push_seconds: 300
 # Push marcaciones (transactions). Recomendado 60s en sede.
 transactions_push_seconds: 60

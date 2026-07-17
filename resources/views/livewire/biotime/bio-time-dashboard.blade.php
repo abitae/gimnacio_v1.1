@@ -62,7 +62,7 @@
 
             <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 @foreach ([
-                    ['Clientes enlazados', $stats['clientes'], 'Con BioTime ID en esta sede'],
+                    ['Clientes enlazados', $stats['clientes'], 'Automático: emp_code = codigo'],
                     ['Departamentos', $stats['departments'], 'Mapeados a esta sede'],
                     ['Areas mapeadas', $stats['areasMapped'], 'Homologadas a esta sede'],
                     ['Dispositivos online', $stats['devicesOnline'], 'Mapeados y activos'],
@@ -158,7 +158,9 @@
         @else
             <p class="text-sm text-zinc-600 dark:text-zinc-400">
                 Mapeo para <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ $selectedSucursal->nombre }}</span>
-                (muestra items de esta sede y sin asignar).
+                (áreas, departamentos y dispositivos de esta sede o sin asignar).
+                Los clientes se enlazan solos: <span class="font-medium text-zinc-800 dark:text-zinc-200">emp_code</span> BioTime =
+                <span class="font-medium text-zinc-800 dark:text-zinc-200">codigo</span> Laravel.
             </p>
             <section class="grid gap-6 xl:grid-cols-2">
                 <div class="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
@@ -177,57 +179,12 @@
                     @include('livewire.biotime.partials.sucursal-mapping-table', ['rows' => $departments, 'type' => 'department', 'targets' => 'departmentTargets', 'nameField' => 'dept_name', 'codeField' => 'dept_code'])
                 </div>
 
-                <div class="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
+                <div class="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900 xl:col-span-2">
                     <div class="mb-3 flex items-center justify-between gap-3">
                         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Dispositivos BioTime</h2>
                         <input wire:model.live.debounce.300ms="deviceSearch" placeholder="Buscar reloj" class="w-44 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950">
                     </div>
                     @include('livewire.biotime.partials.device-mapping-table', ['rows' => $devices])
-                </div>
-
-                <div class="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">
-                    <div class="mb-3 flex items-center justify-between gap-3">
-                        <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Clientes/Empleados</h2>
-                        <input wire:model.live.debounce.300ms="employeeSearch" placeholder="Buscar codigo o nombre" class="w-52 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950">
-                    </div>
-                    <div class="overflow-x-auto">
-                        <table class="min-w-full divide-y divide-zinc-200 text-sm dark:divide-zinc-700">
-                            <thead class="text-xs uppercase text-zinc-500 dark:text-zinc-400">
-                                <tr>
-                                    <th class="px-3 py-2 text-left">BioTime</th>
-                                    <th class="px-3 py-2 text-left">Empleado</th>
-                                    <th class="px-3 py-2 text-left">Cliente</th>
-                                    <th class="px-3 py-2"></th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
-                                @forelse ($employees as $employee)
-                                    <tr>
-                                        <td class="px-3 py-2 font-mono text-xs">{{ $employee->biotime_id }}</td>
-                                        <td class="px-3 py-2">
-                                            <div class="font-medium text-zinc-900 dark:text-zinc-100">{{ $employee->emp_code }}</div>
-                                            <div class="text-xs text-zinc-500">{{ trim(($employee->first_name ?? '').' '.($employee->last_name ?? '')) ?: '-' }}</div>
-                                        </td>
-                                        <td class="px-3 py-2">
-                                            <select wire:model="employeeTargets.{{ $employee->biotime_id }}" class="w-64 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950">
-                                                <option value="">Sin cliente</option>
-                                                @foreach ($clientes as $cliente)
-                                                    <option value="{{ $cliente->id }}">{{ $cliente->codigo }} - {{ $cliente->nombres }} {{ $cliente->apellidos }}</option>
-                                                @endforeach
-                                            </select>
-                                        </td>
-                                        <td class="px-3 py-2 text-right">
-                                            @can('biotime.editar')
-                                                <button type="button" wire:click="saveEmployeeMapping({{ $employee->biotime_id }})" class="rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">Guardar</button>
-                                            @endcan
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr><td colspan="4" class="px-3 py-6 text-center text-zinc-500">Sin empleados para esta sede.</td></tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
                 </div>
             </section>
         @endif

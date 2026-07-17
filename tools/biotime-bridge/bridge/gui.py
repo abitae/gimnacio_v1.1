@@ -342,7 +342,7 @@ class BridgeGuiApp(object):
         self._add_field(timing, "poll_seconds", "Poll (seg)", width=12)
         self._add_field(timing, "roster_reconcile_seconds", "Roster (seg, 0=off)", width=12)
         self._add_field(timing, "sync_push_seconds", "Sync employees (seg, 0=off)", width=12)
-        self._add_field(timing, "devices_push_seconds", "Sync devices (seg, 0=off)", width=12)
+        self._add_field(timing, "devices_push_seconds", "Sync catálogo areas/depts/devices (seg, 0=off)", width=12)
         self._add_field(timing, "transactions_push_seconds", "Sync transactions (seg, 0=off)", width=12)
         self._add_field(timing, "transactions_lookback_minutes", "Tx lookback (min)", width=12)
         self._add_check(
@@ -1028,7 +1028,7 @@ class BridgeGuiApp(object):
             if self.cfg.sync_push_seconds > 0:
                 runner.push_employees()
             if self.cfg.devices_push_seconds > 0:
-                runner.push_devices()
+                runner.push_catalog()
             if self.cfg.transactions_push_seconds > 0:
                 runner.push_transactions()
             return 0

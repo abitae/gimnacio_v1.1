@@ -26,7 +26,8 @@ def build_parser():
     sub.add_parser("doctor", help="Verifica Laravel health + BioTime login")
     sub.add_parser("roster", help="Ejecuta solo reconcile de roster")
     sub.add_parser("sync-employees", help="Push employees a Laravel")
-    sub.add_parser("sync-devices", help="Push terminals/devices a Laravel")
+    sub.add_parser("sync-devices", help="Push catalogo: areas + departments + devices")
+    sub.add_parser("sync-catalog", help="Alias de sync-devices (areas/depts/terminals)")
     sub.add_parser("sync-transactions", help="Push transactions (marcaciones) a Laravel")
     return p
 
@@ -69,7 +70,7 @@ def main(argv=None):
             if cfg.sync_push_seconds > 0:
                 runner.push_employees()
             if cfg.devices_push_seconds > 0:
-                runner.push_devices()
+                runner.push_catalog()
             if cfg.transactions_push_seconds > 0:
                 runner.push_transactions()
             return 0
@@ -83,7 +84,11 @@ def main(argv=None):
             return 0
 
         if args.command == "sync-devices":
-            runner.push_devices()
+            runner.push_catalog()
+            return 0
+
+        if args.command == "sync-catalog":
+            runner.push_catalog()
             return 0
 
         if args.command == "sync-transactions":

@@ -91,6 +91,44 @@ class AsistenciaService
     }
 
     /**
+     * Ingresos abiertos de hoy (manual + BioTime) para el tablero de Checking.
+     */
+    public function obtenerIngresosEnCursoHoy(?int $sucursalId = null, int $limite = 40)
+    {
+        $query = Asistencia::query()
+            ->with(['cliente'])
+            ->whereNull('fecha_hora_salida')
+            ->where('fecha_hora_ingreso', '>=', now()->startOfDay())
+            ->orderByDesc('fecha_hora_ingreso')
+            ->limit($limite);
+
+        if ($sucursalId) {
+            $query->where('sucursal_id', $sucursalId);
+        }
+
+        return $query->get();
+    }
+
+    /**
+     * Últimas marcaciones automáticas BioTime (hoy / ventana reciente).
+     */
+    public function obtenerMarcacionesBioTimeRecientes(?int $sucursalId = null, int $limite = 15)
+    {
+        $query = Asistencia::query()
+            ->with(['cliente'])
+            ->where('origen', 'biotime')
+            ->where('fecha_hora_ingreso', '>=', now()->subHours(12))
+            ->orderByDesc('fecha_hora_ingreso')
+            ->limit($limite);
+
+        if ($sucursalId) {
+            $query->where('sucursal_id', $sucursalId);
+        }
+
+        return $query->get();
+    }
+
+    /**
      * Validar si el cliente puede ingresar
      */
     public function validarIngreso(int $clienteId): array

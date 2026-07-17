@@ -1,6 +1,7 @@
 <?php
 
 use App\Livewire\Checking\CheckingLive;
+use App\Models\Core\Asistencia;
 use App\Models\Core\ClientDebt;
 use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
@@ -63,4 +64,59 @@ it('forbids checking component mount without permission', function () {
     $this->actingAs($user);
 
     Livewire::test(CheckingLive::class)->assertForbidden();
+});
+
+it('shows biotime open attendance on the live board and as ingreso en curso', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['checking.ver', 'checking.crear', 'checking.editar']);
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create([
+        'created_by' => $user->id,
+        'nombres' => 'Bio',
+        'apellidos' => 'Marcacion',
+        'codigo' => 'CHK-BIO-1',
+    ]);
+
+    $asistencia = Asistencia::create([
+        'cliente_id' => $cliente->id,
+        'fecha_hora_ingreso' => now()->subMinutes(10),
+        'fecha_hora_salida' => null,
+        'origen' => 'biotime',
+        'valido_por_membresia' => true,
+    ]);
+
+    Livewire::test(CheckingLive::class)
+        ->assertSee('En el gimnasio ahora')
+        ->assertSee('Últimas marcaciones BioTime')
+        ->assertSee('Bio Marcacion')
+        ->call('selectCliente', $cliente->id)
+        ->assertSet('ingresoEnCurso.id', $asistencia->id)
+        ->assertSee('BioTime');
+});
+
+it('refreshes live board after biotime attendance appears', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['checking.ver']);
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create([
+        'created_by' => $user->id,
+        'nombres' => 'Nuevo',
+        'apellidos' => 'Biometrico',
+    ]);
+
+    $component = Livewire::test(CheckingLive::class)
+        ->assertDontSee('Nuevo Biometrico');
+
+    Asistencia::create([
+        'cliente_id' => $cliente->id,
+        'fecha_hora_ingreso' => now(),
+        'fecha_hora_salida' => null,
+        'origen' => 'biotime',
+        'valido_por_membresia' => true,
+    ]);
+
+    $component->call('refreshLiveBoard')
+        ->assertSee('Nuevo Biometrico');
 });

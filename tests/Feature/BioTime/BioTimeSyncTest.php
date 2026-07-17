@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use App\Jobs\BioTime\ProcessBioTimeDepartments;
 use App\Jobs\BioTime\ReconcileBioTimeAccessForSucursal;
 use App\Livewire\BioTime\BioTimeDashboard;
 use App\Models\BioTime\BioTimeAccessCommand;
@@ -102,7 +101,7 @@ it('accepts X-BioTime-Secret header', function () {
             ['id' => 1, 'dept_code' => 'ADM', 'dept_name' => 'Administracion'],
         ],
     ], ['X-BioTime-Secret' => 'header-token'])
-        ->assertAccepted()
+        ->assertOk()
         ->assertJsonPath('sucursal_id', $sucursal->id);
 });
 
@@ -117,8 +116,10 @@ it('validates the received entity', function () {
     ], ['Authorization' => 'Bearer valid-token'])->assertUnprocessable();
 });
 
-it('accepts a department batch and updates last_received_at for that sucursal', function () {
+it('processes a department batch inline even when queue is enabled', function () {
     Queue::fake();
+    config(['biotime.queue' => true]);
+
     $sucursal = biotimeSucursal('sync-sede');
     $setting = biotimeAgentSetting($sucursal, 'valid-token');
 
@@ -129,16 +130,38 @@ it('accepts a department batch and updates last_received_at for that sucursal', 
             ['id' => 1, 'dept_code' => 'ADM', 'dept_name' => 'Administracion'],
         ],
     ], ['Authorization' => 'Bearer valid-token'])
-        ->assertAccepted()
-        ->assertJsonPath('queued', true)
+        ->assertOk()
+        ->assertJsonPath('queued', false)
+        ->assertJsonPath('processed', 1)
         ->assertJsonPath('sucursal_id', $sucursal->id);
 
-    Queue::assertPushed(ProcessBioTimeDepartments::class);
-    expect(BioTimeSyncBatch::query()->where('entity', 'departments')->exists())->toBeTrue();
+    Queue::assertNothingPushed();
+    expect(BioTimeSyncBatch::query()->where('entity', 'departments')->exists())->toBeTrue()
+        ->and(\App\Models\BioTime\BioTimeDepartment::query()->where('biotime_id', 1)->where('dept_code', 'ADM')->exists())->toBeTrue();
 
     $setting->refresh();
     expect($setting->last_received_at)->not->toBeNull()
         ->and($setting->last_heartbeat_at)->not->toBeNull();
+});
+
+it('stores areas and departments from embedded employee payload', function () {
+    $sucursal = biotimeSucursal('emb-catalog');
+    biotimeAgentSetting($sucursal, 'emb-catalog-token');
+
+    app(BioTimeSyncService::class)->process('employees', '2026-07-16 12:00:00', [[
+        'id' => 88,
+        'emp_code' => 'EMB-01',
+        'first_name' => 'Ana',
+        'department' => ['id' => 7, 'dept_code' => 'GYM', 'dept_name' => 'Gimnasio'],
+        'area' => [
+            ['id' => 2, 'area_code' => 'AUTH', 'area_name' => 'Autorizada'],
+            ['id' => 1, 'area_code' => 'DENY', 'area_name' => 'Denegada'],
+        ],
+    ]], (string) Str::uuid());
+
+    expect(\App\Models\BioTime\BioTimeDepartment::query()->where('biotime_id', 7)->where('dept_name', 'Gimnasio')->exists())->toBeTrue()
+        ->and(\App\Models\BioTime\BioTimeArea::query()->where('biotime_id', 2)->where('area_name', 'Autorizada')->exists())->toBeTrue()
+        ->and(\App\Models\BioTime\BioTimeArea::query()->where('biotime_id', 1)->exists())->toBeTrue();
 });
 
 it('processes employees sync inline even when queue is enabled', function () {
@@ -178,6 +201,57 @@ it('processes employees sync inline even when queue is enabled', function () {
         ->and(\App\Models\BioTime\BioTimeEmployee::query()->where('biotime_id', 55)->where('cliente_id', $cliente->id)->exists())->toBeTrue();
 });
 
+it('processes transactions sync inline even when queue is enabled', function () {
+    Queue::fake();
+    config(['biotime.queue' => true]);
+
+    $sucursal = biotimeSucursal('tx-inline');
+    biotimeAgentSetting($sucursal, 'tx-inline-token');
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => 'TX-INLINE-1',
+    ]);
+
+    \App\Models\BioTime\BioTimeDevice::query()->create([
+        'biotime_id' => 901,
+        'serial_number' => 'SN-TX-INLINE',
+        'alias' => 'Entrada',
+        'access_role' => \App\Models\BioTime\BioTimeDevice::ACCESS_ROLE_ENTRADA,
+        'is_attendance' => true,
+    ]);
+    BioTimeMapping::query()->create([
+        'mapping_type' => 'device',
+        'biotime_id' => 901,
+        'target_type' => 'sucursal',
+        'target_id' => $sucursal->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    $this->postJson('/api/biotime/sync', [
+        'entity' => 'transactions',
+        'timestamp' => '2026-07-16 10:00:00',
+        'data' => [[
+            'id' => 7001,
+            'emp_code' => 'TX-INLINE-1',
+            'punch_time' => now()->format('Y-m-d H:i:s'),
+            'terminal_sn' => 'SN-TX-INLINE',
+            'punch_state' => '0',
+        ]],
+    ], ['Authorization' => 'Bearer tx-inline-token'])
+        ->assertOk()
+        ->assertJsonPath('queued', false)
+        ->assertJsonPath('processed', 1);
+
+    Queue::assertNothingPushed();
+    expect(\App\Models\Core\Asistencia::query()
+        ->where('cliente_id', $cliente->id)
+        ->where('origen', 'biotime')
+        ->whereNull('fecha_hora_salida')
+        ->exists())->toBeTrue();
+});
+
 it('isolates tokens per sucursal (multi-sede)', function () {
     Queue::fake();
 
@@ -193,7 +267,7 @@ it('isolates tokens per sucursal (multi-sede)', function () {
             ['id' => 10, 'dept_code' => 'A', 'dept_name' => 'Alpha'],
         ],
     ], ['Authorization' => 'Bearer token-a'])
-        ->assertAccepted()
+        ->assertOk()
         ->assertJsonPath('sucursal_id', $sedeA->id);
 
     expect(BioTimeSucursalSetting::forSucursal($sedeA->id)->fresh()->last_received_at)->not->toBeNull()

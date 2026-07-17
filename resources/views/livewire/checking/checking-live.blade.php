@@ -2,7 +2,10 @@
     use Illuminate\Support\Facades\Storage;
 @endphp
 
-<div class="space-y-6">
+<div
+    class="space-y-6"
+    wire:poll.15s="refreshLiveBoard"
+>
     <!-- Cabecera: color de encabezado (personalización) -->
     <div data-app-page-header class="rounded-xl p-6 shadow-lg {{ $pageHeaderGradientClass }}">
         <div class="flex items-center justify-between">
@@ -12,7 +15,7 @@
                 </div>
                 <div>
                     <h1 class="text-2xl font-bold text-white">Checking {{ $appBrandName ?? 'Firnetness' }}</h1>
-                    <p class="text-sm text-white/90">Registro seguro de ingresos y salidas de clientes.</p>
+                    <p class="text-sm text-white/90">Ingreso/salida manual y automático por biométricos (BioTime).</p>
                 </div>
             </div>
             <div class="hidden md:flex items-center gap-2 rounded-lg bg-white/10 backdrop-blur-sm px-4 py-2">
@@ -40,6 +43,81 @@
             </div>
         </div>
     @endif
+
+    <!-- Tablero en vivo: check-in biométrico + manual -->
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+            <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
+                <div class="flex items-center gap-2">
+                    <flux:icon name="user-group" class="h-4 w-4 text-zinc-500" />
+                    <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">En el gimnasio ahora</h2>
+                </div>
+                <span class="text-xs text-zinc-500 dark:text-zinc-400">{{ count($ingresosEnCursoHoy) }} · actualiza cada 15 s</span>
+            </div>
+            <div class="max-h-48 space-y-1 overflow-y-auto p-3">
+                @forelse ($ingresosEnCursoHoy as $ingreso)
+                    <button
+                        type="button"
+                        wire:click="selectCliente({{ $ingreso->cliente_id }})"
+                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
+                    >
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                {{ $ingreso->cliente?->nombres }} {{ $ingreso->cliente?->apellidos }}
+                            </p>
+                            <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                                Desde {{ $ingreso->fecha_hora_ingreso?->format('H:i') }}
+                                · {{ $ingreso->origen === 'biotime' ? 'BioTime' : ucfirst($ingreso->origen ?? 'manual') }}
+                            </p>
+                        </div>
+                        <span class="ml-2 shrink-0 rounded-full px-2 py-0.5 text-xs font-medium {{ $ingreso->origen === 'biotime' ? 'bg-sky-100 text-sky-800 dark:bg-sky-900/30 dark:text-sky-300' : 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' }}">
+                            {{ $ingreso->origen === 'biotime' ? 'Auto' : 'Manual' }}
+                        </span>
+                    </button>
+                @empty
+                    <p class="px-2 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">Nadie con ingreso abierto hoy.</p>
+                @endforelse
+            </div>
+        </div>
+
+        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
+            <div class="flex items-center justify-between border-b border-zinc-200 px-4 py-3 dark:border-zinc-700">
+                <div class="flex items-center gap-2">
+                    <flux:icon name="finger-print" class="h-4 w-4 text-zinc-500" />
+                    <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Últimas marcaciones BioTime</h2>
+                </div>
+                <span class="text-xs text-zinc-500 dark:text-zinc-400">Automáticas</span>
+            </div>
+            <div class="max-h-48 space-y-1 overflow-y-auto p-3">
+                @forelse ($marcacionesBioTimeRecientes as $marcacion)
+                    <button
+                        type="button"
+                        wire:click="selectCliente({{ $marcacion->cliente_id }})"
+                        class="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left transition hover:bg-zinc-50 dark:hover:bg-zinc-900/60"
+                    >
+                        <div class="min-w-0">
+                            <p class="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                {{ $marcacion->cliente?->nombres }} {{ $marcacion->cliente?->apellidos }}
+                            </p>
+                            <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                                Ingreso {{ $marcacion->fecha_hora_ingreso?->format('H:i') }}
+                                @if ($marcacion->fecha_hora_salida)
+                                    · Salida {{ $marcacion->fecha_hora_salida->format('H:i') }}
+                                @else
+                                    · En curso
+                                @endif
+                            </p>
+                        </div>
+                        <span class="ml-2 shrink-0 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-800 dark:bg-sky-900/30 dark:text-sky-300">
+                            BioTime
+                        </span>
+                    </button>
+                @empty
+                    <p class="px-2 py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">Aún no hay marcaciones biométricas recientes.</p>
+                @endforelse
+            </div>
+        </div>
+    </div>
 
     <!-- Flash Messages -->
     <div>
@@ -335,7 +413,17 @@
                 @if ($ingresoEnCurso)
                     <div class="space-y-2 flex-shrink-0">
                         <div class="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2 text-center dark:border-amber-700 dark:bg-amber-900/20">
-                            <p class="text-xs font-medium text-amber-800 dark:text-amber-200">Ingreso en curso desde {{ $ingresoEnCurso->fecha_hora_ingreso->format('d/m/Y H:i') }}</p>
+                            <p class="text-xs font-medium text-amber-800 dark:text-amber-200">
+                                Ingreso en curso desde {{ $ingresoEnCurso->fecha_hora_ingreso->format('d/m/Y H:i') }}
+                                @if ($ingresoEnCurso->origen === 'biotime')
+                                    <span class="ml-1 inline-flex rounded-full bg-sky-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:bg-sky-900/40 dark:text-sky-300">BioTime</span>
+                                @elseif ($ingresoEnCurso->origen)
+                                    <span class="ml-1 text-[10px] uppercase tracking-wide opacity-80">({{ $ingresoEnCurso->origen }})</span>
+                                @endif
+                            </p>
+                            @if ($ingresoEnCurso->origen === 'biotime')
+                                <p class="mt-1 text-[11px] text-amber-700 dark:text-amber-300">Entró por biométrico. Puede registrar la salida aquí o en el terminal de salida.</p>
+                            @endif
                         </div>
                         @can('checking.editar')
                         <flux:button

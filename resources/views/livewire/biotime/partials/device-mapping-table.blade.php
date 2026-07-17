@@ -41,7 +41,7 @@
                     </td>
                 </tr>
             @empty
-                <tr><td colspan="5" class="px-3 py-6 text-center text-zinc-500">Sin registros sincronizados.</td></tr>
+                <tr><td colspan="5" class="px-3 py-6 text-center text-zinc-500">Sin terminales. Reinicia el puente o ejecuta <code class="text-xs">sync-catalog</code>.</td></tr>
             @endforelse
         </tbody>
     </table>

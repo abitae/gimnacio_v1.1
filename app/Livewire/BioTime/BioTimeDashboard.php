@@ -10,7 +10,6 @@ use App\Models\BioTime\BioTimeAccessCommand;
 use App\Models\BioTime\BioTimeArea;
 use App\Models\BioTime\BioTimeDepartment;
 use App\Models\BioTime\BioTimeDevice;
-use App\Models\BioTime\BioTimeEmployee;
 use App\Models\BioTime\BioTimeMapping;
 use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\BioTime\BioTimeSyncBatch;
@@ -45,8 +44,6 @@ class BioTimeDashboard extends Component
 
     public string $deviceSearch = '';
 
-    public string $employeeSearch = '';
-
     /** @var array<int|string, int|string> */
     public array $areaTargets = [];
 
@@ -58,9 +55,6 @@ class BioTimeDashboard extends Component
 
     /** @var array<int|string, string> Rol entrada|salida|ambos|'' por biotime_id de device */
     public array $deviceRoles = [];
-
-    /** @var array<int|string, int|string> */
-    public array $employeeTargets = [];
 
     /**
      * Formularios editables por sucursal_id.
@@ -302,30 +296,6 @@ class BioTimeDashboard extends Component
         return null;
     }
 
-    public function saveEmployeeMapping(int $biotimeId): void
-    {
-        Gate::authorize('biotime.editar');
-        $clienteId = (int) ($this->employeeTargets[$biotimeId] ?? 0);
-
-        if ($clienteId <= 0) {
-            BioTimeMapping::query()->where('mapping_type', 'employee')->where('biotime_id', $biotimeId)->delete();
-            $this->flashToast('success', 'Mapeo eliminado.');
-
-            return;
-        }
-
-        $cliente = Cliente::query()->findOrFail($clienteId);
-        BioTimeMapping::query()->updateOrCreate(
-            ['mapping_type' => 'employee', 'biotime_id' => $biotimeId],
-            ['target_type' => 'cliente', 'target_id' => $cliente->id, 'sucursal_id' => $cliente->sucursal_id]
-        );
-
-        BioTimeEmployee::query()->where('biotime_id', $biotimeId)->update(['cliente_id' => $cliente->id]);
-        $cliente->forceFill(['biotime_id' => $biotimeId])->save();
-
-        $this->flashToast('success', 'Cliente enlazado a BioTime.');
-    }
-
     public function updatingHistoryEntity(): void
     {
         $this->resetPage();
@@ -384,11 +354,9 @@ class BioTimeDashboard extends Component
             'capacityBySucursal' => $capacityBySucursal,
             'plainTokens' => $plainTokens,
             'sucursales' => Sucursal::query()->orderBy('nombre')->get(['id', 'nombre']),
-            'clientes' => $this->clientesForSelect($selectedId),
             'areas' => $this->areasForMapping($selectedId),
             'departments' => $this->departmentsForMapping($selectedId),
             'devices' => $this->devicesForMapping($selectedId),
-            'employees' => $this->employeesForMapping($selectedId),
             'logs' => $this->logs($selectedId),
             'accessCommands' => $this->accessCommands($selectedId),
         ])->layout('layouts.app', ['title' => 'BioTime']);
@@ -517,7 +485,6 @@ class BioTimeDashboard extends Component
                 'area' => $this->areaTargets[$mapping->biotime_id] = $mapping->target_id,
                 'department' => $this->departmentTargets[$mapping->biotime_id] = $mapping->target_id,
                 'device' => $this->deviceTargets[$mapping->biotime_id] = $mapping->target_id,
-                'employee' => $this->employeeTargets[$mapping->biotime_id] = $mapping->target_id,
                 default => null,
             };
         });
@@ -655,44 +622,6 @@ class BioTimeDashboard extends Component
         }
 
         return $query->orderBy('alias')->limit(40)->get();
-    }
-
-    private function employeesForMapping(?int $sucursalId = null)
-    {
-        return BioTimeEmployee::query()
-            ->when($this->employeeSearch !== '', function ($query): void {
-                $query->where(function ($inner): void {
-                    $inner->where('emp_code', 'like', '%'.$this->employeeSearch.'%')
-                        ->orWhere('first_name', 'like', '%'.$this->employeeSearch.'%')
-                        ->orWhere('last_name', 'like', '%'.$this->employeeSearch.'%');
-                });
-            })
-            ->when($sucursalId, function ($query) use ($sucursalId): void {
-                $query->where(function ($inner) use ($sucursalId): void {
-                    $inner->whereNull('cliente_id')
-                        ->orWhereIn('cliente_id', Cliente::query()->where('sucursal_id', $sucursalId)->select('id'));
-                });
-            })
-            ->orderBy('emp_code')
-            ->limit(40)
-            ->get();
-    }
-
-    private function clientesForSelect(?int $sucursalId = null)
-    {
-        return Cliente::query()
-            ->select(['id', 'codigo', 'nombres', 'apellidos', 'sucursal_id'])
-            ->when($sucursalId, fn ($q) => $q->where('sucursal_id', $sucursalId))
-            ->when($this->employeeSearch !== '', function ($query): void {
-                $query->where(function ($inner): void {
-                    $inner->where('codigo', 'like', '%'.$this->employeeSearch.'%')
-                        ->orWhere('nombres', 'like', '%'.$this->employeeSearch.'%')
-                        ->orWhere('apellidos', 'like', '%'.$this->employeeSearch.'%');
-                });
-            })
-            ->orderBy('codigo')
-            ->limit(50)
-            ->get();
     }
 
     private function logs(?int $sucursalId = null)
