@@ -79,7 +79,7 @@
     {{-- Grid: 1) Perfil + Estado | 2) Asistencias | 3) Estadísticas + Historial Membresías + Clases --}}
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
         {{-- 1. Perfil del Cliente + Estado y acceso (compacto, encuadrado) --}}
-        <div class="rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800 flex flex-col overflow-visible">
+        <div class="@container rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800 flex flex-col overflow-hidden">
             <div class="border-b border-zinc-200 bg-zinc-50/80 dark:bg-zinc-800/80 px-3 py-2 dark:border-zinc-700 shrink-0">
                 <div class="flex items-center justify-between">
                     <h3 class="text-sm font-semibold tracking-tight text-zinc-800 dark:text-zinc-200">Perfil del Cliente y Estado y acceso</h3>
@@ -95,29 +95,29 @@
                     @if (!empty($crossSucursalMatches))
                         <x-cliente.cross-sucursal-alert :matches="collect($crossSucursalMatches)" class="mb-3" />
                     @endif
-                    <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(240px,1fr)] gap-4 items-start">
+                    <div class="flex flex-col gap-4 @min-[32rem]:flex-row @min-[32rem]:items-start">
                         {{-- Perfil: foto y datos --}}
-                        <div class="flex flex-col sm:flex-row items-center sm:items-start gap-3 min-w-0">
+                        <div class="flex min-w-0 flex-1 flex-col items-center gap-3 @min-[32rem]:flex-row @min-[32rem]:items-start">
                             <div class="shrink-0">
                                 @if ($selectedCliente->foto)
                                     <img src="{{ asset('storage/' . $selectedCliente->foto) }}" alt="{{ $selectedCliente->nombres }} {{ $selectedCliente->apellidos }}"
-                                        class="h-28 w-28 rounded-full object-cover border-[3px] border-zinc-800 dark:border-zinc-600 shadow-md" />
+                                        class="h-24 w-24 rounded-full object-cover border-[3px] border-zinc-800 dark:border-zinc-600 shadow-md @min-[32rem]:h-28 @min-[32rem]:w-28" />
                                 @else
-                                    <div class="h-28 w-28 rounded-full bg-gradient-to-br from-indigo-600 to-purple-700 flex items-center justify-center border-[3px] border-zinc-800 dark:border-zinc-600 shadow-md">
-                                        <span class="text-2xl font-bold text-white tracking-tight">{{ strtoupper(substr($selectedCliente->nombres ?? '', 0, 1) . substr($selectedCliente->apellidos ?? '', 0, 1)) }}</span>
+                                    <div class="flex h-24 w-24 items-center justify-center rounded-full border-[3px] border-zinc-800 bg-gradient-to-br from-indigo-600 to-purple-700 shadow-md dark:border-zinc-600 @min-[32rem]:h-28 @min-[32rem]:w-28">
+                                        <span class="text-2xl font-bold tracking-tight text-white">{{ strtoupper(substr($selectedCliente->nombres ?? '', 0, 1) . substr($selectedCliente->apellidos ?? '', 0, 1)) }}</span>
                                     </div>
                                 @endif
                             </div>
-                            <div class="text-center md:text-left space-y-0.5">
-                                <p class="text-lg font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">{{ $selectedCliente->nombres }} {{ $selectedCliente->apellidos }}</p>
-                                <div class="flex items-center justify-center md:justify-start gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                            <div class="min-w-0 space-y-0.5 text-center @min-[32rem]:text-left">
+                                <p class="text-lg font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 break-words">{{ $selectedCliente->nombres }} {{ $selectedCliente->apellidos }}</p>
+                                <div class="flex items-center justify-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400 @min-[32rem]:justify-start">
                                     <flux:icon name="identification" class="h-3.5 w-3.5 shrink-0 text-zinc-400" />
-                                    <span>{{ strtoupper($selectedCliente->tipo_documento) }}: {{ $selectedCliente->numero_documento }}</span>
+                                    <span class="break-all">{{ strtoupper($selectedCliente->tipo_documento) }}: {{ $selectedCliente->numero_documento }}</span>
                                 </div>
                             </div>
                         </div>
-                        {{-- Estado y acceso: badges (ancho mínimo para no comprimir cards) --}}
-                        <div class="flex w-full min-w-0 shrink-0 flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700 xl:border-t-0 xl:border-l xl:pt-0 xl:pl-4">
+                        {{-- Estado y acceso --}}
+                        <div class="flex w-full min-w-0 flex-col gap-2 border-t border-zinc-200 pt-3 dark:border-zinc-700 @min-[32rem]:w-56 @min-[32rem]:shrink-0 @min-[32rem]:border-l @min-[32rem]:border-t-0 @min-[32rem]:pl-4 @min-[32rem]:pt-0">
                             @if ($membresiaActiva)
                                 @if (!empty($validacionAcceso) && !$validacionAcceso['tiene_acceso'])
                                     <div class="w-full shrink-0 rounded-lg border border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/40 p-2.5 shadow-sm">
@@ -146,14 +146,14 @@
                                 @php $tieneDeuda = ($saldoPendiente > 0) || (isset($selectedCliente->deuda_total) && $selectedCliente->deuda_total > 0); $deudaTotal = $selectedCliente->deuda_total ?? $saldoPendiente; @endphp
                                 @if ($tieneDeuda)
                                     <div wire:key="debt-alert-{{ $selectedClienteId }}"
-                                        class="w-full shrink-0 rounded-lg border-2 border-red-500 bg-red-100 p-3 shadow-lg ring-2 ring-red-400/50 dark:border-red-500 dark:bg-red-950/60 dark:ring-red-500/40 animate-pulse">
-                                        <div class="flex items-center gap-2.5">
-                                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-200 dark:bg-red-900/70">
-                                                <flux:icon name="exclamation-triangle" class="h-5 w-5 text-red-700 dark:text-red-300" />
+                                        class="w-full shrink-0 rounded-lg border border-red-300 bg-red-50 p-2.5 shadow-sm dark:border-red-700 dark:bg-red-950/50">
+                                        <div class="flex items-start gap-2">
+                                            <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/50">
+                                                <flux:icon name="exclamation-triangle" class="h-4 w-4 text-red-600 dark:text-red-400" />
                                             </div>
                                             <div class="min-w-0 flex-1">
-                                                <p class="text-xs font-bold uppercase tracking-wider text-red-700 dark:text-red-300">Deuda pendiente</p>
-                                                <p class="mt-0.5 text-lg font-bold text-red-900 sm:text-xl dark:text-red-100 whitespace-nowrap">S/ {{ number_format($deudaTotal, 2) }}</p>
+                                                <p class="text-xs font-bold uppercase tracking-wide text-red-700 dark:text-red-300">Deuda pendiente</p>
+                                                <p class="mt-0.5 text-base font-bold leading-tight text-red-900 dark:text-red-100">S/ {{ number_format($deudaTotal, 2) }}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -186,10 +186,9 @@
                     @if (!empty($estadisticasAsistencia))
                         <div class="mt-3 border-t border-zinc-200 pt-3 dark:border-zinc-700">
                             <p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">Estadísticas</p>
-                            <div class="overflow-x-auto -mx-0.5 px-0.5">
-                            <div class="grid min-w-[min(100%,18rem)] grid-cols-3 gap-2">
-                                <div class="shrink-0 rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50">
-                                    <p class="text-[11px] text-zinc-600 dark:text-zinc-400 leading-tight">
+                            <div class="grid grid-cols-1 gap-2 @min-[26rem]:grid-cols-3">
+                                <div class="min-w-0 rounded-lg border border-zinc-200 bg-zinc-50 p-2.5 dark:border-zinc-700 dark:bg-zinc-900/50">
+                                    <p class="text-[11px] leading-tight text-zinc-600 dark:text-zinc-400">
                                         <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ $estadisticasAsistencia['total_asistencias'] ?? 0 }}</span> asistencias
                                         @if (isset($estadisticasAsistencia['total_sesiones']))
                                             de <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ $estadisticasAsistencia['total_sesiones'] }}</span> sesiones
@@ -197,9 +196,9 @@
                                     </p>
                                     @if (isset($estadisticasAsistencia['porcentaje_efectividad']) && $estadisticasAsistencia['porcentaje_efectividad'] !== null)
                                         <div class="mt-1.5">
-                                            <div class="flex items-center justify-between mb-0.5">
-                                                <span class="text-[11px] font-medium text-zinc-600 dark:text-zinc-400">Efectividad</span>
-                                                <span class="text-xs font-bold {{ $estadisticasAsistencia['porcentaje_efectividad'] < 50 ? 'text-red-600 dark:text-red-400' : ($estadisticasAsistencia['porcentaje_efectividad'] < 70 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400') }}">{{ number_format($estadisticasAsistencia['porcentaje_efectividad'], 2) }}%</span>
+                                            <div class="mb-0.5 flex items-center justify-between gap-2">
+                                                <span class="shrink-0 text-[11px] font-medium text-zinc-600 dark:text-zinc-400">Efectividad</span>
+                                                <span class="shrink-0 text-xs font-bold {{ $estadisticasAsistencia['porcentaje_efectividad'] < 50 ? 'text-red-600 dark:text-red-400' : ($estadisticasAsistencia['porcentaje_efectividad'] < 70 ? 'text-yellow-600 dark:text-yellow-400' : 'text-green-600 dark:text-green-400') }}">{{ number_format($estadisticasAsistencia['porcentaje_efectividad'], 2) }}%</span>
                                             </div>
                                             <div class="h-1.5 w-full overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
                                                 <div class="h-full {{ $estadisticasAsistencia['porcentaje_efectividad'] < 50 ? 'bg-red-500' : ($estadisticasAsistencia['porcentaje_efectividad'] < 70 ? 'bg-yellow-500' : 'bg-green-500') }}" style="width: {{ min($estadisticasAsistencia['porcentaje_efectividad'], 100) }}%"></div>
@@ -207,15 +206,14 @@
                                         </div>
                                     @endif
                                 </div>
-                                <div class="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-center dark:border-emerald-800 dark:bg-emerald-950/40">
+                                <div class="min-w-0 rounded-lg border border-emerald-200 bg-emerald-50 p-2.5 text-center dark:border-emerald-800 dark:bg-emerald-950/40">
                                     <p class="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">Asistidas</p>
                                     <p class="mt-0.5 text-lg font-bold text-emerald-700 dark:text-emerald-300">{{ $estadisticasAsistencia['asistencias_completas'] ?? 0 }}</p>
                                 </div>
-                                <div class="shrink-0 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-center dark:border-amber-800 dark:bg-amber-950/40">
+                                <div class="min-w-0 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-center dark:border-amber-800 dark:bg-amber-950/40">
                                     <p class="text-[11px] font-medium text-amber-600 dark:text-amber-400">Pendientes</p>
                                     <p class="mt-0.5 text-lg font-bold text-amber-700 dark:text-amber-300">{{ $estadisticasAsistencia['asistencias_pendientes'] ?? 0 }}</p>
                                 </div>
-                            </div>
                             </div>
                         </div>
                     @endif
