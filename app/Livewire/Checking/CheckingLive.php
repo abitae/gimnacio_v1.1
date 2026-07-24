@@ -4,6 +4,7 @@ namespace App\Livewire\Checking;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Livewire\Concerns\LogsLivewireErrors;
+use App\Livewire\Concerns\ShowsCrossSucursalAlert;
 use App\Services\AsistenciaService;
 use App\Services\BioTime\BioTimeSyncService;
 use App\Services\ClienteMatriculaService;
@@ -16,6 +17,7 @@ class CheckingLive extends Component
 {
     use FlashesToast;
     use LogsLivewireErrors;
+    use ShowsCrossSucursalAlert;
 
     public $clienteSearch = '';
 
@@ -210,6 +212,7 @@ class CheckingLive extends Component
             $this->clientes = collect([]);
             $this->isSearching = false;
             $this->refreshSelectedClienteContext($clienteId);
+            $this->refreshCrossSucursalAlertForCliente($this->selectedCliente);
         } catch (\Throwable $e) {
             $this->reportLivewireError($e, 'Error al seleccionar cliente en checking.', 'No se pudo cargar el cliente seleccionado.');
             $this->clearClienteSelection();

@@ -2,12 +2,15 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ClienteFidelizacionMensaje extends Model
 {
+    use BelongsToSucursal;
+
     public const PRIORIDADES = [
         'baja' => 'Baja',
         'media' => 'Media',
@@ -17,6 +20,7 @@ class ClienteFidelizacionMensaje extends Model
     protected $table = 'cliente_fidelizacion_mensajes';
 
     protected $fillable = [
+        'sucursal_id',
         'cliente_id',
         'user_id',
         'prioridad',

@@ -2,15 +2,19 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EnrollmentInstallment extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'enrollment_installments';
 
     protected $fillable = [
+        'sucursal_id',
         'enrollment_installment_plan_id',
         'client_debt_id',
         'cliente_matricula_id',

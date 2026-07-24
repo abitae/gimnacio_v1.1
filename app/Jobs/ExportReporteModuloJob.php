@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use App\Data\Reporte\ReporteSucursalFilter;
 use App\Exports\ReporteCajasExport;
 use App\Exports\ReporteClientesExport;
 use App\Exports\ReporteClientesMembresiaClasesExport;
@@ -46,7 +47,11 @@ class ExportReporteModuloJob implements ShouldQueue
         ReporteModuloPdfService $pdfService,
         SucursalContext $sucursalContext
     ): void {
-        $sucursalContext->setDelegateContext($this->sucursalId, $this->empresaId);
+        $filter = ReporteSucursalFilter::fromArray($this->query);
+
+        if ($filter->isActive() && $this->sucursalId !== null) {
+            $sucursalContext->setDelegateContext($this->sucursalId, $this->empresaId);
+        }
 
         try {
             $user = User::findOrFail($this->userId);
@@ -100,18 +105,19 @@ class ExportReporteModuloJob implements ShouldQueue
         string $slugBase
     ): array {
         $filename = $slugBase.'.xlsx';
+        $filter = ReporteSucursalFilter::fromArray($q);
 
         return match ($this->modulo) {
             'ventas' => [
-                new ReporteVentasExport($reporteService->datosReporteVentas($fechaDesde, $fechaHasta)),
+                new ReporteVentasExport($reporteService->datosReporteVentas($fechaDesde, $fechaHasta, $filter)),
                 $filename,
             ],
             'matriculas' => [
-                new ReporteMatriculasExport($reporteService->datosReporteMatriculas($fechaDesde, $fechaHasta)),
+                new ReporteMatriculasExport($reporteService->datosReporteMatriculas($fechaDesde, $fechaHasta, $filter)),
                 $filename,
             ],
             'financiero' => [
-                new ReporteFinancieroExport($reporteService->datosReporteFinanciero($fechaDesde, $fechaHasta)),
+                new ReporteFinancieroExport($reporteService->datosReporteFinanciero($fechaDesde, $fechaHasta, $filter)),
                 $filename,
             ],
             'clientes' => [
@@ -123,27 +129,35 @@ class ExportReporteModuloJob implements ShouldQueue
                     isset($q['trainer_user_id']) && $q['trainer_user_id'] !== '' ? (int) $q['trainer_user_id'] : null,
                     isset($q['vigencia']) && $q['vigencia'] !== '' ? (string) $q['vigencia'] : null,
                     max(1, (int) ($q['ventana_dias'] ?? 15)),
+                    $filter,
                 )),
                 $filename,
             ],
             'clientes-membresia-clases' => [
-                new ReporteClientesMembresiaClasesExport($reporteService->datosReporteClientesMembresiaClasesActivas($fechaDesde, $fechaHasta)),
+                new ReporteClientesMembresiaClasesExport($reporteService->datosReporteClientesMembresiaClasesActivas($fechaDesde, $fechaHasta, $filter)),
                 $filename,
             ],
             'usuarios' => [
-                new ReporteUsuariosExport($reporteService->datosReporteUsuarios($fechaDesde, $fechaHasta)),
+                new ReporteUsuariosExport($reporteService->datosReporteUsuarios($fechaDesde, $fechaHasta, $filter)),
                 $filename,
             ],
             'cajas' => [
-                new ReporteCajasExport($reporteService->datosReporteCajas($fechaDesde, $fechaHasta)),
+                new ReporteCajasExport($reporteService->datosReporteCajas(
+                    $fechaDesde,
+                    $fechaHasta,
+                    null,
+                    isset($q['usuario_id']) && $q['usuario_id'] !== '' ? (int) $q['usuario_id'] : null,
+                    null,
+                    $filter,
+                )),
                 $filename,
             ],
             'productos-servicios' => [
-                new ReporteProductosServiciosExport($reporteService->datosReporteProductosServicios($fechaDesde, $fechaHasta)),
+                new ReporteProductosServiciosExport($reporteService->datosReporteProductosServicios($fechaDesde, $fechaHasta, $filter)),
                 $filename,
             ],
             'gimnasio' => [
-                new ReporteGimnasioExport($reporteService->datosReporteGimnasio($fechaDesde, $fechaHasta)),
+                new ReporteGimnasioExport($reporteService->datosReporteGimnasio($fechaDesde, $fechaHasta, $filter)),
                 $filename,
             ],
             default => throw new \InvalidArgumentException('Módulo de exportación no soportado: '.$this->modulo),
@@ -162,24 +176,25 @@ class ExportReporteModuloJob implements ShouldQueue
         string $slugBase
     ): array {
         $filename = $slugBase.'.pdf';
+        $filter = ReporteSucursalFilter::fromArray($q);
 
         $data = match ($this->modulo) {
             'ventas' => tap(
-                $reporteService->datosReporteVentas($fechaDesde, $fechaHasta),
+                $reporteService->datosReporteVentas($fechaDesde, $fechaHasta, $filter),
                 function (&$d) use ($fechaDesde, $fechaHasta) {
                     $d['fecha_desde'] = $fechaDesde ?: '—';
                     $d['fecha_hasta'] = $fechaHasta ?: '—';
                 }
             ),
             'matriculas' => tap(
-                $reporteService->datosReporteMatriculas($fechaDesde, $fechaHasta),
+                $reporteService->datosReporteMatriculas($fechaDesde, $fechaHasta, $filter),
                 function (&$d) use ($fechaDesde, $fechaHasta) {
                     $d['fecha_desde'] = $fechaDesde ?: '—';
                     $d['fecha_hasta'] = $fechaHasta ?: '—';
                 }
             ),
             'financiero' => tap(
-                $reporteService->datosReporteFinanciero($fechaDesde, $fechaHasta),
+                $reporteService->datosReporteFinanciero($fechaDesde, $fechaHasta, $filter),
                 function (&$d) use ($fechaDesde, $fechaHasta) {
                     $d['fecha_desde'] = $fechaDesde ?: '—';
                     $d['fecha_hasta'] = $fechaHasta ?: '—';
@@ -194,6 +209,7 @@ class ExportReporteModuloJob implements ShouldQueue
                     isset($q['trainer_user_id']) && $q['trainer_user_id'] !== '' ? (int) $q['trainer_user_id'] : null,
                     isset($q['vigencia']) && $q['vigencia'] !== '' ? (string) $q['vigencia'] : null,
                     max(1, (int) ($q['ventana_dias'] ?? 15)),
+                    $filter,
                 ),
                 function (&$d) use ($fechaDesde, $fechaHasta) {
                     $d['fecha_desde'] = $fechaDesde ?: '—';
@@ -201,35 +217,42 @@ class ExportReporteModuloJob implements ShouldQueue
                 }
             ),
             'clientes-membresia-clases' => tap(
-                $reporteService->datosReporteClientesMembresiaClasesActivas($fechaDesde, $fechaHasta),
+                $reporteService->datosReporteClientesMembresiaClasesActivas($fechaDesde, $fechaHasta, $filter),
                 function (&$d) use ($fechaDesde, $fechaHasta) {
                     $d['fecha_desde'] = $fechaDesde ?: '—';
                     $d['fecha_hasta'] = $fechaHasta ?: '—';
                 }
             ),
             'usuarios' => tap(
-                $reporteService->datosReporteUsuarios($fechaDesde, $fechaHasta),
+                $reporteService->datosReporteUsuarios($fechaDesde, $fechaHasta, $filter),
                 function (&$d) use ($fechaDesde, $fechaHasta) {
                     $d['fecha_desde'] = $fechaDesde ?: '—';
                     $d['fecha_hasta'] = $fechaHasta ?: '—';
                 }
             ),
             'cajas' => tap(
-                $reporteService->datosReporteCajas($fechaDesde, $fechaHasta),
+                $reporteService->datosReporteCajas(
+                    $fechaDesde,
+                    $fechaHasta,
+                    null,
+                    isset($q['usuario_id']) && $q['usuario_id'] !== '' ? (int) $q['usuario_id'] : null,
+                    null,
+                    $filter,
+                ),
                 function (&$d) use ($fechaDesde, $fechaHasta) {
                     $d['fecha_desde'] = $fechaDesde ?: '—';
                     $d['fecha_hasta'] = $fechaHasta ?: '—';
                 }
             ),
             'productos-servicios' => tap(
-                $reporteService->datosReporteProductosServicios($fechaDesde, $fechaHasta),
+                $reporteService->datosReporteProductosServicios($fechaDesde, $fechaHasta, $filter),
                 function (&$d) use ($fechaDesde, $fechaHasta) {
                     $d['fecha_desde'] = $fechaDesde ?: '—';
                     $d['fecha_hasta'] = $fechaHasta ?: '—';
                 }
             ),
             'gimnasio' => tap(
-                $reporteService->datosReporteGimnasio($fechaDesde, $fechaHasta),
+                $reporteService->datosReporteGimnasio($fechaDesde, $fechaHasta, $filter),
                 function (&$d) {
                     $d['fecha_desde'] = $d['fecha_desde'] ?? '—';
                     $d['fecha_hasta'] = $d['fecha_hasta'] ?? '—';

@@ -33,6 +33,7 @@ class AppServiceProvider extends ServiceProvider
             };
         });
         $this->app->singleton(SucursalContext::class);
+        $this->app->singleton(\App\Support\SucursalScope::class);
         $this->app->singleton(BrandingResolver::class);
 
         // Registrar antes del boot de Spatie (p. ej. PermissionRegistrar::registerPermissions) para que el super
@@ -53,6 +54,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        app(\App\Support\SucursalScopedRouteBinding::class)->register();
+
         Gate::policy(\App\Models\Crm\Lead::class, \App\Policies\Crm\LeadPolicy::class);
 
         RateLimiter::for('biotime-sync', function (Request $request) {

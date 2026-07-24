@@ -2,17 +2,20 @@
 
 namespace App\Models\Crm;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CrmStage extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $table = 'crm_stages';
 
     protected $fillable = [
+        'sucursal_id',
         'nombre',
         'orden',
         'is_default',

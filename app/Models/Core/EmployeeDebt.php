@@ -2,14 +2,18 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmployeeDebt extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'employee_debts';
 
     protected $fillable = [
+        'sucursal_id',
         'employee_id',
         'venta_id',
         'monto_total',

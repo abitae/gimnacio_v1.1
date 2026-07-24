@@ -2,13 +2,16 @@
 
 namespace App\Models\Crm;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\Core\Cliente;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Tag extends Model
 {
-    protected $fillable = ['nombre', 'color'];
+    use BelongsToSucursal;
+
+    protected $fillable = ['sucursal_id', 'nombre', 'color'];
 
     public function leads(): BelongsToMany
     {

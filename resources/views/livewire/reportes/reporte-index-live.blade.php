@@ -2,6 +2,11 @@
     <div>
         <h1 class="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Reportes</h1>
         <p class="text-sm text-zinc-600 dark:text-zinc-400">Selecciona el tipo de reporte que deseas generar</p>
+        @if (!empty($activeSucursalNombre))
+            <p class="mt-2 inline-flex rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                Sucursal activa: {{ $activeSucursalNombre }}
+            </p>
+        @endif
     </div>
 
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Dashboard;
 
+use App\Livewire\Concerns\ShowsCrossSucursalAlert;
 use App\Models\Core\Asistencia;
 use App\Models\Core\Clase;
 use App\Services\AsistenciaService;
@@ -12,6 +13,8 @@ use Livewire\Component;
 
 class DashboardLive extends Component
 {
+    use ShowsCrossSucursalAlert;
+
     public $selectedClienteId = null;
 
     protected ?int $lastSyncedLatestClienteId = null;
@@ -144,6 +147,7 @@ class DashboardLive extends Component
         $history = $this->clientEnrollmentService->resolveCommercialHistory($this->selectedClienteId, 10, 10);
         $this->historialMembresias = $history['memberships'];
         $this->historialClases = $history['classes'];
+        $this->refreshCrossSucursalAlertForCliente($this->selectedCliente);
     }
 
     protected function syncSelectedClienteToLatestRecord(): void

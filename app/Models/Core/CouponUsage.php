@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,10 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class CouponUsage extends Model
 {
+    use BelongsToSucursal;
+
     protected $fillable = [
+        'sucursal_id',
         'discount_coupon_id',
         'usable_type',
         'usable_id',

@@ -3,6 +3,7 @@
 namespace App\Livewire\Reportes;
 
 use App\Livewire\Reportes\Concerns\PaginatesReportTables;
+use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Models\User;
 use App\Services\ReporteModuloService;
 use Livewire\Component;
@@ -11,6 +12,7 @@ use Livewire\WithPagination;
 class ReporteClientesLive extends Component
 {
     use PaginatesReportTables;
+    use ScopesReporteBySucursal;
     use WithPagination;
 
     public $estadoFilter = '';
@@ -36,6 +38,7 @@ class ReporteClientesLive extends Component
     public function mount(): void
     {
         $this->authorize('reporte.ver');
+        $this->mountReporteSucursalScope();
         $this->fechaDesde = now()->subYear()->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');
     }
@@ -90,15 +93,21 @@ class ReporteClientesLive extends Component
             $this->createdById !== '' ? (int) $this->createdById : null,
             $this->trainerUserId !== '' ? (int) $this->trainerUserId : null,
             $this->vigenciaFilter ?: null,
-            (int) $this->ventanaDias
+            (int) $this->ventanaDias,
+            $this->reporteSucursalFilter(),
         );
 
         $usuarios = User::orderBy('name')->get(['id', 'name']);
 
-        return view('livewire.reportes.reporte-clientes-live', [
+        return view('livewire.reportes.reporte-clientes-live', array_merge([
             'clientes' => $this->paginateReportCollection($data['clientes'], $this->perPageClientes, 'clientesPage'),
             'resumen' => $data['resumen'],
             'usuarios' => $usuarios,
-        ]);
+        ], $this->reporteSucursalScopeViewData()));
+    }
+
+    protected function resetReportePagination(): void
+    {
+        $this->resetPage('clientesPage');
     }
 }

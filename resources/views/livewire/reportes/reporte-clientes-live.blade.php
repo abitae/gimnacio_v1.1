@@ -5,12 +5,17 @@
                 <h1 class="text-xl font-bold text-white">Reporte de Clientes</h1>
                 <p class="text-sm text-indigo-100">Clientes, vigencia comercial, asistencia y traspasos</p>
             </div>
-            <x-reportes.exportar-buttons tipo="clientes" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :estado="$estadoFilter" :createdById="$createdById" :trainerUserId="$trainerUserId" :vigencia="$vigenciaFilter" :ventanaDias="$ventanaDias" />
+            <x-reportes.exportar-buttons tipo="clientes" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :estado="$estadoFilter" :createdById="$createdById" :trainerUserId="$trainerUserId" :vigencia="$vigenciaFilter" :ventanaDias="$ventanaDias" :reporteModoSucursal="$reporteModoSucursal" :reporteSucursalId="$reporteSucursalId" />
         </div>
     </div>
 
     <div class="px-5 space-y-4">
         <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+        <x-reportes.sucursal-scope-panel
+            :etiqueta="$reporteSucursalEtiqueta"
+            :puede-elegir="$reportePuedeElegirSucursal"
+            :sucursales="$reporteSucursalesDisponibles"
+        />
 
         <div class="flex flex-wrap items-end gap-4">
             <div class="w-48">

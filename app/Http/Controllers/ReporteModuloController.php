@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Data\Reporte\ReporteSucursalFilter;
 use App\Exports\ReporteCajasExport;
 use App\Exports\ReporteClientesExport;
 use App\Exports\ReporteClientesMembresiaClasesExport;
@@ -35,6 +36,11 @@ class ReporteModuloController extends Controller
         ];
     }
 
+    protected function reporteFilter(Request $request): ReporteSucursalFilter
+    {
+        return ReporteSucursalFilter::fromRequest($request);
+    }
+
     /**
      * Si REPORTES_QUEUE_EXPORTS=true, encola la generación y notifica al usuario.
      */
@@ -45,11 +51,12 @@ class ReporteModuloController extends Controller
         }
 
         $sucursal = app(SucursalContext::class)->sucursal();
+        $filter = ReporteSucursalFilter::fromRequest($request);
 
         ExportReporteModuloJob::dispatch(
             (int) Auth::id(),
-            $sucursal?->id,
-            $sucursal?->empresa_id,
+            $filter->isActive() ? $sucursal?->id : null,
+            $filter->isActive() ? $sucursal?->empresa_id : null,
             $modulo,
             $format,
             $request->query->all()
@@ -68,7 +75,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteVentas($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteVentas($fechaDesde, $fechaHasta, $filter);
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
         $pdf = $this->pdfService->generarPdfVentas($data);
@@ -87,7 +95,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteMatriculas($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteMatriculas($fechaDesde, $fechaHasta, $filter);
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
         $pdf = $this->pdfService->generarPdfMatriculas($data);
@@ -105,7 +114,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteFinanciero($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteFinanciero($fechaDesde, $fechaHasta, $filter);
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
         $pdf = $this->pdfService->generarPdfFinanciero($data);
@@ -128,6 +138,7 @@ class ReporteModuloController extends Controller
         $vigencia = $request->query('vigencia');
         $ventanaDias = (int) ($request->query('ventana_dias', 15));
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
+        $filter = $this->reporteFilter($request);
         $data = $this->reporteService->datosReporteClientes(
             $estado ?: null,
             $fechaDesde,
@@ -135,7 +146,8 @@ class ReporteModuloController extends Controller
             $createdBy !== null && $createdBy !== '' ? (int) $createdBy : null,
             $trainerUserId !== null && $trainerUserId !== '' ? (int) $trainerUserId : null,
             $vigencia ?: null,
-            $ventanaDias > 0 ? $ventanaDias : 15
+            $ventanaDias > 0 ? $ventanaDias : 15,
+            $filter,
         );
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
@@ -154,7 +166,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteClientesMembresiaClasesActivas($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteClientesMembresiaClasesActivas($fechaDesde, $fechaHasta, $filter);
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
         $pdf = $this->pdfService->generarPdfClientesMembresiaClases($data);
@@ -172,7 +185,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteUsuarios($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteUsuarios($fechaDesde, $fechaHasta, $filter);
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
         $pdf = $this->pdfService->generarPdfUsuarios($data);
@@ -190,12 +204,14 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
+        $filter = $this->reporteFilter($request);
         $data = $this->reporteService->datosReporteCajas(
             $fechaDesde,
             $fechaHasta,
-            $request->integer('sucursal_id') ?: null,
+            null,
             $request->integer('usuario_id') ?: null,
             $request->integer('caja_id') ?: null,
+            $filter,
         );
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
@@ -216,7 +232,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteProductosServicios($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteProductosServicios($fechaDesde, $fechaHasta, $filter);
         $data['fecha_desde'] = $fechaDesde ?: '—';
         $data['fecha_hasta'] = $fechaHasta ?: '—';
         $pdf = $this->pdfService->generarPdfProductosServicios($data);
@@ -234,7 +251,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteGimnasio($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteGimnasio($fechaDesde, $fechaHasta, $filter);
         $data['fecha_desde'] = $data['fecha_desde'] ?? '—';
         $data['fecha_hasta'] = $data['fecha_hasta'] ?? '—';
         $pdf = $this->pdfService->generarPdfGimnasio($data);
@@ -252,7 +270,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteVentas($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteVentas($fechaDesde, $fechaHasta, $filter);
 
         return (new ReporteVentasExport($data))->download('reporte_ventas_'.now()->format('Y-m-d_His').'.xlsx');
     }
@@ -264,7 +283,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteMatriculas($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteMatriculas($fechaDesde, $fechaHasta, $filter);
 
         return (new ReporteMatriculasExport($data))->download('reporte_matriculas_'.now()->format('Y-m-d_His').'.xlsx');
     }
@@ -276,7 +296,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteFinanciero($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteFinanciero($fechaDesde, $fechaHasta, $filter);
 
         return (new ReporteFinancieroExport($data))->download('reporte_financiero_'.now()->format('Y-m-d_His').'.xlsx');
     }
@@ -293,6 +314,7 @@ class ReporteModuloController extends Controller
         $vigencia = $request->query('vigencia');
         $ventanaDias = (int) ($request->query('ventana_dias', 15));
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
+        $filter = $this->reporteFilter($request);
         $data = $this->reporteService->datosReporteClientes(
             $estado ?: null,
             $fechaDesde,
@@ -300,7 +322,8 @@ class ReporteModuloController extends Controller
             $createdBy !== null && $createdBy !== '' ? (int) $createdBy : null,
             $trainerUserId !== null && $trainerUserId !== '' ? (int) $trainerUserId : null,
             $vigencia ?: null,
-            $ventanaDias > 0 ? $ventanaDias : 15
+            $ventanaDias > 0 ? $ventanaDias : 15,
+            $filter,
         );
 
         return (new ReporteClientesExport($data))->download('reporte_clientes_'.now()->format('Y-m-d_His').'.xlsx');
@@ -313,7 +336,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteClientesMembresiaClasesActivas($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteClientesMembresiaClasesActivas($fechaDesde, $fechaHasta, $filter);
 
         return (new ReporteClientesMembresiaClasesExport($data))->download('reporte_clientes_membresia_clases_'.now()->format('Y-m-d_His').'.xlsx');
     }
@@ -325,7 +349,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteUsuarios($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteUsuarios($fechaDesde, $fechaHasta, $filter);
 
         return (new ReporteUsuariosExport($data))->download('reporte_usuarios_'.now()->format('Y-m-d_His').'.xlsx');
     }
@@ -337,12 +362,14 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
+        $filter = $this->reporteFilter($request);
         $data = $this->reporteService->datosReporteCajas(
             $fechaDesde,
             $fechaHasta,
-            $request->integer('sucursal_id') ?: null,
+            null,
             $request->integer('usuario_id') ?: null,
             $request->integer('caja_id') ?: null,
+            $filter,
         );
 
         return (new ReporteCajasExport($data))->download('reporte_cajas_'.now()->format('Y-m-d_His').'.xlsx');
@@ -355,7 +382,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteProductosServicios($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteProductosServicios($fechaDesde, $fechaHasta, $filter);
 
         return (new ReporteProductosServiciosExport($data))->download('reporte_productos_servicios_'.now()->format('Y-m-d_His').'.xlsx');
     }
@@ -367,7 +395,8 @@ class ReporteModuloController extends Controller
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
-        $data = $this->reporteService->datosReporteGimnasio($fechaDesde, $fechaHasta);
+        $filter = $this->reporteFilter($request);
+        $data = $this->reporteService->datosReporteGimnasio($fechaDesde, $fechaHasta, $filter);
 
         return (new ReporteGimnasioExport($data))->download('reporte_gimnasio_'.now()->format('Y-m-d_His').'.xlsx');
     }

@@ -5,11 +5,16 @@
                 <h1 class="text-xl font-bold text-white">Reporte de Matrículas</h1>
                 <p class="text-sm text-violet-100">Membresías y clases por período</p>
             </div>
-            <x-reportes.exportar-buttons tipo="matriculas" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+            <x-reportes.exportar-buttons tipo="matriculas" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :reporteModoSucursal="$reporteModoSucursal" :reporteSucursalId="$reporteSucursalId" />
         </div>
     </div>
     <div class="px-5 space-y-4 pb-5">
         <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+        <x-reportes.sucursal-scope-panel
+            :etiqueta="$reporteSucursalEtiqueta"
+            :puede-elegir="$reportePuedeElegirSucursal"
+            :sucursales="$reporteSucursalesDisponibles"
+        />
 
         <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div class="rounded-xl border border-violet-100 dark:border-violet-900/50 bg-violet-50/50 dark:bg-violet-950/30 p-4">

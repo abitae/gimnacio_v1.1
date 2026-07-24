@@ -17,6 +17,10 @@ trait BelongsToSucursal
             $sucursalId = $context->getSucursalId();
 
             if ($sucursalId === null) {
+                if (auth()->check()) {
+                    $builder->whereRaw('1 = 0');
+                }
+
                 return;
             }
 

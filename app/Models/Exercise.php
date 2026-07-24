@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Exercise extends Model
 {
+    use BelongsToSucursal;
     use SoftDeletes;
 
     public const TIPOS = [
@@ -24,6 +26,7 @@ class Exercise extends Model
     ];
 
     protected $fillable = [
+        'sucursal_id',
         'nombre',
         'grupo_muscular_principal',
         'musculos_secundarios',

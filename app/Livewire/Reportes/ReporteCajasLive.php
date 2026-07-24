@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reportes;
 
+use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\ReporteModuloService;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Collection;
@@ -10,13 +11,12 @@ use Livewire\WithPagination;
 
 class ReporteCajasLive extends Component
 {
+    use ScopesReporteBySucursal;
     use WithPagination;
 
     public $fechaDesde = '';
 
     public $fechaHasta = '';
-
-    public $sucursalId = '';
 
     public $usuarioId = '';
 
@@ -41,6 +41,7 @@ class ReporteCajasLive extends Component
     public function mount(): void
     {
         $this->authorize('reporte.ver');
+        $this->mountReporteSucursalScope();
         $this->fechaDesde = now()->startOfMonth()->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');
     }
@@ -51,11 +52,6 @@ class ReporteCajasLive extends Component
     }
 
     public function updatingFechaHasta(): void
-    {
-        $this->resetReportPages();
-    }
-
-    public function updatingSucursalId(): void
     {
         $this->resetReportPages();
     }
@@ -117,23 +113,29 @@ class ReporteCajasLive extends Component
         $data = $service->datosReporteCajas(
             $this->fechaDesde,
             $this->fechaHasta,
-            $this->sucursalId ? (int) $this->sucursalId : null,
+            null,
             $this->usuarioId ? (int) $this->usuarioId : null,
+            null,
+            $this->reporteSucursalFilter(),
         );
 
-        return view('livewire.reportes.reporte-cajas-live', [
+        return view('livewire.reportes.reporte-cajas-live', array_merge([
             'cajas' => $this->paginateCollection($data['cajas'], $this->perPageCajas, 'cajasPage'),
             'resumen' => $data['resumen'],
             'detalleMovimientos' => $this->paginateCollection($data['detalle_movimientos'], $this->perPageMovimientos, 'movimientosPage'),
-            'sucursales' => \App\Models\System\Sucursal::query()->orderBy('nombre')->get(['id', 'nombre']),
             'usuarios' => \App\Models\User::query()->orderBy('name')->get(['id', 'name']),
-        ]);
+        ], $this->reporteSucursalScopeViewData()));
     }
 
     protected function resetReportPages(): void
     {
         $this->resetPage('cajasPage');
         $this->resetPage('movimientosPage');
+    }
+
+    protected function resetReportePagination(): void
+    {
+        $this->resetReportPages();
     }
 
     protected function paginateCollection($items, int $perPage, string $pageName): LengthAwarePaginator

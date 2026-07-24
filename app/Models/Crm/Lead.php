@@ -2,6 +2,7 @@
 
 namespace App\Models\Crm;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\Core\Cliente;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -13,6 +14,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Lead extends Model
 {
+    use BelongsToSucursal;
     use HasFactory, SoftDeletes;
 
     protected $table = 'crm_leads';
@@ -31,6 +33,7 @@ class Lead extends Model
     ];
 
     protected $fillable = [
+        'sucursal_id',
         'codigo',
         'tipo_documento',
         'numero_documento',

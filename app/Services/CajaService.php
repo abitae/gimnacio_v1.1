@@ -113,11 +113,6 @@ class CajaService
             ->with(['usuario', 'sucursal'])
             ->orderBy('fecha_apertura', 'desc');
 
-        $user = Auth::user();
-        if ($user && method_exists($user, 'hasRole') && $user->hasRole(PermissionCatalog::SUPER_ADMIN_ROLE_NAME)) {
-            $query->withoutGlobalScope('active_sucursal');
-        }
-
         if (! empty($filtros['fecha_desde'])) {
             $query->whereDate('fecha_apertura', '>=', $filtros['fecha_desde']);
         }

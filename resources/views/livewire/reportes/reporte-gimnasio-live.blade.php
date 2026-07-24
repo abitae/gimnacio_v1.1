@@ -5,11 +5,16 @@
                 <h1 class="text-xl font-bold text-white">Reporte del Gimnasio</h1>
                 <p class="text-sm text-blue-100">Resumen ejecutivo del negocio</p>
             </div>
-            <x-reportes.exportar-buttons tipo="gimnasio" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+            <x-reportes.exportar-buttons tipo="gimnasio" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :reporteModoSucursal="$reporteModoSucursal" :reporteSucursalId="$reporteSucursalId" />
         </div>
     </div>
     <div class="px-5 space-y-4 pb-5">
         <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+        <x-reportes.sucursal-scope-panel
+            :etiqueta="$reporteSucursalEtiqueta"
+            :puede-elegir="$reportePuedeElegirSucursal"
+            :sucursales="$reporteSucursalesDisponibles"
+        />
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
         <div class="rounded-xl border border-blue-100 dark:border-blue-900/50 bg-blue-50/50 dark:bg-blue-950/30 p-4 shadow-sm">

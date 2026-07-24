@@ -1,4 +1,17 @@
-@props(['tipo' => 'ventas', 'fechaDesde' => '', 'fechaHasta' => '', 'estado' => '', 'createdById' => '', 'trainerUserId' => '', 'vigencia' => '', 'ventanaDias' => ''])
+@props([
+    'tipo' => 'ventas',
+    'fechaDesde' => '',
+    'fechaHasta' => '',
+    'estado' => '',
+    'createdById' => '',
+    'trainerUserId' => '',
+    'vigencia' => '',
+    'ventanaDias' => '',
+    'reporteModoSucursal' => 'active',
+    'reporteSucursalId' => '',
+    'sucursalId' => '',
+    'usuarioId' => '',
+])
 @php
     $params = [];
     if ($fechaDesde) $params['fecha_desde'] = $fechaDesde;
@@ -9,6 +22,13 @@
         if ($trainerUserId !== '' && $trainerUserId !== null) $params['trainer_user_id'] = $trainerUserId;
         if ($vigencia !== '' && $vigencia !== null) $params['vigencia'] = $vigencia;
         if ($ventanaDias !== '' && $ventanaDias !== null) $params['ventana_dias'] = $ventanaDias;
+    }
+    if ($tipo === 'cajas') {
+        if ($usuarioId !== '' && $usuarioId !== null) $params['usuario_id'] = $usuarioId;
+    }
+    $params['reporte_modo_sucursal'] = $reporteModoSucursal;
+    if ($reporteModoSucursal === 'specific' && $reporteSucursalId !== '' && $reporteSucursalId !== null) {
+        $params['reporte_sucursal_id'] = $reporteSucursalId;
     }
     $urlPdf = route('reportes.' . $tipo . '.exportar.pdf', $params);
     $urlExcel = route('reportes.' . $tipo . '.exportar.excel', $params);

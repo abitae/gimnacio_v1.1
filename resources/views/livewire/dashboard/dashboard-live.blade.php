@@ -92,6 +92,9 @@
             </div>
             <div class="p-3 flex flex-col">
                 @if ($selectedCliente)
+                    @if (!empty($crossSucursalMatches))
+                        <x-cliente.cross-sucursal-alert :matches="collect($crossSucursalMatches)" class="mb-3" />
+                    @endif
                     <div class="grid grid-cols-1 xl:grid-cols-[minmax(0,1.5fr)_minmax(240px,1fr)] gap-4 items-start">
                         {{-- Perfil: foto y datos --}}
                         <div class="flex flex-col sm:flex-row items-center sm:items-start gap-3 min-w-0">

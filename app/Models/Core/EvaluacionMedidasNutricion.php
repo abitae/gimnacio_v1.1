@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -10,11 +11,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class EvaluacionMedidasNutricion extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $table = 'evaluaciones_medidas_nutricion';
 
     protected $fillable = [
+        'sucursal_id',
         'cliente_id',
         'peso',
         'estatura',

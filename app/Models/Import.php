@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
-use App\Models\System\Sucursal;
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Import extends Model
 {
+    use BelongsToSucursal;
+
     protected $fillable = [
         'tipo_importacion',
         'archivo_nombre',
@@ -33,11 +35,6 @@ class Import extends Model
             'started_at' => 'datetime',
             'finished_at' => 'datetime',
         ];
-    }
-
-    public function sucursal(): BelongsTo
-    {
-        return $this->belongsTo(Sucursal::class);
     }
 
     public function importedBy(): BelongsTo

@@ -4,6 +4,7 @@ namespace App\Livewire\POS;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Livewire\Concerns\LogsLivewireErrors;
+use App\Livewire\Concerns\ShowsCrossSucursalAlert;
 use App\Livewire\POS\Concerns\ManagesPosCartTotals;
 use App\Models\Core\Cliente;
 use App\Models\Core\PaymentMethod;
@@ -41,6 +42,7 @@ class POSLive extends Component
     use FlashesToast;
     use LogsLivewireErrors;
     use ManagesPosCartTotals;
+    use ShowsCrossSucursalAlert;
 
     // Búsqueda
     public $busqueda = '';
@@ -899,6 +901,7 @@ class POSLive extends Component
     {
         $this->clienteId = $clienteId;
         $this->clienteSeleccionado = \App\Models\Core\Cliente::find($clienteId);
+        $this->refreshCrossSucursalAlertForCliente($this->clienteSeleccionado);
         $this->clienteSearchProcesar = '';
         $this->clientesProcesar = collect([]);
         $this->mostrarModalCliente = false;

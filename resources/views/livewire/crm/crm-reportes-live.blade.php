@@ -4,6 +4,12 @@
         <p class="text-xs text-zinc-600 dark:text-zinc-400">Conversión, por asesor y por canal</p>
     </div>
 
+    <x-reportes.sucursal-scope-panel
+        :etiqueta="$reporteSucursalEtiqueta"
+        :puede-elegir="$reportePuedeElegirSucursal"
+        :sucursales="$reporteSucursalesDisponibles"
+    />
+
     <div class="flex flex-wrap gap-2 items-center">
         <flux:label>Desde</flux:label>
         <flux:input type="date" wire:model.live="from" />

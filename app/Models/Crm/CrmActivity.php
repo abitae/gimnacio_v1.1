@@ -2,6 +2,7 @@
 
 namespace App\Models\Crm;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\Core\Cliente;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class CrmActivity extends Model
 {
+    use BelongsToSucursal;
     use SoftDeletes;
 
     protected $table = 'crm_activities';
@@ -25,6 +27,7 @@ class CrmActivity extends Model
     ];
 
     protected $fillable = [
+        'sucursal_id',
         'lead_id',
         'cliente_id',
         'deal_id',

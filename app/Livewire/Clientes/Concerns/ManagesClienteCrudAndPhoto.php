@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Clientes\Concerns;
 
+use App\Livewire\Concerns\ShowsCrossSucursalAlert;
 use App\Models\Core\Cliente;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Attributes\On;
@@ -14,6 +15,7 @@ use Livewire\WithFileUploads;
  */
 trait ManagesClienteCrudAndPhoto
 {
+    use ShowsCrossSucursalAlert;
     use WithFileUploads;
 
     private const FOTO_MAX_WIDTH = 800;
@@ -70,7 +72,22 @@ trait ManagesClienteCrudAndPhoto
     {
         $this->authorize('cliente.crear');
         $this->resetClienteForm();
+        $this->clearCrossSucursalAlert();
         $this->clienteModalState['create'] = true;
+    }
+
+    public function updatedFormDataNumeroDocumento(): void
+    {
+        $this->refreshCrossSucursalAlert(
+            $this->formData['tipo_documento'] ?? null,
+            $this->formData['numero_documento'] ?? null,
+            $this->clienteId
+        );
+    }
+
+    public function updatedFormDataTipoDocumento(): void
+    {
+        $this->updatedFormDataNumeroDocumento();
     }
 
     public function openClienteEditModal(int $id): void

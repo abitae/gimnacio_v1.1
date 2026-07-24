@@ -32,6 +32,12 @@
         </div>
     </div>
 
+    <x-reportes.sucursal-scope-panel
+        :etiqueta="$reporteSucursalEtiqueta"
+        :puede-elegir="$reportePuedeElegirSucursal"
+        :sucursales="$reporteSucursalesDisponibles"
+    />
+
     <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
         <flux:input icon="magnifying-glass" type="search" size="xs" wire:model.live.debounce.300ms="search" placeholder="DNI, código, celular o nombre" />
         <flux:input type="date" size="xs" wire:model.live="fechaInicio" />

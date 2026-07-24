@@ -2,12 +2,14 @@
 
 namespace App\Livewire\Reportes;
 
+use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\Analytics\FinanceAnalyticsService;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ReporteCuentasPorCobrarLive extends Component
 {
+    use ScopesReporteBySucursal;
     use WithPagination;
 
     public string $search = '';
@@ -32,6 +34,7 @@ class ReporteCuentasPorCobrarLive extends Component
     public function mount(): void
     {
         $this->authorize('reporte.ver');
+        $this->mountReporteSucursalScope();
         $this->fechaInicio = now()->startOfMonth()->format('Y-m-d');
         $this->fechaFin = now()->format('Y-m-d');
     }
@@ -77,11 +80,17 @@ class ReporteCuentasPorCobrarLive extends Component
     public function render()
     {
         $filters = $this->filters();
+        $scopeFilter = $this->reporteSucursalFilter();
 
-        return view('livewire.reportes.reporte-cuentas-por-cobrar-live', [
-            'debts' => $this->financeAnalyticsService->paginateAccountsReceivable($filters, $this->perPage),
-            'summary' => $this->financeAnalyticsService->accountsReceivableSummary($filters),
+        return view('livewire.reportes.reporte-cuentas-por-cobrar-live', array_merge([
+            'debts' => $this->financeAnalyticsService->paginateAccountsReceivable($filters, $this->perPage, $scopeFilter),
+            'summary' => $this->financeAnalyticsService->accountsReceivableSummary($filters, $scopeFilter),
             'puedeCobrarOperativo' => auth()->user()?->can('punto_venta.ver') ?? false,
-        ])->layout('layouts.app', ['title' => 'Reporte — Cuentas por cobrar']);
+        ], $this->reporteSucursalScopeViewData()))->layout('layouts.app', ['title' => 'Reporte — Cuentas por cobrar']);
+    }
+
+    protected function resetReportePagination(): void
+    {
+        $this->resetPage();
     }
 }

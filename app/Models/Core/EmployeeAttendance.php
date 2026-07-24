@@ -2,15 +2,19 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class EmployeeAttendance extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'employee_attendances';
 
     protected $fillable = [
+        'sucursal_id',
         'employee_id',
         'fecha',
         'hora_ingreso',

@@ -23,11 +23,16 @@
                         <p class="mt-0.5 text-violet-800/90 dark:text-violet-200/90">{{ __('Se asignará automáticamente al guardar (numérico, desde 10000 por sucursal).') }}</p>
                     </div>
                 @endif
-                <flux:select size="xs" wire:model="formData.tipo_documento" label="{{ __('Tipo doc.') }}">
+                <flux:select size="xs" wire:model.live="formData.tipo_documento" label="{{ __('Tipo doc.') }}">
                     <option value="DNI">DNI</option>
                     <option value="CE">CE</option>
                 </flux:select>
-                <flux:input size="xs" wire:model="formData.numero_documento" label="{{ __('Número') }}" required />
+                <flux:input size="xs" wire:model.live.debounce.400ms="formData.numero_documento" label="{{ __('Número') }}" required />
+                @if (!empty($crossSucursalMatches))
+                    <div class="sm:col-span-2">
+                        <x-cliente.cross-sucursal-alert :matches="collect($crossSucursalMatches)" />
+                    </div>
+                @endif
                 <flux:input size="xs" wire:model="formData.nombres" label="{{ __('Nombres') }}" required class="sm:col-span-2" />
                 <flux:input size="xs" wire:model="formData.apellidos" label="{{ __('Apellidos') }}" required class="sm:col-span-2" />
                 <flux:input size="xs" wire:model="formData.telefono" label="{{ __('Teléfono') }}" />

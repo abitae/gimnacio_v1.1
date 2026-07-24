@@ -323,6 +323,7 @@ class ClientePerfilLive extends Component
         $this->commercialTabDataLoaded = false;
 
         $this->refreshSelectedClienteContext($clienteId);
+        $this->refreshCrossSucursalAlertForCliente($this->selectedCliente);
         $this->maybeOpenDeudaVencidaModal();
     }
 

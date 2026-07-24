@@ -2,6 +2,7 @@
 
 namespace App\Models\Crm;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\Core\Cliente;
 use App\Models\Core\Membresia;
 use App\Models\User;
@@ -12,6 +13,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Deal extends Model
 {
+    use BelongsToSucursal;
     use SoftDeletes;
 
     protected $table = 'crm_deals';
@@ -19,6 +21,7 @@ class Deal extends Model
     public const ESTADOS = ['open', 'won', 'lost'];
 
     protected $fillable = [
+        'sucursal_id',
         'lead_id',
         'cliente_id',
         'membresia_id',

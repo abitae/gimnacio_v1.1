@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Models\BioTime;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\System\Sucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BioTimeMapping extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'bio_time_mappings';
 
     protected $fillable = [

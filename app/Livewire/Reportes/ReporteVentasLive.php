@@ -3,6 +3,7 @@
 namespace App\Livewire\Reportes;
 
 use App\Livewire\Reportes\Concerns\PaginatesReportTables;
+use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\ReporteModuloService;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -10,6 +11,7 @@ use Livewire\WithPagination;
 class ReporteVentasLive extends Component
 {
     use PaginatesReportTables;
+    use ScopesReporteBySucursal;
     use WithPagination;
 
     public $fechaDesde = '';
@@ -23,6 +25,7 @@ class ReporteVentasLive extends Component
     public function mount(): void
     {
         $this->authorize('reporte.ver');
+        $this->mountReporteSucursalScope();
         $this->fechaDesde = now()->startOfMonth()->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');
     }
@@ -45,11 +48,16 @@ class ReporteVentasLive extends Component
     public function render()
     {
         $service = app(ReporteModuloService::class);
-        $data = $service->datosReporteVentas($this->fechaDesde, $this->fechaHasta);
+        $data = $service->datosReporteVentas($this->fechaDesde, $this->fechaHasta, $this->reporteSucursalFilter());
 
-        return view('livewire.reportes.reporte-ventas-live', [
+        return view('livewire.reportes.reporte-ventas-live', array_merge([
             'ventas' => $this->paginateReportCollection($data['ventas'], $this->perPageVentas, 'ventasPage'),
             'resumen' => $data['resumen'],
-        ]);
+        ], $this->reporteSucursalScopeViewData()));
+    }
+
+    protected function resetReportePagination(): void
+    {
+        $this->resetPage('ventasPage');
     }
 }

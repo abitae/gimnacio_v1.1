@@ -2,15 +2,19 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class HealthRecord extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'health_records';
 
     protected $fillable = [
+        'sucursal_id',
         'cliente_id',
         'enfermedades',
         'alergias',

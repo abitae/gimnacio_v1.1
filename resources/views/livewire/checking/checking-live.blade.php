@@ -234,6 +234,9 @@
 
                 <div class="p-6 flex-1 flex flex-col min-h-0">
                     @if ($selectedCliente)
+                        @if (!empty($crossSucursalMatches))
+                            <x-cliente.cross-sucursal-alert :matches="collect($crossSucursalMatches)" class="mb-4" />
+                        @endif
                         <!-- Foto del Cliente -->
                         <div class="flex justify-center relative mb-4">
                             <div class="relative">

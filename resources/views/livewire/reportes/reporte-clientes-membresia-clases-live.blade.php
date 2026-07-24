@@ -5,11 +5,16 @@
                 <h1 class="text-xl font-bold text-white">Clientes con membresía y clases activas</h1>
                 <p class="text-sm text-cyan-100">Membresías activas, clases activas y pagos por período</p>
             </div>
-            <x-reportes.exportar-buttons tipo="clientes-membresia-clases" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+            <x-reportes.exportar-buttons tipo="clientes-membresia-clases" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :reporteModoSucursal="$reporteModoSucursal" :reporteSucursalId="$reporteSucursalId" />
         </div>
     </div>
     <div class="px-5 space-y-4 pb-5">
         <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+        <x-reportes.sucursal-scope-panel
+            :etiqueta="$reporteSucursalEtiqueta"
+            :puede-elegir="$reportePuedeElegirSucursal"
+            :sucursales="$reporteSucursalesDisponibles"
+        />
 
         <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
             <div class="rounded-xl border border-violet-100 dark:border-violet-900/50 bg-violet-50/50 dark:bg-violet-950/30 p-4">

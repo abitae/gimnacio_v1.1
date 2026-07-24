@@ -2,6 +2,7 @@
 
 namespace App\Models\Crm;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\Core\DiscountCoupon;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -10,6 +11,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Campaign extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'crm_campaigns';
 
     public const TIPOS = [
@@ -25,6 +28,7 @@ class Campaign extends Model
     ];
 
     protected $fillable = [
+        'sucursal_id',
         'nombre',
         'tipo',
         'estado',

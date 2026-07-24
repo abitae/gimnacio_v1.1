@@ -2,15 +2,19 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class NutritionGoalProgress extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'nutrition_goal_progress';
 
     protected $fillable = [
+        'sucursal_id',
         'nutrition_goal_id',
         'fecha',
         'peso',

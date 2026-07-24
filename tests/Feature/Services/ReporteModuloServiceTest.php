@@ -6,13 +6,30 @@ use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Membresia;
+use App\Models\System\Empresa;
+use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\ReporteModuloService;
+use App\Services\SucursalContext;
+
+afterEach(function () {
+    app(SucursalContext::class)->clearDelegateContext();
+});
 
 it('builds the detailed client report summary with attendance and transfer metrics', function () {
     $user = User::factory()->create();
     $trainer = User::factory()->create();
     $this->actingAs($user);
+
+    $empresa = Empresa::query()->create(['nombre' => 'Empresa test', 'estado' => 'activa']);
+    $sucursal = Sucursal::query()->create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'RPT-CLI',
+        'nombre' => 'Sucursal test',
+        'estado' => 'activa',
+        'es_principal' => true,
+    ]);
+    app(SucursalContext::class)->setDelegateContext($sucursal->id, $sucursal->empresa_id);
 
     $cliente = Cliente::create([
         'tipo_documento' => 'DNI',

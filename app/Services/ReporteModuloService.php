@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Data\Reporte\ReporteSucursalFilter;
 use App\Models\Core\Asistencia;
 use App\Models\Core\Caja;
 use App\Models\Core\Cita;
@@ -15,17 +16,38 @@ use App\Models\Core\ServicioExterno;
 use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
 use App\Models\User;
+use App\Support\SucursalScope;
 use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
 
 class ReporteModuloService
 {
+    public function __construct(
+        protected SucursalContext $sucursalContext,
+        protected SucursalScope $sucursalScope,
+    ) {}
+
+    protected function applyReporteScope(Builder $query, ?ReporteSucursalFilter $filter = null): Builder
+    {
+        if ($filter === null || $filter->isActive()) {
+            return $query;
+        }
+
+        return $this->sucursalScope->applyReportScope(
+            $query,
+            $filter->specificSucursalId(),
+            $filter->isConsolidated()
+        );
+    }
+
     /**
      * Datos para reporte de ventas (por período).
      */
-    public function datosReporteVentas(?string $fechaDesde, ?string $fechaHasta): array
+    public function datosReporteVentas(?string $fechaDesde, ?string $fechaHasta, ?ReporteSucursalFilter $filter = null): array
     {
-        $query = Venta::with(['cliente', 'usuario', 'caja.usuario', 'items', 'pagos.paymentMethod', 'clientDebt']);
+        $query = Venta::with(['cliente', 'usuario', 'caja.usuario', 'items', 'pagos.paymentMethod', 'clientDebt', 'sucursal']);
+        $query = $this->applyReporteScope($query, $filter);
         if ($fechaDesde) {
             $query->where('fecha_venta', '>=', $fechaDesde);
         }
@@ -160,9 +182,10 @@ class ReporteModuloService
     /**
      * Datos para reporte de matrículas (membresías y clases).
      */
-    public function datosReporteMatriculas(?string $fechaDesde, ?string $fechaHasta): array
+    public function datosReporteMatriculas(?string $fechaDesde, ?string $fechaHasta, ?ReporteSucursalFilter $filter = null): array
     {
-        $query = ClienteMatricula::with(['cliente', 'membresia', 'clase', 'asesor']);
+        $query = ClienteMatricula::with(['cliente', 'membresia', 'clase', 'asesor', 'sucursal']);
+        $query = $this->applyReporteScope($query, $filter);
         if ($fechaDesde) {
             $query->where('fecha_inicio', '>=', $fechaDesde);
         }
@@ -194,9 +217,10 @@ class ReporteModuloService
     /**
      * Datos para reporte financiero (pagos, ingresos, resumen).
      */
-    public function datosReporteFinanciero(?string $fechaDesde, ?string $fechaHasta): array
+    public function datosReporteFinanciero(?string $fechaDesde, ?string $fechaHasta, ?ReporteSucursalFilter $filter = null): array
     {
-        $pagosQuery = Pago::with(['cliente', 'caja', 'clienteMatricula', 'clienteMembresia']);
+        $pagosQuery = Pago::with(['cliente', 'caja', 'clienteMatricula', 'clienteMembresia', 'sucursal']);
+        $pagosQuery = $this->applyReporteScope($pagosQuery, $filter);
         if ($fechaDesde) {
             $pagosQuery->where('fecha_pago', '>=', $fechaDesde);
         }
@@ -205,7 +229,7 @@ class ReporteModuloService
         }
         $pagos = $pagosQuery->orderBy('fecha_pago', 'desc')->get();
 
-        $ventasData = $this->datosReporteVentas($fechaDesde, $fechaHasta);
+        $ventasData = $this->datosReporteVentas($fechaDesde, $fechaHasta, $filter);
         $totalVentas = $ventasData['resumen']['total'];
         $totalPagos = (float) $pagos->sum('monto');
 
@@ -233,9 +257,11 @@ class ReporteModuloService
         ?int $createdBy = null,
         ?int $trainerUserId = null,
         ?string $vigencia = null,
-        int $ventanaDias = 15
+        int $ventanaDias = 15,
+        ?ReporteSucursalFilter $filter = null,
     ): array {
-        $query = Cliente::with(['registroPor', 'trainerUser'])->withCount(['clienteMembresias', 'pagos']);
+        $query = Cliente::with(['registroPor', 'trainerUser', 'sucursal'])->withCount(['clienteMembresias', 'pagos']);
+        $query = $this->applyReporteScope($query, $filter);
         if ($estado) {
             $query->where('estado_cliente', $estado);
         }
@@ -259,21 +285,21 @@ class ReporteModuloService
         $rangoDesde = $fechaDesde ? Carbon::parse($fechaDesde)->startOfDay() : null;
         $rangoHasta = $fechaHasta ? Carbon::parse($fechaHasta)->endOfDay() : null;
 
-        $membresiasLegacy = ClienteMembresia::query()
+        $membresiasLegacy = $this->applyReporteScope(ClienteMembresia::query(), $filter)
             ->with('membresia')
             ->whereIn('cliente_id', $clienteIds)
             ->orderBy('fecha_inicio')
             ->get()
             ->groupBy('cliente_id');
 
-        $matriculas = ClienteMatricula::query()
+        $matriculas = $this->applyReporteScope(ClienteMatricula::query(), $filter)
             ->with(['membresia', 'clase'])
             ->whereIn('cliente_id', $clienteIds)
             ->orderBy('fecha_inicio')
             ->get()
             ->groupBy('cliente_id');
 
-        $asistenciasPorCliente = Asistencia::query()
+        $asistenciasPorCliente = $this->applyReporteScope(Asistencia::query(), $filter)
             ->select('cliente_id', DB::raw('COUNT(*) as total'))
             ->whereIn('cliente_id', $clienteIds)
             ->when($rangoDesde, fn ($query) => $query->where('fecha_hora_ingreso', '>=', $rangoDesde))
@@ -281,7 +307,7 @@ class ReporteModuloService
             ->groupBy('cliente_id')
             ->pluck('total', 'cliente_id');
 
-        $inasistenciasPorCliente = Cita::query()
+        $inasistenciasPorCliente = $this->applyReporteScope(Cita::query(), $filter)
             ->select('cliente_id', DB::raw('COUNT(*) as total'))
             ->whereIn('cliente_id', $clienteIds)
             ->where('estado', 'no_asistio')
@@ -435,12 +461,13 @@ class ReporteModuloService
      * Reporte de clientes con membresía y clases activas, y pagos de membresía y clases.
      * Filtro opcional por período de fecha de pago.
      */
-    public function datosReporteClientesMembresiaClasesActivas(?string $fechaDesde = null, ?string $fechaHasta = null): array
+    public function datosReporteClientesMembresiaClasesActivas(?string $fechaDesde = null, ?string $fechaHasta = null, ?ReporteSucursalFilter $filter = null): array
     {
         $hoy = now()->format('Y-m-d');
 
         // Membresías activas (tabla cliente_membresias)
-        $membresiasActivas = ClienteMembresia::with(['cliente', 'membresia'])
+        $membresiasActivas = $this->applyReporteScope(ClienteMembresia::query(), $filter)
+            ->with(['cliente', 'membresia'])
             ->where('estado', 'activa')
             ->where(function ($q) use ($hoy) {
                 $q->whereNull('fecha_fin')->orWhere('fecha_fin', '>=', $hoy);
@@ -449,7 +476,8 @@ class ReporteModuloService
             ->get();
 
         // Matrículas tipo membresía activas (tabla cliente_matriculas)
-        $matriculasMembresiaActivas = ClienteMatricula::with(['cliente', 'membresia'])
+        $matriculasMembresiaActivas = $this->applyReporteScope(ClienteMatricula::query(), $filter)
+            ->with(['cliente', 'membresia'])
             ->where('tipo', 'membresia')
             ->where('estado', 'activa')
             ->where(function ($q) use ($hoy) {
@@ -459,7 +487,8 @@ class ReporteModuloService
             ->get();
 
         // Matrículas tipo clase activas
-        $matriculasClaseActivas = ClienteMatricula::with(['cliente', 'clase'])
+        $matriculasClaseActivas = $this->applyReporteScope(ClienteMatricula::query(), $filter)
+            ->with(['cliente', 'clase'])
             ->where('tipo', 'clase')
             ->where('estado', 'activa')
             ->where(function ($q) use ($hoy) {
@@ -469,7 +498,8 @@ class ReporteModuloService
             ->get();
 
         // Pagos de membresía legacy (cliente_membresia_id)
-        $pagosMembresiaLegacyQuery = Pago::with(['cliente', 'clienteMembresia.membresia']);
+        $pagosMembresiaLegacyQuery = $this->applyReporteScope(Pago::query(), $filter)
+            ->with(['cliente', 'clienteMembresia.membresia']);
         if ($fechaDesde) {
             $pagosMembresiaLegacyQuery->whereDate('fecha_pago', '>=', $fechaDesde);
         }
@@ -482,7 +512,8 @@ class ReporteModuloService
             ->get();
 
         // Pagos nuevos de membresía y cuotas (cliente_matricula_id tipo membresía)
-        $pagosMembresiaMatriculaQuery = Pago::with(['cliente', 'clienteMatricula.membresia']);
+        $pagosMembresiaMatriculaQuery = $this->applyReporteScope(Pago::query(), $filter)
+            ->with(['cliente', 'clienteMatricula.membresia']);
         if ($fechaDesde) {
             $pagosMembresiaMatriculaQuery->whereDate('fecha_pago', '>=', $fechaDesde);
         }
@@ -501,7 +532,8 @@ class ReporteModuloService
             ->values();
 
         // Pagos de clases (cliente_matricula_id con tipo clase)
-        $pagosClaseQuery = Pago::with(['cliente', 'clienteMatricula.clase']);
+        $pagosClaseQuery = $this->applyReporteScope(Pago::query(), $filter)
+            ->with(['cliente', 'clienteMatricula.clase']);
         if ($fechaDesde) {
             $pagosClaseQuery->whereDate('fecha_pago', '>=', $fechaDesde);
         }
@@ -544,9 +576,9 @@ class ReporteModuloService
     /**
      * Datos para reporte de usuarios (ventas por usuario, actividad).
      */
-    public function datosReporteUsuarios(?string $fechaDesde, ?string $fechaHasta): array
+    public function datosReporteUsuarios(?string $fechaDesde, ?string $fechaHasta, ?ReporteSucursalFilter $filter = null): array
     {
-        $ventasQuery = Venta::query()
+        $ventasQuery = $this->applyReporteScope(Venta::query(), $filter)
             ->select('usuario_id', DB::raw('COUNT(*) as cantidad'), DB::raw('SUM(total) as total_ventas'))
             ->groupBy('usuario_id');
         if ($fechaDesde) {
@@ -576,17 +608,28 @@ class ReporteModuloService
     /**
      * Datos para reporte de cajas (aperturas/cierres, movimientos).
      */
-    public function datosReporteCajas(?string $fechaDesde, ?string $fechaHasta, ?int $sucursalId = null, ?int $usuarioId = null, ?int $cajaId = null): array
-    {
+    public function datosReporteCajas(
+        ?string $fechaDesde,
+        ?string $fechaHasta,
+        ?int $sucursalId = null,
+        ?int $usuarioId = null,
+        ?int $cajaId = null,
+        ?ReporteSucursalFilter $filter = null,
+    ): array {
         $query = Caja::with(['usuario', 'sucursal', 'movimientos.usuario', 'movimientos.referencia']);
+        $query = $this->applyReporteScope($query, $filter);
+
         if ($fechaDesde) {
             $query->where('fecha_apertura', '>=', $fechaDesde);
         }
         if ($fechaHasta) {
             $query->where('fecha_apertura', '<=', $fechaHasta.' 23:59:59');
         }
-        if ($sucursalId) {
-            $query->where('sucursal_id', $sucursalId);
+        if ($filter === null || $filter->isActive()) {
+            $sucursalId ??= $this->sucursalContext->getSucursalId();
+            if ($sucursalId) {
+                $query->where('sucursal_id', $sucursalId);
+            }
         }
         if ($usuarioId) {
             $query->where('usuario_id', $usuarioId);
@@ -719,9 +762,9 @@ class ReporteModuloService
     /**
      * Datos para reporte de productos y servicios (más vendidos, stock bajo).
      */
-    public function datosReporteProductosServicios(?string $fechaDesde, ?string $fechaHasta): array
+    public function datosReporteProductosServicios(?string $fechaDesde, ?string $fechaHasta, ?ReporteSucursalFilter $filter = null): array
     {
-        $ventasQuery = Venta::with(['items', 'caja.usuario', 'usuario', 'cliente', 'employee', 'paymentMethod', 'pagos.paymentMethod']);
+        $ventasQuery = $this->applyReporteScope(Venta::with(['items', 'caja.usuario', 'usuario', 'cliente', 'employee', 'paymentMethod', 'pagos.paymentMethod', 'sucursal']), $filter);
         if ($fechaDesde) {
             $ventasQuery->where('fecha_venta', '>=', $fechaDesde);
         }
@@ -817,7 +860,8 @@ class ReporteModuloService
             ->sortByDesc('total')
             ->values();
 
-        $productosBajoStock = Producto::where('estado', 'activo')
+        $productosBajoStock = $this->applyReporteScope(Producto::query(), $filter)
+            ->where('estado', 'activo')
             ->whereRaw('stock_actual <= stock_minimo')
             ->orderBy('stock_actual')
             ->get();
@@ -829,8 +873,8 @@ class ReporteModuloService
             'detalle_productos_vendidos' => $detalleProductosVendidos,
             'productos_bajo_stock' => $productosBajoStock,
             'resumen' => [
-                'total_productos_activos' => Producto::where('estado', 'activo')->count(),
-                'total_servicios_activos' => ServicioExterno::where('estado', 'activo')->count(),
+                'total_productos_activos' => $this->applyReporteScope(Producto::query(), $filter)->where('estado', 'activo')->count(),
+                'total_servicios_activos' => $this->applyReporteScope(ServicioExterno::query(), $filter)->where('estado', 'activo')->count(),
                 'productos_bajo_stock' => $productosBajoStock->count(),
                 'productos_vendidos' => (int) $detalleProductosVendidos->sum('cantidad'),
                 'ventas_con_productos' => $detalleProductosVendidos->pluck('venta_id')->unique()->count(),
@@ -842,18 +886,21 @@ class ReporteModuloService
     /**
      * Datos para reporte general del gimnasio (resumen ejecutivo).
      */
-    public function datosReporteGimnasio(?string $fechaDesde, ?string $fechaHasta): array
+    public function datosReporteGimnasio(?string $fechaDesde, ?string $fechaHasta, ?ReporteSucursalFilter $filter = null): array
     {
         $fechaDesde = $fechaDesde ?? now()->startOfMonth()->format('Y-m-d');
         $fechaHasta = $fechaHasta ?? now()->format('Y-m-d');
 
-        $ventasData = $this->datosReporteVentas($fechaDesde, $fechaHasta);
-        $matriculasData = $this->datosReporteMatriculas($fechaDesde, $fechaHasta);
-        $financieroData = $this->datosReporteFinanciero($fechaDesde, $fechaHasta);
-        $clientesData = $this->datosReporteClientes(null);
+        $ventasData = $this->datosReporteVentas($fechaDesde, $fechaHasta, $filter);
+        $matriculasData = $this->datosReporteMatriculas($fechaDesde, $fechaHasta, $filter);
+        $financieroData = $this->datosReporteFinanciero($fechaDesde, $fechaHasta, $filter);
+        $clientesData = $this->datosReporteClientes(null, null, null, null, null, null, 15, $filter);
 
-        $clientesActivos = Cliente::where('estado_cliente', 'activo')->count();
-        $matriculasActivas = ClienteMatricula::where('tipo', 'membresia')
+        $clientesActivos = $this->applyReporteScope(Cliente::query(), $filter)
+            ->where('estado_cliente', 'activo')
+            ->count();
+        $matriculasActivas = $this->applyReporteScope(ClienteMatricula::query(), $filter)
+            ->where('tipo', 'membresia')
             ->where('estado', 'activa')
             ->where('fecha_inicio', '<=', $fechaHasta)
             ->where(function ($q) use ($fechaHasta) {

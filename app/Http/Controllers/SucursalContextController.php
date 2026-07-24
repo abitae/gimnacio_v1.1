@@ -41,6 +41,10 @@ class SucursalContextController extends Controller
 
         $this->context->activate($sucursal);
 
+        session()->forget([
+            'dashboard_last_cliente_id',
+        ]);
+
         return redirect()->intended(route('dashboard'))
             ->with('success', 'Sucursal activa actualizada correctamente.');
     }

@@ -2,12 +2,15 @@
 
 namespace App\Models\Crm;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class LossReason extends Model
 {
-    protected $fillable = ['nombre', 'activo'];
+    use BelongsToSucursal;
+
+    protected $fillable = ['sucursal_id', 'nombre', 'activo'];
 
     protected function casts(): array
     {

@@ -3,10 +3,10 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h1 class="text-xl font-bold">Reporte de cajas</h1>
-                <p class="text-sm text-emerald-100">Filtro por sucursal, usuario y fechas con detalle completo de movimientos.</p>
+                <p class="text-sm text-emerald-100">Filtro por usuario y fechas con detalle completo de movimientos.</p>
             </div>
             <div class="flex gap-2 print:hidden">
-                <x-reportes.exportar-buttons tipo="cajas" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+                <x-reportes.exportar-buttons tipo="cajas" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :usuarioId="$usuarioId" :reporteModoSucursal="$reporteModoSucursal" :reporteSucursalId="$reporteSucursalId" />
                 <button type="button" onclick="window.print()" class="rounded-xl border border-white/30 bg-white/10 px-4 py-2 text-sm font-semibold hover:bg-white/20">
                     Imprimir
                 </button>
@@ -15,15 +15,15 @@
     </div>
 
     <div class="space-y-4 px-5 pb-5">
-        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4 print:hidden">
+        <x-reportes.sucursal-scope-panel
+            :etiqueta="$reporteSucursalEtiqueta"
+            :puede-elegir="$reportePuedeElegirSucursal"
+            :sucursales="$reporteSucursalesDisponibles"
+        />
+
+        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3 print:hidden">
             <flux:input type="date" size="xs" wire:model.live="fechaDesde" label="Fecha inicio" />
             <flux:input type="date" size="xs" wire:model.live="fechaHasta" label="Fecha fin" />
-            <flux:select size="xs" wire:model.live="sucursalId" label="Sucursal">
-                <option value="">Todas</option>
-                @foreach ($sucursales as $sucursal)
-                    <option value="{{ $sucursal->id }}">{{ $sucursal->nombre }}</option>
-                @endforeach
-            </flux:select>
             <flux:select size="xs" wire:model.live="usuarioId" label="Usuario">
                 <option value="">Todos</option>
                 @foreach ($usuarios as $usuario)
@@ -252,7 +252,8 @@
                             'fecha_desde' => $fechaDesde ?: null,
                             'fecha_hasta' => $fechaHasta ?: null,
                             'usuario_id' => $usuarioId ?: null,
-                            'sucursal_id' => $sucursalId ?: null,
+                            'reporte_modo_sucursal' => $reporteModoSucursal,
+                            'reporte_sucursal_id' => ($reporteModoSucursal === 'specific' && $reporteSucursalId) ? $reporteSucursalId : null,
                             'caja_id' => $cajaDetalleId,
                             'inline' => 1,
                         ]) }}" target="_blank" rel="noopener"
@@ -269,7 +270,8 @@
                         'fecha_desde' => $fechaDesde ?: null,
                         'fecha_hasta' => $fechaHasta ?: null,
                         'usuario_id' => $usuarioId ?: null,
-                        'sucursal_id' => $sucursalId ?: null,
+                        'reporte_modo_sucursal' => $reporteModoSucursal,
+                        'reporte_sucursal_id' => ($reporteModoSucursal === 'specific' && $reporteSucursalId) ? $reporteSucursalId : null,
                         'caja_id' => $cajaDetalleId,
                         'inline' => 1,
                     ]) }}"

@@ -3,6 +3,7 @@
 namespace App\Livewire\Reportes;
 
 use App\Livewire\Reportes\Concerns\PaginatesReportTables;
+use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\ReporteModuloService;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -10,6 +11,7 @@ use Livewire\WithPagination;
 class ReporteClientesMembresiaClasesLive extends Component
 {
     use PaginatesReportTables;
+    use ScopesReporteBySucursal;
     use WithPagination;
 
     public $fechaDesde = '';
@@ -29,6 +31,7 @@ class ReporteClientesMembresiaClasesLive extends Component
     public function mount(): void
     {
         $this->authorize('reporte.ver');
+        $this->mountReporteSucursalScope();
         $this->fechaDesde = now()->startOfMonth()->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');
     }
@@ -68,7 +71,8 @@ class ReporteClientesMembresiaClasesLive extends Component
         $service = app(ReporteModuloService::class);
         $data = $service->datosReporteClientesMembresiaClasesActivas(
             $this->fechaDesde ?: null,
-            $this->fechaHasta ?: null
+            $this->fechaHasta ?: null,
+            $this->reporteSucursalFilter(),
         );
 
         $membresiasActivas = $data['membresias_activas']
@@ -93,7 +97,7 @@ class ReporteClientesMembresiaClasesLive extends Component
             'matriculas_clase_activas' => $this->paginateReportCollection($data['matriculas_clase_activas'], $this->perPageClasesActivas, 'clasesActivasPage'),
             'pagos_membresia' => $this->paginateReportCollection($data['pagos_membresia'], $this->perPagePagosMembresia, 'pagosMembresiaPage'),
             'pagos_clase' => $this->paginateReportCollection($data['pagos_clase'], $this->perPagePagosClase, 'pagosClasePage'),
-        ]));
+        ], $this->reporteSucursalScopeViewData()));
     }
 
     protected function resetClientesMembresiaPages(): void
@@ -104,5 +108,10 @@ class ReporteClientesMembresiaClasesLive extends Component
             'pagosMembresiaPage',
             'pagosClasePage',
         ]);
+    }
+
+    protected function resetReportePagination(): void
+    {
+        $this->resetClientesMembresiaPages();
     }
 }

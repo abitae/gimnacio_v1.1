@@ -22,7 +22,7 @@
             <flux:sidebar.search placeholder="Buscar..." />
 
             <flux:sidebar.nav>
-                @if (auth()->user()?->hasRole(\App\Support\PermissionCatalog::SUPER_ADMIN_ROLE_NAME) && !empty($availableSucursales) && $availableSucursales->isNotEmpty())
+                @if (!empty($availableSucursales) && $availableSucursales->count() > 1)
                     <div class="px-2 pb-2 in-data-flux-sidebar-collapsed-desktop:hidden">
                         <form method="POST" action="{{ route('sucursal-context.store') }}" class="space-y-2">
                             @csrf
@@ -350,7 +350,7 @@
             <flux:navbar class="lg:hidden w-full">
                 <flux:sidebar.toggle class="lg:hidden" icon="bars-2" inset="left" />
 
-                @if (auth()->user()?->hasRole(\App\Support\PermissionCatalog::SUPER_ADMIN_ROLE_NAME) && !empty($availableSucursales) && $availableSucursales->isNotEmpty())
+                @if (!empty($availableSucursales) && $availableSucursales->count() > 1)
                     <form method="POST" action="{{ route('sucursal-context.store') }}" class="mx-2 min-w-0 flex-1">
                         @csrf
                         <select

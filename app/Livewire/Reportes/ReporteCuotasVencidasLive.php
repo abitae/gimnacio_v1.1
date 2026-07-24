@@ -4,7 +4,9 @@ namespace App\Livewire\Reportes;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Livewire\Concerns\ManagesCuotaPagoModal;
+use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Models\Core\EnrollmentInstallment;
+use App\Support\SucursalScope;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -12,6 +14,7 @@ class ReporteCuotasVencidasLive extends Component
 {
     use FlashesToast;
     use ManagesCuotaPagoModal;
+    use ScopesReporteBySucursal;
     use WithPagination;
 
     public string $estadoFilter = '';
@@ -23,6 +26,7 @@ class ReporteCuotasVencidasLive extends Component
     public function mount(): void
     {
         $this->authorize('reporte.ver');
+        $this->mountReporteSucursalScope();
     }
 
     protected function cuotaPagoClienteIdScope(): ?int
@@ -35,13 +39,28 @@ class ReporteCuotasVencidasLive extends Component
         $this->resetPage();
     }
 
+    public function updatingEstadoFilter(): void
+    {
+        $this->resetPage();
+    }
+
     public function render()
     {
+        $filter = $this->reporteSucursalFilter();
+
         $query = EnrollmentInstallment::query()
             ->with(['plan.cliente', 'clienteMatricula.membresia', 'clienteMatricula.clase'])
             ->whereIn('estado', ['pendiente', 'vencida', 'parcial'])
             ->where('fecha_vencimiento', '<=', now()->toDateString())
             ->orderBy('fecha_vencimiento');
+
+        if (! $filter->isActive()) {
+            $query = app(SucursalScope::class)->applyReportScope(
+                $query,
+                $filter->specificSucursalId(),
+                $filter->isConsolidated()
+            );
+        }
 
         if ($this->estadoFilter === 'vencida') {
             $query->where('estado', 'vencida');
@@ -58,10 +77,15 @@ class ReporteCuotasVencidasLive extends Component
             ? $this->paymentMethodsForCuotaModal()
             : collect();
 
-        return view('livewire.reportes.reporte-cuotas-vencidas-live', [
+        return view('livewire.reportes.reporte-cuotas-vencidas-live', array_merge([
             'cuotas' => $cuotas,
             'totalMonto' => $totalMonto,
             'paymentMethods' => $paymentMethods,
-        ])->layout('layouts.app', ['title' => 'Cuotas vencidas']);
+        ], $this->reporteSucursalScopeViewData()))->layout('layouts.app', ['title' => 'Cuotas vencidas']);
+    }
+
+    protected function resetReportePagination(): void
+    {
+        $this->resetPage();
     }
 }

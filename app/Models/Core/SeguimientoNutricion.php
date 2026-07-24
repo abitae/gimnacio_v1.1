@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -9,11 +10,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class SeguimientoNutricion extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $table = 'seguimientos_nutricion';
 
     protected $fillable = [
+        'sucursal_id',
         'cliente_id',
         'nutricionista_id',
         'cita_id',

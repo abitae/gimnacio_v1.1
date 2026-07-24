@@ -618,6 +618,9 @@
                 <div>
                     <label class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1 block">Cliente</label>
                     @if ($clienteSeleccionado)
+                        @if (!empty($crossSucursalMatches))
+                            <x-cliente.cross-sucursal-alert :matches="collect($crossSucursalMatches)" class="mb-2" />
+                        @endif
                         <div class="flex items-center gap-2">
                             <div class="flex-1 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 p-2">
                                 <span class="text-sm font-medium text-zinc-900 dark:text-zinc-100">{{ $clienteSeleccionado->nombres }} {{ $clienteSeleccionado->apellidos }}</span>

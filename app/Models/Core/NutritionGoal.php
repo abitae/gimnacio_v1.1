@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,11 +11,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class NutritionGoal extends Model
 {
+    use BelongsToSucursal;
     use SoftDeletes;
 
     protected $table = 'nutrition_goals';
 
     protected $fillable = [
+        'sucursal_id',
         'cliente_id',
         'trainer_user_id',
         'objetivo',

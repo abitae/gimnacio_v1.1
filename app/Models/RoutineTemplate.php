@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,6 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RoutineTemplate extends Model
 {
+    use BelongsToSucursal;
     use SoftDeletes;
 
     public const ESTADOS = [
@@ -17,6 +19,7 @@ class RoutineTemplate extends Model
     ];
 
     protected $fillable = [
+        'sucursal_id',
         'nombre',
         'objetivo',
         'nivel',

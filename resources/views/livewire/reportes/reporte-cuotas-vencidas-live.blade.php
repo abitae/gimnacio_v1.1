@@ -3,6 +3,11 @@
         <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Cuotas vencidas</h1>
         <flux:button variant="ghost" size="xs" href="{{ route('reportes.index') }}" wire:navigate>Volver a reportes</flux:button>
     </div>
+    <x-reportes.sucursal-scope-panel
+        :etiqueta="$reporteSucursalEtiqueta"
+        :puede-elegir="$reportePuedeElegirSucursal"
+        :sucursales="$reporteSucursalesDisponibles"
+    />
     <div class="flex gap-2 items-center">
         <select wire:model.live="estadoFilter" class="rounded-lg border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 px-2 py-1.5 text-sm w-40">
             <option value="">Todas</option>

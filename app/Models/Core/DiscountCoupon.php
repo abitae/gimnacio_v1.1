@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -9,9 +10,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DiscountCoupon extends Model
 {
+    use BelongsToSucursal;
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
+        'sucursal_id',
         'codigo',
         'nombre',
         'descripcion',

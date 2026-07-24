@@ -2,6 +2,7 @@
 
 namespace App\Models\Crm;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\Core\Cliente;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -9,11 +10,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CampaignTarget extends Model
 {
+    use BelongsToSucursal;
+
     protected $table = 'crm_campaign_targets';
 
     public const ESTADOS = ['pending', 'contacted', 'won', 'lost'];
 
     protected $fillable = [
+        'sucursal_id',
         'campaign_id',
         'lead_id',
         'cliente_id',

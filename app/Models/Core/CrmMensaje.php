@@ -2,6 +2,7 @@
 
 namespace App\Models\Core;
 
+use App\Models\Concerns\BelongsToSucursal;
 use App\Models\Crm\Lead;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -10,11 +11,13 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class CrmMensaje extends Model
 {
+    use BelongsToSucursal;
     use HasFactory;
 
     protected $table = 'crm_mensajes';
 
     protected $fillable = [
+        'sucursal_id',
         'cliente_id',
         'lead_id',
         'canal',

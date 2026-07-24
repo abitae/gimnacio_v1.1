@@ -2,11 +2,14 @@
 
 namespace App\Livewire\Crm;
 
+use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\Crm\CrmReportService;
 use Livewire\Component;
 
 class CrmReportesLive extends Component
 {
+    use ScopesReporteBySucursal;
+
     public string $tab = 'conversion';
 
     public $from = '';
@@ -23,6 +26,7 @@ class CrmReportesLive extends Component
     public function mount()
     {
         $this->authorize('crm.ver');
+        $this->mountReporteSucursalScope();
         $this->from = now()->startOfMonth()->format('Y-m-d');
         $this->to = now()->format('Y-m-d');
     }
@@ -31,7 +35,8 @@ class CrmReportesLive extends Component
     {
         return $this->reportService->reportConversion(
             $this->from ?: null,
-            $this->to ?: null
+            $this->to ?: null,
+            $this->reporteSucursalFilter(),
         );
     }
 
@@ -39,7 +44,8 @@ class CrmReportesLive extends Component
     {
         return $this->reportService->reportByAdvisor(
             $this->from ?: null,
-            $this->to ?: null
+            $this->to ?: null,
+            $this->reporteSucursalFilter(),
         );
     }
 
@@ -47,12 +53,13 @@ class CrmReportesLive extends Component
     {
         return $this->reportService->reportByChannel(
             $this->from ?: null,
-            $this->to ?: null
+            $this->to ?: null,
+            $this->reporteSucursalFilter(),
         );
     }
 
     public function render()
     {
-        return view('livewire.crm.crm-reportes-live');
+        return view('livewire.crm.crm-reportes-live', $this->reporteSucursalScopeViewData());
     }
 }

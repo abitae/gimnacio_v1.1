@@ -114,6 +114,9 @@
     </div>
 
     @if ($selectedCliente)
+        @if (!empty($crossSucursalMatches))
+            <x-cliente.cross-sucursal-alert :matches="collect($crossSucursalMatches)" class="mb-4" />
+        @endif
         @php
             $estadoComercial = strtolower((string) ($membresiaActiva->estado ?? ''));
             $estadoComercialBadgeColor = match ($estadoComercial) {

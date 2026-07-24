@@ -5,11 +5,16 @@
                 <h1 class="text-xl font-bold text-white">Reporte de Usuarios</h1>
                 <p class="text-sm text-slate-200">Ventas y actividad por usuario</p>
             </div>
-            <x-reportes.exportar-buttons tipo="usuarios" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+            <x-reportes.exportar-buttons tipo="usuarios" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :reporteModoSucursal="$reporteModoSucursal" :reporteSucursalId="$reporteSucursalId" />
         </div>
     </div>
     <div class="px-5 space-y-4 pb-5">
         <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+        <x-reportes.sucursal-scope-panel
+            :etiqueta="$reporteSucursalEtiqueta"
+            :puede-elegir="$reportePuedeElegirSucursal"
+            :sucursales="$reporteSucursalesDisponibles"
+        />
 
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div class="rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-950/30 p-4">
