@@ -93,7 +93,9 @@ Pestaña **Configuración**: cambia valores y pulsa **Guardar config.yaml**. Tok
 > BioTime 8 **rechaza** `area: []`. El deactivate asigna `denied_area_id` (conserva biometría).
 > El `activate` con `ensure_create` **crea** el empleado si no existe (requiere `company_id` + `department_id` alineados en BioTime; Create falla con *Mismatched company pk…* si no coinciden).
 > Cambio de área: `POST …/adjust_area/` (fallback `PUT` del empleado). Tras create/área: `resync_to_device` si `resync_after_area: true`.
-> El comando `delete` borra empleados inelegibles para liberar cupo (pierde biometría).
+> La reconciliación de capacidad nunca usa `delete`: mueve primero a los clientes desplazados al área denegada y conserva sus biométricos en BioTime.
+> Los empleados ajenos a Laravel se consideran protegidos, consumen cupo y no se eliminan automáticamente.
+> La configuración operativa de áreas, compañía, departamento, límite y versión se obtiene de Laravel por sucursal.
 
 ## URLs Laravel (API)
 
@@ -102,9 +104,11 @@ Auth: `Authorization: Bearer <token_sede>` (o `X-BioTime-Secret`).
 | Método | Ruta | Uso |
 | --- | --- | --- |
 | `GET` | `/api/biotime/health` | Salud + heartbeat de la sede del token |
+| `GET` | `/api/biotime/config` | Configuración vigente y estado de cada reloj |
 | `GET` | `/api/biotime/commands?limit=100` | Comandos pending → processing |
 | `POST` | `/api/biotime/commands/{id}/ack` | `{ "status": "acked"\|"failed", "error": "..." }` |
-| `GET` | `/api/biotime/roster` | Snapshot acceso |
+| `GET` | `/api/biotime/roster` | Selección completa: selected / waiting / denied |
+| `POST` | `/api/biotime/heartbeat` | Inventario, capacidad y códigos por reloj |
 | `POST` | `/api/biotime/sync` | Push (`employees`, …) |
 
 `emp_code` = `cliente.codigo` Laravel (no el id interno).
@@ -254,8 +258,12 @@ nssm start BioTimeBridge
 2. [ ] Token regenerado en UI Sedes y pegado en config  
 3. [ ] `python -m bridge --config config.yaml doctor` → OK  
 4. [ ] Tarea `once` o `run` instalada  
-5. [ ] En UI Sedes: `last_heartbeat_at` fresco tras 1–2 min  
-6. [ ] Smoke acceso (con `dry_run: false`):  
+5. [ ] En UI Sedes: `last_heartbeat_at` fresco tras 1–2 min
+6. [ ] Cada reloj muestra inventario reciente, conteo real y capacidad efectiva ≤ 500
+7. [ ] Marcar **Inventario verificado** solo después de contrastar el conteo con el terminal real
+8. [ ] Validar que mover al área denegada retira acceso sin borrar huella/rostro
+9. [ ] Activar **Garantizar máximo 500**; con inventario viejo o reloj offline las altas deben quedar bloqueadas
+10. [ ] Smoke acceso (con `dry_run: false`):
    - [ ] Activate cliente con `codigo` nuevo → Create + área sede (log `created` / `adjust_area`)  
    - [ ] Deactivate → `adjust_area` a `denied_area_id`  
    - [ ] Re-activate → `adjust_area` a `area_id`  

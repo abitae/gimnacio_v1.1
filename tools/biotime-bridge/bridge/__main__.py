@@ -59,6 +59,7 @@ def main(argv=None):
             return 0
 
         # once / roster / sync need biotime login first
+        runner._acquire_instance_lock()
         runner.biotime.login(
             cfg.biotime_user, cfg.biotime_password, mode=cfg.biotime_auth_mode
         )

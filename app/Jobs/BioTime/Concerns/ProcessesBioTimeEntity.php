@@ -23,6 +23,7 @@ abstract class ProcessesBioTimeEntity implements ShouldQueue
         public string $timestamp,
         public array $records,
         public string $batchId,
+        public int $sucursalId,
     ) {}
 
     abstract protected function entity(): string;
@@ -34,6 +35,7 @@ abstract class ProcessesBioTimeEntity implements ShouldQueue
             timestamp: $this->timestamp,
             records: $this->records,
             batchId: $this->batchId,
+            sucursalId: $this->sucursalId,
         );
     }
 }

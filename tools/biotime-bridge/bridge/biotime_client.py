@@ -125,6 +125,23 @@ class BioTimeClient(object):
         meta = self._extract_list_meta(data)
         return rows, meta
 
+    def list_all_employees(self, page_size=200):
+        """Pagina todos los empleados; no trunca el espejo en la primera pagina."""
+        rows, meta = self.list_employees(page=1, page_size=page_size)
+        all_rows = list(rows)
+        page = 2
+        while meta.get("next") or (len(rows) >= page_size and page <= 100):
+            if page > 100:
+                break
+            rows, meta = self.list_employees(page=page, page_size=page_size)
+            if not rows:
+                break
+            all_rows.extend(rows)
+            if not meta.get("next") and len(rows) < page_size:
+                break
+            page += 1
+        return all_rows
+
     def count_employees(self, page_size=200):
         """
         Cuenta empleados usando el campo count del envelope documentado.

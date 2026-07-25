@@ -10,6 +10,7 @@ use Database\Factories\BioTime\BioTimeAccessCommandFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class BioTimeAccessCommand extends Model
 {
@@ -33,6 +34,7 @@ class BioTimeAccessCommand extends Model
 
     protected $fillable = [
         'sucursal_id',
+        'idempotency_key',
         'cliente_id',
         'emp_code',
         'action',
@@ -42,6 +44,8 @@ class BioTimeAccessCommand extends Model
         'last_name',
         'status',
         'attempts',
+        'leased_at',
+        'lease_expires_at',
         'last_error',
         'acked_at',
     ];
@@ -54,8 +58,17 @@ class BioTimeAccessCommand extends Model
             'desired_area_biotime_id' => 'integer',
             'ensure_create' => 'boolean',
             'attempts' => 'integer',
+            'leased_at' => 'datetime',
+            'lease_expires_at' => 'datetime',
             'acked_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::creating(function (self $command): void {
+            $command->idempotency_key ??= (string) Str::uuid();
+        });
     }
 
     protected static function newFactory(): BioTimeAccessCommandFactory

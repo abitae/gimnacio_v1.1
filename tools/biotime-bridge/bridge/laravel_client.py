@@ -146,6 +146,16 @@ class LaravelClient(object):
             params["employees_count"] = int(employees_count)
         return self._request("GET", "/api/biotime/health", params=params or None)
 
+    def config(self):
+        return self._request("GET", "/api/biotime/config")
+
+    def heartbeat(self, devices, bridge_version="0.2"):
+        return self._request(
+            "POST",
+            "/api/biotime/heartbeat",
+            json={"bridge_version": bridge_version, "devices": devices},
+        )
+
     def get_commands(self, limit=100):
         data = self._request("GET", "/api/biotime/commands", params={"limit": limit})
         if isinstance(data, dict) and isinstance(data.get("data"), list):
@@ -161,10 +171,14 @@ class LaravelClient(object):
         return self._request("POST", "/api/biotime/commands/{0}/ack".format(command_id), json=body)
 
     def roster(self):
-        data = self._request("GET", "/api/biotime/roster")
+        data = self.roster_snapshot()
         if isinstance(data, dict) and isinstance(data.get("data"), list):
             return data["data"]
         return []
+
+    def roster_snapshot(self):
+        data = self._request("GET", "/api/biotime/roster")
+        return data if isinstance(data, dict) else {"data": [], "capacity": {}}
 
     def sync(self, entity, records, timestamp=None):
         if timestamp is None:

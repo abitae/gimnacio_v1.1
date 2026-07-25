@@ -14,6 +14,7 @@ class BioTimeTransaction extends Model
     protected $table = 'bio_time_transactions';
 
     protected $fillable = [
+        'sucursal_id',
         'biotime_id',
         'cliente_id',
         'asistencia_id',
@@ -34,6 +35,7 @@ class BioTimeTransaction extends Model
     protected function casts(): array
     {
         return [
+            'sucursal_id' => 'integer',
             'biotime_id' => 'integer',
             'cliente_id' => 'integer',
             'asistencia_id' => 'integer',

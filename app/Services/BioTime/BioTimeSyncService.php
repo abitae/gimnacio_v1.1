@@ -22,11 +22,51 @@ use Throwable;
 
 class BioTimeSyncService
 {
+    private int $sucursalId;
+
     /**
      * @return array{processed:int, failed:int, errors:list<string>}
      */
-    public function process(string $entity, string $timestamp, array $records, string $batchId): array
+    public function process(string $entity, string $timestamp, array $records, string $batchId, ?int $sucursalId = null): array
     {
+        $resolvedSucursalId = $sucursalId;
+        if (! $resolvedSucursalId) {
+            $resolvedSucursalId = (int) (BioTimeSyncBatch::query()
+                ->where('batch_id', $batchId)
+                ->value('sucursal_id') ?: 0);
+        }
+        if (! $resolvedSucursalId) {
+            $empCodes = collect($records)
+                ->pluck('emp_code')
+                ->filter()
+                ->map(fn ($code) => (string) $code)
+                ->unique()
+                ->values();
+            $candidateSucursales = Cliente::query()
+                ->withoutGlobalScope('active_sucursal')
+                ->whereIn('codigo', $empCodes)
+                ->distinct()
+                ->pluck('sucursal_id');
+            if ($candidateSucursales->count() === 1) {
+                $resolvedSucursalId = (int) $candidateSucursales->first();
+            }
+        }
+        if (! $resolvedSucursalId) {
+            $resolvedSucursalId = (int) (\App\Models\BioTime\BioTimeSucursalSetting::query()
+                ->orderBy('id')
+                ->value('sucursal_id') ?: 0);
+        }
+        if (! $resolvedSucursalId) {
+            $resolvedSucursalId = (int) (\App\Models\System\Sucursal::query()
+                ->orderByDesc('es_principal')
+                ->orderBy('id')
+                ->value('id') ?: 0);
+        }
+        $this->sucursalId = (int) $resolvedSucursalId;
+
+        if ($this->sucursalId <= 0) {
+            throw new RuntimeException('No se pudo resolver la sucursal del lote BioTime.');
+        }
         $processed = 0;
         $failed = 0;
         $errors = [];
@@ -82,8 +122,9 @@ class BioTimeSyncService
         $biotimeId = $this->requiredBioTimeId($row, 'department.id requerido');
 
         $model = BioTimeDepartment::query()->updateOrCreate(
-            ['biotime_id' => $biotimeId],
+            ['sucursal_id' => $this->sucursalId, 'biotime_id' => $biotimeId],
             [
+                'sucursal_id' => $this->sucursalId,
                 'dept_code' => $this->nullableString($row['dept_code'] ?? null),
                 'dept_name' => $this->nullableString($row['dept_name'] ?? null),
                 'parent_biotime_id' => $this->nullableInt($row['parent_dept'] ?? null),
@@ -103,8 +144,9 @@ class BioTimeSyncService
         $biotimeId = $this->requiredBioTimeId($row, 'area.id requerido');
 
         $model = BioTimeArea::query()->updateOrCreate(
-            ['biotime_id' => $biotimeId],
+            ['sucursal_id' => $this->sucursalId, 'biotime_id' => $biotimeId],
             [
+                'sucursal_id' => $this->sucursalId,
                 'area_code' => $this->nullableString($row['area_code'] ?? null),
                 'area_name' => $this->nullableString($row['area_name'] ?? null),
                 'parent_biotime_id' => $this->nullableInt($row['parent_area'] ?? null),
@@ -129,23 +171,37 @@ class BioTimeSyncService
         }
 
         $area = is_array($row['area'] ?? null) ? $row['area'] : null;
-        $lookup = $biotimeId !== null ? ['biotime_id' => $biotimeId] : ['serial_number' => $serial];
+        $model = BioTimeDevice::query()
+            ->where('sucursal_id', $this->sucursalId)
+            ->where(function ($query) use ($biotimeId, $serial): void {
+                if ($biotimeId !== null) {
+                    $query->where('biotime_id', $biotimeId);
+                }
 
-        $model = BioTimeDevice::query()->updateOrCreate(
-            $lookup,
-            [
-                'biotime_id' => $biotimeId,
-                'serial_number' => $serial,
-                'alias' => $this->nullableString($row['alias'] ?? null),
-                'ip_address' => $this->nullableString($row['ip_address'] ?? null),
-                'state' => $this->nullableInt($row['state'] ?? null),
-                'area_biotime_id' => $area ? $this->nullableInt($area['id'] ?? null) : $this->nullableInt($row['area'] ?? null),
-                'last_activity' => $this->parseDate($row['last_activity'] ?? null),
-                'is_attendance' => (bool) ($row['is_attendance'] ?? false),
-                'raw_payload' => $row,
-                'synced_at' => $this->parseDate($timestamp) ?? now(),
-            ]
-        );
+                if ($serial !== null) {
+                    $method = $biotimeId === null ? 'where' : 'orWhere';
+                    $query->{$method}('serial_number', $serial);
+                }
+            })
+            ->first();
+
+        if (! $model) {
+            $model = new BioTimeDevice;
+        }
+
+        $model->fill([
+            'sucursal_id' => $this->sucursalId,
+            'biotime_id' => $biotimeId,
+            'serial_number' => $serial,
+            'alias' => $this->nullableString($row['alias'] ?? null),
+            'ip_address' => $this->nullableString($row['ip_address'] ?? null),
+            'state' => $this->nullableInt($row['state'] ?? null),
+            'area_biotime_id' => $area ? $this->nullableInt($area['id'] ?? null) : $this->nullableInt($row['area'] ?? null),
+            'last_activity' => $this->parseDate($row['last_activity'] ?? null),
+            'is_attendance' => (bool) ($row['is_attendance'] ?? false),
+            'raw_payload' => $row,
+            'synced_at' => $this->parseDate($timestamp) ?? now(),
+        ])->save();
 
         return $this->result($biotimeId ?? (int) $model->id, 'success', $model);
     }
@@ -169,27 +225,42 @@ class BioTimeSyncService
         $areaIds = $this->areaIds($row['area'] ?? []);
         $cliente = $this->resolveClienteForEmployee($biotimeId, $empCode, $departmentId, $areaIds);
 
-        $lookup = $biotimeId !== null ? ['biotime_id' => $biotimeId] : ['emp_code' => $empCode];
-        $model = BioTimeEmployee::query()->updateOrCreate(
-            $lookup,
-            [
-                'biotime_id' => $biotimeId,
-                'emp_code' => $empCode,
-                'cliente_id' => $cliente?->id,
-                'first_name' => $this->nullableString($row['first_name'] ?? null),
-                'last_name' => $this->nullableString($row['last_name'] ?? null),
-                'department_biotime_id' => $departmentId,
-                'department_name' => $department ? $this->nullableString($department['dept_name'] ?? null) : $this->nullableString($row['dept_name'] ?? null),
-                'app_status' => $this->nullableInt($row['app_status'] ?? null),
-                'mobile' => $this->nullableString($row['mobile'] ?? null),
-                'email' => $this->nullableString($row['email'] ?? null),
-                'hire_date' => $this->parseDate($row['hire_date'] ?? null)?->toDateString(),
-                'card_no' => $this->nullableString($row['card_no'] ?? null),
-                'area_biotime_ids' => $areaIds,
-                'raw_payload' => $row,
-                'synced_at' => $this->parseDate($timestamp) ?? now(),
-            ]
-        );
+        $model = BioTimeEmployee::query()
+            ->where('sucursal_id', $this->sucursalId)
+            ->where(function ($query) use ($biotimeId, $empCode): void {
+                if ($biotimeId !== null) {
+                    $query->where('biotime_id', $biotimeId);
+                }
+
+                if ($empCode !== null) {
+                    $method = $biotimeId === null ? 'where' : 'orWhere';
+                    $query->{$method}('emp_code', $empCode);
+                }
+            })
+            ->first();
+
+        if (! $model) {
+            $model = new BioTimeEmployee;
+        }
+
+        $model->fill([
+            'sucursal_id' => $this->sucursalId,
+            'biotime_id' => $biotimeId,
+            'emp_code' => $empCode,
+            'cliente_id' => $cliente?->id,
+            'first_name' => $this->nullableString($row['first_name'] ?? null),
+            'last_name' => $this->nullableString($row['last_name'] ?? null),
+            'department_biotime_id' => $departmentId,
+            'department_name' => $department ? $this->nullableString($department['dept_name'] ?? null) : $this->nullableString($row['dept_name'] ?? null),
+            'app_status' => $this->nullableInt($row['app_status'] ?? null),
+            'mobile' => $this->nullableString($row['mobile'] ?? null),
+            'email' => $this->nullableString($row['email'] ?? null),
+            'hire_date' => $this->parseDate($row['hire_date'] ?? null)?->toDateString(),
+            'card_no' => $this->nullableString($row['card_no'] ?? null),
+            'area_biotime_ids' => $areaIds,
+            'raw_payload' => $row,
+            'synced_at' => $this->parseDate($timestamp) ?? now(),
+        ])->save();
 
         if ($cliente && $biotimeId !== null && (int) ($cliente->biotime_id ?? 0) !== $biotimeId) {
             $cliente->forceFill(['biotime_id' => $biotimeId])->save();
@@ -215,7 +286,10 @@ class BioTimeSyncService
         $punchTime = $this->parseDate($row['punch_time'] ?? null);
         $cliente = $this->resolveClienteForTransaction($empCode, $terminalSn, $departmentId);
 
-        $existing = BioTimeTransaction::query()->where('biotime_id', $biotimeId)->first();
+        $existing = BioTimeTransaction::query()
+            ->where('sucursal_id', $this->sucursalId)
+            ->where('biotime_id', $biotimeId)
+            ->first();
         $asistencia = null;
         $message = null;
 
@@ -223,7 +297,7 @@ class BioTimeSyncService
             $asistencia = Asistencia::query()->find($existing->asistencia_id);
         } elseif ($cliente && $punchTime) {
             $device = $terminalSn
-                ? BioTimeDevice::query()->where('serial_number', $terminalSn)->first()
+                ? $this->findDeviceBySerial($terminalSn)
                 : null;
             $syncResult = $this->syncAsistencia($cliente, $device, $punchTime);
             $asistencia = $syncResult['asistencia'];
@@ -233,8 +307,9 @@ class BioTimeSyncService
         }
 
         $model = BioTimeTransaction::query()->updateOrCreate(
-            ['biotime_id' => $biotimeId],
+            ['sucursal_id' => $this->sucursalId, 'biotime_id' => $biotimeId],
             [
+                'sucursal_id' => $this->sucursalId,
                 'cliente_id' => $cliente?->id,
                 'asistencia_id' => $asistencia?->id ?? $existing?->asistencia_id,
                 'emp_code' => $empCode,
@@ -348,13 +423,16 @@ class BioTimeSyncService
     {
         if ($biotimeId !== null) {
             $mapping = BioTimeMapping::query()
+                ->where('sucursal_id', $this->sucursalId)
                 ->where('mapping_type', 'employee')
                 ->where('biotime_id', $biotimeId)
                 ->where('target_type', 'cliente')
                 ->first();
 
             if ($mapping) {
-                return Cliente::query()->find($mapping->target_id);
+                return Cliente::query()
+                    ->withoutGlobalScope('active_sucursal')
+                    ->find($mapping->target_id);
             }
         }
 
@@ -374,6 +452,7 @@ class BioTimeSyncService
         }
 
         $employee = BioTimeEmployee::query()
+            ->where('sucursal_id', $this->sucursalId)
             ->where('emp_code', $empCode)
             ->whereNotNull('cliente_id')
             ->first();
@@ -382,7 +461,9 @@ class BioTimeSyncService
             return Cliente::query()->find($employee->cliente_id);
         }
 
-        $device = $terminalSn ? BioTimeDevice::query()->where('serial_number', $terminalSn)->first() : null;
+        $device = $terminalSn
+            ? $this->findDeviceBySerial($terminalSn)
+            : null;
         $sucursalId = $this->resolveSucursalId($device, $device?->area_biotime_id ? [(int) $device->area_biotime_id] : [], $departmentId);
 
         return $this->findClienteByCodigo($empCode, $sucursalId);
@@ -392,6 +473,7 @@ class BioTimeSyncService
     {
         if ($device) {
             $deviceMapping = BioTimeMapping::query()
+                ->where('sucursal_id', $this->sucursalId)
                 ->where('mapping_type', 'device')
                 ->where('biotime_id', $device->biotime_id ?? $device->id)
                 ->first();
@@ -403,6 +485,7 @@ class BioTimeSyncService
 
         foreach ($areaIds as $areaId) {
             $mapping = BioTimeMapping::query()
+                ->where('sucursal_id', $this->sucursalId)
                 ->where('mapping_type', 'area')
                 ->where('biotime_id', $areaId)
                 ->first();
@@ -414,6 +497,7 @@ class BioTimeSyncService
 
         if ($departmentId !== null) {
             $mapping = BioTimeMapping::query()
+                ->where('sucursal_id', $this->sucursalId)
                 ->where('mapping_type', 'department')
                 ->where('biotime_id', $departmentId)
                 ->first();
@@ -423,12 +507,16 @@ class BioTimeSyncService
             }
         }
 
-        return null;
+        // El token del puente es la fuente autoritativa de la sede. Los mapeos
+        // solo refinan catalogos legacy y nunca deben sacar un registro de ella.
+        return $this->sucursalId;
     }
 
     private function findClienteByCodigo(string $codigo, ?int $sucursalId): ?Cliente
     {
-        $query = Cliente::query()->where('codigo', $codigo);
+        $query = Cliente::query()
+            ->withoutGlobalScope('active_sucursal')
+            ->where('codigo', $codigo);
 
         if ($sucursalId !== null) {
             return (clone $query)->where('sucursal_id', $sucursalId)->first();
@@ -437,9 +525,33 @@ class BioTimeSyncService
         return $query->limit(2)->get()->count() === 1 ? $query->first() : null;
     }
 
+    private function findDeviceBySerial(string $serial): ?BioTimeDevice
+    {
+        $device = BioTimeDevice::query()
+            ->where('sucursal_id', $this->sucursalId)
+            ->where('serial_number', $serial)
+            ->first();
+
+        if ($device) {
+            return $device;
+        }
+
+        // Compatibilidad con espejos creados antes de la migracion multi-sede.
+        $legacy = BioTimeDevice::query()
+            ->whereNull('sucursal_id')
+            ->where('serial_number', $serial)
+            ->first();
+        if ($legacy) {
+            $legacy->forceFill(['sucursal_id' => $this->sucursalId])->save();
+        }
+
+        return $legacy;
+    }
+
     private function log(string $batchId, string $entity, ?int $biotimeId, string $status, ?string $action, ?string $target, mixed $payload, ?string $error): void
     {
         BioTimeSyncLog::query()->create([
+            'sucursal_id' => $this->sucursalId,
             'batch_id' => $batchId,
             'entity' => $entity,
             'biotime_id' => $biotimeId,
@@ -585,9 +697,12 @@ class BioTimeSyncService
     /**
      * @return array{received_at: ?Carbon, status: string, entity: ?string, processed: int, failed: int}|null
      */
-    public function lastSyncSummary(): ?array
+    public function lastSyncSummary(?int $sucursalId = null): ?array
     {
-        $batch = BioTimeSyncBatch::query()->orderByDesc('received_at')->first();
+        $batch = BioTimeSyncBatch::query()
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
+            ->orderByDesc('received_at')
+            ->first();
         if (! $batch) {
             return null;
         }

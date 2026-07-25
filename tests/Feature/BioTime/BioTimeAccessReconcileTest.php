@@ -323,7 +323,7 @@ it('reconciles eligible clase-only cliente into pending activate with ensure_cre
         ->and($command->last_name)->toBe('Clase');
 });
 
-it('enqueues delete purge candidates when capacity is full', function () {
+it('never deletes inactive biometric identities to free capacity', function () {
     $sucursal = reconcileSucursal('cupo');
     BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
         'enabled' => true,
@@ -376,5 +376,9 @@ it('enqueues delete purge candidates when capacity is full', function () {
             ->where('cliente_id', $inactive->id)
             ->where('action', BioTimeAccessCommand::ACTION_DELETE)
             ->where('status', 'pending')
+            ->exists())->toBeFalse()
+        ->and(BioTimeEmployee::query()
+            ->where('sucursal_id', $sucursal->id)
+            ->where('emp_code', 'RC-PURGE-OLD')
             ->exists())->toBeTrue();
 });

@@ -12,58 +12,11 @@ use App\Models\BioTime\BioTimeSyncLog;
 use App\Models\BioTime\BioTimeTransaction;
 use App\Models\Core\Asistencia;
 use App\Models\Core\Cliente;
-use App\Models\System\Empresa;
-use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\BioTime\BioTimeSyncService;
-use App\Support\PermissionCatalog;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
 use Livewire\Livewire;
-use Spatie\Permission\Models\Role;
-
-function biotimeSucursal(?string $codigo = null, bool $esPrincipal = true): Sucursal
-{
-    $codigo ??= 'bt-'.Str::lower(Str::random(8));
-
-    $empresa = Empresa::query()->create([
-        'nombre' => 'Empresa Test '.$codigo,
-        'estado' => 'activa',
-    ]);
-
-    return Sucursal::query()->create([
-        'empresa_id' => $empresa->id,
-        'codigo' => $codigo,
-        'nombre' => 'Sucursal '.$codigo,
-        'estado' => 'activa',
-        'es_principal' => $esPrincipal,
-    ]);
-}
-
-function biotimeAgentSetting(Sucursal $sucursal, string $secret = 'valid-token', bool $enabled = true): BioTimeSucursalSetting
-{
-    $setting = BioTimeSucursalSetting::forSucursal($sucursal->id);
-    $setting->forceFill([
-        'webhook_secret' => $secret,
-        'enabled' => $enabled,
-    ])->save();
-
-    return $setting->fresh();
-}
-
-function biotimeAdmin(?Sucursal $sucursal = null): User
-{
-    $user = User::factory()->create();
-    $role = Role::query()->firstOrCreate(['name' => PermissionCatalog::SUPER_ADMIN_ROLE_NAME, 'guard_name' => 'web']);
-    $user->assignRole($role);
-
-    if ($sucursal) {
-        $user->sucursales()->attach($sucursal->id);
-        $user->forceFill(['default_sucursal_id' => $sucursal->id])->save();
-    }
-
-    return $user;
-}
 
 it('rejects invalid BioTime tokens', function () {
     $sucursal = biotimeSucursal();

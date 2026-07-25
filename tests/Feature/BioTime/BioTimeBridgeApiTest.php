@@ -48,6 +48,35 @@ it('lists pending commands for the authenticated sucursal and marks them process
     expect($response->json('data.0.action'))->toBe('activate');
 });
 
+it('leases again a processing command whose lease expired or was never recorded', function () {
+    $sede = biotimeSucursal('cmd-recover');
+    biotimeAgentSetting($sede, 'recover-token');
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sede->id,
+        'created_by' => $user->id,
+        'codigo' => 'RECOVER-001',
+    ]);
+    $command = app(BioTimeAccessCommandService::class)
+        ->enqueue($sede, $cliente, BioTimeAccessCommand::ACTION_ACTIVATE);
+    $command->forceFill([
+        'status' => BioTimeAccessCommand::STATUS_PROCESSING,
+        'leased_at' => now()->subMinutes(10),
+        'lease_expires_at' => null,
+        'attempts' => 1,
+    ])->save();
+
+    $this->getJson('/api/biotime/commands', [
+        'Authorization' => 'Bearer recover-token',
+    ])->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.id', $command->id)
+        ->assertJsonPath('data.0.idempotency_key', $command->idempotency_key);
+
+    expect($command->fresh()->attempts)->toBe(2)
+        ->and($command->fresh()->lease_expires_at)->not->toBeNull();
+});
+
 it('acks a command only for its own sucursal and updates heartbeat', function () {
     $sedeA = biotimeSucursal('ack-a');
     $sedeB = biotimeSucursal('ack-b', false);

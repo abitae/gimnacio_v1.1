@@ -7,20 +7,63 @@ namespace App\Http\Controllers\Api;
 use App\Http\Requests\BioTime\BioTimeCommandAckRequest;
 use App\Http\Requests\BioTime\BioTimeCommandsIndexRequest;
 use App\Models\BioTime\BioTimeAccessCommand;
+use App\Models\BioTime\BioTimeDevice;
 use App\Models\BioTime\BioTimeEmployee;
 use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\Core\Cliente;
-use App\Services\BioTime\BioTimeAccessEligibilityService;
-use App\Services\BioTime\BioTimeEmpCode;
+use App\Services\BioTime\BioTimeCapacityService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
+use Illuminate\Support\Facades\DB;
 
 class BioTimeBridgeController extends Controller
 {
     public function __construct(
-        private readonly BioTimeAccessEligibilityService $eligibility,
+        private readonly BioTimeCapacityService $capacity,
     ) {}
+
+    public function config(Request $request): JsonResponse
+    {
+        $setting = $this->authenticatedSetting($request);
+        $sucursalId = (int) $setting->sucursal_id;
+        $capacity = $this->capacity->rosterCapacity($sucursalId);
+
+        return response()->json([
+            'sucursal_id' => $sucursalId,
+            'config_version' => (int) ($setting->config_version ?: 1),
+            'enabled' => (bool) $setting->enabled,
+            'capacity_enforcement_enabled' => (bool) $setting->capacity_enforcement_enabled,
+            'hard_limit' => $capacity['hard_limit'],
+            'absolute_limit' => BioTimeCapacityService::HARD_DEVICE_LIMIT,
+            'capacity' => $capacity,
+            'area_biotime_id' => $setting->area_biotime_id,
+            'denied_area_biotime_id' => $setting->denied_area_biotime_id,
+            'company_biotime_id' => $setting->company_biotime_id,
+            'department_biotime_id' => $setting->department_biotime_id,
+            'poll_interval_seconds' => (int) $setting->poll_interval_seconds,
+            'devices' => BioTimeDevice::query()
+                ->where('sucursal_id', $sucursalId)
+                ->orderBy('alias')
+                ->get()
+                ->map(fn ($device) => [
+                    'biotime_id' => $device->biotime_id,
+                    'serial_number' => $device->serial_number,
+                    'alias' => $device->alias,
+                    'access_enabled' => (bool) $device->access_enabled,
+                    'access_role' => $device->access_role,
+                    'capacity_limit' => min(
+                        BioTimeCapacityService::HARD_DEVICE_LIMIT,
+                        max(1, (int) $device->capacity_limit)
+                    ),
+                    'reported_users_count' => $device->reported_users_count,
+                    'protected_users_count' => (int) $device->protected_users_count,
+                    'inventory_verified' => (bool) $device->inventory_verified,
+                    'inventory_source' => $device->inventory_source,
+                    'inventory_synced_at' => $device->inventory_synced_at?->toIso8601String(),
+                ])->values(),
+        ]);
+    }
 
     public function commands(BioTimeCommandsIndexRequest $request): JsonResponse
     {
@@ -29,26 +72,42 @@ class BioTimeBridgeController extends Controller
         $limit = (int) ($request->validated('limit') ?? 100);
         $limit = max(1, min($limit, 500));
 
-        $commands = BioTimeAccessCommand::query()
-            ->where('sucursal_id', $sucursalId)
-            ->where('status', BioTimeAccessCommand::STATUS_PENDING)
-            ->orderBy('id')
-            ->limit($limit)
-            ->get();
+        $commands = DB::transaction(function () use ($sucursalId, $limit) {
+            $commands = BioTimeAccessCommand::query()
+                ->where('sucursal_id', $sucursalId)
+                ->where(function ($query): void {
+                    $query->where('status', BioTimeAccessCommand::STATUS_PENDING)
+                        ->orWhere(function ($expired): void {
+                            $expired->where('status', BioTimeAccessCommand::STATUS_PROCESSING)
+                                ->where(function ($lease): void {
+                                    $lease->whereNull('lease_expires_at')
+                                        ->orWhere('lease_expires_at', '<=', now());
+                                });
+                        });
+                })
+                ->orderBy('id')
+                ->limit($limit)
+                ->lockForUpdate()
+                ->get();
 
-        if ($commands->isNotEmpty()) {
-            BioTimeAccessCommand::query()
-                ->whereIn('id', $commands->pluck('id'))
-                ->where('status', BioTimeAccessCommand::STATUS_PENDING)
-                ->update(['status' => BioTimeAccessCommand::STATUS_PROCESSING]);
+            $leaseExpiresAt = now()->addMinutes(5);
+            foreach ($commands as $command) {
+                $command->forceFill([
+                    'status' => BioTimeAccessCommand::STATUS_PROCESSING,
+                    'leased_at' => now(),
+                    'lease_expires_at' => $leaseExpiresAt,
+                    'attempts' => (int) $command->attempts + 1,
+                ])->save();
+            }
 
-            $commands->each(fn (BioTimeAccessCommand $cmd) => $cmd->status = BioTimeAccessCommand::STATUS_PROCESSING);
-        }
+            return $commands;
+        });
 
         return response()->json([
             'sucursal_id' => $sucursalId,
             'data' => $commands->map(fn (BioTimeAccessCommand $cmd) => [
                 'id' => $cmd->id,
+                'idempotency_key' => $cmd->idempotency_key,
                 'emp_code' => $cmd->emp_code,
                 'cliente_id' => $cmd->cliente_id,
                 'action' => $cmd->action,
@@ -57,6 +116,7 @@ class BioTimeBridgeController extends Controller
                 'first_name' => $cmd->first_name,
                 'last_name' => $cmd->last_name,
                 'status' => $cmd->status,
+                'lease_expires_at' => $cmd->lease_expires_at?->toIso8601String(),
             ])->values(),
         ]);
     }
@@ -84,6 +144,7 @@ class BioTimeBridgeController extends Controller
                 'status' => BioTimeAccessCommand::STATUS_ACKED,
                 'last_error' => null,
                 'acked_at' => $now,
+                'lease_expires_at' => null,
             ])->save();
 
             if ($command->action === BioTimeAccessCommand::ACTION_DELETE) {
@@ -95,9 +156,10 @@ class BioTimeBridgeController extends Controller
         } else {
             $command->forceFill([
                 'status' => BioTimeAccessCommand::STATUS_FAILED,
-                'attempts' => ((int) $command->attempts) + 1,
+                'attempts' => max(1, (int) $command->attempts),
                 'last_error' => isset($payload['error']) ? (string) $payload['error'] : null,
                 'acked_at' => $now,
+                'lease_expires_at' => null,
             ])->save();
         }
 
@@ -130,8 +192,9 @@ class BioTimeBridgeController extends Controller
             : ['emp_code' => $empCode];
 
         BioTimeEmployee::query()->updateOrCreate(
-            $lookup,
+            ['sucursal_id' => (int) $command->sucursal_id] + $lookup,
             [
+                'sucursal_id' => (int) $command->sucursal_id,
                 'biotime_id' => $biotimeId,
                 'emp_code' => $empCode,
                 'cliente_id' => $command->cliente_id,
@@ -158,6 +221,7 @@ class BioTimeBridgeController extends Controller
     private function forgetEmployeeAfterDelete(BioTimeAccessCommand $command): void
     {
         BioTimeEmployee::query()
+            ->where('sucursal_id', (int) $command->sucursal_id)
             ->where(function ($query) use ($command): void {
                 $query->where('cliente_id', $command->cliente_id);
                 if (filled($command->emp_code)) {
@@ -176,24 +240,18 @@ class BioTimeBridgeController extends Controller
         $setting = $this->authenticatedSetting($request);
         $sucursalId = (int) $setting->sucursal_id;
 
-        $eligibleLookup = array_fill_keys(
-            $this->eligibility->listEligibleClienteIds($sucursalId)->all(),
-            true
-        );
-
-        $clientes = Cliente::query()
-            ->where('sucursal_id', $sucursalId)
-            ->whereNotNull('codigo')
-            ->where('codigo', '!=', '')
-            ->orderBy('id')
-            ->get(['id', 'codigo']);
+        $capacity = $this->capacity->rosterCapacity($sucursalId);
+        $roster = $this->capacity->rosterForSucursal($sucursalId);
 
         return response()->json([
             'sucursal_id' => $sucursalId,
-            'data' => $clientes->map(fn (Cliente $cliente) => [
-                'cliente_id' => $cliente->id,
-                'emp_code' => BioTimeEmpCode::forCliente($cliente),
-                'active' => isset($eligibleLookup[$cliente->id]),
+            'generated_at' => now()->toIso8601String(),
+            'capacity' => $capacity,
+            'data' => $roster->map(fn (array $row) => $row + [
+                // Alias temporal para puentes anteriores.
+                'active' => $capacity['enforcement_enabled']
+                    ? $row['desired_access']
+                    : $row['status'] !== 'denied',
             ])->values(),
         ]);
     }

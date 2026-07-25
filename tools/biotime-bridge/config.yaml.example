@@ -13,6 +13,8 @@ biotime_user: "admin"
 biotime_password: "changeme"
 biotime_auth_mode: "auto"   # auto | jwt | token
 
+# Valores de arranque/fallback. En operacion Laravel entrega por sucursal
+# area, area denegada, company y department mediante GET /api/biotime/config.
 # Area AUTORIZADA (ej. "autorizado"). NO uses el id de "No autorizado".
 area_id: 2
 # Area denegada: BioTime 8 rechaza area=[]; deactivate asigna este id (ej. "No autorizado"=1).
@@ -25,7 +27,8 @@ company_id: 1
 sucursal_codigo: "principal"
 poll_seconds: 60
 
-# Reconciliacion periodica con GET /api/biotime/roster (0 = desactivado)
+# Reconciliacion periodica con GET /api/biotime/roster (0 = desactivado).
+# En modo de garantia debe permanecer activa; procesa retiros antes que altas.
 roster_reconcile_seconds: 3600
 # Push employees hacia Laravel POST /api/biotime/sync (0 = desactivado)
 sync_push_seconds: 300

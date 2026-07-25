@@ -195,6 +195,7 @@ class BioTimeClienteEstadoService
         }
 
         if (BioTimeEmployee::query()
+            ->where('sucursal_id', (int) $cliente->sucursal_id)
             ->where(function ($query) use ($cliente, $empCode): void {
                 $query->where('cliente_id', $cliente->id)
                     ->orWhere('emp_code', $empCode);

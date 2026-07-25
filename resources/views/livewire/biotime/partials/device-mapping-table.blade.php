@@ -4,13 +4,19 @@
             <tr>
                 <th class="px-3 py-2 text-left">BioTime</th>
                 <th class="px-3 py-2 text-left">Nombre</th>
-                <th class="px-3 py-2 text-left">Sucursal</th>
+                <th class="px-3 py-2 text-left">Inventario</th>
                 <th class="px-3 py-2 text-left">Rol acceso</th>
                 <th class="px-3 py-2"></th>
             </tr>
         </thead>
         <tbody class="divide-y divide-zinc-100 dark:divide-zinc-800">
             @forelse ($rows as $row)
+                @php
+                    $expectedUsers = (int) ($desiredSelected ?? 0) + (int) ($row->protected_users_count ?? 0);
+                    $deviation = $row->reported_users_count === null
+                        ? null
+                        : (int) $row->reported_users_count - $expectedUsers;
+                @endphp
                 <tr wire:key="device-map-{{ $row->biotime_id }}">
                     <td class="px-3 py-2 font-mono text-xs">{{ $row->biotime_id }}</td>
                     <td class="px-3 py-2">
@@ -18,12 +24,28 @@
                         <div class="text-xs text-zinc-500">{{ $row->serial_number ?? '-' }}</div>
                     </td>
                     <td class="px-3 py-2">
-                        <select wire:model="deviceTargets.{{ $row->biotime_id }}" class="w-48 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950">
-                            <option value="">Sin mapear</option>
-                            @foreach ($sucursales as $sucursal)
-                                <option value="{{ $sucursal->id }}">{{ $sucursal->nombre }}</option>
-                            @endforeach
-                        </select>
+                        <div>{{ $row->reported_users_count ?? '—' }}/{{ min(500, $row->capacity_limit ?: 500) }}</div>
+                        <div class="text-xs text-zinc-500">
+                            Protegidos {{ $row->protected_users_count ?? 0 }}
+                            · {{ $row->inventory_verified ? 'verificado' : 'sin verificar' }}
+                            · {{ $row->inventory_source ?? 'fuente desconocida' }}
+                        </div>
+                        <div class="text-xs {{ $deviation === 0 ? 'text-emerald-600 dark:text-emerald-300' : 'text-amber-600 dark:text-amber-300' }}">
+                            {{ in_array($row->state, [1, 2], true) ? 'En línea' : 'Desconectado' }}
+                            · Esperados {{ $expectedUsers }}
+                            · Desviación {{ $deviation === null ? 'desconocida' : ($deviation > 0 ? '+'.$deviation : $deviation) }}
+                        </div>
+                        <div class="text-xs text-zinc-500">
+                            Última lectura {{ $row->inventory_synced_at?->diffForHumans() ?? 'nunca' }}
+                        </div>
+                        <label class="mt-1 flex items-center gap-1 text-xs">
+                            <input type="checkbox" wire:model="deviceAccessEnabled.{{ $row->biotime_id }}">
+                            Controlar acceso
+                        </label>
+                        <label class="mt-1 flex items-center gap-1 text-xs">
+                            <input type="checkbox" wire:model="deviceInventoryVerified.{{ $row->biotime_id }}">
+                            Inventario validado en piloto
+                        </label>
                     </td>
                     <td class="px-3 py-2">
                         <select wire:model="deviceRoles.{{ $row->biotime_id }}" class="w-36 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-950">
@@ -35,7 +57,6 @@
                     </td>
                     <td class="px-3 py-2 text-right space-x-1">
                         @can('biotime.editar')
-                            <button type="button" wire:click="saveSucursalMapping('device', {{ $row->biotime_id }})" class="rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">Guardar sede</button>
                             <button type="button" wire:click="saveDeviceAccessRole({{ $row->biotime_id }})" class="rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-800 dark:border-zinc-600 dark:text-zinc-100">Guardar rol</button>
                         @endcan
                     </td>

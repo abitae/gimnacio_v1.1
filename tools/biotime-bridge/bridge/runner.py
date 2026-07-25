@@ -2,7 +2,9 @@
 from __future__ import print_function
 
 import logging
+import os
 import time
+from datetime import datetime
 
 from .biotime_client import BioTimeClient, BioTimeError
 from .laravel_client import LaravelClient, LaravelError
@@ -27,8 +29,12 @@ class BridgeRunner(object):
         self._last_sync = 0
         self._last_devices = 0
         self._last_transactions = 0
+        self.remote_config = {}
+        self._lock_handle = None
+        self._reserved_additions = 0
 
     def close(self):
+        self._release_instance_lock()
         try:
             self.laravel.close()
         except Exception:
@@ -43,12 +49,14 @@ class BridgeRunner(object):
         Loop continuo. should_stop: callable opcional que retorna True para salir
         (p. ej. desde la GUI).
         """
+        self._acquire_instance_lock()
         self.biotime.login(
             self.cfg.biotime_user,
             self.cfg.biotime_password,
             mode=self.cfg.biotime_auth_mode,
         )
         health = self.laravel.health()
+        self.refresh_config()
         logger.info(
             "Laravel health OK sucursal_id=%s dry_run=%s",
             health.get("sucursal_id") if isinstance(health, dict) else "?",
@@ -98,6 +106,7 @@ class BridgeRunner(object):
                 remaining -= step
 
     def poll_commands(self):
+        self.refresh_config()
         try:
             commands = self.laravel.get_commands(limit=100)
         except LaravelError as exc:
@@ -109,7 +118,20 @@ class BridgeRunner(object):
             return
 
         logger.info("Commands recibidos: %s", len(commands))
-        for cmd in commands:
+        # Nunca agregar antes de retirar usuarios desplazados y releer inventario.
+        removals = [
+            cmd for cmd in commands if (cmd.get("action") or "").lower() != "activate"
+        ]
+        additions = [
+            cmd for cmd in commands if (cmd.get("action") or "").lower() == "activate"
+        ]
+        for cmd in removals:
+            self.apply_command(cmd)
+        if additions and self.remote_config.get("capacity_enforcement_enabled"):
+            self.push_heartbeat()
+            self.refresh_config()
+        self._reserved_additions = 0
+        for cmd in additions:
             self.apply_command(cmd)
 
     def apply_command(self, cmd):
@@ -160,6 +182,10 @@ class BridgeRunner(object):
                     return
                 if action != "activate" or not ensure_create:
                     raise BioTimeError("Empleado no encontrado emp_code={0}".format(emp_code))
+                if not self._can_create_employee():
+                    raise BioTimeError(
+                        "Alta bloqueada: inventario sin verificar, desconectado o cupo 500 alcanzado"
+                    )
                 if self.cfg.dry_run:
                     logger.info(
                         "[dry_run] cmd=%s create emp_code=%s areas=%s",
@@ -177,6 +203,7 @@ class BridgeRunner(object):
                     department_id=self.cfg.department_id,
                     area_ids=areas,
                 )
+                self._reserved_additions += 1
                 created_id = emp.get("id") if isinstance(emp, dict) else None
                 logger.info(
                     "OK cmd=%s created emp_code=%s biotime_id=%s",
@@ -213,6 +240,11 @@ class BridgeRunner(object):
                 self._safe_ack(cmd_id, "acked", biotime_id=emp_id)
                 return
 
+            if action == "activate" and not self._can_create_employee():
+                raise BioTimeError(
+                    "Alta bloqueada: inventario sin verificar, desconectado o cupo 500 alcanzado"
+                )
+
             if self.cfg.dry_run:
                 logger.info(
                     "[dry_run] cmd=%s action=%s emp_code=%s biotime_id=%s areas=%s",
@@ -226,6 +258,8 @@ class BridgeRunner(object):
                 return
 
             self.biotime.set_employee_areas(emp_id, areas, employee=emp)
+            if action == "activate":
+                self._reserved_additions += 1
             self._maybe_resync([emp_id])
             logger.info(
                 "OK cmd=%s action=%s emp_code=%s biotime_id=%s areas=%s",
@@ -275,15 +309,32 @@ class BridgeRunner(object):
         active=true → area autorizada (create-if-missing); active=false → denied_area_id.
         """
         try:
-            rows = self.laravel.roster()
+            snapshot = self.laravel.roster_snapshot()
+            rows = snapshot.get("data") or []
         except LaravelError as exc:
             logger.error("Roster falló: %s", exc)
             return
 
-        logger.info("Roster reconcile: %s clientes", len(rows))
-        for row in rows:
+        capacity = snapshot.get("capacity") or {}
+        enforcement = bool(capacity.get("enforcement_enabled"))
+        inventory_ready = bool(capacity.get("inventory_ready"))
+
+        def should_be_active(row):
+            if not enforcement or not inventory_ready:
+                return str(row.get("status") or "") in ("selected", "waiting")
+            return bool(row.get("desired_access", row.get("active")))
+
+        logger.info("Roster reconcile: %s clientes capacity=%s", len(rows), capacity)
+        removals = [row for row in rows if not should_be_active(row)]
+        additions = [row for row in rows if should_be_active(row)]
+        self._reserved_additions = 0
+        for row in removals + additions:
+            if additions and row is additions[0] and enforcement:
+                self.push_heartbeat()
+                self.refresh_config()
+                capacity = self.remote_config.get("capacity") or capacity
             emp_code = str(row.get("emp_code") or row.get("cliente_id") or "")
-            active = bool(row.get("active"))
+            active = should_be_active(row)
             if not emp_code:
                 continue
             try:
@@ -292,8 +343,21 @@ class BridgeRunner(object):
                 if not emp or emp.get("id") is None:
                     if not active:
                         continue
+                    if enforcement and not bool(row.get("desired_access")):
+                        logger.warning(
+                            "Roster alta diferida emp_code=%s: requiere nuevo roster con inventario listo",
+                            emp_code,
+                        )
+                        continue
                     if self.cfg.dry_run:
                         logger.info("[dry_run] roster create emp_code=%s", emp_code)
+                        continue
+                    if not self._can_create_employee(capacity):
+                        logger.warning(
+                            "Roster alta bloqueada emp_code=%s capacity=%s",
+                            emp_code,
+                            capacity,
+                        )
                         continue
                     created = self.biotime.create_employee(
                         emp_code=emp_code,
@@ -303,6 +367,7 @@ class BridgeRunner(object):
                         department_id=self.cfg.department_id,
                         area_ids=areas,
                     )
+                    self._reserved_additions += 1
                     created_id = created.get("id") if isinstance(created, dict) else None
                     if created_id is not None:
                         self._maybe_resync([int(created_id)])
@@ -320,7 +385,16 @@ class BridgeRunner(object):
                 if current == desired:
                     continue
                 emp_id = int(emp["id"])
+                if active and not self._can_create_employee(capacity):
+                    logger.warning(
+                        "Roster alta bloqueada emp_code=%s capacity=%s",
+                        emp_code,
+                        capacity,
+                    )
+                    continue
                 self.biotime.set_employee_areas(emp_id, areas, employee=emp)
+                if active:
+                    self._reserved_additions += 1
                 self._maybe_resync([emp_id])
             except BioTimeError as exc:
                 logger.error("Roster emp_code=%s: %s", emp_code, exc)
@@ -358,11 +432,8 @@ class BridgeRunner(object):
     def push_employees(self):
         """POST /api/biotime/sync entity=employees + reporta employees_count en health."""
         try:
-            rows, _meta = self.biotime.list_employees(page=1, page_size=200)
-            try:
-                total = self.biotime.count_employees(page_size=200)
-            except BioTimeError:
-                total = len(rows)
+            rows = self.biotime.list_all_employees(page_size=200)
+            total = len(rows)
             self.laravel.health(employees_count=total)
         except BioTimeError as exc:
             logger.error("No se pudieron listar employees BioTime: %s", exc)
@@ -385,6 +456,7 @@ class BridgeRunner(object):
         try:
             result = self.laravel.sync("employees", records)
             logger.info("Sync push employees OK: %s", result)
+            self.push_heartbeat(employee_rows=rows)
         except LaravelError as exc:
             logger.error("Sync push employees fallo: %s", exc)
 
@@ -458,8 +530,161 @@ class BridgeRunner(object):
         try:
             result = self.laravel.sync("devices", records)
             logger.info("Sync push devices OK: %s", result)
+            self.push_heartbeat(terminal_rows=rows)
         except LaravelError as exc:
             logger.error("Sync push devices fallo: %s", exc)
+
+    def refresh_config(self):
+        try:
+            config = self.laravel.config()
+        except LaravelError as exc:
+            logger.error("Config remota fallo: %s", exc)
+            return self.remote_config
+        if not isinstance(config, dict):
+            return self.remote_config
+        self.remote_config = config
+        for remote_key, local_key in (
+            ("area_biotime_id", "area_id"),
+            ("denied_area_biotime_id", "denied_area_id"),
+            ("company_biotime_id", "company_id"),
+            ("department_biotime_id", "department_id"),
+        ):
+            value = config.get(remote_key)
+            if value is not None and int(value) > 0:
+                setattr(self.cfg, local_key, int(value))
+        return config
+
+    def push_heartbeat(self, terminal_rows=None, employee_rows=None):
+        """Reporta inventario proyectado por area para validacion por reloj."""
+        self.refresh_config()
+        try:
+            if terminal_rows is None:
+                terminal_rows = self.biotime.list_all_terminals(page_size=100)
+            if employee_rows is None:
+                employee_rows = self.biotime.list_all_employees(page_size=200)
+        except BioTimeError as exc:
+            logger.error("Heartbeat inventario fallo: %s", exc)
+            return
+
+        authorized_codes = []
+        for employee in employee_rows:
+            if self.cfg.area_id in self.biotime.employee_area_ids(employee):
+                code = str(employee.get("emp_code") or "").strip()
+                if code:
+                    authorized_codes.append(code)
+        authorized_codes = sorted(set(authorized_codes))
+
+        configured = {
+            str(row.get("serial_number") or "")
+            for row in (self.remote_config.get("devices") or [])
+            if row.get("access_enabled")
+        }
+        devices = []
+        now_value = datetime.now().isoformat()
+        for terminal in terminal_rows:
+            serial = str(terminal.get("sn") or terminal.get("serial_number") or "").strip()
+            if not serial or (configured and serial not in configured):
+                continue
+            raw_count = (
+                terminal.get("users_count")
+                or terminal.get("user_count")
+                or terminal.get("employee_count")
+            )
+            count = max(int(raw_count or 0), len(authorized_codes))
+            devices.append(
+                {
+                    "biotime_id": terminal.get("id"),
+                    "serial_number": serial,
+                    "online": int(terminal.get("state") or 0) in (1, 2),
+                    "capacity": min(500, int(terminal.get("user_capacity") or 500)),
+                    "employees_count": count,
+                    "employee_codes": authorized_codes,
+                    "inventory_at": now_value,
+                    "inventory_source": "terminal_counter"
+                    if raw_count is not None
+                    else "biotime_area_projection",
+                }
+            )
+        if not devices:
+            logger.warning("Heartbeat: no hay relojes configurados/descubiertos")
+            return
+        try:
+            result = self.laravel.heartbeat(devices)
+            logger.info("Heartbeat inventario OK: %s", result)
+        except LaravelError as exc:
+            logger.error("Heartbeat inventario Laravel fallo: %s", exc)
+
+    def _can_create_employee(self, capacity=None):
+        if not self.remote_config.get("capacity_enforcement_enabled"):
+            return True
+        capacity = capacity or self.remote_config.get("capacity") or {}
+        if not bool(capacity.get("inventory_ready")):
+            return False
+        if int(capacity.get("selected_count") or 0) > int(
+            capacity.get("client_slots") or 0
+        ):
+            return False
+        branch_limit = min(500, int(self.remote_config.get("hard_limit") or 500))
+        devices = [
+            row
+            for row in (self.remote_config.get("devices") or [])
+            if row.get("access_enabled")
+        ]
+        if not devices:
+            return False
+        return all(
+            row.get("inventory_verified")
+            and row.get("inventory_source")
+            in ("terminal_counter", "terminal_inventory")
+            and row.get("reported_users_count") is not None
+            and int(row.get("reported_users_count")) + self._reserved_additions
+            < min(
+                branch_limit,
+                int(row.get("capacity_limit") or 500),
+            )
+            for row in devices
+        )
+
+    def _acquire_instance_lock(self):
+        if self._lock_handle is not None:
+            return
+        lock_path = os.path.abspath(os.path.join(self.cfg.log_dir, "biotime-bridge.lock"))
+        parent = os.path.dirname(lock_path)
+        if parent and not os.path.isdir(parent):
+            os.makedirs(parent)
+        handle = open(lock_path, "a+")
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except (IOError, OSError):
+            handle.close()
+            raise RuntimeError("Ya existe otra instancia del puente en ejecucion")
+        self._lock_handle = handle
+
+    def _release_instance_lock(self):
+        if self._lock_handle is None:
+            return
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                self._lock_handle.seek(0)
+                msvcrt.locking(self._lock_handle.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(self._lock_handle.fileno(), fcntl.LOCK_UN)
+        except (IOError, OSError):
+            pass
+        self._lock_handle.close()
+        self._lock_handle = None
 
     def push_transactions(self):
         """POST /api/biotime/sync entity=transactions (ventana lookback)."""

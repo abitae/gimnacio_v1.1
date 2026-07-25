@@ -184,7 +184,10 @@
                         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Dispositivos BioTime</h2>
                         <input wire:model.live.debounce.300ms="deviceSearch" placeholder="Buscar reloj" class="w-44 rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950">
                     </div>
-                    @include('livewire.biotime.partials.device-mapping-table', ['rows' => $devices])
+                    @include('livewire.biotime.partials.device-mapping-table', [
+                        'rows' => $devices,
+                        'desiredSelected' => $selectedCapacity['roster']['selected_count'] ?? 0,
+                    ])
                 </div>
             </section>
         @endif

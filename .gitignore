@@ -5,6 +5,7 @@
 /storage/pail
 /storage/debug-baseline.txt
 /vendor
+/node_modules
 .env
 .env.testing
 .env.backup

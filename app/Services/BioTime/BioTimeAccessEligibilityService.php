@@ -43,6 +43,39 @@ class BioTimeAccessEligibilityService
     }
 
     /**
+     * Elegibles ordenados por inicio de la matricula vigente mas reciente.
+     *
+     * @return Collection<int, array{cliente_id:int,priority_at:string,matricula_id:int,rank:int}>
+     */
+    public function prioritizedEligible(int $sucursalId): Collection
+    {
+        $rows = $this->eligibleMatriculaQuery($sucursalId, Carbon::today())
+            ->select(['id', 'cliente_id', 'fecha_inicio'])
+            ->orderByDesc('fecha_inicio')
+            ->orderByDesc('id')
+            ->get()
+            ->unique('cliente_id')
+            ->sort(function (ClienteMatricula $a, ClienteMatricula $b): int {
+                $dateComparison = strcmp(
+                    (string) $b->fecha_inicio?->toDateString(),
+                    (string) $a->fecha_inicio?->toDateString()
+                );
+
+                return $dateComparison !== 0
+                    ? $dateComparison
+                    : (((int) $b->id <=> (int) $a->id) ?: ((int) $b->cliente_id <=> (int) $a->cliente_id));
+            })
+            ->values();
+
+        return $rows->map(fn (ClienteMatricula $matricula, int $index): array => [
+            'cliente_id' => (int) $matricula->cliente_id,
+            'priority_at' => $matricula->fecha_inicio?->toDateString() ?? '',
+            'matricula_id' => (int) $matricula->id,
+            'rank' => $index + 1,
+        ]);
+    }
+
+    /**
      * Matricula vigente: tipo membresia o clase, estado activa, fechas vigentes, de la sucursal.
      *
      * @return \Illuminate\Database\Eloquent\Builder<ClienteMatricula>

@@ -11,6 +11,7 @@ class BioTimeSyncLog extends Model
     protected $table = 'bio_time_sync_logs';
 
     protected $fillable = [
+        'sucursal_id',
         'batch_id',
         'entity',
         'biotime_id',
@@ -24,6 +25,7 @@ class BioTimeSyncLog extends Model
     protected function casts(): array
     {
         return [
+            'sucursal_id' => 'integer',
             'biotime_id' => 'integer',
             'payload' => 'array',
             'processed_at' => 'datetime',

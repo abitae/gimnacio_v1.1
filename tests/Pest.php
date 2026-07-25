@@ -41,7 +41,51 @@ expect()->extend('toBeOne', function () {
 |
 */
 
-function something()
+function biotimeSucursal(?string $codigo = null, bool $esPrincipal = true): App\Models\System\Sucursal
 {
-    // ..
+    $codigo ??= 'bt-'.Illuminate\Support\Str::lower(Illuminate\Support\Str::random(8));
+
+    $empresa = App\Models\System\Empresa::query()->create([
+        'nombre' => 'Empresa Test '.$codigo,
+        'estado' => 'activa',
+    ]);
+
+    return App\Models\System\Sucursal::query()->create([
+        'empresa_id' => $empresa->id,
+        'codigo' => $codigo,
+        'nombre' => 'Sucursal '.$codigo,
+        'estado' => 'activa',
+        'es_principal' => $esPrincipal,
+    ]);
+}
+
+function biotimeAgentSetting(
+    App\Models\System\Sucursal $sucursal,
+    string $secret = 'valid-token',
+    bool $enabled = true
+): App\Models\BioTime\BioTimeSucursalSetting {
+    $setting = App\Models\BioTime\BioTimeSucursalSetting::forSucursal($sucursal->id);
+    $setting->forceFill([
+        'webhook_secret' => $secret,
+        'enabled' => $enabled,
+    ])->save();
+
+    return $setting->fresh();
+}
+
+function biotimeAdmin(?App\Models\System\Sucursal $sucursal = null): App\Models\User
+{
+    $user = App\Models\User::factory()->create();
+    $role = Spatie\Permission\Models\Role::query()->firstOrCreate([
+        'name' => App\Support\PermissionCatalog::SUPER_ADMIN_ROLE_NAME,
+        'guard_name' => 'web',
+    ]);
+    $user->assignRole($role);
+
+    if ($sucursal) {
+        $user->sucursales()->attach($sucursal->id);
+        $user->forceFill(['default_sucursal_id' => $sucursal->id])->save();
+    }
+
+    return $user;
 }

@@ -10,14 +10,18 @@ use App\Jobs\BioTime\ProcessBioTimeDepartments;
 use App\Jobs\BioTime\ProcessBioTimeDevices;
 use App\Jobs\BioTime\ProcessBioTimeEmployees;
 use App\Jobs\BioTime\ProcessBioTimeTransactions;
+use App\Models\BioTime\BioTimeDevice;
+use App\Models\BioTime\BioTimeDeviceUser;
 use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\BioTime\BioTimeSyncBatch;
+use App\Models\Core\Cliente;
 use App\Services\BioTime\BioTimeSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 class BioTimeSyncController extends Controller
@@ -65,11 +69,11 @@ class BioTimeSyncController extends Controller
 
         if (! $processInline) {
             match ($entity) {
-                'transactions' => ProcessBioTimeTransactions::dispatch($payload['timestamp'], $records, $batchId),
-                'devices' => ProcessBioTimeDevices::dispatch($payload['timestamp'], $records, $batchId),
-                'areas' => ProcessBioTimeAreas::dispatch($payload['timestamp'], $records, $batchId),
-                'departments' => ProcessBioTimeDepartments::dispatch($payload['timestamp'], $records, $batchId),
-                'employees' => ProcessBioTimeEmployees::dispatch($payload['timestamp'], $records, $batchId),
+                'transactions' => ProcessBioTimeTransactions::dispatch($payload['timestamp'], $records, $batchId, (int) $setting->sucursal_id),
+                'devices' => ProcessBioTimeDevices::dispatch($payload['timestamp'], $records, $batchId, (int) $setting->sucursal_id),
+                'areas' => ProcessBioTimeAreas::dispatch($payload['timestamp'], $records, $batchId, (int) $setting->sucursal_id),
+                'departments' => ProcessBioTimeDepartments::dispatch($payload['timestamp'], $records, $batchId, (int) $setting->sucursal_id),
+                'employees' => ProcessBioTimeEmployees::dispatch($payload['timestamp'], $records, $batchId, (int) $setting->sucursal_id),
             };
 
             return response()->json([
@@ -84,7 +88,13 @@ class BioTimeSyncController extends Controller
             ], 202);
         }
 
-        $result = $this->syncService->process($entity, $payload['timestamp'], $records, $batchId);
+        $result = $this->syncService->process(
+            $entity,
+            $payload['timestamp'],
+            $records,
+            $batchId,
+            (int) $setting->sucursal_id
+        );
 
         return response()->json([
             'status' => 'accepted',
@@ -121,11 +131,100 @@ class BioTimeSyncController extends Controller
             'entities' => ['transactions', 'devices', 'areas', 'departments', 'employees'],
             'endpoints' => [
                 'GET /api/biotime/health',
+                'POST /api/biotime/heartbeat',
                 'POST /api/biotime/sync',
+                'GET /api/biotime/config',
                 'GET /api/biotime/commands',
                 'POST /api/biotime/commands/{id}/ack',
                 'GET /api/biotime/roster',
             ],
+        ]);
+    }
+
+    public function heartbeat(Request $request): JsonResponse
+    {
+        $payload = $request->validate([
+            'bridge_version' => ['nullable', 'string', 'max:50'],
+            'devices' => ['required', 'array', 'max:20'],
+            'devices.*.biotime_id' => ['nullable', 'integer', 'min:1'],
+            'devices.*.serial_number' => ['required', 'string', 'max:100'],
+            'devices.*.online' => ['nullable', 'boolean'],
+            'devices.*.capacity' => ['nullable', 'integer', 'min:1'],
+            'devices.*.employees_count' => ['required', 'integer', 'min:0'],
+            'devices.*.employee_codes' => ['present', 'array', 'max:1000'],
+            'devices.*.employee_codes.*' => ['string', 'max:50'],
+            'devices.*.inventory_at' => ['required', 'date'],
+            'devices.*.inventory_source' => ['nullable', 'string', 'max:50'],
+        ]);
+
+        $setting = $this->authenticatedSetting($request);
+        $sucursalId = (int) $setting->sucursal_id;
+        $managedClientes = Cliente::query()
+            ->where('sucursal_id', $sucursalId)
+            ->whereNotNull('codigo')
+            ->get(['id', 'codigo'])
+            ->keyBy(fn (Cliente $cliente) => (string) $cliente->codigo);
+
+        DB::transaction(function () use ($payload, $sucursalId, $managedClientes): void {
+            foreach ($payload['devices'] as $row) {
+                $codes = collect($row['employee_codes'])
+                    ->map(fn ($code) => trim((string) $code))
+                    ->filter()
+                    ->unique()
+                    ->values();
+                $managedCount = $codes
+                    ->filter(fn (string $code) => $managedClientes->has($code))
+                    ->count();
+                $protectedCount = max(
+                    $codes->count() - $managedCount,
+                    (int) $row['employees_count'] - $managedCount
+                );
+
+                $device = BioTimeDevice::query()
+                    ->where('sucursal_id', $sucursalId)
+                    ->where(function ($query) use ($row): void {
+                        $query->where('serial_number', (string) $row['serial_number']);
+
+                        if (! empty($row['biotime_id'])) {
+                            $query->orWhere('biotime_id', (int) $row['biotime_id']);
+                        }
+                    })
+                    ->firstOrNew();
+
+                $device->fill([
+                    'sucursal_id' => $sucursalId,
+                    'biotime_id' => $row['biotime_id'] ?? $device->biotime_id,
+                    'serial_number' => (string) $row['serial_number'],
+                    'state' => ($row['online'] ?? false) ? 1 : 0,
+                    'capacity_limit' => min(500, max(1, (int) ($row['capacity'] ?? 500))),
+                    'reported_users_count' => (int) $row['employees_count'],
+                    'protected_users_count' => max(0, $protectedCount),
+                    'inventory_source' => $row['inventory_source'] ?? 'unknown',
+                    'inventory_synced_at' => Carbon::parse((string) $row['inventory_at']),
+                ])->save();
+
+                BioTimeDeviceUser::query()->where('bio_time_device_id', $device->id)->delete();
+                foreach ($codes as $code) {
+                    /** @var Cliente|null $cliente */
+                    $cliente = $managedClientes->get($code);
+                    BioTimeDeviceUser::query()->create([
+                        'bio_time_device_id' => $device->id,
+                        'cliente_id' => $cliente?->id,
+                        'emp_code' => $code,
+                        'managed' => $cliente !== null,
+                        'synced_at' => Carbon::parse((string) $row['inventory_at']),
+                    ]);
+                }
+            }
+        });
+
+        $setting->forceFill(['last_heartbeat_at' => now()])->save();
+
+        return response()->json([
+            'status' => 'ok',
+            'sucursal_id' => $sucursalId,
+            'devices_received' => count($payload['devices']),
+            'config_version' => (int) ($setting->config_version ?: 1),
         ]);
     }
 

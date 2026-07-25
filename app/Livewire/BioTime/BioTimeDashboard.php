@@ -56,14 +56,24 @@ class BioTimeDashboard extends Component
     /** @var array<int|string, string> Rol entrada|salida|ambos|'' por biotime_id de device */
     public array $deviceRoles = [];
 
+    /** @var array<int|string, bool> */
+    public array $deviceAccessEnabled = [];
+
+    /** @var array<int|string, bool> */
+    public array $deviceInventoryVerified = [];
+
     /**
      * Formularios editables por sucursal_id.
      *
      * @var array<int|string, array{
      *     area_biotime_id: string,
+     *     denied_area_biotime_id: string,
+     *     company_biotime_id: string,
+     *     department_biotime_id: string,
      *     biotime_base_url: string,
      *     poll_interval_seconds: int|string,
      *     enabled: bool,
+     *     capacity_enforcement_enabled: bool,
      *     employee_limit: int|string
      * }>
      */
@@ -103,6 +113,7 @@ class BioTimeDashboard extends Component
         if ($this->selectedSucursalId) {
             $this->assertSucursalAllowed((int) $this->selectedSucursalId);
         }
+        $this->loadMappings();
     }
 
     public function setTab(string $tab): void
@@ -127,9 +138,13 @@ class BioTimeDashboard extends Component
 
         $form = $this->settingForms[$sucursalId] ?? [];
         $areaRaw = $form['area_biotime_id'] ?? '';
+        $deniedAreaRaw = $form['denied_area_biotime_id'] ?? '';
+        $companyRaw = $form['company_biotime_id'] ?? '';
+        $departmentRaw = $form['department_biotime_id'] ?? '';
         $url = trim((string) ($form['biotime_base_url'] ?? ''));
         $poll = (int) ($form['poll_interval_seconds'] ?? 3600);
         $enabled = (bool) ($form['enabled'] ?? true);
+        $capacityEnforcement = (bool) ($form['capacity_enforcement_enabled'] ?? false);
         $employeeLimit = (int) ($form['employee_limit'] ?? config('biotime.employee_limit_default', 500));
 
         if ($poll < 60) {
@@ -138,8 +153,8 @@ class BioTimeDashboard extends Component
             return;
         }
 
-        if ($employeeLimit < 1) {
-            $this->flashToast('error', 'El cupo de empleados debe ser al menos 1.');
+        if ($employeeLimit < 1 || $employeeLimit > BioTimeCapacityService::HARD_DEVICE_LIMIT) {
+            $this->flashToast('error', 'El cupo debe estar entre 1 y 500 usuarios.');
 
             return;
         }
@@ -147,10 +162,15 @@ class BioTimeDashboard extends Component
         $setting = BioTimeSucursalSetting::forSucursal($sucursalId);
         $setting->forceFill([
             'area_biotime_id' => $areaRaw === '' || $areaRaw === null ? null : (int) $areaRaw,
+            'denied_area_biotime_id' => $deniedAreaRaw === '' || $deniedAreaRaw === null ? null : (int) $deniedAreaRaw,
+            'company_biotime_id' => $companyRaw === '' || $companyRaw === null ? null : (int) $companyRaw,
+            'department_biotime_id' => $departmentRaw === '' || $departmentRaw === null ? null : (int) $departmentRaw,
             'biotime_base_url' => $url !== '' ? $url : null,
             'poll_interval_seconds' => $poll,
             'enabled' => $enabled,
+            'capacity_enforcement_enabled' => $capacityEnforcement,
             'employee_limit' => $employeeLimit,
+            'config_version' => ((int) $setting->config_version) + 1,
         ])->save();
 
         $this->loadSettingForms();
@@ -200,6 +220,8 @@ class BioTimeDashboard extends Component
     public function saveSucursalMapping(string $type, int $biotimeId): void
     {
         Gate::authorize('biotime.editar');
+        $sourceSucursalId = (int) ($this->selectedSucursalId ?? 0);
+        $this->assertSucursalAllowed($sourceSucursalId);
         $targets = match ($type) {
             'area' => $this->areaTargets,
             'department' => $this->departmentTargets,
@@ -209,19 +231,23 @@ class BioTimeDashboard extends Component
         $targetId = (int) ($targets[$biotimeId] ?? 0);
 
         if ($targetId <= 0) {
-            BioTimeMapping::query()->where('mapping_type', $type)->where('biotime_id', $biotimeId)->delete();
+            BioTimeMapping::query()
+                ->where('sucursal_id', $sourceSucursalId)
+                ->where('mapping_type', $type)
+                ->where('biotime_id', $biotimeId)
+                ->delete();
             $this->flashToast('success', 'Mapeo eliminado.');
 
             return;
         }
 
         BioTimeMapping::query()->updateOrCreate(
-            ['mapping_type' => $type, 'biotime_id' => $biotimeId],
-            ['target_type' => 'sucursal', 'target_id' => $targetId, 'sucursal_id' => $targetId]
+            ['sucursal_id' => $sourceSucursalId, 'mapping_type' => $type, 'biotime_id' => $biotimeId],
+            ['target_type' => 'sucursal', 'target_id' => $sourceSucursalId]
         );
 
         if ($type === 'device') {
-            $this->persistDeviceAccessRole($biotimeId, $targetId);
+            $this->persistDeviceAccessRole($biotimeId, $sourceSucursalId);
         }
 
         $this->flashToast('success', 'Mapeo guardado.');
@@ -239,14 +265,24 @@ class BioTimeDashboard extends Component
             return;
         }
 
-        $device = BioTimeDevice::query()->where('biotime_id', $biotimeId)->first();
+        $device = BioTimeDevice::query()
+            ->where('sucursal_id', (int) $this->selectedSucursalId)
+            ->where('biotime_id', $biotimeId)
+            ->first();
         if (! $device) {
             $this->flashToast('error', 'Dispositivo no encontrado.');
 
             return;
         }
 
-        $device->forceFill(['access_role' => $role])->save();
+        $device->forceFill([
+            'access_role' => $role,
+            'access_enabled' => (bool) ($this->deviceAccessEnabled[$biotimeId] ?? true),
+            'inventory_verified' => (bool) ($this->deviceInventoryVerified[$biotimeId] ?? false),
+        ])->save();
+        BioTimeSucursalSetting::query()
+            ->where('sucursal_id', (int) $this->selectedSucursalId)
+            ->increment('config_version');
 
         $sucursalId = (int) ($this->deviceTargets[$biotimeId] ?? 0);
         $warning = $this->deviceRoleCountWarning($sucursalId);
@@ -264,7 +300,10 @@ class BioTimeDashboard extends Component
             return;
         }
 
-        BioTimeDevice::query()->where('biotime_id', $biotimeId)->update(['access_role' => $role]);
+        BioTimeDevice::query()
+            ->where('sucursal_id', $sucursalId)
+            ->where('biotime_id', $biotimeId)
+            ->update(['access_role' => $role]);
 
         $warning = $this->deviceRoleCountWarning($sucursalId);
         if ($warning !== null) {
@@ -278,13 +317,8 @@ class BioTimeDashboard extends Component
             return null;
         }
 
-        $deviceIds = BioTimeMapping::query()
-            ->where('mapping_type', 'device')
-            ->where('sucursal_id', $sucursalId)
-            ->pluck('biotime_id');
-
         $withRole = BioTimeDevice::query()
-            ->whereIn('biotime_id', $deviceIds)
+            ->where('sucursal_id', $sucursalId)
             ->whereNotNull('access_role')
             ->where('access_role', '!=', '')
             ->count();
@@ -388,6 +422,7 @@ class BioTimeDashboard extends Component
                 'limit' => $capacity->limitForSucursal($id),
                 'percent' => $capacity->usagePercent($id),
                 'alert' => $capacity->isAlertThreshold($id),
+                'roster' => $capacity->rosterCapacity($id),
             ];
         }
 
@@ -455,9 +490,13 @@ class BioTimeDashboard extends Component
             $setting = BioTimeSucursalSetting::forSucursal($sucursal->id);
             $this->settingForms[$sucursal->id] = [
                 'area_biotime_id' => $setting->area_biotime_id !== null ? (string) $setting->area_biotime_id : '',
+                'denied_area_biotime_id' => $setting->denied_area_biotime_id !== null ? (string) $setting->denied_area_biotime_id : '',
+                'company_biotime_id' => $setting->company_biotime_id !== null ? (string) $setting->company_biotime_id : '',
+                'department_biotime_id' => $setting->department_biotime_id !== null ? (string) $setting->department_biotime_id : '',
                 'biotime_base_url' => (string) ($setting->biotime_base_url ?? ''),
                 'poll_interval_seconds' => (int) ($setting->poll_interval_seconds ?: 3600),
                 'enabled' => (bool) $setting->enabled,
+                'capacity_enforcement_enabled' => (bool) $setting->capacity_enforcement_enabled,
                 'employee_limit' => (int) ($setting->employee_limit ?: config('biotime.employee_limit_default', 500)),
             ];
         }
@@ -480,20 +519,34 @@ class BioTimeDashboard extends Component
 
     private function loadMappings(): void
     {
-        BioTimeMapping::query()->get()->each(function (BioTimeMapping $mapping): void {
-            match ($mapping->mapping_type) {
-                'area' => $this->areaTargets[$mapping->biotime_id] = $mapping->target_id,
-                'department' => $this->departmentTargets[$mapping->biotime_id] = $mapping->target_id,
-                'device' => $this->deviceTargets[$mapping->biotime_id] = $mapping->target_id,
-                default => null,
-            };
-        });
+        $this->areaTargets = [];
+        $this->departmentTargets = [];
+        $this->deviceTargets = [];
+        $this->deviceRoles = [];
+        $this->deviceAccessEnabled = [];
+        $this->deviceInventoryVerified = [];
+        $sucursalId = (int) ($this->selectedSucursalId ?? 0);
+
+        BioTimeMapping::query()
+            ->where('sucursal_id', $sucursalId)
+            ->get()
+            ->each(function (BioTimeMapping $mapping): void {
+                match ($mapping->mapping_type) {
+                    'area' => $this->areaTargets[$mapping->biotime_id] = $mapping->target_id,
+                    'department' => $this->departmentTargets[$mapping->biotime_id] = $mapping->target_id,
+                    'device' => $this->deviceTargets[$mapping->biotime_id] = $mapping->target_id,
+                    default => null,
+                };
+            });
 
         BioTimeDevice::query()
+            ->where('sucursal_id', $sucursalId)
             ->whereNotNull('biotime_id')
-            ->get(['biotime_id', 'access_role'])
+            ->get(['biotime_id', 'access_role', 'access_enabled', 'inventory_verified'])
             ->each(function (BioTimeDevice $device): void {
                 $this->deviceRoles[$device->biotime_id] = (string) ($device->access_role ?? '');
+                $this->deviceAccessEnabled[$device->biotime_id] = (bool) $device->access_enabled;
+                $this->deviceInventoryVerified[$device->biotime_id] = (bool) $device->inventory_verified;
             });
     }
 
@@ -533,12 +586,14 @@ class BioTimeDashboard extends Component
             'departments' => $mappedDeptIds->count(),
             'areasMapped' => $mappedAreaIds->count(),
             'devicesOnline' => BioTimeDevice::query()
-                ->whereIn('biotime_id', $mappedDeviceIds)
+                ->where('sucursal_id', $sucursalId)
+                ->where('access_enabled', true)
                 ->where(function ($query): void {
                     $query->whereIn('state', [1, 2])->orWhere('last_activity', '>=', now()->subMinutes(10));
                 })
                 ->count(),
             'todayPunches' => BioTimeTransaction::query()
+                ->where('sucursal_id', $sucursalId)
                 ->whereDate('punch_time', today())
                 ->whereIn('cliente_id', $clienteIds)
                 ->count(),
@@ -549,6 +604,7 @@ class BioTimeDashboard extends Component
     private function areasForMapping(?int $sucursalId = null)
     {
         $query = BioTimeArea::query()
+            ->where('sucursal_id', $sucursalId)
             ->when($this->areaSearch !== '', fn ($q) => $q->where(function ($inner): void {
                 $inner->where('area_name', 'like', '%'.$this->areaSearch.'%')
                     ->orWhere('area_code', 'like', '%'.$this->areaSearch.'%');
@@ -575,6 +631,7 @@ class BioTimeDashboard extends Component
     private function departmentsForMapping(?int $sucursalId = null)
     {
         $query = BioTimeDepartment::query()
+            ->where('sucursal_id', $sucursalId)
             ->when($this->departmentSearch !== '', fn ($q) => $q->where(function ($inner): void {
                 $inner->where('dept_name', 'like', '%'.$this->departmentSearch.'%')
                     ->orWhere('dept_code', 'like', '%'.$this->departmentSearch.'%');
@@ -601,6 +658,7 @@ class BioTimeDashboard extends Component
     private function devicesForMapping(?int $sucursalId = null)
     {
         $query = BioTimeDevice::query()
+            ->where('sucursal_id', $sucursalId)
             ->when($this->deviceSearch !== '', fn ($q) => $q->where(function ($inner): void {
                 $inner->where('alias', 'like', '%'.$this->deviceSearch.'%')
                     ->orWhere('serial_number', 'like', '%'.$this->deviceSearch.'%');
@@ -627,6 +685,7 @@ class BioTimeDashboard extends Component
     private function logs(?int $sucursalId = null)
     {
         return BioTimeSyncLog::query()
+            ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
             ->when($sucursalId, function ($query) use ($sucursalId): void {
                 $query->whereIn(
                     'batch_id',

@@ -105,8 +105,19 @@ class BioTimeAccessCommandService
             return ['activated' => 0, 'deactivated' => 0, 'deleted' => 0, 'skipped' => true];
         }
 
-        $eligibleIds = $this->eligibility->listEligibleClienteIds($sucursalId);
-        $eligibleSet = array_fill_keys($eligibleIds->all(), true);
+        $capacity = $this->capacity->rosterCapacity($sucursalId);
+        $roster = $this->capacity->rosterForSucursal($sucursalId);
+        $eligibleIds = $roster
+            ->whereIn('status', ['selected', 'waiting'])
+            ->pluck('cliente_id');
+        $preserveEligible = ! $capacity['enforcement_enabled'] || ! $capacity['inventory_ready'];
+        $activeIds = $preserveEligible
+            ? $eligibleIds
+            : $roster->where('desired_access', true)->pluck('cliente_id');
+        $selectedSet = array_fill_keys(
+            $activeIds->all(),
+            true
+        );
 
         $clienteIds = $this->clienteIdsForReconcile($sucursalId, $eligibleIds);
         $activated = 0;
@@ -123,12 +134,16 @@ class BioTimeAccessCommandService
                 continue;
             }
 
-            $shouldBeActive = isset($eligibleSet[$clienteId]);
+            $shouldBeActive = isset($selectedSet[$clienteId]);
             $lastAction = $this->lastDesiredAction($sucursalId, $clienteId);
-            $knownInBioTime = $this->isKnownInBioTime($cliente);
+            $knownInBioTime = $this->isKnownInBioTime($cliente, $sucursalId);
 
             if ($shouldBeActive) {
                 if ($lastAction !== BioTimeAccessCommand::ACTION_ACTIVATE) {
+                    if ($capacity['enforcement_enabled'] && ! $capacity['inventory_ready']) {
+                        continue;
+                    }
+
                     try {
                         if ($this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_ACTIVATE) !== null) {
                             $activated++;
@@ -175,54 +190,33 @@ class BioTimeAccessCommandService
     }
 
     /**
-     * Encola borrados destructivos de clientes inelegibles para liberar cupo.
+     * Compatibilidad: el borrado destructivo automatico queda deshabilitado.
      *
      * @return int cantidad encolada
      */
     public function enqueuePurgeForCapacity(int $sucursalId, int $slotsNeeded = 1): int
     {
-        $needed = max(1, $slotsNeeded);
-        $candidates = $this->capacity->purgeCandidates($sucursalId, $needed + 5);
-        $enqueued = 0;
+        Log::notice('BioTime destructive capacity purge ignored', [
+            'sucursal_id' => $sucursalId,
+            'slots_needed' => $slotsNeeded,
+        ]);
 
-        foreach ($candidates as $cliente) {
-            if ($enqueued >= $needed) {
-                break;
-            }
-            if ($this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_DELETE) !== null) {
-                $enqueued++;
-            }
-        }
-
-        return $enqueued;
+        return 0;
     }
 
     private function ensureCapacityForActivate(int $sucursalId, int $clienteId): void
     {
-        if (! $this->capacity->isAtOrOverLimit($sucursalId)) {
+        $setting = BioTimeSucursalSetting::forSucursal($sucursalId);
+        if (! $setting->capacity_enforcement_enabled) {
             return;
         }
 
-        // Ya existe en BioTime: activate no consume slot nuevo.
-        $cliente = Cliente::query()->find($clienteId);
-        if ($cliente instanceof Cliente && $this->isKnownInBioTime($cliente)) {
+        if ($this->capacity->isClienteSelected($sucursalId, $clienteId)) {
             return;
-        }
-
-        $purged = $this->enqueuePurgeForCapacity($sucursalId, 1);
-        if ($purged > 0) {
-            // Cupo se liberara cuando el puente borre; no bloqueamos el activate
-            // si tras purga proyectada hay espacio (employees_count - purged).
-            $projected = $this->capacity->occupiedForSucursal($sucursalId) - $purged;
-            if ($projected < $this->capacity->limitForSucursal($sucursalId)) {
-                return;
-            }
         }
 
         throw new InvalidArgumentException(
-            'Cupo BioTime lleno ('.$this->capacity->occupiedForSucursal($sucursalId)
-            .'/'.$this->capacity->limitForSucursal($sucursalId)
-            .'). No hay clientes inactivos para liberar.'
+            'Cliente fuera del roster BioTime seleccionado por capacidad.'
         );
     }
 
@@ -238,6 +232,7 @@ class BioTimeAccessCommandService
             ->map(fn ($id) => (int) $id);
 
         $fromEmployees = BioTimeEmployee::query()
+            ->where('sucursal_id', $sucursalId)
             ->whereNotNull('cliente_id')
             ->whereIn('cliente_id', $fromSucursal)
             ->pluck('cliente_id')
@@ -278,11 +273,12 @@ class BioTimeAccessCommandService
         return $command?->action;
     }
 
-    private function isKnownInBioTime(Cliente $cliente): bool
+    private function isKnownInBioTime(Cliente $cliente, int $sucursalId): bool
     {
         $empCode = BioTimeEmpCode::forCliente($cliente);
 
         return BioTimeEmployee::query()
+            ->where('sucursal_id', $sucursalId)
             ->where(function ($query) use ($cliente, $empCode): void {
                 $query->where('cliente_id', $cliente->id);
                 if ($empCode !== null) {

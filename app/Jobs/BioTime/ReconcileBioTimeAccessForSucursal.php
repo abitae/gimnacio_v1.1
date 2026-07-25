@@ -9,6 +9,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
+use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Illuminate\Queue\SerializesModels;
 
 class ReconcileBioTimeAccessForSucursal implements ShouldQueue
@@ -26,5 +27,15 @@ class ReconcileBioTimeAccessForSucursal implements ShouldQueue
     public function handle(BioTimeAccessCommandService $commands): void
     {
         $commands->reconcileSucursal($this->sucursalId);
+    }
+
+    /** @return array<int, object> */
+    public function middleware(): array
+    {
+        return [
+            (new WithoutOverlapping('biotime-reconcile-'.$this->sucursalId))
+                ->releaseAfter(30)
+                ->expireAfter($this->timeout),
+        ];
     }
 }

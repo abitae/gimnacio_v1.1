@@ -118,6 +118,25 @@
                         >
                     </div>
                     <div>
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Area BioTime denegada</label>
+                        <input
+                            type="number"
+                            min="1"
+                            wire:model="settingForms.{{ $sucursal->id }}.denied_area_biotime_id"
+                            placeholder="ej. 1"
+                            @disabled(! auth()->user()?->can('biotime.editar'))
+                            class="mt-2 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 disabled:opacity-60"
+                        >
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Company BioTime</label>
+                        <input type="number" min="1" wire:model="settingForms.{{ $sucursal->id }}.company_biotime_id" placeholder="ej. 1" @disabled(! auth()->user()?->can('biotime.editar')) class="mt-2 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 disabled:opacity-60">
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Department BioTime</label>
+                        <input type="number" min="1" wire:model="settingForms.{{ $sucursal->id }}.department_biotime_id" placeholder="ej. 1" @disabled(! auth()->user()?->can('biotime.editar')) class="mt-2 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 disabled:opacity-60">
+                    </div>
+                    <div>
                         <label class="text-sm font-medium text-zinc-700 dark:text-zinc-200">Poll (segundos)</label>
                         <input
                             type="number"
@@ -142,6 +161,7 @@
                         <input
                             type="number"
                             min="1"
+                            max="500"
                             wire:model="settingForms.{{ $sucursal->id }}.employee_limit"
                             @disabled(! auth()->user()?->can('biotime.editar'))
                             class="mt-2 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-950 disabled:opacity-60"
@@ -156,6 +176,13 @@
                                     · alerta ≥90%
                                 @endif
                             </p>
+                            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                Seleccionados {{ $cap['roster']['selected_count'] ?? 0 }}
+                                · En espera {{ $cap['roster']['waiting_count'] ?? 0 }}
+                                @if (!($cap['roster']['inventory_ready'] ?? false) && ($cap['roster']['enforcement_enabled'] ?? false))
+                                    · Inventario no verificado: altas bloqueadas
+                                @endif
+                            </p>
                         @endif
                     </div>
                     <div class="flex items-center gap-2 sm:col-span-2">
@@ -167,6 +194,18 @@
                             class="rounded border-zinc-300 text-red-600 focus:ring-red-500"
                         >
                         <label for="enabled-{{ $sucursal->id }}" class="text-sm text-zinc-700 dark:text-zinc-200">Sede habilitada para sync / puente</label>
+                    </div>
+                    <div class="flex items-center gap-2 sm:col-span-2">
+                        <input
+                            id="enforcement-{{ $sucursal->id }}"
+                            type="checkbox"
+                            wire:model="settingForms.{{ $sucursal->id }}.capacity_enforcement_enabled"
+                            @disabled(! auth()->user()?->can('biotime.editar'))
+                            class="rounded border-zinc-300 text-red-600 focus:ring-red-500"
+                        >
+                        <label for="enforcement-{{ $sucursal->id }}" class="text-sm text-zinc-700 dark:text-zinc-200">
+                            Control estricto por reloj (requiere inventario verificado)
+                        </label>
                     </div>
                 </div>
             </div>

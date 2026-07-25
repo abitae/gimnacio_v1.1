@@ -7,12 +7,17 @@ it('only allows documented withoutGlobalScope bypasses in application code', fun
         'app/Services/AsistenciaService.php',
         'app/Services/ProductoService.php',
         'app/Services/ClaseService.php',
+        // BioTime recibe una sucursal autenticada por token y vuelve a aplicar
+        // where(sucursal_id) explícito para impedir colisiones entre instalaciones.
+        'app/Models/BioTime/BioTimeEmployee.php',
+        'app/Services/BioTime/BioTimeSyncService.php',
     ];
 
     $violations = [];
+    $basePath = dirname(__DIR__, 3);
 
     $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator(base_path('app'), FilesystemIterator::SKIP_DOTS)
+        new RecursiveDirectoryIterator($basePath.'/app', FilesystemIterator::SKIP_DOTS)
     );
 
     /** @var SplFileInfo $file */
@@ -21,7 +26,7 @@ it('only allows documented withoutGlobalScope bypasses in application code', fun
             continue;
         }
 
-        $relative = str_replace('\\', '/', substr($file->getPathname(), strlen(base_path()) + 1));
+        $relative = str_replace('\\', '/', substr($file->getPathname(), strlen($basePath) + 1));
 
         if (str_contains($relative, '/Concerns/BelongsToSucursal.php')) {
             continue;
