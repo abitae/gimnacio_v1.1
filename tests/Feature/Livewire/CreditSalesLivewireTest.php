@@ -160,6 +160,57 @@ it('shows debt totals for the current filters', function () {
         ->assertSee('Exportar Excel');
 });
 
+it('toggles debt selection for bulk payment', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('punto_venta.ver');
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $caja = Caja::create([
+        'usuario_id' => $user->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    $venta = Venta::create([
+        'numero_venta' => 'V-SEL-1',
+        'cliente_id' => $cliente->id,
+        'caja_id' => $caja->id,
+        'usuario_id' => $user->id,
+        'tipo_comprobante' => 'ticket',
+        'numero_comprobante' => '000011',
+        'serie_comprobante' => 'T001',
+        'subtotal' => 80,
+        'descuento' => 0,
+        'igv' => 0,
+        'total' => 80,
+        'metodo_pago' => 'Credito',
+        'es_credito' => true,
+        'monto_inicial' => 0,
+        'estado' => 'completada',
+        'fecha_venta' => now(),
+    ]);
+
+    $debt = ClientDebt::create([
+        'cliente_id' => $cliente->id,
+        'venta_id' => $venta->id,
+        'origen_tipo' => 'Pos',
+        'origen_id' => $venta->id,
+        'monto_total' => 80,
+        'monto_pagado' => 0,
+        'saldo_pendiente' => 80,
+        'fecha_registro' => now()->toDateString(),
+        'estado' => 'pendiente',
+    ]);
+
+    Livewire::actingAs($user)
+        ->test(CreditSales::class)
+        ->call('alternarDeudaSeleccionada', $debt->id)
+        ->assertSet('deudasSeleccionadas', [$debt->id])
+        ->call('alternarDeudaSeleccionada', $debt->id)
+        ->assertSet('deudasSeleccionadas', []);
+});
+
 it('processes bulk payments for selected client debts', function () {
     $user = User::factory()->create();
     $user->givePermissionTo('punto_venta.ver');

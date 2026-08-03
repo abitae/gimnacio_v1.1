@@ -39,7 +39,6 @@ class CreditSales extends Component
 
     public ?int $pagoIdTicket = null;
 
-    /** @var list<int> */
     public array $deudasSeleccionadas = [];
 
     public array $cobroForm = [
@@ -92,7 +91,78 @@ class CreditSales extends Component
         $this->deudasSeleccionadas = [];
     }
 
+    public function alternarDeudaSeleccionada(int $debtId): void
+    {
+        $debtId = (int) $debtId;
+        $seleccionadas = $this->deudasSeleccionadasNormalizadas();
+
+        if (in_array($debtId, $seleccionadas, true)) {
+            $this->deudasSeleccionadas = array_values(array_filter(
+                $seleccionadas,
+                fn (int $id) => $id !== $debtId
+            ));
+
+            return;
+        }
+
+        $seleccionadas[] = $debtId;
+        $this->deudasSeleccionadas = array_values(array_unique($seleccionadas));
+    }
+
+    public function alternarSeleccionPaginaActual(): void
+    {
+        $idsPagina = $this->debtIdsCobrablesPaginaActual();
+        if ($idsPagina === []) {
+            return;
+        }
+
+        $seleccionadas = $this->deudasSeleccionadasNormalizadas();
+        $paginaYaSeleccionada = count(array_intersect($idsPagina, $seleccionadas)) === count($idsPagina);
+
+        if ($paginaYaSeleccionada) {
+            $this->deudasSeleccionadas = array_values(array_diff($seleccionadas, $idsPagina));
+
+            return;
+        }
+
+        $this->deudasSeleccionadas = array_values(array_unique(array_merge($seleccionadas, $idsPagina)));
+    }
+
     public function seleccionarPaginaActual(): void
+    {
+        $idsPagina = $this->debtIdsCobrablesPaginaActual();
+        if ($idsPagina === []) {
+            return;
+        }
+
+        $this->deudasSeleccionadas = array_values(array_unique(array_merge(
+            $this->deudasSeleccionadasNormalizadas(),
+            $idsPagina
+        )));
+    }
+
+    public function limpiarSeleccion(): void
+    {
+        $this->deudasSeleccionadas = [];
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function deudasSeleccionadasNormalizadas(): array
+    {
+        return collect($this->deudasSeleccionadas)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function debtIdsCobrablesPaginaActual(): array
     {
         $query = $this->creditSalesQueryService->query(
             $this->search ?: null,
@@ -100,14 +170,8 @@ class CreditSales extends Component
             $this->fechaFin ?: null,
         );
         $ventas = $query->paginate($this->perPage, ['*'], 'page', $this->getPage());
-        $idsPagina = $this->creditSalesQueryService->debtIdsCobrablesEnPagina($ventas->getCollection());
 
-        $this->deudasSeleccionadas = array_values(array_unique(array_merge($this->deudasSeleccionadas, $idsPagina)));
-    }
-
-    public function limpiarSeleccion(): void
-    {
-        $this->deudasSeleccionadas = [];
+        return $this->creditSalesQueryService->debtIdsCobrablesEnPagina($ventas->getCollection());
     }
 
     public function abrirModalCobroVenta(int $debtId): void
@@ -149,7 +213,7 @@ class CreditSales extends Component
             $pago = $this->clientDebtService->procesarPago($debtId, $this->cobroForm);
             $this->cerrarModalCobroVenta();
             $this->deudasSeleccionadas = array_values(array_filter(
-                $this->deudasSeleccionadas,
+                $this->deudasSeleccionadasNormalizadas(),
                 fn (int $id) => $id !== (int) $debtId
             ));
             $this->pagoIdTicket = $pago->id;
@@ -208,7 +272,7 @@ class CreditSales extends Component
 
     public function abrirModalCobroMasivo(): void
     {
-        if ($this->deudasSeleccionadas === []) {
+        if ($this->deudasSeleccionadasNormalizadas() === []) {
             $this->flashToast('error', 'Seleccione al menos una venta con saldo pendiente.');
 
             return;
@@ -231,14 +295,15 @@ class CreditSales extends Component
 
     public function procesarCobroMasivo(): void
     {
-        if ($this->deudasSeleccionadas === []) {
+        $seleccionadas = $this->deudasSeleccionadasNormalizadas();
+        if ($seleccionadas === []) {
             $this->flashToast('error', 'Seleccione al menos una venta con saldo pendiente.');
 
             return;
         }
 
         try {
-            $pagos = $this->clientDebtService->procesarPagoMasivo($this->deudasSeleccionadas, $this->cobroForm);
+            $pagos = $this->clientDebtService->procesarPagoMasivo($seleccionadas, $this->cobroForm);
             $cantidad = $pagos->count();
             $this->cerrarModalCobroMasivo();
             $this->limpiarSeleccion();
@@ -270,12 +335,16 @@ class CreditSales extends Component
             $venta->id => $this->creditSalesQueryService->mapVenta($venta),
         ]);
 
+        $deudasSeleccionadas = $this->deudasSeleccionadasNormalizadas();
+
         $totalSeleccionado = ClientDebt::query()
-            ->whereIn('id', collect($this->deudasSeleccionadas)->map(fn ($id) => (int) $id)->all())
+            ->whereIn('id', $deudasSeleccionadas)
             ->pendientes()
             ->sum('saldo_pendiente');
 
         $debtIdsPagina = $this->creditSalesQueryService->debtIdsCobrablesEnPagina($ventas->getCollection());
+        $paginaCompletaSeleccionada = $debtIdsPagina !== []
+            && count(array_intersect($debtIdsPagina, $deudasSeleccionadas)) === count($debtIdsPagina);
 
         $paymentMethods = PaymentMethod::activos()->orderBy('nombre')->get();
         $selectedPaymentMethod = ! empty($this->cobroForm['payment_method_id'])
@@ -299,7 +368,10 @@ class CreditSales extends Component
             'filasVentas' => $filasVentas,
             'totales' => $totales,
             'totalSeleccionado' => (float) $totalSeleccionado,
+            'deudasSeleccionadas' => $deudasSeleccionadas,
+            'cantidadSeleccionadas' => count($deudasSeleccionadas),
             'debtIdsPagina' => $debtIdsPagina,
+            'paginaCompletaSeleccionada' => $paginaCompletaSeleccionada,
             'exportUrl' => route('pos.ventas-credito.exportar.excel', $exportParams),
             'paymentMethods' => $paymentMethods,
             'selectedPaymentMethod' => $selectedPaymentMethod,

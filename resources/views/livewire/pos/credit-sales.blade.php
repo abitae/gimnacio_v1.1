@@ -1,8 +1,8 @@
 <div class="space-y-4 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-700 dark:bg-zinc-800">
-    <div class="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+    <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Ventas a crédito</h1>
-            <p class="text-xs text-zinc-600 dark:text-zinc-400">Seguimiento por venta, cobro individual, masivo y pago total por cliente.</p>
+            <p class="mt-1 text-xs text-zinc-600 dark:text-zinc-400">Cobro individual, masivo por selección o pago total del cliente.</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             <a href="{{ $exportUrl }}" target="_blank" rel="noopener"
@@ -13,11 +13,11 @@
         </div>
     </div>
 
-    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+    <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <flux:input icon="magnifying-glass" type="search" size="xs" wire:model.live.debounce.300ms="search" placeholder="DNI, código, celular, venta o nombre" />
         <flux:input type="date" size="xs" wire:model.live="fechaInicio" label="Desde" />
         <flux:input type="date" size="xs" wire:model.live="fechaFin" label="Hasta" />
-        <flux:select size="xs" wire:model.live="perPage" label="Filas">
+        <flux:select size="xs" wire:model.live="perPage" label="Filas por página">
             <option value="10">10</option>
             <option value="15">15</option>
             <option value="25">25</option>
@@ -48,35 +48,46 @@
         </div>
     </div>
 
-    <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900/50">
-        <div class="text-xs text-zinc-600 dark:text-zinc-400">
-            @if (count($deudasSeleccionadas) > 0)
-                {{ count($deudasSeleccionadas) }} seleccionada(s) · Total S/ {{ number_format((float) $totalSeleccionado, 2) }}
-            @else
-                Seleccione ventas con saldo para cobro masivo
-            @endif
+    <div class="flex flex-col gap-3 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-3 dark:border-emerald-900/40 dark:bg-emerald-950/20 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+            <div class="text-sm font-semibold text-emerald-900 dark:text-emerald-100">Cobro masivo</div>
+            <div class="text-xs text-emerald-800/80 dark:text-emerald-300/80">
+                @if ($cantidadSeleccionadas > 0)
+                    {{ $cantidadSeleccionadas }} venta(s) seleccionada(s) · Total S/ {{ number_format((float) $totalSeleccionado, 2) }}
+                @else
+                    Marque las ventas con saldo de clientes del gimnasio para cobrar en lote.
+                @endif
+            </div>
         </div>
         <div class="flex flex-wrap gap-2">
-            <flux:button size="xs" variant="ghost" wire:click="seleccionarPaginaActual" :disabled="empty($debtIdsPagina)">
+            <flux:button size="xs" variant="ghost" wire:click="seleccionarPaginaActual" @disabled(empty($debtIdsPagina))>
                 Seleccionar página
             </flux:button>
-            <flux:button size="xs" variant="ghost" wire:click="limpiarSeleccion" :disabled="count($deudasSeleccionadas) === 0">
+            <flux:button size="xs" variant="ghost" wire:click="limpiarSeleccion" @disabled($cantidadSeleccionadas === 0)>
                 Limpiar
             </flux:button>
             <flux:button size="xs" variant="primary" color="green" icon="credit-card"
                 wire:click="abrirModalCobroMasivo"
-                :disabled="count($deudasSeleccionadas) === 0">
-                Cobrar seleccionadas ({{ count($deudasSeleccionadas) }})
+                @disabled($cantidadSeleccionadas === 0)>
+                Cobrar seleccionadas ({{ $cantidadSeleccionadas }})
             </flux:button>
         </div>
     </div>
 
-    <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-        <table class="w-full text-sm">
+    <div class="overflow-x-auto rounded-xl border border-zinc-200 dark:border-zinc-700">
+        <table class="min-w-full text-sm">
             <thead class="bg-zinc-50 dark:bg-zinc-900">
                 <tr>
-                    <th class="w-10 px-3 py-3">
-                        <span class="sr-only">Seleccionar</span>
+                    <th class="w-12 px-3 py-3 text-center">
+                        @if (! empty($debtIdsPagina))
+                            <input type="checkbox"
+                                class="size-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800"
+                                wire:click="alternarSeleccionPaginaActual"
+                                @checked($paginaCompletaSeleccionada)
+                                title="Seleccionar o quitar toda la página"
+                                aria-label="Seleccionar toda la página"
+                            />
+                        @endif
                     </th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Código</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Cliente</th>
@@ -85,7 +96,6 @@
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Pagado</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Saldo</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Fecha</th>
-                    <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Registró</th>
                     <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Estado</th>
                     <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">Acciones</th>
                 </tr>
@@ -100,16 +110,22 @@
                         $estado = $fila['estado'] ?? 'pendiente';
                         $esCobrable = ! empty($fila['es_cobrable_cliente']) && ! empty($fila['client_debt_id']);
                         $debtId = (int) ($fila['client_debt_id'] ?? 0);
-                        $seleccionada = $debtId > 0 && in_array((string) $debtId, $deudasSeleccionadas, true);
+                        $seleccionada = $debtId > 0 && in_array($debtId, $deudasSeleccionadas, true);
                     @endphp
-                    <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-700/30 {{ $seleccionada ? 'bg-emerald-50/50 dark:bg-emerald-950/20' : '' }}">
-                        <td class="px-3 py-3 text-center">
+                    <tr wire:key="venta-credito-{{ $v->id }}"
+                        class="transition-colors {{ $seleccionada ? 'bg-emerald-50/80 dark:bg-emerald-950/25' : 'hover:bg-zinc-50 dark:hover:bg-zinc-700/30' }}">
+                        <td class="px-3 py-3 text-center align-middle">
                             @if ($esCobrable)
-                                <input type="checkbox"
-                                    class="rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800"
-                                    wire:model.live="deudasSeleccionadas"
-                                    value="{{ $debtId }}"
-                                />
+                                <label class="inline-flex cursor-pointer items-center justify-center p-1">
+                                    <input type="checkbox"
+                                        class="size-4 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-zinc-600 dark:bg-zinc-800"
+                                        wire:click.stop="alternarDeudaSeleccionada({{ $debtId }})"
+                                        @checked($seleccionada)
+                                        aria-label="Seleccionar venta {{ $v->numero_venta }}"
+                                    />
+                                </label>
+                            @else
+                                <span class="text-[10px] text-zinc-400" title="Solo clientes del gimnasio con saldo">—</span>
                             @endif
                         </td>
                         <td class="px-4 py-3 text-xs font-semibold text-zinc-800 dark:text-zinc-200">{{ $fila['codigo'] ?? '—' }}</td>
@@ -126,8 +142,10 @@
                         <td class="px-4 py-3 text-right text-xs">S/ {{ number_format((float) $v->total, 2) }}</td>
                         <td class="px-4 py-3 text-right text-xs">S/ {{ number_format($montoPagado, 2) }}</td>
                         <td class="px-4 py-3 text-right text-xs font-semibold text-amber-600 dark:text-amber-400">S/ {{ number_format($saldo, 2) }}</td>
-                        <td class="px-4 py-3 text-xs">{{ $v->fecha_venta?->format('d/m/Y H:i') ?? '—' }}</td>
-                        <td class="px-4 py-3 text-xs">{{ $v->usuario?->name ?? '-' }}</td>
+                        <td class="px-4 py-3 text-xs whitespace-nowrap">
+                            <div>{{ $v->fecha_venta?->format('d/m/Y H:i') ?? '—' }}</div>
+                            <div class="text-[11px] text-zinc-500">{{ $v->usuario?->name ?? '-' }}</div>
+                        </td>
                         <td class="px-4 py-3 text-xs">
                             <span class="rounded-full px-2 py-1 {{ $estado === 'vencido' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300' : ($estado === 'parcial' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : ($estado === 'pagado' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300')) }}">
                                 {{ ucfirst($estado) }}
@@ -136,21 +154,21 @@
                         <td class="px-4 py-3 text-right">
                             <div class="inline-flex flex-wrap justify-end gap-1">
                                 @if ($v->cliente)
-                                    <flux:button size="xs" variant="ghost" icon="user-circle" href="{{ route('clientes.perfil', $v->cliente) }}" wire:navigate aria-label="Ver ficha del cliente" title="Ver ficha" />
+                                    <flux:button size="xs" variant="ghost" icon="user-circle" href="{{ route('clientes.perfil', $v->cliente) }}" wire:navigate title="Ver ficha" />
                                     @if ($saldo > 0)
-                                        <flux:button size="xs" variant="ghost" icon="wallet" wire:click="abrirModalCobroCliente({{ $v->cliente_id }})" aria-label="Pagar deuda del cliente" title="Pagar cliente" />
+                                        <flux:button size="xs" variant="ghost" icon="wallet" wire:click="abrirModalCobroCliente({{ $v->cliente_id }})" title="Pagar todo del cliente" />
                                     @endif
                                 @endif
                                 @if ($debt && $saldo > 0)
-                                    <flux:button size="xs" variant="primary" color="green" icon="credit-card" wire:click="abrirModalCobroVenta({{ $debt->id }})" aria-label="Pagar esta venta" title="Pagar venta" />
+                                    <flux:button size="xs" variant="primary" color="green" icon="credit-card" wire:click="abrirModalCobroVenta({{ $debt->id }})" title="Pagar esta venta" />
                                 @endif
-                                <flux:button size="xs" variant="ghost" icon="printer" href="{{ route('ventas.comprobante.pdf', ['venta' => $v->id, 'reprint' => 1]) }}" target="_blank" aria-label="Reimprimir ticket" title="Reimprimir ticket" />
+                                <flux:button size="xs" variant="ghost" icon="printer" href="{{ route('ventas.comprobante.pdf', ['venta' => $v->id, 'reprint' => 1]) }}" target="_blank" title="Reimprimir ticket" />
                             </div>
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="11" class="px-4 py-10 text-center text-xs text-zinc-500 dark:text-zinc-400">No hay ventas a crédito para los filtros seleccionados.</td>
+                        <td colspan="10" class="px-4 py-10 text-center text-xs text-zinc-500 dark:text-zinc-400">No hay ventas a crédito para los filtros seleccionados.</td>
                     </tr>
                 @endforelse
             </tbody>
@@ -216,7 +234,7 @@
             <div>
                 <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">Cobro masivo</h2>
                 <p class="text-xs text-zinc-600 dark:text-zinc-400">
-                    {{ count($deudasSeleccionadas) }} venta(s) seleccionada(s)
+                    {{ $cantidadSeleccionadas }} venta(s) seleccionada(s)
                     · Total a cobrar S/ {{ number_format((float) $totalSeleccionado, 2) }}
                 </p>
                 <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Se liquidará el saldo completo de cada venta seleccionada.</p>
