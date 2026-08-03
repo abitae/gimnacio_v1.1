@@ -6,14 +6,15 @@
 .PARAMETER TaskName
   Default: BioTimeBridgeRun
 
-.PARAMETER BridgeRoot / ConfigPath / PythonExe
+.PARAMETER BridgeRoot / ConfigPath / PythonExe / BridgeExe
   Igual que install-task-once.ps1
 #>
 param(
     [string]$TaskName = "BioTimeBridgeRun",
     [string]$BridgeRoot = "",
     [string]$ConfigPath = "",
-    [string]$PythonExe = ""
+    [string]$PythonExe = "",
+    [string]$BridgeExe = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -27,20 +28,17 @@ if (-not (Test-Path $ConfigPath)) {
     throw "No existe config.yaml en '$ConfigPath'. Copia config.yaml.example y completa token/URLs."
 }
 
-if (-not $PythonExe) {
-    $venvPy = Join-Path $BridgeRoot ".venv\Scripts\python.exe"
-    if (Test-Path $venvPy) {
-        $PythonExe = $venvPy
-    } else {
-        $PythonExe = (Get-Command python -ErrorAction Stop).Source
-    }
-}
+$runtime = & (Join-Path $PSScriptRoot "resolve-bridge-runtime.ps1") -BridgeRoot $BridgeRoot -BridgeExe $BridgeExe -PythonExe $PythonExe
 
 $logsDir = Join-Path $BridgeRoot "logs"
 New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
 
-$argList = "-m bridge --config `"$ConfigPath`" run"
-$action = New-ScheduledTaskAction -Execute $PythonExe -Argument $argList -WorkingDirectory $BridgeRoot
+$argList = if ($runtime.ArgumentsPrefix) {
+    "{0} --config `"{1}`" run" -f $runtime.ArgumentsPrefix, $ConfigPath
+} else {
+    "--config `"$ConfigPath`" run"
+}
+$action = New-ScheduledTaskAction -Execute $runtime.Executable -Argument $argList -WorkingDirectory $BridgeRoot
 
 # Al inicio de sesion + al arrancar el equipo (si hay usuario)
 $triggerLogon = New-ScheduledTaskTrigger -AtLogOn
@@ -70,13 +68,13 @@ Register-ScheduledTask `
 Start-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyContinue
 
 Write-Host "OK: tarea '$TaskName' registrada (run continuo + restart on failure)."
-Write-Host "  Python : $PythonExe"
+Write-Host "  Runtime: $($runtime.Mode) -> $($runtime.Executable)"
 Write-Host "  Root   : $BridgeRoot"
 Write-Host "  Config : $ConfigPath"
 Write-Host ""
 Write-Host "Verificar:"
 Write-Host "  1) Get-ScheduledTask -TaskName $TaskName | Get-ScheduledTaskInfo"
-Write-Host "  2) python -m bridge --config `"$ConfigPath`" doctor"
+Write-Host "  2) bridge.bat doctor   (o BioTimeBridge.exe --config config.yaml doctor)"
 Write-Host "  3) Laravel BioTime > Sedes: last_heartbeat_at actualizado."
 Write-Host "Desinstalar: .\uninstall-task.ps1 -TaskName $TaskName"
 Write-Host ""

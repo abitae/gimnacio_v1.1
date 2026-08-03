@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
+use App\Support\CajaCreditoHelper;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -180,6 +181,8 @@ class Caja extends Model
                 default => null,
             };
 
+            $creditoMeta = CajaCreditoHelper::metadataMovimientoCredito($movimiento, $referencia, $metodoPago);
+
             return [
                 'id' => $movimiento->id,
                 'fecha' => $movimiento->fecha_movimiento,
@@ -190,6 +193,9 @@ class Caja extends Model
                 'concepto' => $movimiento->concepto,
                 'monto' => (float) $movimiento->monto,
                 'metodo_pago' => $metodoPago,
+                'es_venta_credito' => $creditoMeta['es_venta_credito'],
+                'es_anticipo_credito' => $creditoMeta['es_anticipo_credito'],
+                'excluir_totales_caja' => $creditoMeta['excluir_totales_caja'],
                 'numero_operacion' => match (true) {
                     $referencia instanceof Pago => $referencia->numero_operacion,
                     $referencia instanceof Venta => $referencia->numero_operacion,

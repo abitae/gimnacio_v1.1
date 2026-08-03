@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reportes;
 
+use App\Livewire\Reportes\Concerns\AuthorizesReportAccess;
 use App\Livewire\Reportes\Concerns\PaginatesReportTables;
 use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\ReporteModuloService;
@@ -10,6 +11,7 @@ use Livewire\WithPagination;
 
 class ReporteVentasLive extends Component
 {
+    use AuthorizesReportAccess;
     use PaginatesReportTables;
     use ScopesReporteBySucursal;
     use WithPagination;
@@ -24,7 +26,7 @@ class ReporteVentasLive extends Component
 
     public function mount(): void
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReport('ventas');
         $this->mountReporteSucursalScope();
         $this->fechaDesde = now()->startOfMonth()->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');

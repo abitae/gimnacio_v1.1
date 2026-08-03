@@ -32,7 +32,7 @@
             </flux:select>
         </div>
 
-        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
+        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
             <div class="rounded-xl border border-emerald-100 bg-emerald-50/50 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
                 <div class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Cajas</div>
                 <div class="text-lg font-bold text-emerald-700 dark:text-emerald-300">{{ $resumen['cantidad'] }}</div>
@@ -57,54 +57,180 @@
                 <div class="text-xs font-medium text-sky-600 dark:text-sky-400">Total vendido</div>
                 <div class="text-lg font-bold text-sky-700 dark:text-sky-300">S/ {{ number_format((float) ($resumen['total_vendido'] ?? 0), 2) }}</div>
             </div>
+            <div class="rounded-xl border border-amber-100 bg-amber-50/60 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+                <div class="text-xs font-medium text-amber-700 dark:text-amber-400">Ventas al crédito</div>
+                <div class="text-lg font-bold text-amber-800 dark:text-amber-300">{{ $resumen['ventas_credito']['cantidad'] ?? 0 }}</div>
+                <div class="text-xs text-amber-700/80 dark:text-amber-400/80">S/ {{ number_format((float) ($resumen['ventas_credito']['total_ventas'] ?? 0), 2) }} · Pendiente S/ {{ number_format((float) ($resumen['ventas_credito']['total_saldo_pendiente'] ?? 0), 2) }}</div>
+            </div>
         </div>
 
-        <div class="grid gap-4 xl:grid-cols-2">
-            <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                <h2 class="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Totales por método de pago</h2>
-                <div class="space-y-3">
-                    @forelse(($resumen['por_metodo_pago'] ?? []) as $metodo => $datos)
-                        @php
-                            $esDetalle = is_array($datos);
-                            $totalMetodo = $esDetalle ? (float) ($datos['total'] ?? 0) : (float) $datos;
-                            $porTipo = $esDetalle ? ($datos['por_tipo'] ?? []) : [];
-                        @endphp
-                        <div class="rounded-lg bg-zinc-50 px-3 py-2 dark:bg-zinc-900/50">
-                            <div class="flex items-center justify-between text-sm">
-                                <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ $metodo ?: 'Sin método' }}</span>
-                                <span class="font-semibold text-zinc-900 dark:text-zinc-100">S/ {{ number_format($totalMetodo, 2) }}</span>
-                            </div>
-                            @if (! empty($porTipo))
-                                <div class="mt-1.5 space-y-1 border-t border-zinc-200 pt-1.5 dark:border-zinc-700">
-                                    @foreach ($porTipo as $tipo => $fila)
-                                        <div class="flex items-center justify-between text-xs text-zinc-600 dark:text-zinc-400">
-                                            <span>{{ $tipo }}@if (! empty($fila['cantidad'])) <span class="text-zinc-400">({{ $fila['cantidad'] }})</span>@endif</span>
-                                            <span class="font-medium">S/ {{ number_format((float) ($fila['total'] ?? 0), 2) }}</span>
-                                        </div>
+        @php
+            $matriz = $matrizTipoMetodo ?? ($resumen['matriz_tipo_metodo'] ?? []);
+            $tiposMatriz = $matriz['tipos'] ?? [];
+            $metodosMatriz = $matriz['metodos'] ?? [];
+            $celdasMatriz = $matriz['celdas'] ?? [];
+        @endphp
+
+        @if (! empty($metodosMatriz))
+            <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+                <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                    <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Totales por tipo y método de pago</h2>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">Solo ingresos en efectivo/reales de caja. Las ventas a crédito no se incluyen.</p>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full min-w-full text-sm">
+                        <thead class="bg-zinc-50 dark:bg-zinc-900">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium">Tipo</th>
+                                @foreach ($metodosMatriz as $metodo)
+                                    <th class="px-3 py-2 text-right text-xs font-medium whitespace-nowrap">{{ $metodo }}</th>
+                                @endforeach
+                                <th class="px-3 py-2 text-right text-xs font-medium">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                            @foreach ($tiposMatriz as $tipo)
+                                <tr>
+                                    <td class="px-3 py-2 text-xs font-medium text-zinc-900 dark:text-zinc-100">{{ $tipo }}</td>
+                                    @foreach ($metodosMatriz as $metodo)
+                                        @php $celda = $celdasMatriz[$tipo][$metodo] ?? null; @endphp
+                                        <td class="px-3 py-2 text-right text-xs">
+                                            @if ($celda)
+                                                S/ {{ number_format((float) $celda['total'], 2) }}
+                                                @if (! empty($celda['cantidad']))
+                                                    <span class="text-zinc-400">({{ $celda['cantidad'] }})</span>
+                                                @endif
+                                            @else
+                                                <span class="text-zinc-300 dark:text-zinc-600">—</span>
+                                            @endif
+                                        </td>
                                     @endforeach
-                                </div>
-                            @endif
-                        </div>
-                    @empty
-                        <p class="text-sm text-zinc-500 dark:text-zinc-400">Sin movimientos por método de pago.</p>
-                    @endforelse
+                                    <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_tipo'][$tipo] ?? 0), 2) }}</td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                        <tfoot class="bg-zinc-50 dark:bg-zinc-900">
+                            <tr>
+                                <td class="px-3 py-2 text-xs font-semibold">Total</td>
+                                @foreach ($metodosMatriz as $metodo)
+                                    <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_metodo'][$metodo] ?? 0), 2) }}</td>
+                                @endforeach
+                                <td class="px-3 py-2 text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) ($matriz['total_general'] ?? 0), 2) }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
                 </div>
             </div>
+        @endif
 
-            <div class="rounded-xl border border-zinc-200 p-4 dark:border-zinc-700">
-                <h2 class="mb-3 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Totales por usuario</h2>
-                <div class="space-y-2">
-                    @forelse(($resumen['por_usuario'] ?? []) as $usuario => $monto)
-                        <div class="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 text-sm dark:bg-zinc-900/50">
-                            <span>{{ $usuario }}</span>
-                            <span class="font-semibold">S/ {{ number_format((float) $monto, 2) }}</span>
-                        </div>
-                    @empty
-                        <p class="text-sm text-zinc-500 dark:text-zinc-400">Sin movimientos agrupados por usuario.</p>
-                    @endforelse
-                </div>
+        <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Resumen por usuario de caja</h2>
             </div>
+            <table class="w-full text-sm">
+                <thead class="bg-white dark:bg-zinc-950">
+                    <tr>
+                        <th class="px-3 py-2 text-left text-xs font-medium">Usuario</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium">Cajas</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium">Ingresos caja</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium">Salidas</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium">Ventas crédito</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium">Saldo crédito</th>
+                        <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                    @forelse($porUsuario as $filaUsuario)
+                        <tr>
+                            <td class="px-3 py-2 text-xs font-medium">{{ $filaUsuario['usuario'] ?? 'Sin usuario' }}</td>
+                            <td class="px-3 py-2 text-right text-xs">{{ $filaUsuario['cantidad_cajas'] ?? 0 }}</td>
+                            <td class="px-3 py-2 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) ($filaUsuario['total_ingresos'] ?? 0), 2) }}</td>
+                            <td class="px-3 py-2 text-right text-xs text-red-600 dark:text-red-400">S/ {{ number_format((float) ($filaUsuario['total_salidas'] ?? 0), 2) }}</td>
+                            <td class="px-3 py-2 text-right text-xs text-amber-700 dark:text-amber-400">S/ {{ number_format((float) ($filaUsuario['ventas_credito_total'] ?? 0), 2) }}</td>
+                            <td class="px-3 py-2 text-right text-xs text-amber-800 dark:text-amber-300">S/ {{ number_format((float) ($filaUsuario['saldo_credito_pendiente'] ?? 0), 2) }}</td>
+                            <td class="px-3 py-2 text-right text-xs print:hidden">
+                                <flux:button type="button" size="xs" variant="ghost" icon="eye"
+                                    wire:click="$set('usuarioId', '{{ $filaUsuario['usuario_id'] ?? '' }}')">
+                                    Ver cajas
+                                </flux:button>
+                            </td>
+                        </tr>
+                        @if (! empty($filaUsuario['cajas']) && filled($usuarioId) && (int) $usuarioId === (int) ($filaUsuario['usuario_id'] ?? 0))
+                            @foreach ($filaUsuario['cajas'] as $cajaUsuario)
+                                <tr class="bg-zinc-50/80 dark:bg-zinc-900/40">
+                                    <td class="px-3 py-1.5 pl-8 text-xs text-zinc-600 dark:text-zinc-400">Caja #{{ $cajaUsuario['caja_id'] }}</td>
+                                    <td class="px-3 py-1.5 text-right text-xs capitalize">{{ $cajaUsuario['estado'] ?? '-' }}</td>
+                                    <td class="px-3 py-1.5 text-right text-xs">S/ {{ number_format((float) ($cajaUsuario['total_ingresos'] ?? 0), 2) }}</td>
+                                    <td class="px-3 py-1.5 text-right text-xs">S/ {{ number_format((float) ($cajaUsuario['total_salidas'] ?? 0), 2) }}</td>
+                                    <td class="px-3 py-1.5 text-right text-xs" colspan="2">
+                                        {{ $cajaUsuario['fecha_apertura']?->format('d/m/Y H:i') ?? '—' }}
+                                        @if ($cajaUsuario['fecha_cierre'])
+                                            → {{ $cajaUsuario['fecha_cierre']->format('d/m/Y H:i') }}
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-1.5 text-right text-xs print:hidden">
+                                        <flux:button type="button" size="xs" variant="ghost" icon="document-text"
+                                            wire:click="abrirDetalleCaja({{ $cajaUsuario['caja_id'] }})">
+                                            Detalle
+                                        </flux:button>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        @endif
+                    @empty
+                        <tr>
+                            <td colspan="7" class="px-3 py-4 text-center text-zinc-500">Sin movimientos agrupados por usuario.</td>
+                        </tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
+
+        @if ($ventasCredito->isNotEmpty())
+            <div class="overflow-hidden rounded-xl border border-amber-200 dark:border-amber-900/50">
+                <div class="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/40">
+                    <h2 class="text-sm font-semibold text-amber-900 dark:text-amber-100">Ventas al crédito (no suman a caja)</h2>
+                    <p class="text-xs text-amber-800/80 dark:text-amber-300/80">
+                        {{ $ventasCredito->count() }} ventas · Total S/ {{ number_format((float) ($resumen['ventas_credito']['total_ventas'] ?? 0), 2) }} ·
+                        Anticipos S/ {{ number_format((float) ($resumen['ventas_credito']['total_anticipos'] ?? 0), 2) }} ·
+                        Pendiente S/ {{ number_format((float) ($resumen['ventas_credito']['total_saldo_pendiente'] ?? 0), 2) }}
+                    </p>
+                </div>
+                <table class="w-full text-sm">
+                    <thead class="bg-white dark:bg-zinc-950">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Venta</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Fecha</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Caja / Usuario</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Comprador</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Total</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Anticipo</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Pendiente</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-amber-100 dark:divide-amber-900/30">
+                        @foreach ($ventasCredito as $ventaCredito)
+                            <tr>
+                                <td class="px-3 py-2 text-xs font-medium">{{ $ventaCredito['numero_venta'] }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $ventaCredito['fecha']?->format('d/m/Y H:i') ?? '—' }}</td>
+                                <td class="px-3 py-2 text-xs">#{{ $ventaCredito['caja_id'] }} · {{ $ventaCredito['usuario_caja'] }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $ventaCredito['comprador'] ?: '—' }}</td>
+                                <td class="px-3 py-2 text-right text-xs">S/ {{ number_format((float) $ventaCredito['total'], 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) $ventaCredito['monto_inicial'], 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs font-semibold text-amber-800 dark:text-amber-300">S/ {{ number_format((float) $ventaCredito['saldo_pendiente'], 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs print:hidden">
+                                    <flux:button type="button" size="xs" variant="ghost" icon="printer"
+                                        wire:click="abrirTicketVenta({{ $ventaCredito['venta_id'] }})">
+                                        Ver venta
+                                    </flux:button>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @endif
 
         <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
             <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">

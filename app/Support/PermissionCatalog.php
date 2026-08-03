@@ -148,6 +148,50 @@ final class PermissionCatalog
                 'group' => 'CRM mensajes',
                 'descripcion' => 'Enviar mensajes WhatsApp desde el CRM.',
             ],
+            'reporte.gimnasio' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte ejecutivo del gimnasio.',
+            ],
+            'reporte.ventas' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte de ventas.',
+            ],
+            'reporte.matriculas' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte de matrículas.',
+            ],
+            'reporte.financiero' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte financiero.',
+            ],
+            'reporte.clientes' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte de clientes.',
+            ],
+            'reporte.clientes_membresia_clases' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte de membresías y clases activas.',
+            ],
+            'reporte.usuarios' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte de usuarios.',
+            ],
+            'reporte.cajas' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte de cajas.',
+            ],
+            'reporte.productos_servicios' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte de productos y servicios.',
+            ],
+            'reporte.cuentas_por_cobrar' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte de cuentas por cobrar.',
+            ],
+            'reporte.cuotas_vencidas' => [
+                'group' => 'Analítica',
+                'descripcion' => 'Ver reporte de cuotas vencidas.',
+            ],
         ];
     }
 

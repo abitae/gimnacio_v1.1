@@ -13,9 +13,11 @@ use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Pago;
 use App\Models\Core\Producto;
 use App\Models\Core\ServicioExterno;
+use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
 use App\Models\User;
+use App\Support\CajaCreditoHelper;
 use App\Support\SucursalScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -641,25 +643,72 @@ class ReporteModuloService
 
         $abiertas = $cajas->where('estado', 'abierta')->count();
         $cerradas = $cajas->where('estado', 'cerrada')->count();
-        $totalIngresos = 0;
-        $totalSalidas = 0;
-        $totalVendido = 0;
+        $totalIngresos = 0.0;
+        $totalSalidas = 0.0;
+        $totalVendido = 0.0;
         $totalesPorUsuario = [];
         $detalleMovimientos = collect();
+        $porCaja = [];
         /** @var \App\Models\Core\Caja $caja */
         foreach ($cajas as $caja) {
-            $totalIngresos += $caja->calcularTotalIngresos();
             $totalSalidas += $caja->calcularTotalSalidas();
             $resumenCaja = app(CajaService::class)->obtenerResumenCaja($caja, []);
-            $totalVendido += collect($resumenCaja['movimientos'])
-                ->where('categoria', \App\Models\Core\CajaMovimiento::CATEGORIA_POS)
-                ->where('tipo', 'entrada')
+            $movimientosCaja = collect($resumenCaja['movimientos'] ?? []);
+
+            $ingresosEfectivosCaja = round((float) $movimientosCaja
+                ->filter(fn (array $movimiento): bool => ! CajaCreditoHelper::movimientoExcluirDeTotalesCaja($movimiento))
+                ->sum('monto'), 2);
+
+            $totalIngresos += $ingresosEfectivosCaja;
+            $totalVendido += $movimientosCaja
+                ->filter(fn (array $movimiento): bool => ($movimiento['categoria'] ?? null) === CajaMovimiento::CATEGORIA_POS
+                    && ($movimiento['tipo'] ?? null) === 'entrada'
+                    && ! CajaCreditoHelper::movimientoExcluirDeTotalesCaja($movimiento))
                 ->sum('monto');
 
+            $usuarioId = (int) $caja->usuario_id;
             $usuarioNombre = $caja->usuario?->name ?? 'Sin usuario';
-            $totalesPorUsuario[$usuarioNombre] = round(($totalesPorUsuario[$usuarioNombre] ?? 0) + (float) ($resumenCaja['total_ingresos'] ?? 0), 2);
+            $totalesPorUsuario[$usuarioId] ??= [
+                'usuario_id' => $usuarioId,
+                'usuario' => $usuarioNombre,
+                'cantidad_cajas' => 0,
+                'total_ingresos' => 0.0,
+                'total_salidas' => 0.0,
+                'cajas' => [],
+            ];
+            $totalesPorUsuario[$usuarioId]['cantidad_cajas']++;
+            $totalesPorUsuario[$usuarioId]['total_ingresos'] = round(
+                $totalesPorUsuario[$usuarioId]['total_ingresos'] + $ingresosEfectivosCaja,
+                2
+            );
+            $totalesPorUsuario[$usuarioId]['total_salidas'] = round(
+                $totalesPorUsuario[$usuarioId]['total_salidas'] + (float) ($resumenCaja['total_salidas'] ?? 0),
+                2
+            );
+            $totalesPorUsuario[$usuarioId]['cajas'][] = [
+                'caja_id' => $caja->id,
+                'fecha_apertura' => $caja->fecha_apertura,
+                'fecha_cierre' => $caja->fecha_cierre,
+                'estado' => $caja->estado,
+                'total_ingresos' => $ingresosEfectivosCaja,
+                'total_salidas' => (float) ($resumenCaja['total_salidas'] ?? 0),
+            ];
 
-            $detalleMovimientos = $detalleMovimientos->concat(collect($resumenCaja['movimientos'] ?? [])->map(function (array $movimiento) use ($caja) {
+            $porCaja[] = [
+                'caja_id' => $caja->id,
+                'usuario_id' => $usuarioId,
+                'usuario' => $usuarioNombre,
+                'sucursal' => $caja->sucursal?->nombre,
+                'estado' => $caja->estado,
+                'fecha_apertura' => $caja->fecha_apertura,
+                'fecha_cierre' => $caja->fecha_cierre,
+                'saldo_inicial' => (float) $caja->saldo_inicial,
+                'saldo_final' => $caja->saldo_final !== null ? (float) $caja->saldo_final : null,
+                'total_ingresos' => $ingresosEfectivosCaja,
+                'total_salidas' => (float) ($resumenCaja['total_salidas'] ?? 0),
+            ];
+
+            $detalleMovimientos = $detalleMovimientos->concat($movimientosCaja->map(function (array $movimiento) use ($caja) {
                 $movimiento['caja_id'] = $caja->id;
                 $movimiento['usuario_caja'] = $caja->usuario?->name;
                 $movimiento['sucursal_caja'] = $caja->sucursal?->nombre;
@@ -670,6 +719,35 @@ class ReporteModuloService
 
         $detalleMovimientos = $detalleMovimientos->sortByDesc('fecha')->values();
         $totalesPorMetodo = $this->agregarTotalesPorMetodoYTipoCaja($detalleMovimientos);
+        $matrizTipoMetodo = $this->matrizTotalesPorTipoYMetodoCaja($detalleMovimientos);
+        $ventasCredito = $this->ventasCreditoEnCajas($cajas, $filter);
+        $resumenCredito = [
+            'cantidad' => count($ventasCredito),
+            'total_ventas' => round(collect($ventasCredito)->sum('total'), 2),
+            'total_anticipos' => round(collect($ventasCredito)->sum('monto_inicial'), 2),
+            'total_saldo_pendiente' => round(collect($ventasCredito)->sum('saldo_pendiente'), 2),
+        ];
+
+        foreach ($totalesPorUsuario as &$usuarioRow) {
+            $usuarioRow['ventas_credito_total'] = round(
+                collect($ventasCredito)
+                    ->where('usuario_caja_id', $usuarioRow['usuario_id'])
+                    ->sum('total'),
+                2
+            );
+            $usuarioRow['saldo_credito_pendiente'] = round(
+                collect($ventasCredito)
+                    ->where('usuario_caja_id', $usuarioRow['usuario_id'])
+                    ->sum('saldo_pendiente'),
+                2
+            );
+        }
+        unset($usuarioRow);
+
+        $porUsuario = collect($totalesPorUsuario)
+            ->sortByDesc('total_ingresos')
+            ->values()
+            ->all();
 
         return [
             'cajas' => $cajas,
@@ -681,8 +759,12 @@ class ReporteModuloService
                 'total_salidas' => (float) $totalSalidas,
                 'total_vendido' => (float) $totalVendido,
                 'por_metodo_pago' => $totalesPorMetodo,
-                'por_usuario' => $totalesPorUsuario,
+                'matriz_tipo_metodo' => $matrizTipoMetodo,
+                'por_usuario' => $porUsuario,
+                'ventas_credito' => $resumenCredito,
             ],
+            'ventas_credito' => $ventasCredito,
+            'por_caja' => $porCaja,
             'detalle_movimientos' => $detalleMovimientos,
         ];
     }
@@ -702,7 +784,11 @@ class ReporteModuloService
                 continue;
             }
 
-            if (($movimiento['categoria'] ?? null) === \App\Models\Core\CajaMovimiento::CATEGORIA_APERTURA) {
+            if (($movimiento['categoria'] ?? null) === CajaMovimiento::CATEGORIA_APERTURA) {
+                continue;
+            }
+
+            if (CajaCreditoHelper::movimientoExcluirDeTotalesCaja($movimiento)) {
                 continue;
             }
 
@@ -748,15 +834,111 @@ class ReporteModuloService
     protected function etiquetaTipoMovimientoCaja(array $movimiento): string
     {
         return match ($movimiento['categoria'] ?? null) {
-            \App\Models\Core\CajaMovimiento::CATEGORIA_POS => 'Venta POS',
-            \App\Models\Core\CajaMovimiento::CATEGORIA_MEMBRESIA => 'Membresías',
-            \App\Models\Core\CajaMovimiento::CATEGORIA_CLASE => 'Clases',
-            \App\Models\Core\CajaMovimiento::CATEGORIA_ALQUILER => 'Alquileres',
-            \App\Models\Core\CajaMovimiento::CATEGORIA_CUOTA => 'Cuotas',
-            \App\Models\Core\CajaMovimiento::CATEGORIA_MANUAL_INGRESO => 'Ingreso manual',
-            \App\Models\Core\CajaMovimiento::CATEGORIA_MANUAL_SALIDA => 'Salida manual',
+            CajaMovimiento::CATEGORIA_POS => 'Venta POS',
+            CajaMovimiento::CATEGORIA_MEMBRESIA => 'Membresías',
+            CajaMovimiento::CATEGORIA_CLASE => 'Clases',
+            CajaMovimiento::CATEGORIA_ALQUILER => 'Alquileres',
+            CajaMovimiento::CATEGORIA_CUOTA => 'Cuotas',
+            CajaMovimiento::CATEGORIA_MANUAL_INGRESO => 'Ingreso manual',
+            CajaMovimiento::CATEGORIA_MANUAL_SALIDA => 'Salida manual',
             default => (string) ($movimiento['tipo_visual'] ?? 'Otros'),
         };
+    }
+
+    /**
+     * Matriz ancho completo: filas = tipo de operación, columnas = método de pago.
+     *
+     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $movimientos
+     * @return array{
+     *     tipos: list<string>,
+     *     metodos: list<string>,
+     *     celdas: array<string, array<string, array{total: float, cantidad: int}>>,
+     *     totales_tipo: array<string, float>,
+     *     totales_metodo: array<string, float>,
+     *     total_general: float
+     * }
+     */
+    protected function matrizTotalesPorTipoYMetodoCaja($movimientos): array
+    {
+        $celdas = [];
+        $totalesTipo = [];
+        $totalesMetodo = [];
+        $totalGeneral = 0.0;
+
+        foreach ($movimientos as $movimiento) {
+            if (CajaCreditoHelper::movimientoExcluirDeTotalesCaja($movimiento)) {
+                continue;
+            }
+
+            $tipo = $this->etiquetaTipoMovimientoCaja($movimiento);
+            $metodo = filled($movimiento['metodo_pago'] ?? null)
+                ? (string) $movimiento['metodo_pago']
+                : 'Sin método';
+            $monto = round((float) ($movimiento['monto'] ?? 0), 2);
+
+            $celdas[$tipo][$metodo] ??= ['total' => 0.0, 'cantidad' => 0];
+            $celdas[$tipo][$metodo]['total'] = round($celdas[$tipo][$metodo]['total'] + $monto, 2);
+            $celdas[$tipo][$metodo]['cantidad']++;
+
+            $totalesTipo[$tipo] = round(($totalesTipo[$tipo] ?? 0) + $monto, 2);
+            $totalesMetodo[$metodo] = round(($totalesMetodo[$metodo] ?? 0) + $monto, 2);
+            $totalGeneral = round($totalGeneral + $monto, 2);
+        }
+
+        arsort($totalesTipo);
+        arsort($totalesMetodo);
+
+        return [
+            'tipos' => array_keys($totalesTipo),
+            'metodos' => array_keys($totalesMetodo),
+            'celdas' => $celdas,
+            'totales_tipo' => $totalesTipo,
+            'totales_metodo' => $totalesMetodo,
+            'total_general' => $totalGeneral,
+        ];
+    }
+
+    /**
+     * Ventas a crédito registradas en las cajas del período (no suman a ingresos de caja).
+     *
+     * @param  \Illuminate\Support\Collection<int, \App\Models\Core\Caja>  $cajas
+     * @return list<array<string, mixed>>
+     */
+    protected function ventasCreditoEnCajas($cajas, ?ReporteSucursalFilter $filter = null): array
+    {
+        $cajaIds = $cajas->pluck('id')->filter()->values();
+        if ($cajaIds->isEmpty()) {
+            return [];
+        }
+
+        $query = Venta::query()
+            ->with(['cliente', 'employee', 'usuario', 'caja.usuario'])
+            ->whereIn('caja_id', $cajaIds)
+            ->where('es_credito', true);
+
+        $query = $this->applyReporteScope($query, $filter);
+
+        return $query
+            ->orderByDesc('fecha_venta')
+            ->get()
+            ->map(function (Venta $venta): array {
+                return [
+                    'venta_id' => $venta->id,
+                    'numero_venta' => $venta->numero_venta,
+                    'fecha' => $venta->fecha_venta,
+                    'caja_id' => $venta->caja_id,
+                    'usuario_caja_id' => $venta->caja?->usuario_id,
+                    'usuario_caja' => $venta->caja?->usuario?->name ?? 'Sin usuario',
+                    'vendedor' => $venta->usuario?->name ?? 'Sin usuario',
+                    'comprador' => $venta->nombre_comprador,
+                    'total' => round((float) $venta->total, 2),
+                    'monto_inicial' => round((float) ($venta->monto_inicial ?? $venta->montoPagadoInicial()), 2),
+                    'saldo_pendiente' => $venta->saldoPendienteVenta(),
+                    'fecha_vencimiento' => $venta->fecha_vencimiento_deuda,
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**

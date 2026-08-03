@@ -4,6 +4,46 @@ Aplicación Python que corre **en el mismo PC que BioTime** (sede). Habla HTTPS 
 
 No usa WebSockets. El puente **siempre inicia** las conexiones salientes.
 
+## Ejecutable Windows (`BioTimeBridge.exe`)
+
+Para sedes **sin instalar Python**, compila un `.exe` autocontenido (PyInstaller):
+
+```bat
+cd tools\biotime-bridge
+set PYTHONHOME=
+set PYTHONPATH=
+scripts\build-exe.bat
+```
+
+Salida:
+
+| Archivo | Uso |
+| --- | --- |
+| `BioTimeBridge.exe` | Ejecutable principal (copia en la raíz del bridge) |
+| `dist\BioTimeBridge.exe` | Mismo binario generado por PyInstaller |
+| `dist\config.yaml.example` | Plantilla de configuración |
+
+### Despliegue en sede (solo .exe)
+
+1. Copia a una carpeta local (ej. `C:\BioTimeBridge\`):
+   - `BioTimeBridge.exe`
+   - `config.yaml.example` → renómbralo a `config.yaml` y completa token/URLs
+2. Verifica:
+   ```bat
+   BioTimeBridge.exe --config config.yaml doctor
+   ```
+3. GUI: doble clic en `start-gui.bat` o:
+   ```bat
+   BioTimeBridge.exe --config config.yaml gui
+   ```
+4. Segundo plano / Task Scheduler: `start-background.bat` o `scripts\install-task-continuous.ps1` (detectan el `.exe` automáticamente).
+
+Los `.bat` (`bridge.bat`, `start-gui.bat`, …) **prefieren** `BioTimeBridge.exe` si existe; si no, usan el venv de Python.
+
+> Compila en un PC con **Python 3.10+** de python.org (no el Python 3.7 de ZKBioTime). El `.exe` resultante no necesita Python en la sede.
+
+---
+
 ## Interfaz gráfica
 
 Ventana tkinter (sin dependencias extra) para operación en sede:
@@ -241,6 +281,20 @@ Get-ScheduledTask -TaskName BioTimeBridgeRun | Get-ScheduledTaskInfo
 ```
 
 ### NSSM (servicio 24/7 sin login de usuario)
+
+Con ejecutable:
+
+```bat
+nssm install BioTimeBridge "C:\ruta\BioTimeBridge\BioTimeBridge.exe"
+nssm set BioTimeBridge AppDirectory "C:\ruta\BioTimeBridge"
+nssm set BioTimeBridge AppParameters "--config config.yaml run"
+nssm set BioTimeBridge AppStdout "C:\ruta\BioTimeBridge\logs\stdout.log"
+nssm set BioTimeBridge AppStderr "C:\ruta\BioTimeBridge\logs\stderr.log"
+nssm set BioTimeBridge AppRestartDelay 5000
+nssm start BioTimeBridge
+```
+
+Con Python/venv (desarrollo):
 
 ```bat
 nssm install BioTimeBridge "C:\ruta\tools\biotime-bridge\.venv\Scripts\python.exe"

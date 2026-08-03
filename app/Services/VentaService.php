@@ -17,6 +17,7 @@ use App\Models\Core\ServicioExterno;
 use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
 use App\Models\Core\VentaPago;
+use App\Support\CajaCreditoHelper;
 use App\Models\System\ComprobanteConfig;
 use Illuminate\Support\Facades\DB;
 
@@ -450,6 +451,11 @@ class VentaService
     {
         $monto = (float) $ventaPago->monto;
         if ($monto <= 0) {
+            return;
+        }
+
+        $nombreMetodo = $ventaPago->metodo_pago ?: $ventaPago->paymentMethod?->nombre;
+        if (CajaCreditoHelper::esMetodoPagoCredito($nombreMetodo)) {
             return;
         }
 

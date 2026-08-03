@@ -142,6 +142,23 @@ class User extends Authenticatable
         return $this->belongsTo(Sucursal::class, 'default_sucursal_id');
     }
 
+    /**
+     * Entrenadores (rol trainer) opcionalmente filtrados por sede.
+     */
+    public function scopeTrainersForSucursal($query, ?int $sucursalId = null)
+    {
+        $query->role('trainer');
+
+        if ($sucursalId) {
+            $query->where(function ($inner) use ($sucursalId): void {
+                $inner->whereHas('sucursales', fn ($s) => $s->whereKey($sucursalId))
+                    ->orWhere('default_sucursal_id', $sucursalId);
+            });
+        }
+
+        return $query->orderBy('name');
+    }
+
     protected static function booted(): void
     {
         static::saving(function (User $user) {

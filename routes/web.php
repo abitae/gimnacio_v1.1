@@ -151,40 +151,101 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     });
 
     // Módulo de Reportes (índice, reportes por tipo y exportación PDF/Excel)
-    Route::prefix('reportes')->name('reportes.')->middleware('permission:reporte.ver')->group(function () {
-        Route::get('/', \App\Livewire\Reportes\ReporteIndexLive::class)->name('index');
-        Route::get('ventas', \App\Livewire\Reportes\ReporteVentasLive::class)->name('ventas');
-        Route::get('matriculas', \App\Livewire\Reportes\ReporteMatriculasLive::class)->name('matriculas');
-        Route::get('financiero', \App\Livewire\Reportes\ReporteFinancieroLive::class)->name('financiero');
-        Route::get('clientes', \App\Livewire\Reportes\ReporteClientesLive::class)->name('clientes');
-        Route::get('clientes-membresia-clases', \App\Livewire\Reportes\ReporteClientesMembresiaClasesLive::class)->name('clientes-membresia-clases');
-        Route::get('usuarios', \App\Livewire\Reportes\ReporteUsuariosLive::class)->name('usuarios');
-        Route::get('cajas', \App\Livewire\Reportes\ReporteCajasLive::class)->name('cajas');
-        Route::get('productos-servicios', \App\Livewire\Reportes\ReporteProductosServiciosLive::class)->name('productos-servicios');
-        Route::get('gimnasio', \App\Livewire\Reportes\ReporteGimnasioLive::class)->name('gimnasio');
-        Route::get('cuentas-por-cobrar', \App\Livewire\Reportes\ReporteCuentasPorCobrarLive::class)->name('cuentas-por-cobrar');
-        Route::get('cuotas-vencidas', \App\Livewire\Reportes\ReporteCuotasVencidasLive::class)->name('cuotas-vencidas');
+    Route::prefix('reportes')->name('reportes.')->group(function () {
+        Route::get('/', \App\Livewire\Reportes\ReporteIndexLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareAny())
+            ->name('index');
+        Route::get('ventas', \App\Livewire\Reportes\ReporteVentasLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('ventas'))
+            ->name('ventas');
+        Route::get('matriculas', \App\Livewire\Reportes\ReporteMatriculasLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('matriculas'))
+            ->name('matriculas');
+        Route::get('financiero', \App\Livewire\Reportes\ReporteFinancieroLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('financiero'))
+            ->name('financiero');
+        Route::get('clientes', \App\Livewire\Reportes\ReporteClientesLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('clientes'))
+            ->name('clientes');
+        Route::get('clientes-membresia-clases', \App\Livewire\Reportes\ReporteClientesMembresiaClasesLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('clientes-membresia-clases'))
+            ->name('clientes-membresia-clases');
+        Route::get('usuarios', \App\Livewire\Reportes\ReporteUsuariosLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('usuarios'))
+            ->name('usuarios');
+        Route::get('cajas', \App\Livewire\Reportes\ReporteCajasLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('cajas'))
+            ->name('cajas');
+        Route::get('productos-servicios', \App\Livewire\Reportes\ReporteProductosServiciosLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('productos-servicios'))
+            ->name('productos-servicios');
+        Route::get('gimnasio', \App\Livewire\Reportes\ReporteGimnasioLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('gimnasio'))
+            ->name('gimnasio');
+        Route::get('cuentas-por-cobrar', \App\Livewire\Reportes\ReporteCuentasPorCobrarLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('cuentas-por-cobrar'))
+            ->name('cuentas-por-cobrar');
+        Route::get('cuotas-vencidas', \App\Livewire\Reportes\ReporteCuotasVencidasLive::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('cuotas-vencidas'))
+            ->name('cuotas-vencidas');
         // Exportación PDF
-        Route::get('ventas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfVentas'])->name('ventas.exportar.pdf');
-        Route::get('matriculas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfMatriculas'])->name('matriculas.exportar.pdf');
-        Route::get('financiero/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfFinanciero'])->name('financiero.exportar.pdf');
-        Route::get('clientes/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfClientes'])->name('clientes.exportar.pdf');
-        Route::get('clientes-membresia-clases/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfClientesMembresiaClases'])->name('clientes-membresia-clases.exportar.pdf');
-        Route::get('usuarios/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfUsuarios'])->name('usuarios.exportar.pdf');
-        Route::get('cajas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfCajas'])->name('cajas.exportar.pdf');
-        Route::get('productos-servicios/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfProductosServicios'])->name('productos-servicios.exportar.pdf');
-        Route::get('gimnasio/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfGimnasio'])->name('gimnasio.exportar.pdf');
+        Route::get('ventas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfVentas'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('ventas'))
+            ->name('ventas.exportar.pdf');
+        Route::get('matriculas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfMatriculas'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('matriculas'))
+            ->name('matriculas.exportar.pdf');
+        Route::get('financiero/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfFinanciero'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('financiero'))
+            ->name('financiero.exportar.pdf');
+        Route::get('clientes/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfClientes'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('clientes'))
+            ->name('clientes.exportar.pdf');
+        Route::get('clientes-membresia-clases/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfClientesMembresiaClases'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('clientes-membresia-clases'))
+            ->name('clientes-membresia-clases.exportar.pdf');
+        Route::get('usuarios/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfUsuarios'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('usuarios'))
+            ->name('usuarios.exportar.pdf');
+        Route::get('cajas/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfCajas'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('cajas'))
+            ->name('cajas.exportar.pdf');
+        Route::get('productos-servicios/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfProductosServicios'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('productos-servicios'))
+            ->name('productos-servicios.exportar.pdf');
+        Route::get('gimnasio/exportar-pdf', [\App\Http\Controllers\ReporteModuloController::class, 'exportarPdfGimnasio'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('gimnasio'))
+            ->name('gimnasio.exportar.pdf');
         // Exportación Excel
-        Route::get('ventas/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelVentas'])->name('ventas.exportar.excel');
-        Route::get('matriculas/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelMatriculas'])->name('matriculas.exportar.excel');
-        Route::get('financiero/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelFinanciero'])->name('financiero.exportar.excel');
-        Route::get('clientes/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelClientes'])->name('clientes.exportar.excel');
-        Route::get('clientes-membresia-clases/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelClientesMembresiaClases'])->name('clientes-membresia-clases.exportar.excel');
-        Route::get('usuarios/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelUsuarios'])->name('usuarios.exportar.excel');
-        Route::get('cajas/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelCajas'])->name('cajas.exportar.excel');
-        Route::get('productos-servicios/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelProductosServicios'])->name('productos-servicios.exportar.excel');
-        Route::get('gimnasio/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelGimnasio'])->name('gimnasio.exportar.excel');
+        Route::get('ventas/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelVentas'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('ventas'))
+            ->name('ventas.exportar.excel');
+        Route::get('matriculas/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelMatriculas'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('matriculas'))
+            ->name('matriculas.exportar.excel');
+        Route::get('financiero/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelFinanciero'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('financiero'))
+            ->name('financiero.exportar.excel');
+        Route::get('clientes/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelClientes'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('clientes'))
+            ->name('clientes.exportar.excel');
+        Route::get('clientes-membresia-clases/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelClientesMembresiaClases'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('clientes-membresia-clases'))
+            ->name('clientes-membresia-clases.exportar.excel');
+        Route::get('usuarios/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelUsuarios'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('usuarios'))
+            ->name('usuarios.exportar.excel');
+        Route::get('cajas/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelCajas'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('cajas'))
+            ->name('cajas.exportar.excel');
+        Route::get('productos-servicios/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelProductosServicios'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('productos-servicios'))
+            ->name('productos-servicios.exportar.excel');
+        Route::get('gimnasio/exportar-excel', [\App\Http\Controllers\ReporteModuloController::class, 'exportarExcelGimnasio'])
+            ->middleware(\App\Support\ReporteCatalog::middlewareFor('gimnasio'))
+            ->name('gimnasio.exportar.excel');
         Route::get('exportaciones/descargar/{exportRef}', \App\Http\Controllers\ReporteExportDownloadController::class)
+            ->middleware(\App\Support\ReporteCatalog::middlewareAny())
             ->name('exportaciones.descargar');
     });
 

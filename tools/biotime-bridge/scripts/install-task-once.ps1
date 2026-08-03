@@ -14,12 +14,16 @@
 
 .PARAMETER PythonExe
   Interprete Python. Default: <BridgeRoot>\.venv\Scripts\python.exe si existe, sino python.
+
+.PARAMETER BridgeExe
+  Ruta a BioTimeBridge.exe. Default: auto (BioTimeBridge.exe en BridgeRoot o dist\).
 #>
 param(
     [string]$TaskName = "BioTimeBridgeOnce",
     [string]$BridgeRoot = "",
     [string]$ConfigPath = "",
-    [string]$PythonExe = ""
+    [string]$PythonExe = "",
+    [string]$BridgeExe = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -34,20 +38,17 @@ if (-not (Test-Path $ConfigPath)) {
     throw "No existe config.yaml en '$ConfigPath'. Copia config.yaml.example y completa token/URLs."
 }
 
-if (-not $PythonExe) {
-    $venvPy = Join-Path $BridgeRoot ".venv\Scripts\python.exe"
-    if (Test-Path $venvPy) {
-        $PythonExe = $venvPy
-    } else {
-        $PythonExe = (Get-Command python -ErrorAction Stop).Source
-    }
-}
+$runtime = & (Join-Path $PSScriptRoot "resolve-bridge-runtime.ps1") -BridgeRoot $BridgeRoot -BridgeExe $BridgeExe -PythonExe $PythonExe
 
 $logsDir = Join-Path $BridgeRoot "logs"
 New-Item -ItemType Directory -Force -Path $logsDir | Out-Null
 
-$argList = "-m bridge --config `"$ConfigPath`" once"
-$action = New-ScheduledTaskAction -Execute $PythonExe -Argument $argList -WorkingDirectory $BridgeRoot
+$argList = if ($runtime.ArgumentsPrefix) {
+    "{0} --config `"{1}`" once" -f $runtime.ArgumentsPrefix, $ConfigPath
+} else {
+    "--config `"$ConfigPath`" once"
+}
+$action = New-ScheduledTaskAction -Execute $runtime.Executable -Argument $argList -WorkingDirectory $BridgeRoot
 
 # Cada 1 minuto, indefinido
 $trigger = New-ScheduledTaskTrigger -Once -At (Get-Date).Date -RepetitionInterval (New-TimeSpan -Minutes 1) -RepetitionDuration ([TimeSpan]::MaxValue)
@@ -71,11 +72,11 @@ Register-ScheduledTask `
     -Force | Out-Null
 
 Write-Host "OK: tarea '$TaskName' registrada (cada 1 min -> once)."
-Write-Host "  Python : $PythonExe"
+Write-Host "  Runtime: $($runtime.Mode) -> $($runtime.Executable)"
 Write-Host "  Root   : $BridgeRoot"
 Write-Host "  Config : $ConfigPath"
 Write-Host ""
 Write-Host "Verificar:"
-Write-Host "  1) python -m bridge --config `"$ConfigPath`" doctor"
+Write-Host "  1) bridge.bat doctor   (o BioTimeBridge.exe --config config.yaml doctor)"
 Write-Host "  2) En Laravel BioTime > Sedes: last_heartbeat_at debe actualizarse tras 1-2 minutos."
 Write-Host "Desinstalar: .\uninstall-task.ps1 -TaskName $TaskName"

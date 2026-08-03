@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reportes;
 
+use App\Livewire\Reportes\Concerns\AuthorizesReportAccess;
 use App\Livewire\Concerns\FlashesToast;
 use App\Livewire\Concerns\ManagesCuotaPagoModal;
 use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
@@ -12,6 +13,7 @@ use Livewire\WithPagination;
 
 class ReporteCuotasVencidasLive extends Component
 {
+    use AuthorizesReportAccess;
     use FlashesToast;
     use ManagesCuotaPagoModal;
     use ScopesReporteBySucursal;
@@ -25,7 +27,7 @@ class ReporteCuotasVencidasLive extends Component
 
     public function mount(): void
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReport('cuotas-vencidas');
         $this->mountReporteSucursalScope();
     }
 

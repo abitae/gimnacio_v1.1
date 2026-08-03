@@ -2,12 +2,14 @@
 
 namespace App\Livewire\Reportes;
 
+use App\Livewire\Reportes\Concerns\AuthorizesReportAccess;
 use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\ReporteModuloService;
 use Livewire\Component;
 
 class ReporteGimnasioLive extends Component
 {
+    use AuthorizesReportAccess;
     use ScopesReporteBySucursal;
 
     public $fechaDesde = '';
@@ -16,7 +18,7 @@ class ReporteGimnasioLive extends Component
 
     public function mount(): void
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReport('gimnasio');
         $this->mountReporteSucursalScope();
         $this->fechaDesde = now()->startOfMonth()->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');

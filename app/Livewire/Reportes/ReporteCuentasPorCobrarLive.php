@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reportes;
 
+use App\Livewire\Reportes\Concerns\AuthorizesReportAccess;
 use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\Analytics\FinanceAnalyticsService;
 use Livewire\Component;
@@ -9,6 +10,7 @@ use Livewire\WithPagination;
 
 class ReporteCuentasPorCobrarLive extends Component
 {
+    use AuthorizesReportAccess;
     use ScopesReporteBySucursal;
     use WithPagination;
 
@@ -33,7 +35,7 @@ class ReporteCuentasPorCobrarLive extends Component
 
     public function mount(): void
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReport('cuentas-por-cobrar');
         $this->mountReporteSucursalScope();
         $this->fechaInicio = now()->startOfMonth()->format('Y-m-d');
         $this->fechaFin = now()->format('Y-m-d');

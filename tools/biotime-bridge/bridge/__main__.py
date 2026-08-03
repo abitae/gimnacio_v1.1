@@ -11,7 +11,7 @@ from .runner import BridgeRunner
 
 
 def build_parser():
-    p = argparse.ArgumentParser(description="Puente BioTime ↔ Laravel (gimnasio)")
+    p = argparse.ArgumentParser(description="Puente BioTime <-> Laravel (gimnasio)")
     p.add_argument(
         "--config",
         default=os.environ.get("BIOTIME_BRIDGE_CONFIG") or default_config_path(),

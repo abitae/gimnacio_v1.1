@@ -5,6 +5,8 @@ import os
 
 import yaml
 
+from .app_paths import default_config_path, resolve_data_path
+
 
 class BridgeConfig(object):
     def __init__(self, data):
@@ -45,7 +47,7 @@ class BridgeConfig(object):
         self.http_timeout_seconds = float(data.get("http_timeout_seconds") or 30)
         self.max_retries = max(1, int(data.get("max_retries") or 3))
         self.retry_backoff_seconds = float(data.get("retry_backoff_seconds") or 2)
-        self.log_dir = data.get("log_dir") or "logs"
+        self.log_dir = resolve_data_path(data.get("log_dir") or "logs")
         self.log_level = (data.get("log_level") or "INFO").upper()
 
     def to_dict(self):
@@ -167,6 +169,3 @@ def save_config(path, updates, base=None):
     return cfg
 
 
-def default_config_path():
-    here = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    return os.path.join(here, "config.yaml")

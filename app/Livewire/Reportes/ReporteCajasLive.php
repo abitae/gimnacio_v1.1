@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Reportes;
 
+use App\Livewire\Reportes\Concerns\AuthorizesReportAccess;
 use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\ReporteModuloService;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -11,6 +12,7 @@ use Livewire\WithPagination;
 
 class ReporteCajasLive extends Component
 {
+    use AuthorizesReportAccess;
     use ScopesReporteBySucursal;
     use WithPagination;
 
@@ -40,7 +42,7 @@ class ReporteCajasLive extends Component
 
     public function mount(): void
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReport('cajas');
         $this->mountReporteSucursalScope();
         $this->fechaDesde = now()->startOfMonth()->format('Y-m-d');
         $this->fechaHasta = now()->format('Y-m-d');
@@ -122,8 +124,14 @@ class ReporteCajasLive extends Component
         return view('livewire.reportes.reporte-cajas-live', array_merge([
             'cajas' => $this->paginateCollection($data['cajas'], $this->perPageCajas, 'cajasPage'),
             'resumen' => $data['resumen'],
+            'matrizTipoMetodo' => $data['resumen']['matriz_tipo_metodo'] ?? [],
+            'ventasCredito' => collect($data['ventas_credito'] ?? []),
+            'porUsuario' => collect($data['resumen']['por_usuario'] ?? []),
             'detalleMovimientos' => $this->paginateCollection($data['detalle_movimientos'], $this->perPageMovimientos, 'movimientosPage'),
-            'usuarios' => \App\Models\User::query()->orderBy('name')->get(['id', 'name']),
+            'usuarios' => \App\Models\User::query()
+                ->whereIn('id', $data['cajas']->pluck('usuario_id')->filter()->unique())
+                ->orderBy('name')
+                ->get(['id', 'name']),
         ], $this->reporteSucursalScopeViewData()));
     }
 

@@ -39,7 +39,7 @@
                 <label class="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Entrenador</label>
                 <select wire:model.live="trainerUserId" class="w-full rounded-lg border border-indigo-200 dark:border-indigo-700 bg-white dark:bg-zinc-800 px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-500">
                     <option value="">Todos</option>
-                    @foreach($usuarios as $u)
+                    @foreach($trainers as $u)
                         <option value="{{ $u->id }}">{{ $u->name }}</option>
                     @endforeach
                 </select>

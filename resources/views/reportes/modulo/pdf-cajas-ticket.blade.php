@@ -89,6 +89,18 @@
             </table>
         </div>
 
+        @if (! empty($resumen['ventas_credito']['cantidad']))
+            <div class="section">
+                <div class="strong">Ventas al crédito (no en caja)</div>
+                <table class="row totals">
+                    <tr><td>Cantidad</td><td class="right">{{ $resumen['ventas_credito']['cantidad'] }}</td></tr>
+                    <tr><td>Total ventas</td><td class="right">S/ {{ number_format((float) ($resumen['ventas_credito']['total_ventas'] ?? 0), 2) }}</td></tr>
+                    <tr><td>Anticipos</td><td class="right">S/ {{ number_format((float) ($resumen['ventas_credito']['total_anticipos'] ?? 0), 2) }}</td></tr>
+                    <tr><td>Pendiente</td><td class="right">S/ {{ number_format((float) ($resumen['ventas_credito']['total_saldo_pendiente'] ?? 0), 2) }}</td></tr>
+                </table>
+            </div>
+        @endif
+
         @if (! empty($resumen['por_metodo_pago']))
             <div class="section">
                 <div class="strong">Totales por método</div>

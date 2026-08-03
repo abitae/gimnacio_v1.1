@@ -16,6 +16,7 @@ use App\Jobs\ExportReporteModuloJob;
 use App\Services\ReporteModuloPdfService;
 use App\Services\ReporteModuloService;
 use App\Services\SucursalContext;
+use App\Support\ReporteCatalog;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -68,9 +69,14 @@ class ReporteModuloController extends Controller
         );
     }
 
+    protected function authorizeReporte(string $slug): void
+    {
+        ReporteCatalog::authorize($slug);
+    }
+
     public function exportarPdfVentas(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('ventas');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'ventas', 'pdf')) {
             return $redirect;
         }
@@ -90,7 +96,7 @@ class ReporteModuloController extends Controller
 
     public function exportarPdfMatriculas(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('matriculas');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'matriculas', 'pdf')) {
             return $redirect;
         }
@@ -109,7 +115,7 @@ class ReporteModuloController extends Controller
 
     public function exportarPdfFinanciero(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('financiero');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'financiero', 'pdf')) {
             return $redirect;
         }
@@ -128,7 +134,7 @@ class ReporteModuloController extends Controller
 
     public function exportarPdfClientes(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('clientes');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'clientes', 'pdf')) {
             return $redirect;
         }
@@ -161,7 +167,7 @@ class ReporteModuloController extends Controller
 
     public function exportarPdfClientesMembresiaClases(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('clientes-membresia-clases');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'clientes-membresia-clases', 'pdf')) {
             return $redirect;
         }
@@ -180,7 +186,7 @@ class ReporteModuloController extends Controller
 
     public function exportarPdfUsuarios(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('usuarios');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'usuarios', 'pdf')) {
             return $redirect;
         }
@@ -199,7 +205,7 @@ class ReporteModuloController extends Controller
 
     public function exportarPdfCajas(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('cajas');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'cajas', 'pdf')) {
             return $redirect;
         }
@@ -227,7 +233,7 @@ class ReporteModuloController extends Controller
 
     public function exportarPdfProductosServicios(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('productos-servicios');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'productos-servicios', 'pdf')) {
             return $redirect;
         }
@@ -246,7 +252,7 @@ class ReporteModuloController extends Controller
 
     public function exportarPdfGimnasio(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('gimnasio');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'gimnasio', 'pdf')) {
             return $redirect;
         }
@@ -265,7 +271,7 @@ class ReporteModuloController extends Controller
 
     public function exportarExcelVentas(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('ventas');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'ventas', 'excel')) {
             return $redirect;
         }
@@ -278,7 +284,7 @@ class ReporteModuloController extends Controller
 
     public function exportarExcelMatriculas(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('matriculas');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'matriculas', 'excel')) {
             return $redirect;
         }
@@ -291,7 +297,7 @@ class ReporteModuloController extends Controller
 
     public function exportarExcelFinanciero(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('financiero');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'financiero', 'excel')) {
             return $redirect;
         }
@@ -304,7 +310,7 @@ class ReporteModuloController extends Controller
 
     public function exportarExcelClientes(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('clientes');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'clientes', 'excel')) {
             return $redirect;
         }
@@ -331,7 +337,7 @@ class ReporteModuloController extends Controller
 
     public function exportarExcelClientesMembresiaClases(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('clientes-membresia-clases');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'clientes-membresia-clases', 'excel')) {
             return $redirect;
         }
@@ -344,7 +350,7 @@ class ReporteModuloController extends Controller
 
     public function exportarExcelUsuarios(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('usuarios');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'usuarios', 'excel')) {
             return $redirect;
         }
@@ -357,7 +363,7 @@ class ReporteModuloController extends Controller
 
     public function exportarExcelCajas(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('cajas');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'cajas', 'excel')) {
             return $redirect;
         }
@@ -377,7 +383,7 @@ class ReporteModuloController extends Controller
 
     public function exportarExcelProductosServicios(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('productos-servicios');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'productos-servicios', 'excel')) {
             return $redirect;
         }
@@ -390,7 +396,7 @@ class ReporteModuloController extends Controller
 
     public function exportarExcelGimnasio(Request $request): Response|RedirectResponse
     {
-        $this->authorize('reporte.ver');
+        $this->authorizeReporte('gimnasio');
         if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'gimnasio', 'excel')) {
             return $redirect;
         }

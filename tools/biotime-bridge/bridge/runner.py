@@ -538,7 +538,14 @@ class BridgeRunner(object):
         try:
             config = self.laravel.config()
         except LaravelError as exc:
-            logger.error("Config remota fallo: %s", exc)
+            if exc.status == 404:
+                logger.warning(
+                    "Config remota: Laravel respondio 404 en GET /api/biotime/config. "
+                    "Despliega la version actual del backend y ejecuta: php artisan route:clear. "
+                    "Se mantiene config local/remota previa."
+                )
+            else:
+                logger.error("Config remota fallo: %s", exc)
             return self.remote_config
         if not isinstance(config, dict):
             return self.remote_config
@@ -612,6 +619,23 @@ class BridgeRunner(object):
             result = self.laravel.heartbeat(devices)
             logger.info("Heartbeat inventario OK: %s", result)
         except LaravelError as exc:
+            if exc.status == 404:
+                total_employees = max(
+                    (int(device.get("employees_count") or 0) for device in devices),
+                    default=0,
+                )
+                logger.warning(
+                    "Heartbeat inventario: Laravel respondio 404 en POST /api/biotime/heartbeat. "
+                    "Despliega la version actual del backend y ejecuta: php artisan route:clear. "
+                    "Intentando fallback GET /api/biotime/health (employees_count=%s).",
+                    total_employees,
+                )
+                try:
+                    self.laravel.health(employees_count=total_employees)
+                    logger.info("Heartbeat fallback health OK")
+                except LaravelError as health_exc:
+                    logger.error("Heartbeat fallback health fallo: %s", health_exc)
+                return
             logger.error("Heartbeat inventario Laravel fallo: %s", exc)
 
     def _can_create_employee(self, capacity=None):

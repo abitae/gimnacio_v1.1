@@ -4,6 +4,9 @@
         @include('partials.head')
     </head>
     <body class="min-h-screen antialiased transition-colors {{ $fontSizeClass ?? 'text-base' }} {{ $bodyBgClass ?? 'bg-white' }}">
+        @php
+            use App\Support\ReporteCatalog;
+        @endphp
         <flux:sidebar id="app-sidebar" sticky collapsible class="{{ $sidebarAppearanceClass ?? 'light' }} {{ $sidebarBgClass ?? 'bg-zinc-50 border-r border-zinc-200' }}">
             <flux:sidebar.header>
                 <a href="{{ route('dashboard') }}" class="flex items-center gap-2 px-2 py-2 min-w-0 in-data-flux-sidebar-collapsed-desktop:w-10 in-data-flux-sidebar-collapsed-desktop:justify-center in-data-flux-sidebar-collapsed-desktop:px-0 in-data-flux-sidebar-collapsed-desktop:py-0" wire:navigate>
@@ -237,13 +240,23 @@
                 </flux:sidebar.group>
                 @endcanany
 
-                @can('reporte.ver')
+                @if(ReporteCatalog::userCanAccessAny(auth()->user()))
                 <flux:sidebar.group expandable icon="chart-bar" heading="Analitica" class="grid" :expanded="request()->routeIs('reportes.*')">
-                    <flux:sidebar.item icon="document-chart-bar" :href="route('reportes.index')" :current="request()->routeIs('reportes.*')" wire:navigate>
-                        {{ __('Centro de reportes') }}
-                    </flux:sidebar.item>
+                    @php
+                        $reportesSidebar = ReporteCatalog::visibleFor(auth()->user());
+                    @endphp
+                    @if (count($reportesSidebar) > 1)
+                        <flux:sidebar.item icon="document-chart-bar" :href="route('reportes.index')" :current="request()->routeIs('reportes.index')" wire:navigate>
+                            {{ __('Centro de reportes') }}
+                        </flux:sidebar.item>
+                    @endif
+                    @foreach ($reportesSidebar as $reporte)
+                        <flux:sidebar.item :icon="$reporte['icon']" :href="route($reporte['route'])" :current="request()->routeIs($reporte['route'])" wire:navigate>
+                            {{ __($reporte['sidebar_label']) }}
+                        </flux:sidebar.item>
+                    @endforeach
                 </flux:sidebar.group>
-                @endcan
+                @endif
 
                 @canany(['empleado.ver', 'metodo_pago.ver', 'usuario.ver', 'rol.ver'])
                 <flux:sidebar.group expandable icon="cog-6-tooth" heading="Administracion" class="grid" :expanded="request()->routeIs('employees.*') || request()->routeIs('payment-methods.*') || request()->routeIs('usuarios.*') || request()->routeIs('roles.*')">
@@ -432,11 +445,11 @@
                     {{ __('Punto de venta') }}
                 </flux:navbar.item>
                 @endcan
-                @can('reporte.ver')
+                @if(ReporteCatalog::userCanAccessAny(auth()->user()))
                 <flux:navbar.item :href="route('reportes.index')" :current="request()->routeIs('reportes.*')" wire:navigate>
                     {{ __('Reportes') }}
                 </flux:navbar.item>
-                @endcan
+                @endif
             </flux:navbar>
         </flux:header>
 
