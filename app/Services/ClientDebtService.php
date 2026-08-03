@@ -160,6 +160,49 @@ class ClientDebtService
         });
     }
 
+    /**
+     * @param  list<int>  $clientDebtIds
+     */
+    public function procesarPagoMasivo(array $clientDebtIds, array $data): Collection
+    {
+        $ids = collect($clientDebtIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($ids->isEmpty()) {
+            throw new \InvalidArgumentException('Seleccione al menos una deuda para cobrar.');
+        }
+
+        $debts = ClientDebt::query()
+            ->with(['cliente', 'venta'])
+            ->whereIn('id', $ids)
+            ->pendientes()
+            ->get()
+            ->filter(fn (ClientDebt $debt) => $debt->cliente_id && (float) $debt->saldo_pendiente > 0);
+
+        if ($debts->isEmpty()) {
+            throw new \InvalidArgumentException('Las deudas seleccionadas no tienen saldo pendiente.');
+        }
+
+        if ($debts->count() !== $ids->count()) {
+            throw new \InvalidArgumentException('Algunas deudas seleccionadas no son validas o ya fueron pagadas.');
+        }
+
+        return DB::transaction(function () use ($debts, $data) {
+            $pagos = collect();
+
+            foreach ($debts as $debt) {
+                $pagos->push($this->procesarPago($debt->id, array_merge($data, [
+                    'monto_pago' => (float) $debt->saldo_pendiente,
+                ])));
+            }
+
+            return $pagos;
+        });
+    }
+
     private function assertCajaSucursal(int $cajaId, int $sucursalId): void
     {
         $caja = Caja::findOrFail($cajaId);

@@ -99,6 +99,9 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     // Punto de Venta
     Route::get('pos', \App\Livewire\POS\POSLive::class)->middleware('permission:punto_venta.ver')->name('pos.index');
     Route::get('pos/ventas-credito', \App\Livewire\POS\CreditSales::class)->middleware('permission:punto_venta.ver')->name('pos.ventas-credito');
+    Route::get('pos/ventas-credito/exportar-excel', [\App\Http\Controllers\CreditSalesExportController::class, 'exportExcel'])
+        ->middleware('permission:punto_venta.ver')
+        ->name('pos.ventas-credito.exportar.excel');
     Route::get('pos/cuentas-por-cobrar', \App\Livewire\POS\CustomerDebts::class)->middleware('permission:punto_venta.ver')->name('pos.cuentas-por-cobrar');
 
     // Comprobante de venta (HTML y PDF para modal)
