@@ -49,15 +49,15 @@
                             <span class="rounded-full px-1.5 py-0.5 text-xs {{ $c->estado === 'activo' ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' : 'bg-zinc-100 dark:bg-zinc-700' }}">{{ ucfirst($c->estado) }}</span>
                         </td>
                         <td class="px-4 py-2.5 text-xs">
-                            <div class="flex gap-2">
-                                <flux:button size="xs" variant="ghost" href="{{ route('cupones.show', $c) }}" wire:navigate>Ver</flux:button>
+                            <x-ui.table-actions align="left">
+                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('cupones.show', $c) }}" wire:navigate aria-label="Ver" />
                                 @can('cupon.editar')
-                                <flux:button size="xs" variant="ghost" href="{{ route('cupones.edit', $c) }}" wire:navigate>Editar</flux:button>
+                                <flux:button size="xs" variant="ghost" icon="pencil" href="{{ route('cupones.edit', $c) }}" wire:navigate aria-label="Editar" />
                                 @endcan
                                 @can('cupon.eliminar')
-                                <flux:button size="xs" variant="ghost" color="red" wire:click="delete({{ $c->id }})" wire:confirm="¿Eliminar este cupón?">Eliminar</flux:button>
+                                <flux:button size="xs" variant="ghost" icon="trash" color="red" wire:click="delete({{ $c->id }})" wire:confirm="¿Eliminar este cupón?" aria-label="Eliminar" />
                                 @endcan
-                            </div>
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @empty

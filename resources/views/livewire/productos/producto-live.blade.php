@@ -81,12 +81,12 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-2.5 text-xs">
-                                    <div class="flex gap-2">
+                                    <x-ui.table-actions align="left">
                                         @can('producto.editar')
                                         <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $producto->id }})">Editar</flux:button>
                                         <flux:button size="xs" variant="ghost" wire:click="openImageModal({{ $producto->id }})">Imagen</flux:button>
                                         @endcan
-                                    </div>
+                                    </x-ui.table-actions>
                                 </td>
                             </tr>
                         @empty

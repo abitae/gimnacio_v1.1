@@ -23,6 +23,7 @@
                     <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $role->permissions_count }} permisos</td>
                     <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $role->users_count ?? 0 }} usuarios</td>
                     <td class="px-4 py-2.5 text-right">
+                        <x-ui.table-actions>
                         @can('rol.editar')
                         <flux:button variant="ghost" size="xs" icon="pencil" wire:click="openEditModal({{ $role->id }})" aria-label="Editar" />
                         @endcan
@@ -33,6 +34,7 @@
                             <flux:button variant="ghost" size="xs" icon="trash" color="red" disabled title="No se puede eliminar: tiene usuarios asignados" aria-label="Eliminar (deshabilitado)" />
                         @endif
                         @endcan
+                        </x-ui.table-actions>
                     </td>
                 </tr>
             @empty

@@ -75,9 +75,11 @@
                             <td class="px-4 py-2">{{ $ex->nivel ?? '—' }}</td>
                             <td class="px-4 py-2">{{ $ex->estado_label }}</td>
                             <td class="px-4 py-2 text-right">
+                                <x-ui.table-actions>
                                 @can('ejercicio_rutina.editar')
-                                <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $ex->id }})" wire:loading.attr="disabled">Editar</flux:button>
+                                <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $ex->id }})" wire:loading.attr="disabled" aria-label="Editar" />
                                 @endcan
+                                </x-ui.table-actions>
                             </td>
                         </tr>
                     @empty

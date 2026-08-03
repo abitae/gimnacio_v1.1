@@ -84,7 +84,9 @@
                                 <input type="number" step="0.01" min="0.01" wire:model.live="form.schedule.{{ $index }}.monto" class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-right text-sm dark:border-zinc-600 dark:bg-zinc-800" />
                             </td>
                             <td class="px-3 py-2 text-right">
-                                <flux:button type="button" size="xs" variant="ghost" wire:click="quitarCuotaManual({{ $index }})">Quitar</flux:button>
+                                <x-ui.table-actions>
+                                <flux:button type="button" size="xs" variant="ghost" icon="trash" color="red" wire:click="quitarCuotaManual({{ $index }})" aria-label="Quitar" />
+                                </x-ui.table-actions>
                             </td>
                         </tr>
                     @empty

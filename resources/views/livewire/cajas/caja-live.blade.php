@@ -112,7 +112,7 @@
                                     <td class="px-3 py-2 text-right font-semibold text-emerald-700 dark:text-emerald-400">+ S/ {{ number_format($movimiento['monto'], 2) }}</td>
                                     <td class="px-3 py-2">
                                         @if (($movimiento['referencia_tipo'] ?? '') === 'App\\Models\\Core\\Venta')
-                                            <button type="button" class="text-sky-600 underline-offset-2 hover:underline dark:text-sky-400" wire:click="verDetalleVenta({{ $movimiento['referencia_id'] }})">{{ $movimiento['referencia_label'] }}</button>
+                                            <flux:button type="button" size="xs" variant="ghost" wire:click="verDetalleVenta({{ $movimiento['referencia_id'] }})">{{ $movimiento['referencia_label'] }}</flux:button>
                                         @else
                                             <span class="text-zinc-500">{{ $movimiento['referencia_label'] ?: '—' }}</span>
                                         @endif
@@ -314,7 +314,11 @@
                                 <td class="px-3 py-2 text-right tabular-nums font-semibold">S/ {{ number_format($caja->saldo_final ?: ($caja->saldo_inicial + $caja->calcularTotalIngresos() - $caja->calcularTotalSalidas()), 2) }}</td>
                                 <td class="px-3 py-2 text-right tabular-nums">S/ {{ number_format($caja->saldo_contado_cierre ?? 0, 2) }}</td>
                                 <td class="px-3 py-2 text-right tabular-nums {{ ((float) ($caja->diferencia_cierre ?? 0)) === 0.0 ? 'text-zinc-700 dark:text-zinc-300' : 'text-amber-700 dark:text-amber-300' }}">S/ {{ number_format($caja->diferencia_cierre ?? 0, 2) }}</td>
-                                <td class="px-3 py-2 text-right"><flux:button size="xs" variant="ghost" wire:click="verReporte({{ $caja->id }})">PDF</flux:button></td>
+                                <td class="px-3 py-2 text-right">
+                                    <x-ui.table-actions>
+                                    <flux:button size="xs" variant="ghost" icon="document-text" wire:click="verReporte({{ $caja->id }})" aria-label="PDF" />
+                                    </x-ui.table-actions>
+                                </td>
                             </tr>
                         @empty
                             <tr><td colspan="12" class="px-4 py-10 text-center text-sm text-zinc-500 dark:text-zinc-400">No hay cajas para el rango seleccionado.</td></tr>

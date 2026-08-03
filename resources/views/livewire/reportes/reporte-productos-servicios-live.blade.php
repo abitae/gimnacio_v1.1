@@ -178,11 +178,11 @@
                             <td class="px-3 py-1.5 text-right">{{ $row['cantidad'] }}</td>
                             <td class="px-3 py-1.5 text-right">S/ {{ number_format($row['subtotal'] ?? 0, 2) }}</td>
                             <td class="px-3 py-1.5">
-                                <a class="text-orange-700 underline underline-offset-2 dark:text-orange-300"
-                                   href="{{ route('ventas.comprobante.pdf', ['venta' => $row['venta_id'], 'reprint' => 1]) }}"
-                                   target="_blank">
+                                <flux:button size="xs" variant="ghost" icon="document-text"
+                                    href="{{ route('ventas.comprobante.pdf', ['venta' => $row['venta_id'], 'reprint' => 1]) }}"
+                                    target="_blank">
                                     {{ $row['comprobante'] ?: $row['numero_venta'] }}
-                                </a>
+                                </flux:button>
                             </td>
                         </tr>
                     @empty

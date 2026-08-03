@@ -52,18 +52,18 @@
                                 <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $role->permissions_count }} permisos</td>
                                 <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $role->users_count ?? 0 }} usuarios</td>
                                 <td class="px-4 py-2.5 text-xs">
-                                    <div class="flex gap-2">
+                                    <x-ui.table-actions align="left">
                                         @can('rol.editar')
-                                        <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $role->id }})" aria-label="Editar">Editar</flux:button>
+                                        <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $role->id }})" aria-label="Editar" />
                                         @endcan
                                         @can('rol.eliminar')
                                         @if (($role->users_count ?? 0) === 0)
-                                            <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="openDeleteModal({{ $role->id }})" aria-label="Eliminar">Eliminar</flux:button>
+                                            <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="openDeleteModal({{ $role->id }})" aria-label="Eliminar" />
                                         @else
-                                            <flux:button size="xs" variant="ghost" color="red" icon="trash" disabled title="No se puede eliminar: tiene usuarios asignados">Eliminar</flux:button>
+                                            <flux:button size="xs" variant="ghost" color="red" icon="trash" disabled title="No se puede eliminar: tiene usuarios asignados" aria-label="Eliminar (deshabilitado)" />
                                         @endif
                                         @endcan
-                                    </div>
+                                    </x-ui.table-actions>
                                 </td>
                             </tr>
                         @empty

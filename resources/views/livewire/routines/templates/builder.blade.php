@@ -75,10 +75,10 @@
                         @foreach($day['exercises'] as $exIndex => $ex)
                             <tr class="border-b border-zinc-100 dark:border-zinc-700/50 align-top">
                                 <td class="py-1.5 pr-2">
-                                    <div class="flex flex-col gap-0.5">
-                                        <button type="button" wire:click="moveExerciseUp({{ $dayId }}, {{ $ex['orden'] }})" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" title="Subir">↑</button>
-                                        <button type="button" wire:click="moveExerciseDown({{ $dayId }}, {{ $ex['orden'] }})" class="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300" title="Bajar">↓</button>
-                                    </div>
+                                    <x-ui.table-actions align="left">
+                                        <flux:button type="button" size="xs" variant="ghost" icon="chevron-up" wire:click="moveExerciseUp({{ $dayId }}, {{ $ex['orden'] }})" title="Subir" aria-label="Subir" />
+                                        <flux:button type="button" size="xs" variant="ghost" icon="chevron-down" wire:click="moveExerciseDown({{ $dayId }}, {{ $ex['orden'] }})" title="Bajar" aria-label="Bajar" />
+                                    </x-ui.table-actions>
                                 </td>
                                 <td class="py-1.5 pr-2">{{ $ex['exercise_nombre'] }}</td>
                                 <td class="py-1.5 pr-2">
@@ -92,7 +92,9 @@
                                 </td>
                                 <td class="py-1.5 pr-2">{{ $ex['metodo'] ? (\App\Models\RoutineTemplateDayExercise::METODOS[$ex['metodo']] ?? $ex['metodo']) : '—' }}</td>
                                 <td class="py-1.5 text-right">
-                                    <flux:button size="xs" variant="ghost" wire:click="removeExerciseFromDay({{ $ex['id'] }})" wire:confirm="¿Quitar este ejercicio del día?">Quitar</flux:button>
+                                    <x-ui.table-actions>
+                                    <flux:button size="xs" variant="ghost" icon="trash" color="red" wire:click="removeExerciseFromDay({{ $ex['id'] }})" wire:confirm="¿Quitar este ejercicio del día?" aria-label="Quitar" />
+                                    </x-ui.table-actions>
                                 </td>
                             </tr>
                         @endforeach

@@ -66,13 +66,14 @@
         <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700"
             wire:loading.delay.class="opacity-60 pointer-events-none"
             wire:target="search,codigoSearch,asesorFilter,estadoFilter,perPage">
-            <table class="w-full min-w-[720px] text-sm">
+            <table class="w-full min-w-[820px] text-sm">
                 <thead class="bg-zinc-50 dark:bg-zinc-900">
                     <tr>
                         <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Cliente') }}</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Código') }}</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Documento') }}</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Contacto') }}</th>
+                        <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Asesor') }}</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Estado') }}</th>
                         <th class="px-3 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Deuda') }}</th>
                         <th class="px-3 py-2 text-right text-xs font-medium text-zinc-500 dark:text-zinc-400">{{ __('Acciones') }}</th>
@@ -125,6 +126,11 @@
                                 </div>
                             </td>
                             <td class="px-3 py-2">
+                                <span class="block max-w-[10rem] truncate text-xs text-zinc-700 dark:text-zinc-300" title="{{ $cliente->asesor_nombre ?? '' }}">
+                                    {{ $cliente->asesor_nombre ?? '—' }}
+                                </span>
+                            </td>
+                            <td class="px-3 py-2">
                                 <flux:badge :color="$estadoClienteBadge">{{ ucfirst($cliente->estado_cliente) }}</flux:badge>
                             </td>
                             <td class="px-3 py-2">
@@ -134,23 +140,29 @@
                                     <flux:badge color="green" class="text-xs">{{ __('Sin deuda') }}</flux:badge>
                                 @endif
                             </td>
-                            <td class="px-3 py-2 text-right">
-                                <div class="inline-flex flex-wrap justify-end gap-1">
+                                <td class="px-3 py-2 text-right">
+                                <x-ui.table-actions>
                                     <flux:button size="xs" variant="ghost" icon="document-text" type="button"
                                         wire:click="abrirContrato({{ $cliente->id }})"
                                         title="{{ __('Contrato de membresía') }}">
                                         {{ __('Contrato') }}
                                     </flux:button>
+                                    @if (filled($cliente->telefono))
+                                        <flux:button size="xs" variant="ghost" icon="chat-bubble-left-right" type="button"
+                                            wire:click="enviarContratoPorWhatsApp({{ $cliente->id }})"
+                                            title="{{ __('Enviar contrato por WhatsApp') }}"
+                                            aria-label="{{ __('Enviar contrato por WhatsApp') }}" />
+                                    @endif
                                     <flux:button size="xs" variant="primary" icon="user-circle" type="button"
                                         wire:click="verPerfil({{ $cliente->id }})">
                                         {{ __('Ver perfil') }}
                                     </flux:button>
-                                </div>
+                                </x-ui.table-actions>
                             </td>
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="8" class="px-4 py-12 text-center text-xs text-zinc-500 dark:text-zinc-400">
+                            <td colspan="9" class="px-4 py-12 text-center text-xs text-zinc-500 dark:text-zinc-400">
                                 {{ __('No hay clientes') }}
                             </td>
                         </tr>
@@ -164,25 +176,31 @@
         </div>
     </div>
 
-    <flux:modal wire:model="mostrarModalContrato" class="md:w-5xl">
+    <flux:modal wire:model="mostrarModalContrato" class="w-[96vw] max-w-[1200px]">
         <div class="p-4">
             <div class="mb-3 flex items-center justify-between gap-2">
                 <div>
                     <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Contrato de membresía') }}</h2>
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Vista previa del documento para impresión o descarga.') }}</p>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Vista previa del documento para impresión, descarga o envío por WhatsApp.') }}</p>
                 </div>
                 @if ($clienteIdContrato)
-                    <a href="{{ route('clientes.contrato-membresia.pdf', ['cliente' => $clienteIdContrato]) }}"
-                        target="_blank" rel="noopener"
-                        class="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800">
-                        {{ __('Abrir en pestaña nueva') }}
-                    </a>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <flux:button size="xs" variant="ghost" icon="chat-bubble-left-right" type="button"
+                            wire:click="enviarContratoPorWhatsApp({{ $clienteIdContrato }})">
+                            {{ __('Enviar por WhatsApp') }}
+                        </flux:button>
+                        <a href="{{ route('clientes.contrato-membresia.pdf', ['cliente' => $clienteIdContrato]) }}"
+                            target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800">
+                            {{ __('Abrir en pestaña nueva') }}
+                        </a>
+                    </div>
                 @endif
             </div>
             @if ($clienteIdContrato)
                 <iframe
                     src="{{ route('clientes.contrato-membresia.pdf', ['cliente' => $clienteIdContrato]) }}"
-                    class="h-[75vh] w-full rounded-xl border border-zinc-200 dark:border-zinc-700"
+                    class="h-[82vh] w-full rounded-xl border border-zinc-200 dark:border-zinc-700"
                     title="{{ __('Contrato de membresía') }}"
                 ></iframe>
             @endif

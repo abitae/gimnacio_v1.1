@@ -3,7 +3,8 @@
 namespace App\Livewire\Clientes;
 
 use App\Livewire\Concerns\FlashesToast;
-use App\Models\User;
+use App\Models\Core\Cliente;
+use App\Services\ClienteContratoMembresiaService;
 use App\Services\ClienteService;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -31,9 +32,12 @@ class ClienteLive extends Component
 
     protected ClienteService $service;
 
-    public function boot(ClienteService $service): void
+    protected ClienteContratoMembresiaService $contratoService;
+
+    public function boot(ClienteService $service, ClienteContratoMembresiaService $contratoService): void
     {
         $this->service = $service;
+        $this->contratoService = $contratoService;
     }
 
     public function mount(): void
@@ -84,6 +88,31 @@ class ClienteLive extends Component
         $this->clienteIdContrato = null;
     }
 
+    public function enviarContratoPorWhatsApp(int $clienteId): void
+    {
+        try {
+            $cliente = Cliente::query()->findOrFail($clienteId);
+
+            if (! $cliente->getWhatsAppUrlWithMessage()) {
+                $this->flashToast('error', __('El cliente no tiene teléfono registrado. Añade un número en su ficha para enviar por WhatsApp.'));
+
+                return;
+            }
+
+            $mensaje = $this->contratoService->mensajeWhatsAppContrato($cliente);
+            $urlConMensaje = $cliente->getWhatsAppUrlWithMessage($mensaje);
+            $this->js('window.open('.json_encode($urlConMensaje).', "whatsapp_chat")');
+
+            $result = $this->contratoService->enviarContratoPorWhatsApp($cliente);
+            if ($result['success']) {
+                $this->flashToast('success', __($result['message']));
+            }
+        } catch (\Throwable $e) {
+            report($e);
+            $this->flashToast('error', __('No se pudo preparar el envío por WhatsApp.'));
+        }
+    }
+
     public function render()
     {
         $codigoTrim = trim($this->codigoSearch);
@@ -104,7 +133,7 @@ class ClienteLive extends Component
 
         return view('livewire.clientes.cliente-live', [
             'clientes' => $clientes,
-            'asesores' => User::query()->orderBy('name')->get(['id', 'name']),
+            'asesores' => $this->service->asesoresActivosParaFiltro(),
         ]);
     }
 }

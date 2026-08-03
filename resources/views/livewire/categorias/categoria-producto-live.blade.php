@@ -51,14 +51,14 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-2.5 text-xs">
-                                    <div class="flex gap-2">
+                                    <x-ui.table-actions align="left">
                                         @can('categoria_producto.editar')
-                                        <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $categoria->id }})">Editar</flux:button>
+                                        <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $categoria->id }})" aria-label="Editar" />
                                         @endcan
                                         @can('categoria_producto.eliminar')
-                                        <flux:button size="xs" variant="ghost" color="red" wire:click="openDeleteModal({{ $categoria->id }})">Eliminar</flux:button>
+                                        <flux:button size="xs" variant="ghost" icon="trash" color="red" wire:click="openDeleteModal({{ $categoria->id }})" aria-label="Eliminar" />
                                         @endcan
-                                    </div>
+                                    </x-ui.table-actions>
                                 </td>
                             </tr>
                         @empty

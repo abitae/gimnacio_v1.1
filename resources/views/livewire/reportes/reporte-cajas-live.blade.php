@@ -149,10 +149,11 @@
                             <td class="px-3 py-2 text-right text-xs text-amber-700 dark:text-amber-400">S/ {{ number_format((float) ($filaUsuario['ventas_credito_total'] ?? 0), 2) }}</td>
                             <td class="px-3 py-2 text-right text-xs text-amber-800 dark:text-amber-300">S/ {{ number_format((float) ($filaUsuario['saldo_credito_pendiente'] ?? 0), 2) }}</td>
                             <td class="px-3 py-2 text-right text-xs print:hidden">
+                                <x-ui.table-actions>
                                 <flux:button type="button" size="xs" variant="ghost" icon="eye"
-                                    wire:click="$set('usuarioId', '{{ $filaUsuario['usuario_id'] ?? '' }}')">
-                                    Ver cajas
-                                </flux:button>
+                                    wire:click="$set('usuarioId', '{{ $filaUsuario['usuario_id'] ?? '' }}')"
+                                    aria-label="Ver cajas" />
+                                </x-ui.table-actions>
                             </td>
                         </tr>
                         @if (! empty($filaUsuario['cajas']) && filled($usuarioId) && (int) $usuarioId === (int) ($filaUsuario['usuario_id'] ?? 0))
@@ -169,10 +170,11 @@
                                         @endif
                                     </td>
                                     <td class="px-3 py-1.5 text-right text-xs print:hidden">
+                                        <x-ui.table-actions>
                                         <flux:button type="button" size="xs" variant="ghost" icon="document-text"
-                                            wire:click="abrirDetalleCaja({{ $cajaUsuario['caja_id'] }})">
-                                            Detalle
-                                        </flux:button>
+                                            wire:click="abrirDetalleCaja({{ $cajaUsuario['caja_id'] }})"
+                                            aria-label="Detalle" />
+                                        </x-ui.table-actions>
                                     </td>
                                 </tr>
                             @endforeach
@@ -220,10 +222,11 @@
                                 <td class="px-3 py-2 text-right text-xs text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) $ventaCredito['monto_inicial'], 2) }}</td>
                                 <td class="px-3 py-2 text-right text-xs font-semibold text-amber-800 dark:text-amber-300">S/ {{ number_format((float) $ventaCredito['saldo_pendiente'], 2) }}</td>
                                 <td class="px-3 py-2 text-right text-xs print:hidden">
+                                    <x-ui.table-actions>
                                     <flux:button type="button" size="xs" variant="ghost" icon="printer"
-                                        wire:click="abrirTicketVenta({{ $ventaCredito['venta_id'] }})">
-                                        Ver venta
-                                    </flux:button>
+                                        wire:click="abrirTicketVenta({{ $ventaCredito['venta_id'] }})"
+                                        aria-label="Ver venta" />
+                                    </x-ui.table-actions>
                                 </td>
                             </tr>
                         @endforeach
@@ -272,10 +275,11 @@
                             <td class="px-3 py-2 text-right text-xs">S/ {{ number_format((float) $c->saldo_inicial, 2) }}</td>
                             <td class="px-3 py-2 text-right text-xs">S/ {{ number_format((float) ($c->saldo_final ?? 0), 2) }}</td>
                             <td class="px-3 py-2 text-right text-xs print:hidden">
+                                <x-ui.table-actions>
                                 <flux:button type="button" size="xs" variant="ghost" icon="eye"
-                                    wire:click="abrirDetalleCaja({{ $c->id }})">
-                                    Detalle
-                                </flux:button>
+                                    wire:click="abrirDetalleCaja({{ $c->id }})"
+                                    aria-label="Detalle" />
+                                </x-ui.table-actions>
                             </td>
                         </tr>
                     @empty
@@ -336,21 +340,21 @@
                                 {{ $movimiento['tipo'] === 'entrada' ? '+' : '-' }} S/ {{ number_format((float) $movimiento['monto'], 2) }}
                             </td>
                             <td class="px-3 py-2 text-right text-xs print:hidden">
+                                <x-ui.table-actions>
                                 @if (! empty($movimiento['ticket_venta_id']))
                                     <flux:button type="button" size="xs" variant="ghost" icon="printer"
                                         wire:click="abrirTicketVenta({{ $movimiento['ticket_venta_id'] }})"
-                                        title="Ver ticket de venta">
-                                        Detalle
-                                    </flux:button>
+                                        title="Ver ticket de venta"
+                                        aria-label="Detalle venta" />
                                 @elseif (! empty($movimiento['ticket_pago_id']))
                                     <flux:button type="button" size="xs" variant="ghost" icon="printer"
                                         wire:click="abrirTicketPago({{ $movimiento['ticket_pago_id'] }})"
-                                        title="Ver ticket de pago / membresía">
-                                        Detalle
-                                    </flux:button>
+                                        title="Ver ticket de pago / membresía"
+                                        aria-label="Detalle pago" />
                                 @else
                                     <span class="text-zinc-400">-</span>
                                 @endif
+                                </x-ui.table-actions>
                             </td>
                         </tr>
                     @empty

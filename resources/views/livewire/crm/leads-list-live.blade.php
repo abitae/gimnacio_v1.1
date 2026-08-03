@@ -43,7 +43,7 @@
                     <th class="px-4 py-2 text-left font-medium text-zinc-500">Etapa</th>
                     <th class="px-4 py-2 text-left font-medium text-zinc-500">Asignado</th>
                     <th class="px-4 py-2 text-left font-medium text-zinc-500">Canal</th>
-                    <th></th>
+                    <th class="px-4 py-2 text-right text-xs font-medium text-zinc-500">Acciones</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -57,8 +57,10 @@
                     <td class="px-4 py-2">{{ $lead->stage->nombre ?? '—' }}</td>
                     <td class="px-4 py-2">{{ $lead->assignedTo->name ?? '—' }}</td>
                     <td class="px-4 py-2">{{ $lead->canal_origen ?? '—' }}</td>
-                    <td class="px-4 py-2">
-                        <a href="{{ route('crm.leads.show', $lead->id) }}" wire:navigate class="text-xs text-zinc-600 hover:text-zinc-900">Ver</a>
+                    <td class="px-4 py-2 text-right">
+                        <x-ui.table-actions>
+                            <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('crm.leads.show', $lead->id) }}" wire:navigate>Ver</flux:button>
+                        </x-ui.table-actions>
                     </td>
                 </tr>
                 @empty

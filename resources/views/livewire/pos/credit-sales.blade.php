@@ -152,7 +152,7 @@
                             </span>
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <div class="inline-flex flex-wrap justify-end gap-1">
+                            <x-ui.table-actions>
                                 @if ($v->cliente)
                                     <flux:button size="xs" variant="ghost" icon="user-circle" href="{{ route('clientes.perfil', $v->cliente) }}" wire:navigate title="Ver ficha" />
                                     @if ($saldo > 0)
@@ -163,7 +163,7 @@
                                     <flux:button size="xs" variant="primary" color="green" icon="credit-card" wire:click="abrirModalCobroVenta({{ $debt->id }})" title="Pagar esta venta" />
                                 @endif
                                 <flux:button size="xs" variant="ghost" icon="printer" href="{{ route('ventas.comprobante.pdf', ['venta' => $v->id, 'reprint' => 1]) }}" target="_blank" title="Reimprimir ticket" />
-                            </div>
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @empty

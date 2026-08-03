@@ -93,11 +93,13 @@
                             </span>
                         </td>
                         <td class="px-4 py-2">
+                            <x-ui.table-actions align="left">
                             @if(in_array($cuota->estado, ['pendiente', 'vencida', 'parcial']) && auth()->user()->can('matricula_cliente.editar'))
-                            <flux:button size="xs" variant="ghost" type="button" wire:click="openRegistrarPagoCuota({{ $cuota->id }})">{{ __('Pagar') }}</flux:button>
+                            <flux:button size="xs" variant="ghost" icon="credit-card" type="button" wire:click="openRegistrarPagoCuota({{ $cuota->id }})" aria-label="{{ __('Pagar') }}" />
                             @else
-                            —
+                            <span class="text-zinc-400">—</span>
                             @endif
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @endforeach

@@ -108,6 +108,29 @@ class Cliente extends Model
         return $this->hasMany(ClienteMatricula::class, 'cliente_id');
     }
 
+    /** Matrícula de membresía más reciente (referencia para asesor de venta). */
+    public function matriculaMembresiaReciente(): HasOne
+    {
+        return $this->hasOne(ClienteMatricula::class, 'cliente_id')
+            ->ofMany(['fecha_matricula' => 'max'], fn ($query) => $query->where('tipo', 'membresia'));
+    }
+
+    /** Última matrícula del cliente (cualquier tipo). */
+    public function ultimaMatricula(): HasOne
+    {
+        return $this->hasOne(ClienteMatricula::class, 'cliente_id')
+            ->latestOfMany('fecha_matricula');
+    }
+
+    public function getAsesorNombreAttribute(): ?string
+    {
+        $nombre = $this->matriculaMembresiaReciente?->asesor?->name
+            ?? $this->ultimaMatricula?->asesor?->name
+            ?? $this->registroPor?->name;
+
+        return filled($nombre) ? trim($nombre) : null;
+    }
+
     public function pagos(): HasMany
     {
         return $this->hasMany(Pago::class);

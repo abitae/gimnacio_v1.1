@@ -365,7 +365,7 @@
                                                                     class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">
                                                                     {{ $evaluacion->nutricionista->name ?? '-' }}</td>
                                                                 <td class="px-4 py-2.5">
-                                                                    <div class="flex gap-1">
+                                                                    <x-ui.table-actions align="left">
                                                                         @can('gestion_nutricional.editar')
                                                                         <flux:button variant="ghost" size="xs"
                                                                             icon="pencil"
@@ -378,7 +378,7 @@
                                                                             wire:click="openDeleteEvaluacionModal({{ $evaluacion->id }})"
                                                                             aria-label="Eliminar" />
                                                                         @endcan
-                                                                    </div>
+                                                                    </x-ui.table-actions>
                                                                 </td>
                                                             </tr>
                                                         @empty
@@ -482,6 +482,7 @@
                                                         class="inline-flex rounded-full px-2 py-0.5 text-xs {{ $s->estado === 'activo' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400' }}">{{ $s->estado }}</span>
                                                 </td>
                                                 <td class="px-4 py-2.5 text-right">
+                                                    <x-ui.table-actions>
                                                     @can('gestion_nutricional.editar')
                                                     <flux:button variant="ghost" size="xs" icon="pencil"
                                                         wire:click="openEditNutricionModal({{ $s->id }})"
@@ -493,6 +494,7 @@
                                                         wire:click="openDeleteNutricionModal({{ $s->id }})"
                                                         aria-label="Eliminar" />
                                                     @endcan
+                                                    </x-ui.table-actions>
                                                 </td>
                                             </tr>
                                         @empty
@@ -593,6 +595,7 @@
                                                     ">{{ ucfirst(str_replace('_', ' ', $cita->estado)) }}</span>
                                                 </td>
                                                 <td class="px-4 py-2.5 text-right">
+                                                    <x-ui.table-actions>
                                                     @can('gestion_nutricional.editar')
                                                     @if (in_array($cita->estado, ['programada', 'confirmada', 'en_curso']))
                                                         <flux:button variant="ghost" size="xs" icon="x-mark"
@@ -610,6 +613,7 @@
                                                         wire:click="openDeleteCitaModal({{ $cita->id }})"
                                                         aria-label="Eliminar" />
                                                     @endcan
+                                                    </x-ui.table-actions>
                                                 </td>
                                             </tr>
                                         @empty

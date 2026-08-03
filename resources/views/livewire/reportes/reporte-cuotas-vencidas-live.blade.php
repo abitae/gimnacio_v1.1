@@ -46,9 +46,11 @@
                         <td class="px-4 py-2 text-emerald-700 dark:text-emerald-400">S/ {{ number_format($c->monto_pagado_actual, 2) }}</td>
                         <td class="px-4 py-2 font-medium text-red-600 dark:text-red-400">S/ {{ number_format($c->saldo_pendiente, 2) }}</td>
                         <td class="px-4 py-2">
+                            <x-ui.table-actions align="left">
                             @can('matricula_cliente.editar')
-                            <flux:button size="xs" variant="ghost" type="button" wire:click="openRegistrarPagoCuota({{ $c->id }})">{{ __('Pagar') }}</flux:button>
+                            <flux:button size="xs" variant="ghost" icon="credit-card" type="button" wire:click="openRegistrarPagoCuota({{ $c->id }})" aria-label="{{ __('Pagar') }}" />
                             @endcan
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @empty

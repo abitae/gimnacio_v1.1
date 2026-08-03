@@ -55,7 +55,7 @@
                                 <td class="px-3 py-1.5">{{ $p->cliente ? $p->cliente->nombres . ' ' . $p->cliente->apellidos : '-' }}</td>
                                 <td class="px-3 py-1.5 text-right">S/ {{ number_format($p->monto, 2) }}</td>
                                 <td class="px-3 py-1.5 text-right">
-                                    <button type="button" class="text-xs text-sky-600 underline-offset-2 hover:underline dark:text-sky-400" wire:click="abrirTicketPago({{ $p->id }})">Reimprimir</button>
+                                    <flux:button size="xs" variant="ghost" icon="printer" wire:click="abrirTicketPago({{ $p->id }})">Reimprimir</flux:button>
                                 </td>
                             </tr>
                         @empty

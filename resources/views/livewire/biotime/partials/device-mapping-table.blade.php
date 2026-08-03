@@ -55,9 +55,11 @@
                             <option value="ambos">Ambos</option>
                         </select>
                     </td>
-                    <td class="px-3 py-2 text-right space-x-1">
+                    <td class="px-3 py-2 text-right">
                         @can('biotime.editar')
-                            <button type="button" wire:click="saveDeviceAccessRole({{ $row->biotime_id }})" class="rounded-md border border-zinc-300 px-2.5 py-1.5 text-xs font-medium text-zinc-800 dark:border-zinc-600 dark:text-zinc-100">Guardar rol</button>
+                            <x-ui.table-actions>
+                                <flux:button type="button" size="xs" variant="primary" wire:click="saveDeviceAccessRole({{ $row->biotime_id }})">Guardar rol</flux:button>
+                            </x-ui.table-actions>
                         @endcan
                     </td>
                 </tr>

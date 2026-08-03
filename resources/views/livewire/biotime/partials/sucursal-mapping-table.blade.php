@@ -26,7 +26,9 @@
                     </td>
                     <td class="px-3 py-2 text-right">
                         @can('biotime.editar')
-                            <button type="button" wire:click="saveSucursalMapping('{{ $type }}', {{ $row->biotime_id }})" class="rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs font-medium text-white dark:bg-zinc-100 dark:text-zinc-900">Guardar</button>
+                            <x-ui.table-actions>
+                                <flux:button type="button" size="xs" variant="primary" wire:click="saveSucursalMapping('{{ $type }}', {{ $row->biotime_id }})">Guardar</flux:button>
+                            </x-ui.table-actions>
                         @endcan
                     </td>
                 </tr>

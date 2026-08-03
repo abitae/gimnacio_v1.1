@@ -63,17 +63,15 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-2.5 text-xs">
-                                    <div class="flex gap-2">
+                                    <x-ui.table-actions align="left">
                                         @can('metodo_pago.editar')
-                                        <flux:button size="xs" variant="ghost" wire:click="toggleEstado({{ $method->id }})">
-                                            {{ $method->estado === 'activo' ? 'Desactivar' : 'Activar' }}
-                                        </flux:button>
-                                        <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $method->id }})">Editar</flux:button>
+                                        <flux:button size="xs" variant="ghost" icon="{{ $method->estado === 'activo' ? 'pause' : 'play' }}" wire:click="toggleEstado({{ $method->id }})" title="{{ $method->estado === 'activo' ? 'Desactivar' : 'Activar' }}" aria-label="{{ $method->estado === 'activo' ? 'Desactivar' : 'Activar' }}" />
+                                        <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $method->id }})" aria-label="Editar" />
                                         @endcan
                                         @can('metodo_pago.eliminar')
-                                        <flux:button size="xs" variant="ghost" color="red" wire:click="openDeleteModal({{ $method->id }})">Eliminar</flux:button>
+                                        <flux:button size="xs" variant="ghost" icon="trash" color="red" wire:click="openDeleteModal({{ $method->id }})" aria-label="Eliminar" />
                                         @endcan
-                                    </div>
+                                    </x-ui.table-actions>
                                 </td>
                             </tr>
                         @empty

@@ -45,7 +45,9 @@
                         <td class="px-4 py-2">{{ $g->fecha_inicio->format('d/m/Y') }}</td>
                         <td class="px-4 py-2"><span class="rounded-full px-1.5 py-0.5 text-xs {{ $g->estado === 'activo' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-zinc-100 dark:bg-zinc-700' }}">{{ ucfirst($g->estado) }}</span></td>
                         <td class="px-4 py-2">
-                            <flux:button size="xs" variant="ghost" href="{{ route('gestion-nutricional.objetivos.show', $g) }}" wire:navigate>Ver</flux:button>
+                            <x-ui.table-actions align="left">
+                            <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('gestion-nutricional.objetivos.show', $g) }}" wire:navigate aria-label="Ver" />
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @empty

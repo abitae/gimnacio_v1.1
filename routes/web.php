@@ -13,6 +13,11 @@ Route::get('reportes/evaluacion/descargar/{evaluacionId}', [\App\Http\Controller
     ->middleware(['signed'])
     ->name('reportes.evaluacion.descargar.signed');
 
+// Contrato de membresía con URL firmada (WhatsApp al cliente; sin auth, válida 48 h)
+Route::get('clientes/{cliente}/contrato-membresia/descargar', [\App\Http\Controllers\ClienteContratoMembresiaController::class, 'descargarFirmado'])
+    ->middleware(['signed'])
+    ->name('clientes.contrato-membresia.descargar.signed');
+
 Route::middleware(['auth'])->group(function () {
     Route::get('seleccionar-sucursal', [\App\Http\Controllers\SucursalContextController::class, 'show'])->name('sucursal-context.select');
     Route::post('seleccionar-sucursal', [\App\Http\Controllers\SucursalContextController::class, 'store'])->name('sucursal-context.store');

@@ -32,6 +32,7 @@
                         <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium {{ $u->estado === 'activo' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-700 dark:text-zinc-400' }}">{{ $u->estado ?? 'activo' }}</span>
                     </td>
                     <td class="px-4 py-2.5 text-right">
+                        <x-ui.table-actions>
                         @can('usuario.editar')
                         <flux:button variant="ghost" size="xs" icon="pencil" wire:click="openEditModal({{ $u->id }})" aria-label="Editar" />
                         @endcan
@@ -40,6 +41,7 @@
                             <flux:button variant="ghost" size="xs" icon="trash" color="red" wire:click="openDeleteModal({{ $u->id }})" aria-label="Eliminar" />
                             @endcan
                         @endif
+                        </x-ui.table-actions>
                     </td>
                 </tr>
             @empty

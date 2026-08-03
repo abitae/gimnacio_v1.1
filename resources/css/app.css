@@ -48,3 +48,30 @@ select:focus[data-flux-control] {
 /* \[:where(&)\]:size-4 {
     @apply size-4;
 } */
+
+/* Tablas compactas en contenido principal */
+@layer components {
+    [data-flux-main] table:not(.table-relaxed) {
+        @apply w-full text-xs;
+    }
+
+    [data-flux-main] table:not(.table-relaxed) thead th {
+        @apply !px-2 !py-1 !text-[10px] !font-semibold !uppercase !tracking-wide !text-zinc-600 dark:!text-zinc-400;
+    }
+
+    [data-flux-main] table:not(.table-relaxed) tbody td {
+        @apply !px-2 !py-1 !text-xs !text-zinc-800 dark:!text-zinc-200 !align-middle;
+    }
+
+    [data-flux-main] table:not(.table-relaxed) tbody td[colspan] {
+        @apply !py-4 !text-center !text-zinc-500 dark:!text-zinc-400;
+    }
+
+    [data-flux-main] table:not(.table-relaxed) .table-actions {
+        @apply gap-0.5;
+    }
+
+    [data-flux-main] table:not(.table-relaxed) .table-actions [data-flux-button] {
+        @apply min-h-7;
+    }
+}

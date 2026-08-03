@@ -30,17 +30,19 @@
                         <td class="px-4 py-2">{{ $s->capacidad ?? '—' }}</td>
                         <td class="px-4 py-2">
                             @can('alquiler.editar')
-                            <button type="button" wire:click="toggleEstado({{ $s->id }})" class="rounded-full px-1.5 py-0.5 text-xs {{ $s->estado === 'activo' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-zinc-100 dark:bg-zinc-700' }}">
+                            <flux:button type="button" size="xs" variant="ghost" wire:click="toggleEstado({{ $s->id }})">
                                 {{ ucfirst($s->estado) }}
-                            </button>
+                            </flux:button>
                             @else
                             <span class="rounded-full px-1.5 py-0.5 text-xs {{ $s->estado === 'activo' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-zinc-100 dark:bg-zinc-700' }}">{{ ucfirst($s->estado) }}</span>
                             @endcan
                         </td>
                         <td class="px-4 py-2">
+                            <x-ui.table-actions align="left">
                             @can('alquiler.editar')
                             <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $s->id }})">Editar</flux:button>
                             @endcan
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @empty

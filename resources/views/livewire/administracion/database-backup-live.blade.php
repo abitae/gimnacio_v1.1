@@ -105,14 +105,8 @@
                                 <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $backup['part_count'] }}</td>
                                 <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $backup['created_at'] }}</td>
                                 <td class="px-4 py-2.5">
-                                    <div class="space-y-2">
-                                        <div class="flex flex-wrap gap-2">
-                                            <flux:button size="xs" variant="ghost" icon="arrow-down-tray" wire:click="downloadBackup('{{ $backup['filename'] }}')" :disabled="$restoreIsRunning">
-                                                Descargar
-                                            </flux:button>
-                                        </div>
-
-                                        <div class="flex flex-wrap gap-2">
+                                    <x-ui.table-actions align="left">
+                                        <flux:button size="xs" variant="ghost" icon="arrow-down-tray" wire:click="downloadBackup('{{ $backup['filename'] }}')" :disabled="$restoreIsRunning" title="Descargar" aria-label="Descargar" />
                                         <flux:button
                                             size="xs"
                                             variant="ghost"
@@ -121,14 +115,11 @@
                                             wire:click="restoreGeneratedBackup('{{ $backup['filename'] }}')"
                                             wire:confirm="Restaurar directamente este backup reemplazara toda la base de datos actual. Continuar?"
                                             :disabled="$restoreIsRunning"
-                                        >
-                                            Restaurar
-                                        </flux:button>
-                                        <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="deleteBackup('{{ $backup['filename'] }}')" wire:confirm="Eliminar este backup y todas sus partes asociadas?" :disabled="$restoreIsRunning">
-                                            Eliminar
-                                        </flux:button>
-                                        </div>
-                                    </div>
+                                            title="Restaurar"
+                                            aria-label="Restaurar"
+                                        />
+                                        <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="deleteBackup('{{ $backup['filename'] }}')" wire:confirm="Eliminar este backup y todas sus partes asociadas?" :disabled="$restoreIsRunning" title="Eliminar" aria-label="Eliminar" />
+                                    </x-ui.table-actions>
                                 </td>
                             </tr>
                         @empty

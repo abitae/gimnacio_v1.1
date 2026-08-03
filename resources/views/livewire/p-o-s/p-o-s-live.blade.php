@@ -213,12 +213,10 @@
                                                 S/ {{ number_format($c->operacion_diaria_deuda_total ?? 0, 2) }}
                                             </td>
                                             <td class="px-3 py-1.5 text-right">
-                                                <div class="inline-flex flex-wrap justify-end gap-1">
-                                                    <flux:button variant="ghost" size="xs" href="{{ route('clientes.perfil', $c) }}" wire:navigate>Ficha</flux:button>
-                                                    <flux:button variant="primary" size="xs" color="green" wire:click="selectClienteCobro({{ $c->id }})">
-                                                        Cobrar
-                                                    </flux:button>
-                                                </div>
+                                                <x-ui.table-actions>
+                                                    <flux:button variant="ghost" size="xs" icon="user-circle" href="{{ route('clientes.perfil', $c) }}" wire:navigate aria-label="Ficha" />
+                                                    <flux:button variant="primary" size="xs" color="green" icon="currency-dollar" wire:click="selectClienteCobro({{ $c->id }})" aria-label="Cobrar" />
+                                                </x-ui.table-actions>
                                             </td>
                                         </tr>
                                     @endforeach

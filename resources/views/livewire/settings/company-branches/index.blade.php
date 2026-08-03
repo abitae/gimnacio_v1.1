@@ -97,18 +97,18 @@
                             <td class="px-4 py-2">{{ $sucursal->estado }}</td>
                             <td class="px-4 py-2">{{ $sucursal->es_principal ? 'Sí' : 'No' }}</td>
                             <td class="px-4 py-2">
-                                <div class="flex gap-2">
-                                    <flux:button size="xs" variant="ghost" wire:click="openEditSucursal({{ $sucursal->id }})">Editar</flux:button>
+                                <x-ui.table-actions align="left">
+                                    <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditSucursal({{ $sucursal->id }})" aria-label="Editar" />
                                     <flux:button
                                         size="xs"
                                         variant="ghost"
+                                        icon="trash"
                                         color="red"
                                         wire:click="deleteSucursal({{ $sucursal->id }})"
                                         wire:confirm="Esta accion eliminara la sucursal. Continuar?"
-                                    >
-                                        Eliminar
-                                    </flux:button>
-                                </div>
+                                        aria-label="Eliminar"
+                                    />
+                                </x-ui.table-actions>
                             </td>
                         </tr>
                     @empty
@@ -149,12 +149,12 @@
                             <td class="px-4 py-2">{{ $admin->sucursales->pluck('nombre')->join(', ') ?: 'Sin sucursal' }}</td>
                             <td class="px-4 py-2">{{ $admin->estado ?? 'activo' }}</td>
                             <td class="px-4 py-2">
-                                <div class="flex gap-2">
-                                    <flux:button size="xs" variant="ghost" wire:click="openEditAdmin({{ $admin->id }})">Editar</flux:button>
+                                <x-ui.table-actions align="left">
+                                    <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditAdmin({{ $admin->id }})" aria-label="Editar" />
                                     @if ($admin->id !== auth()->id())
-                                        <flux:button size="xs" variant="ghost" color="red" wire:click="deleteAdmin({{ $admin->id }})" wire:confirm="¿Eliminar este administrador de sucursal?">Eliminar</flux:button>
+                                        <flux:button size="xs" variant="ghost" icon="trash" color="red" wire:click="deleteAdmin({{ $admin->id }})" wire:confirm="¿Eliminar este administrador de sucursal?" aria-label="Eliminar" />
                                     @endif
-                                </div>
+                                </x-ui.table-actions>
                             </td>
                         </tr>
                     @empty

@@ -38,22 +38,48 @@
 
 <div class="section">
     <p class="section-title">1. DATOS DEL AFILIADO</p>
-    <p class="field-line"><span class="field-label">Nombres y apellidos:</span> {{ $contrato['afiliado_nombre'] ?: '_______________________________________' }}</p>
-    <p class="field-line">
-        <span class="field-label">DNI:</span> {{ $contrato['afiliado_dni'] ?: '_______________________' }}
-        &nbsp;&nbsp;&nbsp;
-        <span class="field-label">Celular:</span> {{ $contrato['afiliado_celular'] ?: '_______________________' }}
-    </p>
-    <p class="field-line">
-        <span class="field-label">Fecha de nacimiento:</span> {{ $contrato['afiliado_fecha_nacimiento'] }}
-        &nbsp;&nbsp;&nbsp;
-        <span class="field-label">Dirección:</span> {{ $contrato['afiliado_direccion'] ?: '_________________________' }}
-    </p>
-    <p class="field-line">
-        <span class="field-label">Código de cliente:</span> {{ $contrato['afiliado_codigo'] ?: '___________' }}
-        &nbsp;&nbsp;&nbsp;
-        <span class="field-label">Asesor de venta:</span> {{ $contrato['asesor_nombre'] ?: '___________________' }}
-    </p>
+    @if (filled($contrato['afiliado_nombre']))
+        <p class="field-line"><span class="field-label">Nombres y apellidos:</span> {{ $contrato['afiliado_nombre'] }}</p>
+    @endif
+    @if (filled($contrato['afiliado_dni']) || filled($contrato['afiliado_celular']))
+        <p class="field-line">
+            @if (filled($contrato['afiliado_dni']))
+                <span class="field-label">DNI:</span> {{ $contrato['afiliado_dni'] }}
+            @endif
+            @if (filled($contrato['afiliado_dni']) && filled($contrato['afiliado_celular']))
+                &nbsp;&nbsp;&nbsp;
+            @endif
+            @if (filled($contrato['afiliado_celular']))
+                <span class="field-label">Celular:</span> {{ $contrato['afiliado_celular'] }}
+            @endif
+        </p>
+    @endif
+    @if (filled($contrato['afiliado_fecha_nacimiento']) || filled($contrato['afiliado_direccion']))
+        <p class="field-line">
+            @if (filled($contrato['afiliado_fecha_nacimiento']))
+                <span class="field-label">Fecha de nacimiento:</span> {{ $contrato['afiliado_fecha_nacimiento'] }}
+            @endif
+            @if (filled($contrato['afiliado_fecha_nacimiento']) && filled($contrato['afiliado_direccion']))
+                &nbsp;&nbsp;&nbsp;
+            @endif
+            @if (filled($contrato['afiliado_direccion']))
+                <span class="field-label">Dirección:</span> {{ $contrato['afiliado_direccion'] }}
+            @endif
+        </p>
+    @endif
+    @if (filled($contrato['afiliado_codigo']) || filled($contrato['asesor_nombre']))
+        <p class="field-line">
+            @if (filled($contrato['afiliado_codigo']))
+                <span class="field-label">Código de cliente:</span> {{ $contrato['afiliado_codigo'] }}
+            @endif
+            @if (filled($contrato['afiliado_codigo']) && filled($contrato['asesor_nombre']))
+                &nbsp;&nbsp;&nbsp;
+            @endif
+            @if (filled($contrato['asesor_nombre']))
+                <span class="field-label">Asesor de venta:</span> {{ $contrato['asesor_nombre'] }}
+            @endif
+        </p>
+    @endif
 </div>
 
 <div class="section">
@@ -64,7 +90,7 @@
         <span>{{ $chk($tipo['trimestral']) }} Trimestral</span>
         <span>{{ $chk($tipo['semestral']) }} Semestral</span>
         <span>{{ $chk($tipo['anual']) }} Anual</span>
-        <span>{{ $chk($tipo['otro']) }} Otro: {{ $tipo['otro'] ? ($tipo['otro_texto'] ?: '___________') : '___________' }}</span>
+        <span>{{ $chk($tipo['otro']) }} Otro@if ($tipo['otro'] && filled($tipo['otro_texto'])): {{ $tipo['otro_texto'] }}@endif</span>
     </p>
     <p class="field-line field-label">Sede:</p>
     <p class="checks">
@@ -72,17 +98,35 @@
             <span>{{ $chk($activa) }} {{ $nombreSede }}</span>
         @endforeach
     </p>
-    <p class="field-line">
-        <span class="field-label">Fecha de inicio:</span> {{ $contrato['fecha_inicio'] }}
-        &nbsp;&nbsp;&nbsp;
-        <span class="field-label">Fecha de término:</span> {{ $contrato['fecha_termino'] }}
-    </p>
-    <p class="field-line">
-        <span class="field-label">Monto pagado:</span> S/ {{ $contrato['monto_pagado'] }}
-        &nbsp;&nbsp;&nbsp;
-        <span class="field-label">Forma de pago:</span> {{ $contrato['forma_pago'] ?: '___________________' }}
-    </p>
-    <p class="field-line"><span class="field-label">Fechas de pago fraccionado:</span> {{ $contrato['fechas_pago_fraccionado'] ?: '_______________________________' }}</p>
+    @if (filled($contrato['fecha_inicio']) || filled($contrato['fecha_termino']))
+        <p class="field-line">
+            @if (filled($contrato['fecha_inicio']))
+                <span class="field-label">Fecha de inicio:</span> {{ $contrato['fecha_inicio'] }}
+            @endif
+            @if (filled($contrato['fecha_inicio']) && filled($contrato['fecha_termino']))
+                &nbsp;&nbsp;&nbsp;
+            @endif
+            @if (filled($contrato['fecha_termino']))
+                <span class="field-label">Fecha de término:</span> {{ $contrato['fecha_termino'] }}
+            @endif
+        </p>
+    @endif
+    @if (filled($contrato['monto_pagado']) || filled($contrato['forma_pago']))
+        <p class="field-line">
+            @if (filled($contrato['monto_pagado']))
+                <span class="field-label">Monto pagado:</span> S/ {{ $contrato['monto_pagado'] }}
+            @endif
+            @if (filled($contrato['monto_pagado']) && filled($contrato['forma_pago']))
+                &nbsp;&nbsp;&nbsp;
+            @endif
+            @if (filled($contrato['forma_pago']))
+                <span class="field-label">Forma de pago:</span> {{ $contrato['forma_pago'] }}
+            @endif
+        </p>
+    @endif
+    @if (filled($contrato['fechas_pago_fraccionado']))
+        <p class="field-line"><span class="field-label">Fechas de pago fraccionado:</span> {{ $contrato['fechas_pago_fraccionado'] }}</p>
+    @endif
 </div>
 
 <div class="section">

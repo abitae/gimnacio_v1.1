@@ -69,16 +69,16 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-2.5 text-xs">
-                                    <div class="flex gap-2">
+                                    <x-ui.table-actions align="left">
                                         @can('usuario.editar')
-                                            <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $u->id }})">Editar</flux:button>
+                                            <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $u->id }})" aria-label="Editar" />
                                         @endcan
                                         @if ($u->id !== auth()->id())
                                             @can('usuario.eliminar')
-                                                <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="openDeleteModal({{ $u->id }})">Eliminar</flux:button>
+                                                <flux:button size="xs" variant="ghost" color="red" icon="trash" wire:click="openDeleteModal({{ $u->id }})" aria-label="Eliminar" />
                                             @endcan
                                         @endif
-                                    </div>
+                                    </x-ui.table-actions>
                                 </td>
                             </tr>
                         @empty

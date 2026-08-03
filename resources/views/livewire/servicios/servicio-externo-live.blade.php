@@ -46,9 +46,11 @@
                                     </span>
                                 </td>
                                 <td class="px-4 py-2.5 text-xs">
+                                    <x-ui.table-actions align="left">
                                     @can('servicio.editar')
-                                    <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $servicio->id }})">Editar</flux:button>
+                                    <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $servicio->id }})" aria-label="Editar" />
                                     @endcan
+                                    </x-ui.table-actions>
                                 </td>
                             </tr>
                         @empty

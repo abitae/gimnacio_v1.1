@@ -53,6 +53,8 @@ it('genera datos del contrato con información del cliente y matrícula', functi
     expect($datos['afiliado_nombre'])->toBe('Juan Pérez Contrato')
         ->and($datos['afiliado_dni'])->toBe('12345678')
         ->and($datos['asesor_nombre'])->toBe('Asesor Contrato')
+        ->and($datos['gimnasio_nombre'])->toBe('GIMNASIO FITNESS CENTER')
+        ->and($datos['gimnasio_nombre_titulo'])->toBe('GIMNASIO FITNESS CENTER')
         ->and($datos['tipo_membresia']['mensual'])->toBeTrue();
 });
 
@@ -67,4 +69,30 @@ it('responde pdf del contrato de membresía con permiso cliente.ver', function (
 
     $response->assertOk();
     expect($response->headers->get('content-type'))->toContain('application/pdf');
+});
+
+it('permite descargar el contrato con url firmada sin autenticación', function () {
+    $cliente = Cliente::factory()->create();
+
+    $url = app(ClienteContratoMembresiaService::class)->getUrlDescargaFirmada($cliente);
+
+    $response = $this->get($url);
+
+    $response->assertOk();
+    expect($response->headers->get('content-type'))->toContain('application/pdf');
+    expect($response->headers->get('content-disposition'))->toContain('attachment');
+});
+
+it('genera mensaje de whatsapp con enlace firmado al contrato', function () {
+    $cliente = Cliente::factory()->create([
+        'nombres' => 'Ana',
+        'apellidos' => 'García',
+        'telefono' => '999111222',
+    ]);
+
+    $mensaje = app(ClienteContratoMembresiaService::class)->mensajeWhatsAppContrato($cliente);
+
+    expect($mensaje)->toContain('Ana García')
+        ->and($mensaje)->toContain('contrato de membresía')
+        ->and($mensaje)->toContain('clientes/'.$cliente->id.'/contrato-membresia/descargar');
 });

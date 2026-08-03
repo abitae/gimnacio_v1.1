@@ -12,6 +12,7 @@ use App\Models\Core\EvaluacionFisica;
 use App\Models\Core\Pago;
 use App\Models\System\AuditLog;
 use App\Models\System\Sucursal;
+use App\Support\PermissionCatalog;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -140,6 +141,29 @@ class User extends Authenticatable
     public function defaultSucursal(): BelongsTo
     {
         return $this->belongsTo(Sucursal::class, 'default_sucursal_id');
+    }
+
+    /**
+     * Roles que pueden figurar como asesor de venta en clientes y matrículas.
+     *
+     * @var list<string>
+     */
+    public const ASESOR_ROLE_NAMES = [
+        'vendedor',
+        'caja',
+        PermissionCatalog::BRANCH_ADMIN_ROLE_NAME,
+        PermissionCatalog::SUPER_ADMIN_ROLE_NAME,
+    ];
+
+    /**
+     * Usuarios activos con rol de asesor/vendedor (listados en filtros de clientes).
+     */
+    public function scopeAsesoresActivos($query)
+    {
+        return $query
+            ->where('estado', 'activo')
+            ->role(self::ASESOR_ROLE_NAMES)
+            ->orderBy('name');
     }
 
     /**

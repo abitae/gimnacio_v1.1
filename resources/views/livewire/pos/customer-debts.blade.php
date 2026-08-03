@@ -56,16 +56,16 @@
                             </span>
                         </td>
                         <td class="px-4 py-3 text-right">
-                            <div class="inline-flex flex-wrap justify-end gap-1">
+                            <x-ui.table-actions>
                                 @if ($d->cliente)
                                     <flux:button size="xs" variant="ghost" href="{{ route('clientes.perfil', $d->cliente) }}" wire:navigate>Ficha</flux:button>
                                     <flux:button size="xs" variant="ghost" wire:click="abrirModalPagoCliente({{ $d->cliente_id }})">Pagar cliente</flux:button>
                                 @endif
                                 <flux:button size="xs" variant="primary" color="green" wire:click="abrirModalCobro({{ $d->id }})">Pagar deuda</flux:button>
                                 @if ($d->venta)
-                                    <flux:button size="xs" variant="ghost" href="{{ route('ventas.comprobante.pdf', ['venta' => $d->venta->id, 'reprint' => 1]) }}" target="_blank">Reimprimir ticket</flux:button>
+                                    <flux:button size="xs" variant="ghost" icon="printer" href="{{ route('ventas.comprobante.pdf', ['venta' => $d->venta->id, 'reprint' => 1]) }}" target="_blank">Reimprimir ticket</flux:button>
                                 @endif
-                            </div>
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @empty

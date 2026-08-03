@@ -35,7 +35,9 @@
                         <td class="px-4 py-2">S/ {{ number_format($r->precio, 2) }}</td>
                         <td class="px-4 py-2"><span class="rounded-full px-1.5 py-0.5 text-xs bg-zinc-100 dark:bg-zinc-700">{{ \App\Models\Core\Rental::ESTADOS[$r->estado] ?? $r->estado }}</span></td>
                         <td class="px-4 py-2">
-                            <flux:button size="xs" variant="ghost" href="{{ route('rentals.bookings.show', $r) }}" wire:navigate>Ver</flux:button>
+                            <x-ui.table-actions align="left">
+                            <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('rentals.bookings.show', $r) }}" wire:navigate aria-label="Ver" />
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @empty

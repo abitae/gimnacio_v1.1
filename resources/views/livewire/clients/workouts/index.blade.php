@@ -25,7 +25,9 @@
                         <td class="px-4 py-2">{{ $session->fecha_hora->format('d/m/Y H:i') }}</td>
                         <td class="px-4 py-2">{{ $session->estado_label }}</td>
                         <td class="px-4 py-2 text-right">
-                            <flux:button href="{{ route('clientes.sesiones.show', [$cliente, $session]) }}" size="xs" variant="ghost" wire:navigate>Ver</flux:button>
+                            <x-ui.table-actions>
+                            <flux:button href="{{ route('clientes.sesiones.show', [$cliente, $session]) }}" size="xs" variant="ghost" icon="eye" wire:navigate aria-label="Ver" />
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @empty

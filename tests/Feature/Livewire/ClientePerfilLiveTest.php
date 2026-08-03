@@ -99,8 +99,10 @@ it('filtra el listado de clientes por asesor de matrícula', function () {
     $user->givePermissionTo('cliente.ver');
     $this->actingAs($user);
 
-    $asesorUno = User::factory()->create(['name' => 'Asesor Uno Test']);
-    $asesorDos = User::factory()->create(['name' => 'Asesor Dos Test']);
+    $asesorUno = User::factory()->create(['name' => 'Asesor Uno Test', 'estado' => 'activo']);
+    $asesorUno->assignRole('vendedor');
+    $asesorDos = User::factory()->create(['name' => 'Asesor Dos Test', 'estado' => 'activo']);
+    $asesorDos->assignRole('vendedor');
 
     $clienteAsesorUno = Cliente::factory()->create([
         'nombres' => 'Cliente',
@@ -153,6 +155,22 @@ it('filtra el listado de clientes por asesor de matrícula', function () {
         ->set('asesorFilter', (string) $asesorUno->id)
         ->assertSee('Asesor Uno Filtro')
         ->assertDontSee('Asesor Dos Filtro');
+});
+
+it('el filtro asesor solo muestra vendedores activos', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('cliente.ver');
+    $this->actingAs($user);
+
+    $asesorActivo = User::factory()->create(['name' => 'Asesor Activo Filtro', 'estado' => 'activo']);
+    $asesorActivo->assignRole('vendedor');
+
+    $asesorInactivo = User::factory()->create(['name' => 'Asesor Inactivo Filtro', 'estado' => 'inactivo']);
+    $asesorInactivo->assignRole('vendedor');
+
+    Livewire::test(ClienteLive::class)
+        ->assertSee('Asesor Activo Filtro')
+        ->assertDontSee('Asesor Inactivo Filtro');
 });
 
 it('selecciona cliente en perfil y fija la ficha', function () {

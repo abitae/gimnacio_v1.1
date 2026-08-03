@@ -32,10 +32,12 @@
                         <td class="px-4 py-2">{{ $e->cargo ?? '—' }}</td>
                         <td class="px-4 py-2"><span class="rounded-full px-1.5 py-0.5 text-xs {{ $e->estado === 'activo' ? 'bg-green-100 dark:bg-green-900/30' : 'bg-zinc-100 dark:bg-zinc-700' }}">{{ ucfirst($e->estado) }}</span></td>
                         <td class="px-4 py-2">
-                            <flux:button size="xs" variant="ghost" href="{{ route('employees.show', $e) }}" wire:navigate>Ver</flux:button>
-                            @can('empleado.editar')
-                            <flux:button size="xs" variant="ghost" href="{{ route('employees.edit', $e) }}" wire:navigate>Editar</flux:button>
-                            @endcan
+                            <x-ui.table-actions align="left">
+                                <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('employees.show', $e) }}" wire:navigate aria-label="Ver" />
+                                @can('empleado.editar')
+                                <flux:button size="xs" variant="ghost" icon="pencil" href="{{ route('employees.edit', $e) }}" wire:navigate aria-label="Editar" />
+                                @endcan
+                            </x-ui.table-actions>
                         </td>
                     </tr>
                 @empty

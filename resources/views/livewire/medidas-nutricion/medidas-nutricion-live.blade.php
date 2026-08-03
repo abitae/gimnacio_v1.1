@@ -189,14 +189,14 @@
                                                         {{ $evaluacion->nutricionista->name ?? '-' }}
                                                     </td>
                                                     <td class="px-4 py-2.5 text-xs">
-                                                        <div class="flex gap-1">
+                                                        <x-ui.table-actions align="left">
                                                             <flux:button variant="ghost" size="xs" icon="pencil"
                                                                 wire:click="openEditEvaluacionModal({{ $evaluacion->id }})" aria-label="Editar">
                                                             </flux:button>
                                                             <flux:button variant="ghost" size="xs" icon="trash" color="red"
                                                                 wire:click="openDeleteEvaluacionModal({{ $evaluacion->id }})" aria-label="Eliminar">
                                                             </flux:button>
-                                                        </div>
+                                                        </x-ui.table-actions>
                                                     </td>
                                                 </tr>
                                             @empty
@@ -298,7 +298,7 @@
                                                         </span>
                                                     </td>
                                                     <td class="px-4 py-2.5 text-xs">
-                                                        <div class="flex gap-1">
+                                                        <x-ui.table-actions align="left">
                                                             @if (in_array($cita->estado, ['programada', 'confirmada', 'en_curso']))
                                                                 <flux:button variant="ghost" size="xs" icon="x-mark" color="red"
                                                                     wire:click="cancelarCita({{ $cita->id }})" aria-label="Cancelar">
@@ -315,7 +315,7 @@
                                                             <flux:button variant="ghost" size="xs" icon="trash" color="red"
                                                                 wire:click="openDeleteCitaModal({{ $cita->id }})" aria-label="Eliminar">
                                                             </flux:button>
-                                                        </div>
+                                                        </x-ui.table-actions>
                                                     </td>
                                                 </tr>
                                             @empty

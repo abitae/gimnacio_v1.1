@@ -48,14 +48,16 @@
                             <td class="px-4 py-2">{{ $t->nivel ?? '—' }}</td>
                             <td class="px-4 py-2">{{ $t->frecuencia_dias_semana ?? '—' }}</td>
                             <td class="px-4 py-2">{{ $t->estado_label }}</td>
-                            <td class="px-4 py-2 text-right space-x-1">
+                            <td class="px-4 py-2 text-right">
+                                <x-ui.table-actions>
                                 @can('ejercicio_rutina.editar')
-                                <flux:button href="{{ route('rutinas-base.builder', $t) }}" size="xs" variant="ghost" wire:navigate>Builder</flux:button>
-                                <flux:button size="xs" variant="ghost" wire:click="openEditModal({{ $t->id }})">Editar</flux:button>
+                                <flux:button href="{{ route('rutinas-base.builder', $t) }}" size="xs" variant="ghost" icon="squares-2x2" wire:navigate aria-label="Builder" />
+                                <flux:button size="xs" variant="ghost" icon="pencil" wire:click="openEditModal({{ $t->id }})" aria-label="Editar" />
                                 @endcan
                                 @can('ejercicio_rutina.crear')
-                                <flux:button size="xs" variant="ghost" wire:click="cloneTemplate({{ $t->id }})" wire:loading.attr="disabled">Clonar</flux:button>
+                                <flux:button size="xs" variant="ghost" icon="document-duplicate" wire:click="cloneTemplate({{ $t->id }})" wire:loading.attr="disabled" aria-label="Clonar" />
                                 @endcan
+                                </x-ui.table-actions>
                             </td>
                         </tr>
                     @empty

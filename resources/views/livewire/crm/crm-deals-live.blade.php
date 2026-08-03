@@ -48,9 +48,9 @@
                     <td class="px-4 py-2">{{ $d->estado }}</td>
                     <td class="px-4 py-2">{{ $d->assignedTo?->name ?? '—' }}</td>
                     <td class="px-4 py-2">
-                        <div class="flex flex-wrap gap-1">
+                        <x-ui.table-actions align="left">
                             @if($d->lead)
-                            <a href="{{ route('crm.leads.show', $d->lead_id) }}" wire:navigate class="text-xs text-zinc-600 hover:text-zinc-900 dark:hover:text-zinc-300">Ver lead</a>
+                            <flux:button size="xs" variant="ghost" icon="eye" href="{{ route('crm.leads.show', $d->lead_id) }}" wire:navigate>Ver lead</flux:button>
                             @endif
                             @can('crm.editar')
                             @if($d->estado === 'open')
@@ -58,7 +58,7 @@
                             <flux:button size="xs" variant="ghost" wire:click="openMarkLost({{ $d->id }})">Perdida</flux:button>
                             @endif
                             @endcan
-                        </div>
+                        </x-ui.table-actions>
                     </td>
                 </tr>
                 @empty

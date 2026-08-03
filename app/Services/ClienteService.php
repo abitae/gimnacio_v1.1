@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Core\Cliente;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
@@ -26,7 +27,7 @@ class ClienteService
      */
     public function paginate(int $perPage = 15): LengthAwarePaginator
     {
-        return Cliente::query()
+        return $this->baseListQuery()
             ->orderByRaw("CASE estado_cliente WHEN 'activo' THEN 0 WHEN 'inactivo' THEN 1 ELSE 2 END")
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
@@ -40,7 +41,7 @@ class ClienteService
      */
     public function search(string $search, ?string $estado = null, int $perPage = 15, ?string $codigo = null, ?int $asesorId = null): LengthAwarePaginator
     {
-        $query = Cliente::query();
+        $query = $this->baseListQuery();
 
         if ($search) {
             $query->where(function ($q) use ($search) {
@@ -79,6 +80,27 @@ class ClienteService
             $q->where('created_by', $asesorId)
                 ->orWhereHas('clienteMatriculas', fn ($matriculas) => $matriculas->where('asesor_id', $asesorId));
         });
+    }
+
+    protected function baseListQuery(): Builder
+    {
+        return Cliente::query()->with([
+            'registroPor:id,name',
+            'matriculaMembresiaReciente.asesor:id,name',
+            'ultimaMatricula.asesor:id,name',
+        ]);
+    }
+
+    /**
+     * Asesores activos para filtros y selects (rol de venta + estado activo).
+     *
+     * @return Collection<int, User>
+     */
+    public function asesoresActivosParaFiltro(): Collection
+    {
+        return User::query()
+            ->asesoresActivos()
+            ->get(['id', 'name']);
     }
 
     /**

@@ -6,17 +6,22 @@ use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\EnrollmentInstallment;
 use App\Models\Core\Pago;
-use App\Support\BrandingResolver;
+use App\Services\WhatsApp\WhatsAppServiceInterface;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Support\Str;
+use Mpdf\Mpdf;
+use Symfony\Component\HttpFoundation\Response;
 
 class ClienteContratoMembresiaService
 {
     /** @var list<string> */
     private const SEDES_CONTRATO = ['Ayacucho', 'Cajamarca', 'Chilca'];
 
+    public const NOMBRE_GIMNASIO_CONTRATO = 'GIMNASIO FITNESS CENTER';
+
     public function __construct(
-        protected BrandingResolver $brandingResolver,
+        protected WhatsAppServiceInterface $whatsAppService,
     ) {}
 
     /**
@@ -31,7 +36,6 @@ class ClienteContratoMembresiaService
             $matricula->loadMissing(['membresia', 'clase', 'asesor', 'sucursal', 'pagos', 'enrollmentInstallments']);
         }
 
-        $branding = $this->brandingResolver->resolve();
         $tipoMembresia = $this->resolverTipoMembresia($matricula);
         $sedeNombre = $this->resolverSede($matricula, $cliente);
         $montoPagado = $this->resolverMontoPagado($matricula);
@@ -52,25 +56,25 @@ class ClienteContratoMembresiaService
         $ciudadFirma = $this->resolverCiudadFirma($matricula, $cliente);
 
         return [
-            'gimnasio_nombre' => Str::upper($branding['name'] ?: 'FITNESS CENTER'),
-            'gimnasio_nombre_titulo' => 'GIMNASIO '.Str::upper($branding['name'] ?: 'FITNESS CENTER'),
+            'gimnasio_nombre' => self::NOMBRE_GIMNASIO_CONTRATO,
+            'gimnasio_nombre_titulo' => self::NOMBRE_GIMNASIO_CONTRATO,
             'afiliado_nombre' => trim($cliente->nombres.' '.$cliente->apellidos),
             'afiliado_dni' => $cliente->numero_documento ?? '',
             'afiliado_celular' => $cliente->telefono ?? '',
-            'afiliado_fecha_nacimiento' => $fechaNacimiento?->format('d / m / Y') ?? '___ / ___ / ___',
-            'afiliado_direccion' => $cliente->direccion ?? '',
-            'afiliado_codigo' => $cliente->codigo ?? '',
-            'asesor_nombre' => $asesorNombre,
+            'afiliado_fecha_nacimiento' => $fechaNacimiento?->format('d / m / Y'),
+            'afiliado_direccion' => trim((string) ($cliente->direccion ?? '')),
+            'afiliado_codigo' => trim((string) ($cliente->codigo ?? '')),
+            'asesor_nombre' => trim($asesorNombre),
             'tipo_membresia' => $tipoMembresia,
             'tipo_membresia_otro' => $tipoMembresia['otro'] ?? ($matricula?->membresia?->nombre ?? ''),
             'sedes' => collect(self::SEDES_CONTRATO)->mapWithKeys(fn (string $sede) => [
                 $sede => Str::contains(Str::lower($sedeNombre), Str::lower($sede)),
             ])->all(),
-            'fecha_inicio' => $fechaInicio?->format('d / m / Y') ?? '____ / ____ / ____',
-            'fecha_termino' => $fechaFin?->format('d / m / Y') ?? '____ / ____ / ____',
-            'monto_pagado' => $montoPagado > 0 ? number_format($montoPagado, 2) : '___________',
-            'forma_pago' => $formaPago,
-            'fechas_pago_fraccionado' => $fechasFraccionado,
+            'fecha_inicio' => $fechaInicio?->format('d / m / Y'),
+            'fecha_termino' => $fechaFin?->format('d / m / Y'),
+            'monto_pagado' => $montoPagado > 0 ? number_format($montoPagado, 2) : null,
+            'forma_pago' => $formaPago !== '' ? $formaPago : null,
+            'fechas_pago_fraccionado' => $fechasFraccionado !== '' ? $fechasFraccionado : null,
             'ciudad_firma' => $ciudadFirma,
             'fecha_firma_dia' => now()->format('d'),
             'fecha_firma_mes' => now()->translatedFormat('F'),
@@ -217,5 +221,100 @@ class ClienteContratoMembresiaService
         }
 
         return 'Huancayo';
+    }
+
+    public function generarPdf(Cliente $cliente): string
+    {
+        $contrato = $this->datosContrato($cliente);
+        $html = view('clientes.contrato-membresia-pdf', compact('contrato'))->render();
+
+        $mpdf = new Mpdf([
+            'mode' => 'utf-8',
+            'format' => 'A4',
+            'margin_left' => 14,
+            'margin_right' => 14,
+            'margin_top' => 14,
+            'margin_bottom' => 14,
+        ]);
+        $mpdf->WriteHTML($html);
+
+        return $mpdf->Output('', 'S');
+    }
+
+    public function nombreArchivoPdf(Cliente $cliente): string
+    {
+        return 'contrato-membresia-'.($cliente->codigo ?: $cliente->id).'.pdf';
+    }
+
+    public function respuestaPreview(Cliente $cliente): Response
+    {
+        $pdf = $this->generarPdf($cliente);
+        $filename = $this->nombreArchivoPdf($cliente);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+        ]);
+    }
+
+    public function respuestaDescarga(Cliente $cliente): Response
+    {
+        $pdf = $this->generarPdf($cliente);
+        $filename = $this->nombreArchivoPdf($cliente);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+        ]);
+    }
+
+    /**
+     * URL firmada temporal (48 h) para descargar el contrato (envío por WhatsApp, etc.).
+     */
+    public function getUrlDescargaFirmada(Cliente $cliente): string
+    {
+        return URL::temporarySignedRoute(
+            'clientes.contrato-membresia.descargar.signed',
+            now()->addHours(48),
+            ['cliente' => $cliente->id]
+        );
+    }
+
+    public function mensajeWhatsAppContrato(Cliente $cliente): string
+    {
+        $nombre = trim($cliente->nombres.' '.$cliente->apellidos);
+        $urlDescarga = $this->getUrlDescargaFirmada($cliente);
+
+        return 'Hola'.($nombre !== '' ? ' '.$nombre : '').', te enviamos tu contrato de membresía. Descárgalo aquí: '.$urlDescarga;
+    }
+
+    /**
+     * @return array{ success: bool, message: string }
+     */
+    public function enviarContratoPorWhatsApp(Cliente $cliente): array
+    {
+        $telefono = $cliente->telefono ?? '';
+
+        if (empty(trim((string) $telefono))) {
+            return ['success' => false, 'message' => 'El cliente no tiene teléfono registrado. Añade un número en la ficha del cliente para poder enviar por WhatsApp.'];
+        }
+
+        $destino = trim($telefono);
+        if (! str_starts_with($destino, '+')) {
+            $destino = preg_replace('/^0/', '', $destino);
+            $destino = (str_starts_with($destino, '51') ? '+' : '+51').$destino;
+        }
+
+        $pdfBase64 = base64_encode($this->generarPdf($cliente));
+        $nombreArchivo = $this->nombreArchivoPdf($cliente);
+        $caption = $this->mensajeWhatsAppContrato($cliente);
+
+        $result = $this->whatsAppService->enviarDocumento($destino, $pdfBase64, $nombreArchivo, $caption);
+
+        if ($result['success']) {
+            return ['success' => true, 'message' => 'Contrato enviado por WhatsApp.'];
+        }
+
+        return ['success' => false, 'message' => $result['error'] ?? 'No se pudo enviar por la API de WhatsApp. Se abrió el chat para que envíes el enlace manualmente.'];
     }
 }

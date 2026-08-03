@@ -317,14 +317,14 @@
                                                 </span>
                                             </td>
                                             <td class="px-4 py-2.5 text-xs">
-                                                <div class="flex gap-1">
+                                                <x-ui.table-actions align="left">
                                                     <flux:button variant="ghost" size="xs" icon="pencil"
                                                         wire:click="openEditModal({{ $membresia->id }})" aria-label="Editar">
                                                     </flux:button>
                                                     <flux:button variant="ghost" size="xs" icon="trash" color="red"
                                                         wire:click="openDeleteModal({{ $membresia->id }})" aria-label="Eliminar">
                                                     </flux:button>
-                                                </div>
+                                                </x-ui.table-actions>
                                             </td>
                                         </tr>
                                     @empty
