@@ -47,6 +47,9 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     Route::get('clientes/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:cliente.ver')->name('clientes.perfil.index');
     Route::get('clientes/{cliente}/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:cliente.ver')->name('clientes.perfil');
     Route::get('clientes', \App\Livewire\Clientes\ClienteLive::class)->middleware('permission:cliente.ver')->name('clientes.index');
+    Route::get('clientes/exportar-excel', [\App\Http\Controllers\ClienteListadoExportController::class, 'exportExcel'])
+        ->middleware('permission:cliente.ver')
+        ->name('clientes.index.exportar.excel');
     Route::get('clientes/{cliente}/contrato-membresia.pdf', [\App\Http\Controllers\ClienteContratoMembresiaController::class, 'pdf'])
         ->middleware('permission:cliente.ver')
         ->name('clientes.contrato-membresia.pdf');

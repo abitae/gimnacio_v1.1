@@ -8,11 +8,18 @@
                     <a href="{{ route('clientes.perfil.index') }}" wire:navigate class="text-violet-600 hover:underline dark:text-violet-400">{{ __('Perfil de cliente') }}</a>.
                 </p>
             </div>
-            <a href="{{ route('clientes.perfil.index') }}" wire:navigate>
-                <flux:button icon="user-circle" color="purple" variant="primary" size="sm" type="button">
-                    {{ __('Abrir perfil') }}
-                </flux:button>
-            </a>
+            <div class="flex flex-wrap items-center gap-2">
+                <a href="{{ $exportUrl }}" target="_blank" rel="noopener"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1.5 text-xs font-medium text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-900/20 dark:text-emerald-300 dark:hover:bg-emerald-900/30">
+                    <flux:icon name="table-cells" class="size-4" />
+                    {{ __('Exportar Excel') }}
+                </a>
+                <a href="{{ route('clientes.perfil.index') }}" wire:navigate>
+                    <flux:button icon="user-circle" color="purple" variant="primary" size="sm" type="button">
+                        {{ __('Abrir perfil') }}
+                    </flux:button>
+                </a>
+            </div>
         </div>
 
         <div class="flex flex-wrap items-center justify-end gap-3">
@@ -40,14 +47,47 @@
                     @endforeach
                 </select>
             </div>
-            <div class="w-32">
+            <div class="w-full min-w-[10rem] sm:w-40">
+                <select wire:model.live="vigenciaFilter"
+                    class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                    aria-label="{{ __('Vigencia') }}">
+                    <option value="">{{ __('Toda vigencia') }}</option>
+                    <option value="activos">{{ __('Con plan activo') }}</option>
+                    <option value="por_vencer">{{ __('Por vencer') }}</option>
+                    <option value="por_iniciar">{{ __('Por iniciar') }}</option>
+                    <option value="inactivos">{{ __('Clientes inactivos') }}</option>
+                </select>
+            </div>
+            @if ($vigenciaFilter === 'por_vencer')
+                <div class="w-full min-w-[8rem] sm:w-28">
+                    <select wire:model.live="ventanaDias"
+                        class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                        aria-label="{{ __('Ventana por vencer') }}">
+                        <option value="7">7 {{ __('días') }}</option>
+                        <option value="15">15 {{ __('días') }}</option>
+                        <option value="30">30 {{ __('días') }}</option>
+                        <option value="45">45 {{ __('días') }}</option>
+                    </select>
+                </div>
+            @endif
+            <div class="w-full min-w-[10rem] sm:w-36">
                 <select wire:model.live="estadoFilter"
                     class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                    aria-label="{{ __('Estado') }}">
-                    <option value="">{{ __('Todos') }}</option>
+                    aria-label="{{ __('Estado del cliente') }}">
+                    <option value="">{{ __('Todo estado') }}</option>
                     <option value="activo">{{ __('Activo') }}</option>
                     <option value="inactivo">{{ __('Inactivo') }}</option>
                     <option value="suspendido">{{ __('Suspendido') }}</option>
+                </select>
+            </div>
+            <div class="w-full min-w-[10rem] sm:w-44">
+                <select wire:model.live="membresiaFilter"
+                    class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                    aria-label="{{ __('Tipo de membresía') }}">
+                    <option value="">{{ __('Todas las membresías') }}</option>
+                    @foreach ($membresias as $membresia)
+                        <option value="{{ $membresia->id }}">{{ $membresia->nombre }}</option>
+                    @endforeach
                 </select>
             </div>
             <div class="w-28">
@@ -63,9 +103,46 @@
             </div>
         </div>
 
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8"
+            wire:loading.delay.class="opacity-60"
+            wire:target="search,codigoSearch,asesorFilter,vigenciaFilter,ventanaDias,estadoFilter,membresiaFilter,perPage">
+            <div class="rounded-lg border border-indigo-100 bg-indigo-50/50 p-2 dark:border-indigo-900/50 dark:bg-indigo-950/30">
+                <div class="text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Total clientes') }}</div>
+                <div class="text-base font-bold tabular-nums text-indigo-700 dark:text-indigo-300">{{ $resumen['total'] ?? 0 }}</div>
+            </div>
+            <div class="rounded-lg border border-emerald-100 bg-emerald-50/60 p-2 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                <div class="text-[10px] font-medium uppercase tracking-wide text-emerald-600 dark:text-emerald-400">{{ __('Clientes activos') }}</div>
+                <div class="text-base font-bold tabular-nums text-emerald-700 dark:text-emerald-300">{{ $resumen['activos'] ?? 0 }}</div>
+            </div>
+            <div class="rounded-lg border border-zinc-200 bg-zinc-50/80 p-2 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <div class="text-[10px] font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Clientes inactivos') }}</div>
+                <div class="text-base font-bold tabular-nums text-zinc-900 dark:text-zinc-100">{{ $resumen['inactivos'] ?? 0 }}</div>
+            </div>
+            <div class="rounded-lg border border-amber-100 bg-amber-50/60 p-2 dark:border-amber-900/50 dark:bg-amber-950/30">
+                <div class="text-[10px] font-medium uppercase tracking-wide text-amber-600 dark:text-amber-400">{{ __('Por vencer') }}</div>
+                <div class="text-base font-bold tabular-nums text-amber-700 dark:text-amber-300">{{ $resumen['clientes_por_vencer'] ?? 0 }}</div>
+            </div>
+            <div class="rounded-lg border border-sky-100 bg-sky-50/60 p-2 dark:border-sky-900/50 dark:bg-sky-950/30">
+                <div class="text-[10px] font-medium uppercase tracking-wide text-sky-600 dark:text-sky-400">{{ __('Por iniciar') }}</div>
+                <div class="text-base font-bold tabular-nums text-sky-700 dark:text-sky-300">{{ $resumen['membresias_por_iniciar'] ?? 0 }}</div>
+            </div>
+            <div class="rounded-lg border border-fuchsia-100 bg-fuchsia-50/60 p-2 dark:border-fuchsia-900/50 dark:bg-fuchsia-950/30">
+                <div class="text-[10px] font-medium uppercase tracking-wide text-fuchsia-600 dark:text-fuchsia-400">{{ __('Traspasos') }}</div>
+                <div class="text-base font-bold tabular-nums text-fuchsia-700 dark:text-fuchsia-300">{{ $resumen['traspasos'] ?? 0 }}</div>
+            </div>
+            <div class="rounded-lg border border-lime-100 bg-lime-50/60 p-2 dark:border-lime-900/50 dark:bg-lime-950/30">
+                <div class="text-[10px] font-medium uppercase tracking-wide text-lime-700 dark:text-lime-400">{{ __('Asistencias') }}</div>
+                <div class="text-base font-bold tabular-nums text-lime-700 dark:text-lime-300">{{ $resumen['asistencias'] ?? 0 }}</div>
+            </div>
+            <div class="rounded-lg border border-rose-100 bg-rose-50/60 p-2 dark:border-rose-900/50 dark:bg-rose-950/30">
+                <div class="text-[10px] font-medium uppercase tracking-wide text-rose-600 dark:text-rose-400">{{ __('Inasistencias') }}</div>
+                <div class="text-base font-bold tabular-nums text-rose-700 dark:text-rose-300">{{ $resumen['inasistencias'] ?? 0 }}</div>
+            </div>
+        </div>
+
         <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700"
             wire:loading.delay.class="opacity-60 pointer-events-none"
-            wire:target="search,codigoSearch,asesorFilter,estadoFilter,perPage">
+            wire:target="search,codigoSearch,asesorFilter,vigenciaFilter,ventanaDias,estadoFilter,membresiaFilter,perPage">
             <table class="w-full min-w-[820px] text-sm">
                 <thead class="bg-zinc-50 dark:bg-zinc-900">
                     <tr>

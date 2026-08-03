@@ -22,6 +22,12 @@ class ClienteLive extends Component
 
     public $asesorFilter = '';
 
+    public $vigenciaFilter = '';
+
+    public $membresiaFilter = '';
+
+    public int $ventanaDias = 15;
+
     public $perPage = 15;
 
     public bool $mostrarModalContrato = false;
@@ -62,6 +68,21 @@ class ClienteLive extends Component
     }
 
     public function updatingAsesorFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingVigenciaFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingMembresiaFilter(): void
+    {
+        $this->resetPage();
+    }
+
+    public function updatingVentanaDias(): void
     {
         $this->resetPage();
     }
@@ -113,27 +134,68 @@ class ClienteLive extends Component
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    protected function exportQueryParams(): array
+    {
+        $codigoTrim = trim($this->codigoSearch);
+
+        return array_filter([
+            'search' => $this->search ?: null,
+            'codigo' => $codigoTrim !== '' ? $codigoTrim : null,
+            'estado' => $this->estadoFilter ?: null,
+            'asesor_id' => $this->asesorFilter !== '' ? (int) $this->asesorFilter : null,
+            'vigencia' => $this->vigenciaFilter ?: null,
+            'membresia_id' => $this->membresiaFilter !== '' ? (int) $this->membresiaFilter : null,
+            'ventana_dias' => $this->vigenciaFilter === 'por_vencer' ? $this->ventanaDias : null,
+        ], fn ($value) => $value !== null && $value !== '');
+    }
+
     public function render()
     {
         $codigoTrim = trim($this->codigoSearch);
 
         $asesorId = $this->asesorFilter !== '' ? (int) $this->asesorFilter : null;
+        $membresiaId = $this->membresiaFilter !== '' ? (int) $this->membresiaFilter : null;
 
-        if ($this->search || $this->estadoFilter || $codigoTrim !== '' || $asesorId) {
-            $clientes = $this->service->search(
-                $this->search,
-                $this->estadoFilter ?: null,
-                $this->perPage,
-                $codigoTrim !== '' ? $codigoTrim : null,
-                $asesorId,
-            );
-        } else {
-            $clientes = $this->service->paginate($this->perPage);
-        }
+        $filtros = [
+            'search' => $this->search,
+            'estado' => $this->estadoFilter ?: null,
+            'codigo' => $codigoTrim !== '' ? $codigoTrim : null,
+            'asesorId' => $asesorId,
+            'vigencia' => $this->vigenciaFilter ?: null,
+            'membresiaId' => $membresiaId,
+            'ventanaDias' => $this->ventanaDias,
+        ];
+
+        $clientes = $this->service->search(
+            $filtros['search'],
+            $filtros['estado'],
+            $this->perPage,
+            $filtros['codigo'],
+            $filtros['asesorId'],
+            $filtros['vigencia'],
+            $filtros['membresiaId'],
+            $filtros['ventanaDias'],
+        );
+
+        $resumen = $this->service->resumenListado(
+            $filtros['search'],
+            $filtros['estado'],
+            $filtros['codigo'],
+            $filtros['asesorId'],
+            $filtros['vigencia'],
+            $filtros['membresiaId'],
+            $filtros['ventanaDias'],
+        );
 
         return view('livewire.clientes.cliente-live', [
             'clientes' => $clientes,
             'asesores' => $this->service->asesoresActivosParaFiltro(),
+            'membresias' => $this->service->membresiasParaFiltro(),
+            'resumen' => $resumen,
+            'exportUrl' => route('clientes.index.exportar.excel', $this->exportQueryParams()),
         ]);
     }
 }

@@ -173,6 +173,245 @@ it('el filtro asesor solo muestra vendedores activos', function () {
         ->assertDontSee('Asesor Inactivo Filtro');
 });
 
+it('filtra el listado de clientes por vigencia comercial', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('cliente.ver');
+    $this->actingAs($user);
+
+    $membresia = Membresia::factory()->create(['nombre' => 'Plan Vigencia', 'precio_base' => 100, 'estado' => 'activa']);
+
+    $clienteActivo = Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Plan Activo Filtro',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+    $clientePorVencer = Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Por Vencer Filtro',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+    $clientePorIniciar = Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Por Iniciar Filtro',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+    $clienteInactivo = Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Inactivo Filtro',
+        'estado_cliente' => 'inactivo',
+        'created_by' => $user->id,
+    ]);
+
+    ClienteMatricula::create([
+        'cliente_id' => $clienteActivo->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(60)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 100,
+        'descuento_monto' => 0,
+        'precio_final' => 100,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+    ]);
+
+    ClienteMatricula::create([
+        'cliente_id' => $clientePorVencer->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->subDays(20)->toDateString(),
+        'fecha_fin' => now()->addDays(10)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 100,
+        'descuento_monto' => 0,
+        'precio_final' => 100,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+    ]);
+
+    ClienteMatricula::create([
+        'cliente_id' => $clientePorIniciar->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->addDays(15)->toDateString(),
+        'fecha_fin' => now()->addDays(45)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 100,
+        'descuento_monto' => 0,
+        'precio_final' => 100,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+    ]);
+
+    Livewire::test(ClienteLive::class)
+        ->set('vigenciaFilter', 'activos')
+        ->assertSee('Plan Activo Filtro')
+        ->assertSee('Por Vencer Filtro')
+        ->assertDontSee('Por Iniciar Filtro')
+        ->assertDontSee('Inactivo Filtro');
+
+    Livewire::test(ClienteLive::class)
+        ->set('vigenciaFilter', 'por_vencer')
+        ->set('ventanaDias', 15)
+        ->assertSee('Por Vencer Filtro')
+        ->assertDontSee('Plan Activo Filtro')
+        ->assertDontSee('Por Iniciar Filtro');
+
+    Livewire::test(ClienteLive::class)
+        ->set('vigenciaFilter', 'por_iniciar')
+        ->assertSee('Por Iniciar Filtro')
+        ->assertDontSee('Plan Activo Filtro');
+
+    Livewire::test(ClienteLive::class)
+        ->set('vigenciaFilter', 'inactivos')
+        ->assertSee('Inactivo Filtro')
+        ->assertDontSee('Plan Activo Filtro');
+});
+
+it('filtra el listado de clientes por tipo de membresía', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('cliente.ver');
+    $this->actingAs($user);
+
+    $membresiaBasica = Membresia::factory()->create(['nombre' => 'Plan Básico Filtro', 'precio_base' => 80, 'estado' => 'activa']);
+    $membresiaPremium = Membresia::factory()->create(['nombre' => 'Plan Premium Filtro', 'precio_base' => 150, 'estado' => 'activa']);
+
+    $clienteBasico = Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Membresia Basica Filtro',
+        'created_by' => $user->id,
+    ]);
+    $clientePremium = Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Membresia Premium Filtro',
+        'created_by' => $user->id,
+    ]);
+
+    foreach ([[$clienteBasico, $membresiaBasica], [$clientePremium, $membresiaPremium]] as [$cliente, $membresia]) {
+        ClienteMatricula::create([
+            'cliente_id' => $cliente->id,
+            'tipo' => 'membresia',
+            'membresia_id' => $membresia->id,
+            'fecha_matricula' => now()->toDateString(),
+            'fecha_inicio' => now()->toDateString(),
+            'fecha_fin' => now()->addDays(30)->toDateString(),
+            'estado' => 'activa',
+            'precio_lista' => $membresia->precio_base,
+            'descuento_monto' => 0,
+            'precio_final' => $membresia->precio_base,
+            'modalidad_pago' => 'contado',
+            'requiere_plan_cuotas' => false,
+            'cuota_inicial_monto' => 0,
+        ]);
+    }
+
+    Livewire::test(ClienteLive::class)
+        ->set('membresiaFilter', (string) $membresiaBasica->id)
+        ->assertSee('Membresia Basica Filtro')
+        ->assertDontSee('Membresia Premium Filtro');
+
+    Livewire::test(ClienteLive::class)
+        ->set('membresiaFilter', (string) $membresiaPremium->id)
+        ->assertSee('Membresia Premium Filtro')
+        ->assertDontSee('Membresia Basica Filtro');
+});
+
+it('muestra tarjetas de resumen en listado de clientes', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('cliente.ver');
+    $this->actingAs($user);
+
+    Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Resumen Cards Test',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+
+    Livewire::test(ClienteLive::class)
+        ->assertSee('Total clientes')
+        ->assertSee('Clientes activos')
+        ->assertSee('Clientes inactivos')
+        ->assertSee('Por vencer')
+        ->assertSee('Por iniciar')
+        ->assertSee('Traspasos')
+        ->assertSee('Asistencias')
+        ->assertSee('Inasistencias');
+});
+
+it('muestra botón exportar excel en listado de clientes', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('cliente.ver');
+    $this->actingAs($user);
+
+    Livewire::test(ClienteLive::class)
+        ->assertSee('Exportar Excel');
+});
+
+it('exporta excel del listado de clientes con filtros', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('cliente.ver');
+    $this->actingAs($user);
+
+    Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Export Excel Test',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+    Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Export Excel Oculto',
+        'estado_cliente' => 'inactivo',
+        'created_by' => $user->id,
+    ]);
+
+    $response = $this->get(route('clientes.index.exportar.excel', [
+        'estado' => 'activo',
+    ]));
+
+    $response->assertOk();
+});
+
+it('filtra el listado de clientes por estado del cliente', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('cliente.ver');
+    $this->actingAs($user);
+
+    Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Estado Activo Filtro',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+    ]);
+    Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Estado Inactivo Filtro',
+        'estado_cliente' => 'inactivo',
+        'created_by' => $user->id,
+    ]);
+
+    Livewire::test(ClienteLive::class)
+        ->set('estadoFilter', 'activo')
+        ->assertSee('Estado Activo Filtro')
+        ->assertDontSee('Estado Inactivo Filtro');
+
+    Livewire::test(ClienteLive::class)
+        ->set('estadoFilter', 'inactivo')
+        ->assertSee('Estado Inactivo Filtro')
+        ->assertDontSee('Estado Activo Filtro');
+});
+
 it('selecciona cliente en perfil y fija la ficha', function () {
     $user = User::factory()->create();
     $user->givePermissionTo('cliente.ver');

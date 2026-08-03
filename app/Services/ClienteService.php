@@ -2,11 +2,19 @@
 
 namespace App\Services;
 
+use App\Models\Core\Asistencia;
+use App\Models\Core\Cita;
 use App\Models\Core\Cliente;
+use App\Models\Core\ClienteMatricula;
+use App\Models\Core\ClienteMembresia;
+use App\Models\Core\ClientePlanTraspaso;
+use App\Models\Core\Membresia;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Pagination\LengthAwarePaginator;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Validator;
@@ -34,16 +42,239 @@ class ClienteService
     }
 
     /**
-     * Buscar clientes por término de búsqueda
+     * Listado paginado del índice de clientes con filtros opcionales.
      *
      * @param  string|null  $codigo  Filtro adicional AND por columna codigo (coincidencia exacta).
      * @param  int|null  $asesorId  Filtra por asesor (registro o matrícula).
+     * @param  string|null  $vigencia  activos|por_vencer|por_iniciar|inactivos (vigencia comercial).
+     * @param  int|null  $membresiaId  Filtra por tipo de membresía en matrículas o legacy.
      */
-    public function search(string $search, ?string $estado = null, int $perPage = 15, ?string $codigo = null, ?int $asesorId = null): LengthAwarePaginator
-    {
-        $query = $this->baseListQuery();
+    public function search(
+        string $search,
+        ?string $estado = null,
+        int $perPage = 15,
+        ?string $codigo = null,
+        ?int $asesorId = null,
+        ?string $vigencia = null,
+        ?int $membresiaId = null,
+        int $ventanaDias = 15,
+    ): LengthAwarePaginator {
+        return $this->filteredListQuery($search, $estado, $codigo, $asesorId, $vigencia, $membresiaId, $ventanaDias)
+            ->orderByRaw("CASE estado_cliente WHEN 'activo' THEN 0 WHEN 'inactivo' THEN 1 ELSE 2 END")
+            ->orderBy('created_at', 'desc')
+            ->paginate($perPage);
+    }
 
-        if ($search) {
+    /**
+     * Clientes filtrados para exportación (sin paginación).
+     *
+     * @return EloquentCollection<int, Cliente>
+     */
+    public function listForExport(
+        string $search = '',
+        ?string $estado = null,
+        ?string $codigo = null,
+        ?int $asesorId = null,
+        ?string $vigencia = null,
+        ?int $membresiaId = null,
+        int $ventanaDias = 15,
+    ): EloquentCollection {
+        return $this->filteredListQuery($search, $estado, $codigo, $asesorId, $vigencia, $membresiaId, $ventanaDias)
+            ->orderByRaw("CASE estado_cliente WHEN 'activo' THEN 0 WHEN 'inactivo' THEN 1 ELSE 2 END")
+            ->orderBy('created_at', 'desc')
+            ->get();
+    }
+
+    /**
+     * Resumen para tarjetas del listado de clientes (respeta filtros activos).
+     *
+     * @return array{
+     *     total: int,
+     *     activos: int,
+     *     inactivos: int,
+     *     clientes_por_vencer: int,
+     *     membresias_por_iniciar: int,
+     *     traspasos: int,
+     *     asistencias: int,
+     *     inasistencias: int
+     * }
+     */
+    public function resumenListado(
+        string $search = '',
+        ?string $estado = null,
+        ?string $codigo = null,
+        ?int $asesorId = null,
+        ?string $vigencia = null,
+        ?int $membresiaId = null,
+        int $ventanaDias = 15,
+    ): array {
+        $clienteIds = $this->filteredListQuery($search, $estado, $codigo, $asesorId, $vigencia, $membresiaId, $ventanaDias)
+            ->pluck('id');
+
+        if ($clienteIds->isEmpty()) {
+            return $this->emptyResumenListado();
+        }
+
+        $hoy = Carbon::today();
+        $ventanaLimite = $hoy->copy()->addDays(max($ventanaDias, 1));
+
+        $estadoCounts = Cliente::query()
+            ->whereIn('id', $clienteIds)
+            ->selectRaw('estado_cliente, COUNT(*) as total')
+            ->groupBy('estado_cliente')
+            ->pluck('total', 'estado_cliente');
+
+        $matriculas = ClienteMatricula::query()
+            ->whereIn('cliente_id', $clienteIds)
+            ->orderBy('fecha_inicio')
+            ->get()
+            ->groupBy('cliente_id');
+
+        $membresiasLegacy = ClienteMembresia::query()
+            ->whereIn('cliente_id', $clienteIds)
+            ->orderBy('fecha_inicio')
+            ->get()
+            ->groupBy('cliente_id');
+
+        $clientesPorVencer = 0;
+        $membresiasPorIniciar = 0;
+
+        foreach ($clienteIds as $clienteId) {
+            $enrollments = $this->enrollmentsParaResumen(
+                $matriculas->get($clienteId, collect()),
+                $membresiasLegacy->get($clienteId, collect()),
+            );
+
+            $activos = $enrollments->filter(function (array $item) use ($hoy) {
+                return $item['estado'] === 'activa'
+                    && $item['fecha_inicio']
+                    && $item['fecha_inicio']->lte($hoy)
+                    && ($item['fecha_fin'] === null || $item['fecha_fin']->gte($hoy));
+            });
+
+            $proximosVencer = $activos
+                ->filter(fn (array $item) => $item['fecha_fin'] !== null && $item['fecha_fin']->betweenIncluded($hoy, $ventanaLimite));
+
+            if ($proximosVencer->isNotEmpty()) {
+                $clientesPorVencer++;
+            }
+
+            $porIniciar = $enrollments
+                ->filter(fn (array $item) => $item['categoria'] === 'membresia'
+                    && in_array($item['estado'], ['activa', 'congelada'], true)
+                    && $item['fecha_inicio'] !== null
+                    && $item['fecha_inicio']->gt($hoy));
+
+            $membresiasPorIniciar += $porIniciar->count();
+        }
+
+        return [
+            'total' => $clienteIds->count(),
+            'activos' => (int) ($estadoCounts['activo'] ?? 0),
+            'inactivos' => (int) ($estadoCounts['inactivo'] ?? 0),
+            'clientes_por_vencer' => $clientesPorVencer,
+            'membresias_por_iniciar' => $membresiasPorIniciar,
+            'traspasos' => ClientePlanTraspaso::query()->whereIn('cliente_id', $clienteIds)->count(),
+            'asistencias' => Asistencia::query()->whereIn('cliente_id', $clienteIds)->count(),
+            'inasistencias' => Cita::query()
+                ->whereIn('cliente_id', $clienteIds)
+                ->where('estado', 'no_asistio')
+                ->count(),
+        ];
+    }
+
+    /**
+     * @return Builder<Cliente>
+     */
+    protected function filteredListQuery(
+        string $search = '',
+        ?string $estado = null,
+        ?string $codigo = null,
+        ?int $asesorId = null,
+        ?string $vigencia = null,
+        ?int $membresiaId = null,
+        int $ventanaDias = 15,
+    ): Builder {
+        $query = $this->baseListQuery();
+        $this->applyListFilters($query, $search, $codigo, $estado, $asesorId, $vigencia, $membresiaId, $ventanaDias);
+
+        return $query;
+    }
+
+    /**
+     * @return array{
+     *     total: int,
+     *     activos: int,
+     *     inactivos: int,
+     *     clientes_por_vencer: int,
+     *     membresias_por_iniciar: int,
+     *     traspasos: int,
+     *     asistencias: int,
+     *     inasistencias: int
+     * }
+     */
+    protected function emptyResumenListado(): array
+    {
+        return [
+            'total' => 0,
+            'activos' => 0,
+            'inactivos' => 0,
+            'clientes_por_vencer' => 0,
+            'membresias_por_iniciar' => 0,
+            'traspasos' => 0,
+            'asistencias' => 0,
+            'inasistencias' => 0,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, ClienteMatricula>  $matriculasCliente
+     * @param  Collection<int, ClienteMembresia>  $membresiasLegacyCliente
+     * @return Collection<int, array{categoria: string, fecha_inicio: ?Carbon, fecha_fin: ?Carbon, estado: string}>
+     */
+    protected function enrollmentsParaResumen(Collection $matriculasCliente, Collection $membresiasLegacyCliente): Collection
+    {
+        return collect()
+            ->concat($matriculasCliente->map(function (ClienteMatricula $item) {
+                return [
+                    'categoria' => $item->tipo,
+                    'fecha_inicio' => $item->fecha_inicio ? Carbon::parse($item->fecha_inicio) : null,
+                    'fecha_fin' => $item->fecha_fin ? Carbon::parse($item->fecha_fin) : null,
+                    'estado' => $item->estado,
+                ];
+            }))
+            ->concat(
+                $matriculasCliente->where('tipo', 'membresia')->isEmpty()
+                    ? $membresiasLegacyCliente->map(function (ClienteMembresia $item) {
+                        return [
+                            'categoria' => 'membresia',
+                            'fecha_inicio' => $item->fecha_inicio ? Carbon::parse($item->fecha_inicio) : null,
+                            'fecha_fin' => $item->fecha_fin ? Carbon::parse($item->fecha_fin) : null,
+                            'estado' => $item->estado,
+                        ];
+                    })
+                    : collect()
+            )
+            ->sortBy([
+                ['fecha_inicio', 'desc'],
+            ])
+            ->values();
+    }
+
+    /**
+     * @param  Builder<Cliente>  $query
+     */
+    protected function applyListFilters(
+        Builder $query,
+        string $search,
+        ?string $codigo,
+        ?string $estado,
+        ?int $asesorId,
+        ?string $vigencia,
+        ?int $membresiaId,
+        int $ventanaDias = 15,
+    ): void {
+        if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('nombres', 'like', "%{$search}%")
                     ->orWhere('apellidos', 'like', "%{$search}%")
@@ -63,11 +294,133 @@ class ClienteService
         }
 
         $this->applyAsesorFilter($query, $asesorId);
+        $this->applyVigenciaFilter($query, $vigencia, $ventanaDias);
+        $this->applyMembresiaFilter($query, $membresiaId);
+    }
 
-        return $query
-            ->orderByRaw("CASE estado_cliente WHEN 'activo' THEN 0 WHEN 'inactivo' THEN 1 ELSE 2 END")
-            ->orderBy('created_at', 'desc')
-            ->paginate($perPage);
+    /**
+     * @param  Builder<Cliente>  $query
+     */
+    protected function applyVigenciaFilter(Builder $query, ?string $vigencia, int $ventanaDias = 15): void
+    {
+        if (! $vigencia) {
+            return;
+        }
+
+        $hoy = today()->toDateString();
+        $ventanaLimite = today()->addDays(max(1, $ventanaDias))->toDateString();
+
+        match ($vigencia) {
+            'activos' => $query->where(function ($q) use ($hoy) {
+                $q->whereHas('clienteMatriculas', fn ($m) => $this->applyPlanActivoMatricula($m, $hoy))
+                    ->orWhereHas('clienteMembresias', fn ($m) => $this->applyPlanActivoLegacy($m, $hoy));
+            }),
+            'por_vencer' => $query->where(function ($q) use ($hoy, $ventanaLimite) {
+                $q->whereHas('clienteMatriculas', fn ($m) => $this->applyPlanPorVencerMatricula($m, $hoy, $ventanaLimite))
+                    ->orWhereHas('clienteMembresias', fn ($m) => $this->applyPlanPorVencerLegacy($m, $hoy, $ventanaLimite));
+            }),
+            'por_iniciar' => $query->where(function ($q) use ($hoy) {
+                $q->whereHas('clienteMatriculas', fn ($m) => $this->applyMembresiaPorIniciarMatricula($m, $hoy))
+                    ->orWhereHas('clienteMembresias', fn ($m) => $this->applyMembresiaPorIniciarLegacy($m, $hoy));
+            }),
+            'inactivos' => $query->where('estado_cliente', 'inactivo'),
+            default => null,
+        };
+    }
+
+    /**
+     * @param  Builder<\App\Models\Core\ClienteMatricula>  $matriculaQuery
+     */
+    protected function applyPlanActivoMatricula(Builder $matriculaQuery, string $hoy): void
+    {
+        $matriculaQuery
+            ->where('tipo', 'membresia')
+            ->where('estado', 'activa')
+            ->whereDate('fecha_inicio', '<=', $hoy)
+            ->where(function ($fechaFin) use ($hoy) {
+                $fechaFin->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy);
+            });
+    }
+
+    /**
+     * @param  Builder<\App\Models\Core\ClienteMembresia>  $membresiaQuery
+     */
+    protected function applyPlanActivoLegacy(Builder $membresiaQuery, string $hoy): void
+    {
+        $membresiaQuery
+            ->where('estado', 'activa')
+            ->whereDate('fecha_inicio', '<=', $hoy)
+            ->where(function ($fechaFin) use ($hoy) {
+                $fechaFin->whereNull('fecha_fin')->orWhereDate('fecha_fin', '>=', $hoy);
+            });
+    }
+
+    /**
+     * @param  Builder<\App\Models\Core\ClienteMatricula>  $matriculaQuery
+     */
+    protected function applyPlanPorVencerMatricula(Builder $matriculaQuery, string $hoy, string $ventanaLimite): void
+    {
+        $matriculaQuery
+            ->where('tipo', 'membresia')
+            ->where('estado', 'activa')
+            ->whereDate('fecha_inicio', '<=', $hoy)
+            ->whereNotNull('fecha_fin')
+            ->whereDate('fecha_fin', '>=', $hoy)
+            ->whereDate('fecha_fin', '<=', $ventanaLimite);
+    }
+
+    /**
+     * @param  Builder<\App\Models\Core\ClienteMembresia>  $membresiaQuery
+     */
+    protected function applyPlanPorVencerLegacy(Builder $membresiaQuery, string $hoy, string $ventanaLimite): void
+    {
+        $membresiaQuery
+            ->where('estado', 'activa')
+            ->whereDate('fecha_inicio', '<=', $hoy)
+            ->whereNotNull('fecha_fin')
+            ->whereDate('fecha_fin', '>=', $hoy)
+            ->whereDate('fecha_fin', '<=', $ventanaLimite);
+    }
+
+    /**
+     * @param  Builder<\App\Models\Core\ClienteMatricula>  $matriculaQuery
+     */
+    protected function applyMembresiaPorIniciarMatricula(Builder $matriculaQuery, string $hoy): void
+    {
+        $matriculaQuery
+            ->where('tipo', 'membresia')
+            ->whereIn('estado', ['activa', 'congelada'])
+            ->whereDate('fecha_inicio', '>', $hoy);
+    }
+
+    /**
+     * @param  Builder<\App\Models\Core\ClienteMembresia>  $membresiaQuery
+     */
+    protected function applyMembresiaPorIniciarLegacy(Builder $membresiaQuery, string $hoy): void
+    {
+        $membresiaQuery
+            ->whereIn('estado', ['activa', 'congelada'])
+            ->whereDate('fecha_inicio', '>', $hoy);
+    }
+
+    /**
+     * @param  Builder<Cliente>  $query
+     */
+    protected function applyMembresiaFilter(Builder $query, ?int $membresiaId): void
+    {
+        if (! $membresiaId) {
+            return;
+        }
+
+        $query->where(function ($q) use ($membresiaId) {
+            $q->whereHas(
+                'clienteMatriculas',
+                fn ($matriculas) => $matriculas->where('tipo', 'membresia')->where('membresia_id', $membresiaId)
+            )->orWhereHas(
+                'clienteMembresias',
+                fn ($membresias) => $membresias->where('membresia_id', $membresiaId)
+            );
+        });
     }
 
     protected function applyAsesorFilter(Builder $query, ?int $asesorId): void
@@ -101,6 +454,19 @@ class ClienteService
         return User::query()
             ->asesoresActivos()
             ->get(['id', 'name']);
+    }
+
+    /**
+     * Membresías activas del catálogo para filtros del listado.
+     *
+     * @return Collection<int, Membresia>
+     */
+    public function membresiasParaFiltro(): Collection
+    {
+        return Membresia::query()
+            ->where('estado', 'activa')
+            ->orderBy('nombre')
+            ->get(['id', 'nombre']);
     }
 
     /**
