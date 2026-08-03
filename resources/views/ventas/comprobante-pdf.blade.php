@@ -3,32 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>Ticket {{ $venta->serie_comprobante }}-{{ $venta->numero_comprobante }}</title>
-    <style>
-        html, body, body * {
-            color: #000;
-        }
-        body {
-            font-family: DejaVu Sans, sans-serif;
-            font-size: 8pt;
-            margin: 0;
-        }
-        table { width: 100%; border-collapse: collapse; }
-        th, td {
-            padding: 2px 0;
-            border-bottom: 1px dotted #000;
-            font-size: 8pt;
-            color: #000;
-        }
-        p, strong, span, div {
-            color: #000;
-        }
-        .text-right { text-align: right; }
-        .text-center { text-align: center; }
-        .font-bold { font-weight: 700; }
-        .line { border-bottom: 1px dashed #000; margin: 4px 0; }
-        .brand-logo { max-width: 80px; max-height: 40px; margin: 0 auto 4px; display: block; }
-        .muted { font-size: 7pt; color: #000; }
-    </style>
+    <x-tickets.thermal-pdf-styles />
 </head>
 <body>
     @php
@@ -36,67 +11,135 @@
         $saldoPendiente = $venta->saldoPendienteVenta();
         $estadoCredito = $venta->es_credito ? ($saldoPendiente > 0 ? 'PENDIENTE' : 'PAGADO') : 'PAGADO';
     @endphp
+
     @if(!empty($appBrandLogoUrl))
         <img src="{{ $appBrandLogoUrl }}" alt="{{ $appBrandName ?? config('app.name') }}" class="brand-logo">
     @endif
-    <p class="text-center font-bold" style="font-size: 10pt; margin-bottom: 2px;">{{ $appBrandName ?? config('app.name') }}</p>
-    <p class="text-center muted" style="margin-bottom: 6px; font-size: 8pt;">
-        {{ $venta->sucursal?->nombre ?? $venta->caja?->sucursal?->nombre ?? 'Sucursal principal' }}
-    </p>
-    <p class="text-center font-bold" style="font-size: 9pt; margin-bottom: 4px;">TICKET DE VENTA</p>
-    <p class="text-center muted" style="margin-bottom: 6px; font-size: 8pt;">
-        {{ $venta->serie_comprobante }}-{{ $venta->numero_comprobante }} · {{ $venta->numero_venta }} · {{ $venta->fecha_venta?->format('d/m/Y H:i') }}
+
+    <p class="header-title">{{ $appBrandName ?? config('app.name') }}</p>
+    <p class="header-meta">{{ $venta->sucursal?->nombre ?? $venta->caja?->sucursal?->nombre ?? 'Sucursal principal' }}</p>
+    <p class="header-subtitle">TICKET DE VENTA</p>
+    <p class="header-meta">
+        {{ $venta->serie_comprobante }}-{{ $venta->numero_comprobante }}<br>
+        {{ $venta->numero_venta }}<br>
+        {{ $venta->fecha_venta?->format('d/m/Y H:i') }}
     </p>
     <div class="line"></div>
 
-    <p style="margin: 2px 0;"><strong>Estado:</strong> {{ $venta->es_credito ? 'CREDITO / '.$estadoCredito : $estadoCredito }}</p>
-    <p style="margin: 2px 0;"><strong>Cliente:</strong> {{ $venta->nombre_comprador }}</p>
-    @if($venta->cliente)
-        <p style="margin: 2px 0;"><strong>Codigo:</strong> {{ $venta->cliente->codigo ?? '-' }} · <strong>{{ $venta->cliente->tipo_documento ?? 'Doc.' }}:</strong> {{ $venta->cliente->numero_documento ?? '-' }} · <strong>Tel.:</strong> {{ $venta->cliente->telefono ?? '-' }}</p>
-    @endif
-    <p style="margin: 2px 0;"><strong>Caja:</strong> #{{ $venta->caja_id ?? '-' }}</p>
-    <p style="margin: 2px 0;"><strong>Atendió:</strong> {{ $venta->usuario?->name ?? '—' }}</p>
-    <p style="margin: 2px 0;"><strong>Pago:</strong> {{ $venta->paymentMethod?->nombre ?? $venta->metodo_pago }}</p>
-    <p style="margin: 2px 0;"><strong>Pago detalle:</strong> {{ $venta->metodosPagoResumen() }}</p>
-    @if($venta->numero_operacion)
-        <p style="margin: 2px 0;"><strong>N° oper.:</strong> {{ $venta->numero_operacion }}</p>
-    @endif
-    @if($venta->es_credito)
-        <p style="margin: 2px 0;"><strong>Crédito:</strong> Inicial S/ {{ number_format((float) ($venta->monto_inicial ?? 0), 2) }} · Vence {{ $venta->fecha_vencimiento_deuda?->format('d/m/Y') }}</p>
-    @endif
-    @if($venta->es_credito)
-        <p style="margin: 2px 0;"><strong>Saldo credito:</strong> S/ {{ number_format($saldoPendiente, 2) }}</p>
-    @endif
+    <table class="kv">
+        <tr>
+            <td class="label">Estado</td>
+            <td class="value">{{ $venta->es_credito ? 'CREDITO / '.$estadoCredito : $estadoCredito }}</td>
+        </tr>
+        <tr>
+            <td class="label">Cliente</td>
+            <td class="value">{{ $venta->nombre_comprador }}</td>
+        </tr>
+        @if($venta->cliente)
+            @if(filled($venta->cliente->codigo))
+                <tr>
+                    <td class="label">Codigo</td>
+                    <td class="value">{{ $venta->cliente->codigo }}</td>
+                </tr>
+            @endif
+            <tr>
+                <td class="label">{{ $venta->cliente->tipo_documento ?? 'Doc.' }}</td>
+                <td class="value">{{ $venta->cliente->numero_documento ?? '-' }}</td>
+            </tr>
+            @if(filled($venta->cliente->telefono))
+                <tr>
+                    <td class="label">Telefono</td>
+                    <td class="value">{{ $venta->cliente->telefono }}</td>
+                </tr>
+            @endif
+        @endif
+        <tr>
+            <td class="label">Caja</td>
+            <td class="value">#{{ $venta->caja_id ?? '-' }}</td>
+        </tr>
+        <tr>
+            <td class="label">Atendio</td>
+            <td class="value">{{ $venta->usuario?->name ?? '—' }}</td>
+        </tr>
+        <tr>
+            <td class="label">Pago</td>
+            <td class="value">{{ $venta->paymentMethod?->nombre ?? $venta->metodo_pago }}</td>
+        </tr>
+        <tr>
+            <td class="label">Detalle pago</td>
+            <td class="value">{{ $venta->metodosPagoResumen() }}</td>
+        </tr>
+        @if($venta->numero_operacion)
+            <tr>
+                <td class="label">N oper.</td>
+                <td class="value">{{ $venta->numero_operacion }}</td>
+            </tr>
+        @endif
+        @if($venta->es_credito)
+            <tr>
+                <td class="label">Credito</td>
+                <td class="value">
+                    Inicial S/ {{ number_format((float) ($venta->monto_inicial ?? 0), 2) }}<br>
+                    Vence {{ $venta->fecha_vencimiento_deuda?->format('d/m/Y') ?? '—' }}
+                </td>
+            </tr>
+            <tr>
+                <td class="label">Saldo</td>
+                <td class="value">S/ {{ number_format($saldoPendiente, 2) }}</td>
+            </tr>
+        @endif
+    </table>
+
     <div class="line"></div>
 
-    <table>
+    <table class="items-table">
         <thead>
             <tr>
-                <th style="text-align: left;">Detalle</th>
-                <th class="text-right">Cant</th>
-                <th class="text-right">P.U</th>
-                <th class="text-right">Subt.</th>
+                <th class="col-detail">Detalle</th>
+                <th class="col-qty">Cant</th>
+                <th class="col-price">P.U</th>
+                <th class="col-sub">Subt.</th>
             </tr>
         </thead>
         <tbody>
             @foreach($venta->items as $item)
                 <tr>
-                    <td style="word-break: break-word;">{{ $item->nombre_item }}</td>
-                    <td class="text-right">{{ $item->cantidad }}</td>
-                    <td class="text-right">S/ {{ number_format((float) $item->precio_unitario, 2) }}</td>
-                    <td class="text-right">S/ {{ number_format((float) $item->subtotal, 2) }}</td>
+                    <td class="col-detail">
+                        <div class="item-name">{{ $item->nombre_item }}</div>
+                    </td>
+                    <td class="col-qty text-right">{{ $item->cantidad }}</td>
+                    <td class="col-price text-right">{{ number_format((float) $item->precio_unitario, 2) }}</td>
+                    <td class="col-sub text-right">S/ {{ number_format((float) $item->subtotal, 2) }}</td>
                 </tr>
             @endforeach
         </tbody>
     </table>
 
     <div class="line"></div>
-    <p class="text-right" style="margin: 1px 0;">Subtotal: S/ {{ number_format((float) $venta->subtotal, 2) }}</p>
-    @if((float) $venta->descuento > 0)
-        <p class="text-right" style="margin: 1px 0;">Descuento: -S/ {{ number_format((float) $venta->descuento, 2) }}</p>
-    @endif
-    <p class="text-right font-bold" style="font-size: 10pt; margin-top: 4px;">TOTAL: S/ {{ number_format((float) $venta->total, 2) }}</p>
-    <p class="text-right" style="margin: 1px 0;">Pagado: S/ {{ number_format($montoPagado, 2) }}</p>
-    <p class="text-right" style="margin: 1px 0;">Saldo: S/ {{ number_format($saldoPendiente, 2) }}</p>
+
+    <table class="totals">
+        <tr>
+            <td>Subtotal</td>
+            <td class="text-right">S/ {{ number_format((float) $venta->subtotal, 2) }}</td>
+        </tr>
+        @if((float) $venta->descuento > 0)
+            <tr>
+                <td>Descuento</td>
+                <td class="text-right">-S/ {{ number_format((float) $venta->descuento, 2) }}</td>
+            </tr>
+        @endif
+        <tr class="total-row">
+            <td>TOTAL</td>
+            <td class="text-right">S/ {{ number_format((float) $venta->total, 2) }}</td>
+        </tr>
+        <tr>
+            <td>Pagado</td>
+            <td class="text-right">S/ {{ number_format($montoPagado, 2) }}</td>
+        </tr>
+        <tr>
+            <td>Saldo pend.</td>
+            <td class="text-right">S/ {{ number_format($saldoPendiente, 2) }}</td>
+        </tr>
+    </table>
 </body>
 </html>

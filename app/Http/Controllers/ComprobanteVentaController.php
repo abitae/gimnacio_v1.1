@@ -58,11 +58,13 @@ class ComprobanteVentaController extends Controller
 
         $mpdf = new Mpdf([
             'mode' => 'utf-8',
-            'format' => [80, 297], // Ticket 80mm ancho (rollo térmico)
-            'margin_left' => 4,
-            'margin_right' => 4,
-            'margin_top' => 6,
-            'margin_bottom' => 6,
+            'format' => [80, 297],
+            'margin_left' => 3,
+            'margin_right' => 3,
+            'margin_top' => 4,
+            'margin_bottom' => 4,
+            'default_font' => 'dejavusans',
+            'default_font_size' => 8,
         ]);
         $mpdf->WriteHTML($html);
         $pdf = $mpdf->Output('', 'S');
