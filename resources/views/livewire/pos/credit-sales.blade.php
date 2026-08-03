@@ -60,15 +60,15 @@
             </div>
         </div>
         <div class="flex flex-wrap gap-2">
-            <flux:button size="xs" variant="ghost" wire:click="seleccionarPaginaActual" @disabled(empty($debtIdsPagina))>
+            <flux:button size="xs" variant="ghost" wire:click="seleccionarPaginaActual" :disabled="empty($debtIdsPagina)">
                 Seleccionar página
             </flux:button>
-            <flux:button size="xs" variant="ghost" wire:click="limpiarSeleccion" @disabled($cantidadSeleccionadas === 0)>
+            <flux:button size="xs" variant="ghost" wire:click="limpiarSeleccion" :disabled="$cantidadSeleccionadas === 0">
                 Limpiar
             </flux:button>
             <flux:button size="xs" variant="primary" color="green" icon="credit-card"
                 wire:click="abrirModalCobroMasivo"
-                @disabled($cantidadSeleccionadas === 0)>
+                :disabled="$cantidadSeleccionadas === 0">
                 Cobrar seleccionadas ({{ $cantidadSeleccionadas }})
             </flux:button>
         </div>
