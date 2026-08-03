@@ -3,7 +3,7 @@
 namespace App\Livewire\Employees\Attendances;
 
 use App\Models\Core\Employee;
-use App\Models\Core\EmployeeAttendance;
+use App\Services\EmployeeAttendanceService;
 use Carbon\Carbon;
 use Livewire\Component;
 
@@ -15,11 +15,19 @@ class Report extends Component
 
     public ?int $employeeId = null;
 
+    protected EmployeeAttendanceService $attendanceService;
+
+    public function boot(EmployeeAttendanceService $attendanceService): void
+    {
+        $this->attendanceService = $attendanceService;
+    }
+
     public function mount(): void
     {
         $this->authorize('asistencia_empleado.ver');
         $this->mes = request()->query('mes', (string) now()->month);
         $this->anio = request()->query('anio', (string) now()->year);
+        $this->employeeId = request()->query('employee_id') ? (int) request()->query('employee_id') : null;
     }
 
     public function render()
@@ -27,26 +35,34 @@ class Report extends Component
         $start = Carbon::createFromDate((int) $this->anio, (int) $this->mes, 1)->startOfMonth();
         $end = $start->copy()->endOfMonth();
 
-        $aggQuery = EmployeeAttendance::query()
-            ->whereBetween('fecha', [$start->toDateString(), $end->toDateString()])
-            ->when($this->employeeId, fn ($q) => $q->where('employee_id', $this->employeeId))
-            ->selectRaw('employee_id, COUNT(*) as dias, COALESCE(SUM(tardanza_minutos), 0) as tardanza_minutos')
-            ->groupBy('employee_id');
+        $reporte = $this->attendanceService->reporteResumen(
+            $start,
+            $end,
+            $this->employeeId ?: null,
+        );
 
-        $resumen = $aggQuery->get()->mapWithKeys(fn ($row) => [
-            (int) $row->employee_id => [
-                'dias' => (int) $row->dias,
-                'tardanza_minutos' => (int) $row->tardanza_minutos,
-            ],
+        $detalle = $this->attendanceService->filasDetallePeriodo(
+            $start,
+            $end,
+            $this->employeeId ?: null,
+        );
+
+        $employees = Employee::activos()->orderBy('apellidos')->orderBy('nombres')->get(['id', 'nombres', 'apellidos']);
+
+        $exportParams = array_filter([
+            'mes' => $this->mes,
+            'anio' => $this->anio,
+            'employee_id' => $this->employeeId ?: null,
         ]);
-
-        $employees = Employee::activos()->orderBy('apellidos')->get(['id', 'nombres', 'apellidos']);
 
         return view('livewire.employees.attendances.report', [
             'employees' => $employees,
-            'resumen' => $resumen,
+            'filas' => $reporte['filas'],
+            'totales' => $reporte['totales'],
+            'detalle' => $detalle,
             'start' => $start,
             'end' => $end,
+            'exportUrl' => route('employees.attendances.report.export', $exportParams),
         ])->layout('layouts.app', ['title' => 'Reporte de asistencia']);
     }
 }

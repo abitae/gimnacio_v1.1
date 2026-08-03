@@ -94,6 +94,67 @@ it('renderiza el componente listado secundario', function () {
     Livewire::test(ClienteLive::class)->assertOk();
 });
 
+it('filtra el listado de clientes por asesor de matrícula', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('cliente.ver');
+    $this->actingAs($user);
+
+    $asesorUno = User::factory()->create(['name' => 'Asesor Uno Test']);
+    $asesorDos = User::factory()->create(['name' => 'Asesor Dos Test']);
+
+    $clienteAsesorUno = Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Asesor Uno Filtro',
+        'created_by' => $user->id,
+    ]);
+    $clienteAsesorDos = Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Asesor Dos Filtro',
+        'created_by' => $user->id,
+    ]);
+
+    $membresia = Membresia::factory()->create(['nombre' => 'Plan Filtro', 'precio_base' => 100, 'estado' => 'activa']);
+
+    ClienteMatricula::create([
+        'cliente_id' => $clienteAsesorUno->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 100,
+        'descuento_monto' => 0,
+        'precio_final' => 100,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $asesorUno->id,
+    ]);
+
+    ClienteMatricula::create([
+        'cliente_id' => $clienteAsesorDos->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 100,
+        'descuento_monto' => 0,
+        'precio_final' => 100,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $asesorDos->id,
+    ]);
+
+    Livewire::test(ClienteLive::class)
+        ->set('asesorFilter', (string) $asesorUno->id)
+        ->assertSee('Asesor Uno Filtro')
+        ->assertDontSee('Asesor Dos Filtro');
+});
+
 it('selecciona cliente en perfil y fija la ficha', function () {
     $user = User::factory()->create();
     $user->givePermissionTo('cliente.ver');

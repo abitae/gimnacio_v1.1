@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Core\Cliente;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\DB;
@@ -35,8 +36,9 @@ class ClienteService
      * Buscar clientes por término de búsqueda
      *
      * @param  string|null  $codigo  Filtro adicional AND por columna codigo (coincidencia exacta).
+     * @param  int|null  $asesorId  Filtra por asesor (registro o matrícula).
      */
-    public function search(string $search, ?string $estado = null, int $perPage = 15, ?string $codigo = null): LengthAwarePaginator
+    public function search(string $search, ?string $estado = null, int $perPage = 15, ?string $codigo = null, ?int $asesorId = null): LengthAwarePaginator
     {
         $query = Cliente::query();
 
@@ -59,10 +61,24 @@ class ClienteService
             $query->where('estado_cliente', $estado);
         }
 
+        $this->applyAsesorFilter($query, $asesorId);
+
         return $query
             ->orderByRaw("CASE estado_cliente WHEN 'activo' THEN 0 WHEN 'inactivo' THEN 1 ELSE 2 END")
             ->orderBy('created_at', 'desc')
             ->paginate($perPage);
+    }
+
+    protected function applyAsesorFilter(Builder $query, ?int $asesorId): void
+    {
+        if (! $asesorId) {
+            return;
+        }
+
+        $query->where(function ($q) use ($asesorId) {
+            $q->where('created_by', $asesorId)
+                ->orWhereHas('clienteMatriculas', fn ($matriculas) => $matriculas->where('asesor_id', $asesorId));
+        });
     }
 
     /**

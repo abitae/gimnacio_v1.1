@@ -30,6 +30,16 @@
                     class="w-full"
                     aria-label="{{ __('Filtrar por código interno del cliente') }}" />
             </div>
+            <div class="w-full min-w-[10rem] sm:w-44">
+                <select wire:model.live="asesorFilter"
+                    class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                    aria-label="{{ __('Asesor') }}">
+                    <option value="">{{ __('Todos los asesores') }}</option>
+                    @foreach ($asesores as $asesor)
+                        <option value="{{ $asesor->id }}">{{ $asesor->name }}</option>
+                    @endforeach
+                </select>
+            </div>
             <div class="w-32">
                 <select wire:model.live="estadoFilter"
                     class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
@@ -55,7 +65,7 @@
 
         <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-700"
             wire:loading.delay.class="opacity-60 pointer-events-none"
-            wire:target="search,codigoSearch,estadoFilter,perPage">
+            wire:target="search,codigoSearch,asesorFilter,estadoFilter,perPage">
             <table class="w-full min-w-[720px] text-sm">
                 <thead class="bg-zinc-50 dark:bg-zinc-900">
                     <tr>
@@ -125,10 +135,17 @@
                                 @endif
                             </td>
                             <td class="px-3 py-2 text-right">
-                                <flux:button size="xs" variant="primary" icon="user-circle" type="button"
-                                    wire:click="verPerfil({{ $cliente->id }})">
-                                    {{ __('Ver perfil') }}
-                                </flux:button>
+                                <div class="inline-flex flex-wrap justify-end gap-1">
+                                    <flux:button size="xs" variant="ghost" icon="document-text" type="button"
+                                        wire:click="abrirContrato({{ $cliente->id }})"
+                                        title="{{ __('Contrato de membresía') }}">
+                                        {{ __('Contrato') }}
+                                    </flux:button>
+                                    <flux:button size="xs" variant="primary" icon="user-circle" type="button"
+                                        wire:click="verPerfil({{ $cliente->id }})">
+                                        {{ __('Ver perfil') }}
+                                    </flux:button>
+                                </div>
                             </td>
                         </tr>
                     @empty
@@ -146,4 +163,29 @@
             {{ $clientes->links() }}
         </div>
     </div>
+
+    <flux:modal wire:model="mostrarModalContrato" class="md:w-5xl">
+        <div class="p-4">
+            <div class="mb-3 flex items-center justify-between gap-2">
+                <div>
+                    <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Contrato de membresía') }}</h2>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Vista previa del documento para impresión o descarga.') }}</p>
+                </div>
+                @if ($clienteIdContrato)
+                    <a href="{{ route('clientes.contrato-membresia.pdf', ['cliente' => $clienteIdContrato]) }}"
+                        target="_blank" rel="noopener"
+                        class="inline-flex items-center gap-1 rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-200 dark:hover:bg-zinc-800">
+                        {{ __('Abrir en pestaña nueva') }}
+                    </a>
+                @endif
+            </div>
+            @if ($clienteIdContrato)
+                <iframe
+                    src="{{ route('clientes.contrato-membresia.pdf', ['cliente' => $clienteIdContrato]) }}"
+                    class="h-[75vh] w-full rounded-xl border border-zinc-200 dark:border-zinc-700"
+                    title="{{ __('Contrato de membresía') }}"
+                ></iframe>
+            @endif
+        </div>
+    </flux:modal>
 </div>

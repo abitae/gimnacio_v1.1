@@ -3,6 +3,7 @@
 namespace App\Livewire\Clientes;
 
 use App\Livewire\Concerns\FlashesToast;
+use App\Models\User;
 use App\Services\ClienteService;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -18,7 +19,13 @@ class ClienteLive extends Component
 
     public $estadoFilter = '';
 
+    public $asesorFilter = '';
+
     public $perPage = 15;
+
+    public bool $mostrarModalContrato = false;
+
+    public ?int $clienteIdContrato = null;
 
     protected $paginationTheme = 'tailwind';
 
@@ -50,6 +57,11 @@ class ClienteLive extends Component
         $this->resetPage();
     }
 
+    public function updatingAsesorFilter(): void
+    {
+        $this->resetPage();
+    }
+
     public function updatingPerPage(): void
     {
         $this->resetPage();
@@ -60,16 +72,31 @@ class ClienteLive extends Component
         $this->redirect(route('clientes.perfil', ['cliente' => $id]), navigate: true);
     }
 
+    public function abrirContrato(int $clienteId): void
+    {
+        $this->clienteIdContrato = $clienteId;
+        $this->mostrarModalContrato = true;
+    }
+
+    public function cerrarModalContrato(): void
+    {
+        $this->mostrarModalContrato = false;
+        $this->clienteIdContrato = null;
+    }
+
     public function render()
     {
         $codigoTrim = trim($this->codigoSearch);
 
-        if ($this->search || $this->estadoFilter || $codigoTrim !== '') {
+        $asesorId = $this->asesorFilter !== '' ? (int) $this->asesorFilter : null;
+
+        if ($this->search || $this->estadoFilter || $codigoTrim !== '' || $asesorId) {
             $clientes = $this->service->search(
                 $this->search,
                 $this->estadoFilter ?: null,
                 $this->perPage,
-                $codigoTrim !== '' ? $codigoTrim : null
+                $codigoTrim !== '' ? $codigoTrim : null,
+                $asesorId,
             );
         } else {
             $clientes = $this->service->paginate($this->perPage);
@@ -77,6 +104,7 @@ class ClienteLive extends Component
 
         return view('livewire.clientes.cliente-live', [
             'clientes' => $clientes,
+            'asesores' => User::query()->orderBy('name')->get(['id', 'name']),
         ]);
     }
 }

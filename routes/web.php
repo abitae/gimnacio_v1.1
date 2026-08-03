@@ -42,6 +42,9 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     Route::get('clientes/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:cliente.ver')->name('clientes.perfil.index');
     Route::get('clientes/{cliente}/perfil', \App\Livewire\Clientes\ClientePerfilLive::class)->middleware('permission:cliente.ver')->name('clientes.perfil');
     Route::get('clientes', \App\Livewire\Clientes\ClienteLive::class)->middleware('permission:cliente.ver')->name('clientes.index');
+    Route::get('clientes/{cliente}/contrato-membresia.pdf', [\App\Http\Controllers\ClienteContratoMembresiaController::class, 'pdf'])
+        ->middleware('permission:cliente.ver')
+        ->name('clientes.contrato-membresia.pdf');
 
     Route::prefix('importaciones')->name('importaciones.')->middleware('role:super_administrador')->group(function () {
         Route::get('plantilla/{tipo}', [\App\Http\Controllers\ImportacionPlantillaController::class, 'download'])
@@ -148,6 +151,9 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
         Route::get('asistencia/registrar', \App\Livewire\Employees\Attendances\Form::class)->name('attendances.create')->middleware('permission:asistencia_empleado.crear');
         Route::get('asistencia/reporte', \App\Livewire\Employees\Attendances\Report::class)
             ->name('attendances.report')
+            ->middleware('permission:asistencia_empleado.ver');
+        Route::get('asistencia/reporte/exportar-excel', [\App\Http\Controllers\EmployeeAttendanceExportController::class, 'export'])
+            ->name('attendances.report.export')
             ->middleware('permission:asistencia_empleado.ver');
         Route::get('{employee}/editar', \App\Livewire\Employees\Form::class)->name('edit')->middleware('permission:empleado.editar');
         Route::get('{employee}', \App\Livewire\Employees\Show::class)->name('show');
