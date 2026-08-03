@@ -90,7 +90,7 @@
         <span>{{ $chk($tipo['trimestral']) }} Trimestral</span>
         <span>{{ $chk($tipo['semestral']) }} Semestral</span>
         <span>{{ $chk($tipo['anual']) }} Anual</span>
-        <span>{{ $chk($tipo['otro']) }} Otro@if ($tipo['otro'] && filled($tipo['otro_texto'])): {{ $tipo['otro_texto'] }}@endif</span>
+        <span>{{ $chk($tipo['otro']) }} Otro{{ ($tipo['otro'] && filled($tipo['otro_texto'])) ? ': '.$tipo['otro_texto'] : '' }}</span>
     </p>
     <p class="field-line field-label">Sede:</p>
     <p class="checks">
