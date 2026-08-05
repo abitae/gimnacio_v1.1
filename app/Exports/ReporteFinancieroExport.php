@@ -19,34 +19,56 @@ class ReporteFinancieroExport implements WithMultipleSheets
     public function sheets(): array
     {
         return [
-            new class($this->data['pagos'] ?? collect()) implements FromCollection, WithHeadings, WithTitle {
+            new class($this->data['pagos'] ?? collect()) implements FromCollection, WithHeadings, WithTitle
+            {
                 public function __construct(protected $pagos) {}
-                public function collection() {
+
+                public function collection()
+                {
                     return $this->pagos->map(fn ($p) => [
                         $p->fecha_pago ? $p->fecha_pago->format('d/m/Y H:i') : '',
-                        $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '',
+                        $p->cliente ? trim($p->cliente->nombres.' '.$p->cliente->apellidos) : '',
                         (float) $p->monto,
                         $p->moneda ?? 'PEN',
-                        $p->metodo_pago ?? '',
+                        method_exists($p, 'metodosPagoResumen') ? $p->metodosPagoResumen() : ($p->metodo_pago ?? ''),
                         $p->comprobante_tipo ?? '',
                         $p->comprobante_numero ?? '',
                     ]);
                 }
-                public function headings(): array { return ['Fecha', 'Cliente', 'Monto', 'Moneda', 'Método pago', 'Comprobante tipo', 'Comprobante número']; }
-                public function title(): string { return 'Pagos'; }
+
+                public function headings(): array
+                {
+                    return ['Fecha', 'Cliente', 'Monto', 'Moneda', 'Método pago', 'Comprobante tipo', 'Comprobante número'];
+                }
+
+                public function title(): string
+                {
+                    return 'Pagos';
+                }
             },
-            new class($this->data['ventas'] ?? collect()) implements FromCollection, WithHeadings, WithTitle {
+            new class($this->data['ventas'] ?? collect()) implements FromCollection, WithHeadings, WithTitle
+            {
                 public function __construct(protected $ventas) {}
-                public function collection() {
+
+                public function collection()
+                {
                     return $this->ventas->map(fn ($v) => [
                         $v->fecha_venta ? $v->fecha_venta->format('d/m/Y H:i') : '',
-                        $v->cliente ? trim($v->cliente->nombres . ' ' . $v->cliente->apellidos) : '',
+                        $v->cliente ? trim($v->cliente->nombres.' '.$v->cliente->apellidos) : '',
                         (float) $v->total,
                         $v->metodo_pago ?? '',
                     ]);
                 }
-                public function headings(): array { return ['Fecha', 'Cliente', 'Total', 'Método pago']; }
-                public function title(): string { return 'Ventas'; }
+
+                public function headings(): array
+                {
+                    return ['Fecha', 'Cliente', 'Total', 'Método pago'];
+                }
+
+                public function title(): string
+                {
+                    return 'Ventas';
+                }
             },
         ];
     }

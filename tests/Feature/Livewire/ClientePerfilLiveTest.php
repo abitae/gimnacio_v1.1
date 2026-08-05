@@ -11,7 +11,9 @@ use App\Models\Core\EnrollmentInstallment;
 use App\Models\Core\EnrollmentInstallmentPlan;
 use App\Models\Core\Membresia;
 use App\Models\Core\Pago;
+use App\Models\Core\PaymentMethod;
 use App\Models\User;
+use App\Services\SucursalContext;
 use App\Support\PermissionCatalog;
 use Database\Seeders\RoleSeeder;
 use Livewire\Livewire;
@@ -592,9 +594,19 @@ it('muestra matriculas en cuotas y solo permite pagar cuotas pendientes', functi
 });
 
 it('permite registrar un pago a cuenta de una cuota desde el perfil', function () {
-    $user = User::factory()->create();
+    $sucursal = biotimeSucursal('perfil-pago-cuota');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
     $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver', 'matricula_cliente.editar']);
     $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    PaymentMethod::create([
+        'nombre' => 'Efectivo',
+        'estado' => 'activo',
+        'requiere_numero_operacion' => false,
+        'requiere_entidad' => false,
+    ]);
 
     $cliente = Cliente::factory()->create(['created_by' => $user->id]);
     $membresia = Membresia::factory()->conCuotas()->create(['nombre' => 'Plan Abono', 'precio_base' => 300, 'estado' => 'activa']);

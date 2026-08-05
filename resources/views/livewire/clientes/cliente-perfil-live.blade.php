@@ -450,6 +450,10 @@
                                                                                     {{ __('Pagar') }}
                                                                                 </flux:button>
                                                                             @endcan
+                                                                        @elseif (! empty($cuota['bloqueada_por_orden']))
+                                                                            <flux:button type="button" size="xs" variant="outline" disabled title="{{ __('Primero paga la cuota pendiente más inmediata.') }}">
+                                                                                {{ __('Pagar') }}
+                                                                            </flux:button>
                                                                         @else
                                                                             <span class="text-xs text-zinc-400">—</span>
                                                                         @endif
@@ -505,6 +509,37 @@
                         @endcan
 
                         @if (! auth()->user()->can('matricula_cliente.ver') || $perfilFinanzasTab === 'pagos')
+                            @if (! empty($pagosRecientes))
+                                <div class="border-b border-zinc-200 px-4 py-3 dark:border-zinc-800">
+                                    <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Pagos recientes') }}</p>
+                                    <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
+                                        <table class="min-w-full text-xs">
+                                            <thead class="bg-zinc-50 text-left text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+                                                <tr>
+                                                    <th class="px-3 py-2">{{ __('Fecha') }}</th>
+                                                    <th class="px-3 py-2">{{ __('Concepto') }}</th>
+                                                    <th class="px-3 py-2">{{ __('Forma(s) de pago') }}</th>
+                                                    <th class="px-3 py-2 text-right">{{ __('Total') }}</th>
+                                                    <th class="px-3 py-2 text-right">{{ __('Ticket') }}</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                                                @foreach ($pagosRecientes as $pagoReciente)
+                                                    <tr>
+                                                        <td class="whitespace-nowrap px-3 py-2">{{ $pagoReciente->fechaHoraPago()->format('d/m/Y H:i') }}</td>
+                                                        <td class="px-3 py-2">{{ $pagoReciente->clienteMatricula?->nombre ?? $pagoReciente->clienteMembresia?->membresia?->nombre ?? __('Cobro') }}</td>
+                                                        <td class="px-3 py-2">{{ $pagoReciente->metodosPagoResumen() }}</td>
+                                                        <td class="whitespace-nowrap px-3 py-2 text-right font-medium">S/ {{ number_format((float) $pagoReciente->monto, 2) }}</td>
+                                                        <td class="px-3 py-2 text-right">
+                                                            <flux:button type="button" size="xs" variant="ghost" icon="printer" wire:click="abrirModalTicketPago({{ $pagoReciente->id }})" aria-label="{{ __('Reimprimir ticket') }}" />
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            @endif
                             <div class="overflow-x-auto">
                                 <table class="min-w-full text-sm">
                                     <thead class="bg-zinc-50 dark:bg-zinc-950">

@@ -169,9 +169,8 @@ class POSLive extends Component
 
     public $cobroFormData = [
         'monto_pago' => 0.00,
-        'payment_method_id' => null,
-        'numero_operacion' => '',
-        'entidad_financiera' => '',
+        'fecha_pago' => '',
+        'pagos' => [],
     ];
 
     protected CajaService $cajaService;
@@ -236,7 +235,7 @@ class POSLive extends Component
         $this->employeesProcesar = collect([]);
         $this->refrescarEstadoCaja();
         $this->alquilerFecha = now()->format('Y-m-d');
-        $efectivo = PaymentMethod::activos()->where('nombre', 'Efectivo')->first();
+        $efectivo = PaymentMethod::activos()->whereRaw('LOWER(nombre) = ?', ['efectivo'])->first();
         $this->paymentMethodId = $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id;
         $this->resetPagosVenta();
         // Validar que haya caja abierta
@@ -1207,11 +1206,13 @@ class POSLive extends Component
         } else {
             $this->saldoPendienteCobro = (float) (\App\Models\Core\ClientDebt::find($id)?->saldo_pendiente ?? 0);
         }
-        $efectivo = PaymentMethod::activos()->where('nombre', 'Efectivo')->first();
+        $efectivo = PaymentMethod::activos()->whereRaw('LOWER(nombre) = ?', ['efectivo'])->first();
         $this->cobroFormData['monto_pago'] = $this->saldoPendienteCobro;
-        $this->cobroFormData['payment_method_id'] = $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id;
-        $this->cobroFormData['numero_operacion'] = '';
-        $this->cobroFormData['entidad_financiera'] = '';
+        $this->cobroFormData['fecha_pago'] = now()->format('Y-m-d');
+        $this->cobroFormData['pagos'] = [$this->nuevaLineaCobroPos(
+            $this->saldoPendienteCobro,
+            $efectivo?->id ?? PaymentMethod::activos()->orderBy('nombre')->first()?->id,
+        )];
         $this->mostrarModalCobro = true;
     }
 
@@ -1223,9 +1224,8 @@ class POSLive extends Component
         $this->saldoPendienteCobro = 0.00;
         $this->cobroFormData = [
             'monto_pago' => 0.00,
-            'payment_method_id' => null,
-            'numero_operacion' => '',
-            'entidad_financiera' => '',
+            'fecha_pago' => '',
+            'pagos' => [],
         ];
         $this->cargarItemsConSaldo();
     }
@@ -1238,25 +1238,19 @@ class POSLive extends Component
 
                 return;
             }
-            $pmId = $this->cobroFormData['payment_method_id'] ?? null;
-            $paymentMethod = $pmId ? PaymentMethod::find($pmId) : null;
-            if ($paymentMethod && $paymentMethod->requiere_numero_operacion && empty(trim((string) ($this->cobroFormData['numero_operacion'] ?? '')))) {
-                $this->flashToast('error', 'Este método de pago requiere número de operación.');
-
-                return;
-            }
-            if ($paymentMethod && $paymentMethod->requiere_entidad && empty(trim((string) ($this->cobroFormData['entidad_financiera'] ?? '')))) {
-                $this->flashToast('error', 'Este método de pago requiere entidad financiera.');
-
-                return;
-            }
+            $lineasPago = $this->cobroFormData['pagos'] ?? [];
+            $primeraLinea = $lineasPago[0] ?? [];
             $data = [
                 'monto_pago' => (float) $this->cobroFormData['monto_pago'],
-                'fecha_pago' => now(),
-                'payment_method_id' => $pmId,
-                'numero_operacion' => trim((string) ($this->cobroFormData['numero_operacion'] ?? '')) ?: null,
-                'entidad_financiera' => trim((string) ($this->cobroFormData['entidad_financiera'] ?? '')) ?: null,
+                'fecha_pago' => $this->cobroFormData['fecha_pago'] ?? now(),
+                'pagos' => $lineasPago,
+                'payment_method_id' => $primeraLinea['payment_method_id'] ?? null,
+                'numero_operacion' => trim((string) ($primeraLinea['numero_operacion'] ?? '')) ?: null,
+                'entidad_financiera' => trim((string) ($primeraLinea['entidad_financiera'] ?? '')) ?: null,
             ];
+            if ($this->cobroItemTipo === 'client_debt') {
+                unset($data['pagos']);
+            }
             $pago = match ($this->cobroItemTipo) {
                 'matricula' => $this->clienteMatriculaService->procesarPago($this->cobroItemId, $data),
                 'membresia' => $this->clienteMembresiaService->procesarPago($this->cobroItemId, $data),
@@ -1316,8 +1310,6 @@ class POSLive extends Component
             fn () => PaymentMethod::activos()->orderBy('nombre')->get()
         );
         $selectedPaymentMethod = $this->paymentMethodId ? PaymentMethod::find($this->paymentMethodId) : null;
-        $cobroPaymentMethod = isset($this->cobroFormData['payment_method_id']) && $this->cobroFormData['payment_method_id']
-            ? PaymentMethod::find($this->cobroFormData['payment_method_id']) : null;
 
         return view('livewire.p-o-s.p-o-s-live', [
             'categorias' => $categorias,
@@ -1325,9 +1317,51 @@ class POSLive extends Component
             'clientesConDeuda' => $clientesConDeuda,
             'paymentMethods' => $paymentMethods,
             'selectedPaymentMethod' => $selectedPaymentMethod,
-            'cobroPaymentMethod' => $cobroPaymentMethod,
             'productosMasVendidos' => $this->tipoItem === 'producto' ? $this->obtenerProductosMasVendidos($sucursalId) : collect(),
         ]);
+    }
+
+    public function agregarFormaCobroPos(): void
+    {
+        if ($this->cobroItemTipo !== 'client_debt' && count($this->cobroFormData['pagos'] ?? []) < 2) {
+            $this->cobroFormData['pagos'][] = $this->nuevaLineaCobroPos();
+        }
+    }
+
+    public function quitarFormaCobroPos(int $index): void
+    {
+        if ($index === 0 || count($this->cobroFormData['pagos'] ?? []) <= 1) {
+            return;
+        }
+        unset($this->cobroFormData['pagos'][$index]);
+        $this->cobroFormData['pagos'] = array_values($this->cobroFormData['pagos']);
+    }
+
+    public function updatedCobroFormDataMontoPago($value): void
+    {
+        if (count($this->cobroFormData['pagos'] ?? []) === 1) {
+            $this->cobroFormData['pagos'][0]['monto'] = $value;
+        }
+    }
+
+    public function getCobroPosTotalAsignadoProperty(): float
+    {
+        return round((float) collect($this->cobroFormData['pagos'] ?? [])->sum(fn ($linea) => (float) ($linea['monto'] ?? 0)), 2);
+    }
+
+    public function getCobroPosDiferenciaProperty(): float
+    {
+        return round((float) ($this->cobroFormData['monto_pago'] ?? 0) - $this->cobroPosTotalAsignado, 2);
+    }
+
+    protected function nuevaLineaCobroPos(string|float $monto = '', ?int $paymentMethodId = null): array
+    {
+        return [
+            'payment_method_id' => $paymentMethodId,
+            'monto' => $monto,
+            'numero_operacion' => '',
+            'entidad_financiera' => '',
+        ];
     }
 
     /**

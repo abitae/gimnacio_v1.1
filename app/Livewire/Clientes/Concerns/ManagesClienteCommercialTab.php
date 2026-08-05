@@ -3,6 +3,7 @@
 namespace App\Livewire\Clientes\Concerns;
 
 use App\Models\Core\ClienteMatricula;
+use App\Models\Core\PaymentMethod;
 
 /**
  * Tab comercial transaccional: cobros de matrícula, cuotas y planes.
@@ -33,9 +34,7 @@ trait ManagesClienteCommercialTab
         'cliente_matricula_id' => null,
         'monto_pago' => '',
         'fecha_pago' => '',
-        'payment_method_id' => null,
-        'numero_operacion' => '',
-        'entidad_financiera' => '',
+        'pagos' => [],
     ];
 
     public bool $cuotasModalAbierto = false;
@@ -106,9 +105,7 @@ trait ManagesClienteCommercialTab
             'cliente_matricula_id' => $clienteMatriculaId,
             'monto_pago' => '',
             'fecha_pago' => now()->format('Y-m-d'),
-            'payment_method_id' => null,
-            'numero_operacion' => '',
-            'entidad_financiera' => '',
+            'pagos' => [],
         ];
 
         if ($clienteMatriculaId) {
@@ -116,6 +113,10 @@ trait ManagesClienteCommercialTab
             if ($m) {
                 $saldo = $this->matriculaService->obtenerSaldoPendiente($clienteMatriculaId);
                 $this->cobroForm['monto_pago'] = $saldo > 0 ? (string) $saldo : '';
+                $this->cobroForm['pagos'] = [$this->nuevaLineaCobroMatricula(
+                    $this->cobroForm['monto_pago'],
+                    $this->metodoEfectivoIdCobroMatricula(),
+                )];
             }
         }
 
@@ -304,6 +305,40 @@ trait ManagesClienteCommercialTab
         $this->cobroModalAbierto = false;
     }
 
+    public function agregarFormaCobroMatricula(): void
+    {
+        if (count($this->cobroForm['pagos'] ?? []) < 2) {
+            $this->cobroForm['pagos'][] = $this->nuevaLineaCobroMatricula();
+        }
+    }
+
+    public function quitarFormaCobroMatricula(int $index): void
+    {
+        if ($index === 0 || count($this->cobroForm['pagos'] ?? []) <= 1) {
+            return;
+        }
+
+        unset($this->cobroForm['pagos'][$index]);
+        $this->cobroForm['pagos'] = array_values($this->cobroForm['pagos']);
+    }
+
+    public function updatedCobroFormMontoPago($value): void
+    {
+        if (count($this->cobroForm['pagos'] ?? []) === 1) {
+            $this->cobroForm['pagos'][0]['monto'] = $value;
+        }
+    }
+
+    public function getCobroMatriculaTotalAsignadoProperty(): float
+    {
+        return round((float) collect($this->cobroForm['pagos'] ?? [])->sum(fn ($linea) => (float) ($linea['monto'] ?? 0)), 2);
+    }
+
+    public function getCobroMatriculaDiferenciaProperty(): float
+    {
+        return round((float) ($this->cobroForm['monto_pago'] ?? 0) - $this->cobroMatriculaTotalAsignado, 2);
+    }
+
     public function guardarCobroMatricula(): void
     {
         $this->authorize('matricula_cliente.editar');
@@ -311,7 +346,9 @@ trait ManagesClienteCommercialTab
             'cobroForm.cliente_matricula_id' => 'required|exists:cliente_matriculas,id',
             'cobroForm.monto_pago' => 'required|numeric|min:0.01',
             'cobroForm.fecha_pago' => 'required|date',
-            'cobroForm.payment_method_id' => 'nullable|exists:payment_methods,id',
+            'cobroForm.pagos' => 'required|array|min:1|max:2',
+            'cobroForm.pagos.*.payment_method_id' => 'required|exists:payment_methods,id',
+            'cobroForm.pagos.*.monto' => 'required|numeric|min:0.01',
         ], [], [
             'cobroForm.cliente_matricula_id' => 'matrícula',
             'cobroForm.monto_pago' => 'monto',
@@ -332,9 +369,7 @@ trait ManagesClienteCommercialTab
             $pago = $this->matriculaService->procesarPago($mid, [
                 'monto_pago' => (float) $this->cobroForm['monto_pago'],
                 'fecha_pago' => $this->cobroForm['fecha_pago'],
-                'payment_method_id' => $this->cobroForm['payment_method_id'] ?: null,
-                'numero_operacion' => $this->cobroForm['numero_operacion'] ?: null,
-                'entidad_financiera' => $this->cobroForm['entidad_financiera'] ?: null,
+                'pagos' => $this->cobroForm['pagos'],
             ]);
 
             $this->flashToast('success', 'Cobro registrado correctamente.');
@@ -359,6 +394,23 @@ trait ManagesClienteCommercialTab
             });
 
         return $matricula?->id;
+    }
+
+    protected function metodoEfectivoIdCobroMatricula(): ?int
+    {
+        return PaymentMethod::activos()
+            ->whereRaw('LOWER(nombre) = ?', ['efectivo'])
+            ->value('id') ?? PaymentMethod::activos()->orderBy('nombre')->value('id');
+    }
+
+    protected function nuevaLineaCobroMatricula(string|float $monto = '', ?int $paymentMethodId = null): array
+    {
+        return [
+            'payment_method_id' => $paymentMethodId,
+            'monto' => $monto,
+            'numero_operacion' => '',
+            'entidad_financiera' => '',
+        ];
     }
 
     protected function resetCommercialTabData(): void

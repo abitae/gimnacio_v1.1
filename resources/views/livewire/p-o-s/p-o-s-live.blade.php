@@ -539,24 +539,18 @@
                     <span class="font-semibold text-red-600 dark:text-red-400 block">S/ {{ number_format($saldoPendienteCobro, 2) }}</span>
                 </div>
                 <flux:input size="xs" wire:model.live.number="cobroFormData.monto_pago" label="Monto a pagar (S/)" type="number" step="0.01" min="0.01" required />
+                <flux:input size="xs" wire:model="cobroFormData.fecha_pago" label="Fecha de pago" type="date" required />
                 @if ($cobroFormData['monto_pago'] > $saldoPendienteCobro)
                     <p class="text-xs text-red-600 dark:text-red-400">El monto no puede ser mayor al saldo pendiente.</p>
                 @endif
-                <div>
-                    <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">Método de pago</label>
-                    <select wire:model.live="cobroFormData.payment_method_id"
-                        class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-sm dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
-                        @foreach($paymentMethods as $pm)
-                            <option value="{{ $pm->id }}">{{ $pm->nombre }}</option>
-                        @endforeach
-                    </select>
-                </div>
-                @if($cobroPaymentMethod?->requiere_numero_operacion)
-                <flux:input size="xs" wire:model="cobroFormData.numero_operacion" label="Nº operación" placeholder="Obligatorio" />
-                @endif
-                @if($cobroPaymentMethod?->requiere_entidad)
-                <flux:input size="xs" wire:model="cobroFormData.entidad_financiera" label="Entidad financiera" placeholder="Obligatorio" />
-                @endif
+                @include('livewire.shared.pago-mixto-fields', [
+                    'formPrefix' => 'cobroFormData',
+                    'totalAsignado' => $this->cobroPosTotalAsignado,
+                    'diferencia' => $this->cobroPosDiferencia,
+                    'agregarAction' => 'agregarFormaCobroPos',
+                    'quitarAction' => 'quitarFormaCobroPos',
+                    'permiteSegunda' => $cobroItemTipo !== 'client_debt',
+                ])
                 <p class="text-xs text-zinc-500 dark:text-zinc-400">Tras registrar el cobro se generará un <strong class="text-zinc-700 dark:text-zinc-300">ticket único</strong> de pago (previsualización en pantalla).</p>
             </div>
             <div class="flex justify-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-700">

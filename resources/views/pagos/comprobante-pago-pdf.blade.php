@@ -55,21 +55,33 @@
             <td class="label">Concepto</td>
             <td class="value">{{ $concepto }}</td>
         </tr>
-        <tr>
-            <td class="label">Metodo</td>
-            <td class="value">{{ $pago->paymentMethod?->nombre ?? $pago->metodo_pago }}</td>
-        </tr>
-        @if($pago->numero_operacion)
+        @if($pago->detalles->isNotEmpty())
+            @foreach($pago->detalles as $detalle)
+                <tr>
+                    <td class="label">{{ $pago->detalles->count() > 1 ? 'Metodo '.($loop->index + 1) : 'Metodo' }}</td>
+                    <td class="value">
+                        {{ $detalle->paymentMethod?->nombre ?? $detalle->metodo_pago }} —
+                        {{ $simbolo }} {{ number_format((float) $detalle->monto, 2) }}
+                    </td>
+                </tr>
+                @if($detalle->numero_operacion)
+                    <tr><td class="label">N oper.</td><td class="value">{{ $detalle->numero_operacion }}</td></tr>
+                @endif
+                @if($detalle->entidad_financiera)
+                    <tr><td class="label">Entidad</td><td class="value">{{ $detalle->entidad_financiera }}</td></tr>
+                @endif
+            @endforeach
+        @else
             <tr>
-                <td class="label">N oper.</td>
-                <td class="value">{{ $pago->numero_operacion }}</td>
+                <td class="label">Metodo</td>
+                <td class="value">{{ $pago->paymentMethod?->nombre ?? $pago->metodo_pago }}</td>
             </tr>
-        @endif
-        @if($pago->entidad_financiera)
-            <tr>
-                <td class="label">Entidad</td>
-                <td class="value">{{ $pago->entidad_financiera }}</td>
-            </tr>
+            @if($pago->numero_operacion)
+                <tr><td class="label">N oper.</td><td class="value">{{ $pago->numero_operacion }}</td></tr>
+            @endif
+            @if($pago->entidad_financiera)
+                <tr><td class="label">Entidad</td><td class="value">{{ $pago->entidad_financiera }}</td></tr>
+            @endif
         @endif
     </table>
 

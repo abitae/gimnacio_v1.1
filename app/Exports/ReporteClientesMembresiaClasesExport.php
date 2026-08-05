@@ -25,7 +25,8 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
         $pagosClase = $this->data['pagos_clase'] ?? collect();
 
         return [
-            new class($membresias, $matriculasMembresia) implements FromCollection, WithHeadings, WithTitle {
+            new class($membresias, $matriculasMembresia) implements FromCollection, WithHeadings, WithTitle
+            {
                 public function __construct(
                     protected $membresias,
                     protected $matriculasMembresia
@@ -34,7 +35,7 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
                 public function collection()
                 {
                     $rows = $this->membresias->map(fn ($m) => [
-                        $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '-',
+                        $m->cliente ? trim($m->cliente->nombres.' '.$m->cliente->apellidos) : '-',
                         $m->membresia?->nombre ?? 'N/A',
                         $m->fecha_matricula?->format('d/m/Y') ?? '-',
                         $m->fecha_inicio?->format('d/m/Y'),
@@ -42,8 +43,9 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
                         (float) ($m->precio_final ?? 0),
                         'Membresía',
                     ]);
+
                     return $rows->concat($this->matriculasMembresia->map(fn ($m) => [
-                        $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '-',
+                        $m->cliente ? trim($m->cliente->nombres.' '.$m->cliente->apellidos) : '-',
                         $m->nombre,
                         $m->fecha_matricula?->format('d/m/Y') ?? '-',
                         $m->fecha_inicio?->format('d/m/Y'),
@@ -63,13 +65,14 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
                     return 'Membresías activas';
                 }
             },
-            new class($matriculasClase) implements FromCollection, WithHeadings, WithTitle {
+            new class($matriculasClase) implements FromCollection, WithHeadings, WithTitle
+            {
                 public function __construct(protected $matriculasClase) {}
 
                 public function collection()
                 {
                     return $this->matriculasClase->map(fn ($m) => [
-                        $m->cliente ? trim($m->cliente->nombres . ' ' . $m->cliente->apellidos) : '-',
+                        $m->cliente ? trim($m->cliente->nombres.' '.$m->cliente->apellidos) : '-',
                         $m->nombre,
                         $m->fecha_matricula?->format('d/m/Y') ?? '-',
                         $m->fecha_inicio?->format('d/m/Y'),
@@ -88,17 +91,18 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
                     return 'Clases activas';
                 }
             },
-            new class($pagosMembresia) implements FromCollection, WithHeadings, WithTitle {
+            new class($pagosMembresia) implements FromCollection, WithHeadings, WithTitle
+            {
                 public function __construct(protected $pagosMembresia) {}
 
                 public function collection()
                 {
                     return $this->pagosMembresia->map(fn ($p) => [
                         $p->fecha_pago?->format('d/m/Y H:i'),
-                        $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '-',
+                        $p->cliente ? trim($p->cliente->nombres.' '.$p->cliente->apellidos) : '-',
                         $p->clienteMembresia?->membresia?->nombre ?? '-',
                         (float) $p->monto,
-                        $p->metodo_pago ?? '',
+                        method_exists($p, 'metodosPagoResumen') ? $p->metodosPagoResumen() : ($p->metodo_pago ?? ''),
                     ]);
                 }
 
@@ -112,17 +116,18 @@ class ReporteClientesMembresiaClasesExport implements WithMultipleSheets
                     return 'Pagos membresía';
                 }
             },
-            new class($pagosClase) implements FromCollection, WithHeadings, WithTitle {
+            new class($pagosClase) implements FromCollection, WithHeadings, WithTitle
+            {
                 public function __construct(protected $pagosClase) {}
 
                 public function collection()
                 {
                     return $this->pagosClase->map(fn ($p) => [
                         $p->fecha_pago?->format('d/m/Y H:i'),
-                        $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '-',
+                        $p->cliente ? trim($p->cliente->nombres.' '.$p->cliente->apellidos) : '-',
                         $p->clienteMatricula?->nombre ?? '-',
                         (float) $p->monto,
-                        $p->metodo_pago ?? '',
+                        method_exists($p, 'metodosPagoResumen') ? $p->metodosPagoResumen() : ($p->metodo_pago ?? ''),
                     ]);
                 }
 

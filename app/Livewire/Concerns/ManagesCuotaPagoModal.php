@@ -19,9 +19,7 @@ trait ManagesCuotaPagoModal
     public array $pagoCuotaForm = [
         'monto' => '',
         'fecha_pago' => '',
-        'payment_method_id' => null,
-        'numero_operacion' => '',
-        'entidad_financiera' => '',
+        'pagos' => [],
     ];
 
     /**
@@ -58,13 +56,18 @@ trait ManagesCuotaPagoModal
             return;
         }
 
+        if (! app(EnrollmentInstallmentService::class)->isFirstPayableInstallment($inst)) {
+            $this->flashToast('error', __('Primero debes pagar la cuota pendiente más inmediata de esta matrícula.'));
+
+            return;
+        }
+
         $this->pagoCuotaInstallmentId = $installmentId;
+        $monto = (string) $inst->saldo_pendiente;
         $this->pagoCuotaForm = [
-            'monto' => (string) $inst->saldo_pendiente,
+            'monto' => $monto,
             'fecha_pago' => now()->format('Y-m-d'),
-            'payment_method_id' => null,
-            'numero_operacion' => '',
-            'entidad_financiera' => '',
+            'pagos' => [$this->nuevaLineaPagoCuota($monto, $this->metodoEfectivoIdCuota())],
         ];
         $this->cuotaPagoModalAbierto = true;
     }
@@ -75,13 +78,51 @@ trait ManagesCuotaPagoModal
         $this->pagoCuotaInstallmentId = null;
     }
 
+    public function agregarFormaPagoCuota(): void
+    {
+        if (count($this->pagoCuotaForm['pagos'] ?? []) >= 2) {
+            return;
+        }
+
+        $this->pagoCuotaForm['pagos'][] = $this->nuevaLineaPagoCuota('');
+    }
+
+    public function quitarFormaPagoCuota(int $index): void
+    {
+        if ($index === 0 || count($this->pagoCuotaForm['pagos'] ?? []) <= 1) {
+            return;
+        }
+
+        unset($this->pagoCuotaForm['pagos'][$index]);
+        $this->pagoCuotaForm['pagos'] = array_values($this->pagoCuotaForm['pagos']);
+    }
+
+    public function updatedPagoCuotaFormMonto($value): void
+    {
+        if (count($this->pagoCuotaForm['pagos'] ?? []) === 1) {
+            $this->pagoCuotaForm['pagos'][0]['monto'] = $value;
+        }
+    }
+
+    public function getPagoCuotaTotalAsignadoProperty(): float
+    {
+        return round((float) collect($this->pagoCuotaForm['pagos'] ?? [])->sum(fn ($linea) => (float) ($linea['monto'] ?? 0)), 2);
+    }
+
+    public function getPagoCuotaDiferenciaProperty(): float
+    {
+        return round((float) ($this->pagoCuotaForm['monto'] ?? 0) - $this->pagoCuotaTotalAsignado, 2);
+    }
+
     public function guardarPagoCuota(): void
     {
         $this->authorize('matricula_cliente.editar');
         $this->validate([
             'pagoCuotaForm.monto' => 'required|numeric|min:0.01',
             'pagoCuotaForm.fecha_pago' => 'required|date',
-            'pagoCuotaForm.payment_method_id' => 'nullable|exists:payment_methods,id',
+            'pagoCuotaForm.pagos' => 'required|array|min:1|max:2',
+            'pagoCuotaForm.pagos.*.payment_method_id' => 'required|exists:payment_methods,id',
+            'pagoCuotaForm.pagos.*.monto' => 'required|numeric|min:0.01',
         ], [], [
             'pagoCuotaForm.monto' => 'monto',
         ]);
@@ -100,9 +141,7 @@ trait ManagesCuotaPagoModal
             $pago = app(EnrollmentInstallmentService::class)->pagarCuota($inst, [
                 'monto' => (float) $this->pagoCuotaForm['monto'],
                 'fecha_pago' => $this->pagoCuotaForm['fecha_pago'],
-                'payment_method_id' => $this->pagoCuotaForm['payment_method_id'] ?: null,
-                'numero_operacion' => $this->pagoCuotaForm['numero_operacion'] ?: null,
-                'entidad_financiera' => $this->pagoCuotaForm['entidad_financiera'] ?: null,
+                'pagos' => $this->pagoCuotaForm['pagos'],
             ]);
             $this->flashToast('success', __('Pago de cuota registrado.'));
             $this->closeCuotaPagoModal();
@@ -115,5 +154,22 @@ trait ManagesCuotaPagoModal
     protected function paymentMethodsForCuotaModal(): \Illuminate\Support\Collection
     {
         return PaymentMethod::activos()->orderBy('nombre')->get();
+    }
+
+    protected function metodoEfectivoIdCuota(): ?int
+    {
+        return PaymentMethod::activos()
+            ->whereRaw('LOWER(nombre) = ?', ['efectivo'])
+            ->value('id') ?? PaymentMethod::activos()->orderBy('nombre')->value('id');
+    }
+
+    protected function nuevaLineaPagoCuota(string|float $monto = '', ?int $paymentMethodId = null): array
+    {
+        return [
+            'payment_method_id' => $paymentMethodId,
+            'monto' => $monto,
+            'numero_operacion' => '',
+            'entidad_financiera' => '',
+        ];
     }
 }

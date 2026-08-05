@@ -120,6 +120,7 @@
                                 <th class="px-3 py-1.5 text-left font-medium">Cliente</th>
                                 <th class="px-3 py-1.5 text-left font-medium">Membresía</th>
                                 <th class="px-3 py-1.5 text-right font-medium">Monto</th>
+                                <th class="px-3 py-1.5 text-left font-medium">Forma(s) de pago</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -129,9 +130,10 @@
                                     <td class="px-3 py-1.5">{{ $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '-' }}</td>
                                     <td class="px-3 py-1.5">{{ $p->clienteMembresia?->membresia?->nombre ?? $p->clienteMatricula?->membresia?->nombre ?? '-' }}</td>
                                     <td class="px-3 py-1.5 text-right">S/ {{ number_format($p->monto, 2) }}</td>
+                                    <td class="px-3 py-1.5">{{ $p->metodosPagoResumen() }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="px-3 py-2 text-center text-zinc-500">Sin pagos en el período</td></tr>
+                                <tr><td colspan="5" class="px-3 py-2 text-center text-zinc-500">Sin pagos en el período</td></tr>
                             @endforelse
                         </tbody>
                     </table>
@@ -149,6 +151,7 @@
                                 <th class="px-3 py-1.5 text-left font-medium">Cliente</th>
                                 <th class="px-3 py-1.5 text-left font-medium">Clase</th>
                                 <th class="px-3 py-1.5 text-right font-medium">Monto</th>
+                                <th class="px-3 py-1.5 text-left font-medium">Forma(s) de pago</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
@@ -158,9 +161,10 @@
                                     <td class="px-3 py-1.5">{{ $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '-' }}</td>
                                     <td class="px-3 py-1.5">{{ $p->clienteMatricula?->nombre ?? '-' }}</td>
                                     <td class="px-3 py-1.5 text-right">S/ {{ number_format($p->monto, 2) }}</td>
+                                    <td class="px-3 py-1.5">{{ $p->metodosPagoResumen() }}</td>
                                 </tr>
                             @empty
-                                <tr><td colspan="4" class="px-3 py-2 text-center text-zinc-500">Sin pagos en el período</td></tr>
+                                <tr><td colspan="5" class="px-3 py-2 text-center text-zinc-500">Sin pagos en el período</td></tr>
                             @endforelse
                         </tbody>
                     </table>

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Data\Reporte\ReporteSucursalFilter;
 use App\Models\Core\Asistencia;
 use App\Models\Core\Caja;
+use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Cita;
 use App\Models\Core\Cliente;
 use App\Models\Core\ClienteMatricula;
@@ -13,7 +14,6 @@ use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\Pago;
 use App\Models\Core\Producto;
 use App\Models\Core\ServicioExterno;
-use App\Models\Core\CajaMovimiento;
 use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
 use App\Models\User;
@@ -221,7 +221,7 @@ class ReporteModuloService
      */
     public function datosReporteFinanciero(?string $fechaDesde, ?string $fechaHasta, ?ReporteSucursalFilter $filter = null): array
     {
-        $pagosQuery = Pago::with(['cliente', 'caja', 'clienteMatricula', 'clienteMembresia', 'sucursal']);
+        $pagosQuery = Pago::with(['cliente', 'caja', 'clienteMatricula', 'clienteMembresia', 'sucursal', 'detalles.paymentMethod']);
         $pagosQuery = $this->applyReporteScope($pagosQuery, $filter);
         if ($fechaDesde) {
             $pagosQuery->where('fecha_pago', '>=', $fechaDesde);
@@ -501,7 +501,7 @@ class ReporteModuloService
 
         // Pagos de membresía legacy (cliente_membresia_id)
         $pagosMembresiaLegacyQuery = $this->applyReporteScope(Pago::query(), $filter)
-            ->with(['cliente', 'clienteMembresia.membresia']);
+            ->with(['cliente', 'clienteMembresia.membresia', 'detalles.paymentMethod']);
         if ($fechaDesde) {
             $pagosMembresiaLegacyQuery->whereDate('fecha_pago', '>=', $fechaDesde);
         }
@@ -515,7 +515,7 @@ class ReporteModuloService
 
         // Pagos nuevos de membresía y cuotas (cliente_matricula_id tipo membresía)
         $pagosMembresiaMatriculaQuery = $this->applyReporteScope(Pago::query(), $filter)
-            ->with(['cliente', 'clienteMatricula.membresia']);
+            ->with(['cliente', 'clienteMatricula.membresia', 'detalles.paymentMethod']);
         if ($fechaDesde) {
             $pagosMembresiaMatriculaQuery->whereDate('fecha_pago', '>=', $fechaDesde);
         }
@@ -535,7 +535,7 @@ class ReporteModuloService
 
         // Pagos de clases (cliente_matricula_id con tipo clase)
         $pagosClaseQuery = $this->applyReporteScope(Pago::query(), $filter)
-            ->with(['cliente', 'clienteMatricula.clase']);
+            ->with(['cliente', 'clienteMatricula.clase', 'detalles.paymentMethod']);
         if ($fechaDesde) {
             $pagosClaseQuery->whereDate('fecha_pago', '>=', $fechaDesde);
         }

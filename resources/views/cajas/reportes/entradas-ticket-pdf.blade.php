@@ -84,12 +84,12 @@
                 <div class="item">
                     <table>
                         <tr>
-                            <td class="strong">{{ $metodo['metodo'] }}</td>
+                            <td class="strong">Método: {{ $metodo['metodo'] }}</td>
                             <td class="right strong">S/ {{ number_format((float) $metodo['total'], 2) }}</td>
                         </tr>
                         @foreach ($metodo['tipos'] as $tipo)
                             <tr>
-                                <td>{{ $tipo['label'] }}</td>
+                                <td>Origen: {{ $tipo['label'] }}</td>
                                 <td class="right">S/ {{ number_format((float) $tipo['total'], 2) }}</td>
                             </tr>
                         @endforeach

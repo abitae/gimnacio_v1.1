@@ -8,6 +8,7 @@ use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Pago extends Model
 {
@@ -127,5 +128,24 @@ class Pago extends Model
     public function paymentMethod(): BelongsTo
     {
         return $this->belongsTo(PaymentMethod::class);
+    }
+
+    public function detalles(): HasMany
+    {
+        return $this->hasMany(PagoDetalle::class)->orderBy('id');
+    }
+
+    public function metodosPagoResumen(): string
+    {
+        $detalles = $this->relationLoaded('detalles') ? $this->detalles : $this->detalles()->with('paymentMethod')->get();
+
+        if ($detalles->isEmpty()) {
+            return $this->paymentMethod?->nombre ?? $this->metodo_pago ?? 'Sin método';
+        }
+
+        return $detalles
+            ->map(fn (PagoDetalle $detalle) => ($detalle->paymentMethod?->nombre ?? $detalle->metodo_pago)
+                .' S/ '.number_format((float) $detalle->monto, 2))
+            ->implode(' + ');
     }
 }

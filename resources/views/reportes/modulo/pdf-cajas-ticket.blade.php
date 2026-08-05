@@ -113,12 +113,12 @@
                     <div class="item">
                         <table class="row totals">
                             <tr>
-                                <td class="strong">{{ strtoupper(str_replace('_', ' ', (string) $metodo)) }}</td>
+                                <td class="strong">MÉTODO: {{ strtoupper(str_replace('_', ' ', (string) $metodo)) }}</td>
                                 <td class="right strong">S/ {{ number_format($totalMetodo, 2) }}</td>
                             </tr>
                             @foreach ($porTipo as $tipo => $fila)
                                 <tr>
-                                    <td>{{ $tipo }}</td>
+                                    <td>Origen: {{ $tipo }}</td>
                                     <td class="right">S/ {{ number_format((float) ($fila['total'] ?? 0), 2) }}</td>
                                 </tr>
                             @endforeach

@@ -9,7 +9,6 @@ use App\Models\Core\ClienteMatricula;
 use App\Models\Core\EnrollmentInstallment;
 use App\Models\Core\EnrollmentInstallmentPlan;
 use App\Models\Core\Pago;
-use App\Models\Core\PaymentMethod;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
@@ -434,6 +433,19 @@ class EnrollmentInstallmentService
                 throw new \InvalidArgumentException('La cuota no tiene una matrícula asociada para registrar el pago.');
             }
 
+            $primeraCobrable = EnrollmentInstallment::query()
+                ->where('cliente_matricula_id', $matricula->id)
+                ->whereIn('estado', ['pendiente', 'vencida', 'parcial'])
+                ->orderBy('fecha_vencimiento')
+                ->orderBy('numero_cuota')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->first();
+
+            if (! $primeraCobrable || (int) $primeraCobrable->id !== (int) $row->id) {
+                throw new \InvalidArgumentException('Primero debes pagar la cuota pendiente más inmediata de esta matrícula.');
+            }
+
             $monto = round((float) ($data['monto'] ?? $row->saldo_pendiente), 2);
             $cajaService = app(CajaService::class);
 
@@ -460,35 +472,26 @@ class EnrollmentInstallmentService
             $this->assertCajaSucursal($caja->id, (int) $matricula->sucursal_id);
             $saldoPendienteActual = app(ClienteMatriculaService::class)->obtenerSaldoPendiente($matricula->id);
             $saldoPendienteNuevo = max(0, $saldoPendienteActual - $monto);
-
-            $metodoPago = $data['metodo_pago'] ?? ('Cuota '.$row->numero_cuota);
-            $paymentMethodId = $data['payment_method_id'] ?? null;
-            if ($paymentMethodId) {
-                $this->assertPaymentMethodSucursal((int) $paymentMethodId, (int) $matricula->sucursal_id);
-                $pm = PaymentMethod::find($paymentMethodId);
-                if ($pm) {
-                    $metodoPago = $pm->nombre;
-                }
-            }
+            $detalleService = app(PagoDetalleService::class);
+            $lineasPago = $detalleService->normalizar(
+                array_merge(['metodo_pago' => 'Cuota '.$row->numero_cuota], $data),
+                $monto,
+                (int) $matricula->sucursal_id,
+            );
+            $datosCabecera = $detalleService->datosCabecera($lineasPago);
 
             $cobro = app(CobroTicketService::class)->resolverComprobantePago([
                 'comprobante_tipo' => $data['comprobante_tipo'] ?? null,
                 'comprobante_numero' => $data['comprobante_numero'] ?? null,
             ]);
-            $numeroOperacion = trim((string) ($data['numero_operacion'] ?? '')) ?: null;
-            $entidadFinanciera = trim((string) ($data['entidad_financiera'] ?? '')) ?: null;
-
             $pago = Pago::create([
                 'cliente_id' => $matricula->cliente_id,
                 'cliente_matricula_id' => $matricula->id,
                 'enrollment_installment_id' => $row->id,
                 'monto' => $monto,
                 'moneda' => $data['moneda'] ?? 'PEN',
-                'metodo_pago' => $metodoPago,
+                ...$datosCabecera,
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
-                'payment_method_id' => $paymentMethodId,
-                'numero_operacion' => $numeroOperacion,
-                'entidad_financiera' => $entidadFinanciera,
                 'es_pago_parcial' => $saldoPendienteNuevo > 0,
                 'saldo_pendiente' => $saldoPendienteNuevo,
                 'comprobante_tipo' => $cobro['tipo'],
@@ -497,20 +500,19 @@ class EnrollmentInstallmentService
                 'registrado_por' => auth()->id(),
                 'sucursal_id' => $matricula->sucursal_id,
             ]);
+            $detalleService->crearDetalles($pago, $caja, $lineasPago);
 
-            $obsCaja = 'Método de pago: '.$metodoPago;
+            $obsCaja = null;
             if ($pago->comprobante_tipo || $pago->comprobante_numero) {
-                $obsCaja .= ', Comprobante: '.strtoupper((string) $pago->comprobante_tipo).' '.$pago->comprobante_numero;
+                $obsCaja = 'Comprobante: '.strtoupper((string) $pago->comprobante_tipo).' '.$pago->comprobante_numero;
             }
 
-            $cajaService->registrarIngresoPorPago(
+            $cajaService->registrarIngresosPorPago(
                 $pago,
                 'Pago cuota '.$row->numero_cuota.' - '.$matricula->nombre,
                 CajaMovimiento::CATEGORIA_CUOTA,
                 CajaMovimiento::ORIGEN_ENROLLMENT_INSTALLMENTS,
-                null,
-                null,
-                trim($obsCaja, ', ')
+                $obsCaja,
             );
 
             $nuevoMontoPagado = round($row->monto_pagado_actual + $monto, 2);
@@ -522,8 +524,8 @@ class EnrollmentInstallmentService
             $row->update([
                 'monto_pagado' => min((float) $row->monto, $nuevoMontoPagado),
                 'estado' => $nuevoEstado,
-                'payment_method_id' => $data['payment_method_id'] ?? null,
-                'numero_operacion' => $numeroOperacion,
+                'payment_method_id' => $datosCabecera['payment_method_id'],
+                'numero_operacion' => $datosCabecera['numero_operacion'],
                 'pago_id' => $pago->id,
                 'fecha_pago' => $pago->fecha_pago ? Carbon::parse($pago->fecha_pago)->toDateString() : null,
             ]);
@@ -533,7 +535,7 @@ class EnrollmentInstallmentService
                 ->where('fecha_vencimiento', '<', now()->toDateString())
                 ->update(['estado' => 'vencida']);
 
-            return $pago;
+            return $pago->fresh(['detalles.paymentMethod']);
         });
     }
 
@@ -544,7 +546,19 @@ class EnrollmentInstallmentService
             ->whereIn('estado', ['pendiente', 'vencida', 'parcial'])
             ->orderBy('fecha_vencimiento')
             ->orderBy('numero_cuota')
+            ->orderBy('id')
             ->first();
+    }
+
+    public function isFirstPayableInstallment(EnrollmentInstallment $installment): bool
+    {
+        if (! in_array($installment->estado, ['pendiente', 'vencida', 'parcial'], true)
+            || ! $installment->cliente_matricula_id) {
+            return false;
+        }
+
+        return (int) $this->firstPayableInstallmentForMatricula((int) $installment->cliente_matricula_id)?->id
+            === (int) $installment->id;
     }
 
     /**
@@ -556,6 +570,7 @@ class EnrollmentInstallmentService
             ->where('cliente_matricula_id', $clienteMatriculaId)
             ->orderBy('fecha_vencimiento')
             ->orderBy('numero_cuota')
+            ->orderBy('id')
             ->get();
     }
 
@@ -604,15 +619,6 @@ class EnrollmentInstallmentService
 
         if ((int) $caja->sucursal_id !== $sucursalId) {
             throw new \InvalidArgumentException('La caja seleccionada no pertenece a la sucursal de la matricula.');
-        }
-    }
-
-    private function assertPaymentMethodSucursal(int $paymentMethodId, int $sucursalId): void
-    {
-        $paymentMethod = PaymentMethod::find($paymentMethodId);
-
-        if (! $paymentMethod || (int) $paymentMethod->sucursal_id !== $sucursalId) {
-            throw new \InvalidArgumentException('El metodo de pago seleccionado no pertenece a la sucursal de la matricula.');
         }
     }
 }

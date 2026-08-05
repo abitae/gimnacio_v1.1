@@ -157,19 +157,24 @@ class Caja extends Model
             $metodoPago = null;
 
             if ($referencia instanceof Pago) {
-                $metodoPago = $referencia->metodo_pago;
+                $metodoPago = $referencia->paymentMethod?->nombre ?? $referencia->metodo_pago;
+            } elseif ($referencia instanceof PagoDetalle) {
+                $metodoPago = $referencia->paymentMethod?->nombre ?? $referencia->metodo_pago;
             } elseif ($referencia instanceof Venta) {
-                $metodoPago = $referencia->metodo_pago;
+                $metodoPago = $referencia->paymentMethod?->nombre ?? $referencia->metodo_pago;
             } elseif ($referencia instanceof VentaPago) {
                 $metodoPago = $referencia->paymentMethod?->nombre ?? $referencia->metodo_pago;
             } elseif ($referencia instanceof RentalPayment) {
                 $metodoPago = $referencia->paymentMethod?->nombre;
             } elseif ($referencia instanceof EnrollmentInstallment) {
-                $metodoPago = $referencia->pago?->metodo_pago;
+                $metodoPago = $referencia->pago?->paymentMethod?->nombre ?? $referencia->pago?->metodo_pago;
             }
+
+            $metodoPago = self::normalizarMetodoPagoCaja($metodoPago);
 
             $ticketPagoId = match (true) {
                 $referencia instanceof Pago => $referencia->id,
+                $referencia instanceof PagoDetalle => $referencia->pago_id,
                 $referencia instanceof EnrollmentInstallment => $referencia->pago_id,
                 default => null,
             };
@@ -198,6 +203,7 @@ class Caja extends Model
                 'excluir_totales_caja' => $creditoMeta['excluir_totales_caja'],
                 'numero_operacion' => match (true) {
                     $referencia instanceof Pago => $referencia->numero_operacion,
+                    $referencia instanceof PagoDetalle => $referencia->numero_operacion,
                     $referencia instanceof Venta => $referencia->numero_operacion,
                     $referencia instanceof VentaPago => $referencia->numero_operacion,
                     $referencia instanceof EnrollmentInstallment => $referencia->numero_operacion,
@@ -205,6 +211,7 @@ class Caja extends Model
                 },
                 'entidad_financiera' => match (true) {
                     $referencia instanceof Pago => $referencia->entidad_financiera,
+                    $referencia instanceof PagoDetalle => $referencia->entidad_financiera,
                     $referencia instanceof Venta => $referencia->entidad_financiera,
                     $referencia instanceof VentaPago => $referencia->entidad_financiera,
                     default => null,
@@ -219,6 +226,7 @@ class Caja extends Model
                     $referencia instanceof Venta => $referencia->numero_venta,
                     $referencia instanceof VentaPago => $referencia->venta?->numero_venta ?? 'Venta pago #'.$referencia->id,
                     $referencia instanceof Pago => 'Pago #'.$referencia->id,
+                    $referencia instanceof PagoDetalle => 'Pago #'.$referencia->pago_id,
                     $referencia instanceof RentalPayment => 'Alquiler #'.$referencia->rental_id,
                     $referencia instanceof EnrollmentInstallment => $referencia->pago_id
                         ? 'Pago #'.$referencia->pago_id
@@ -227,6 +235,32 @@ class Caja extends Model
                 },
             ];
         })->values()->all();
+    }
+
+    /**
+     * Unifica las variantes históricas de los métodos predeterminados para que
+     * Caja no presente grupos duplicados que visualmente tienen el mismo nombre.
+     */
+    protected static function normalizarMetodoPagoCaja(?string $metodoPago): ?string
+    {
+        if ($metodoPago === null) {
+            return null;
+        }
+
+        $nombre = preg_replace('/\s+/u', ' ', trim($metodoPago));
+        if ($nombre === null || $nombre === '') {
+            return null;
+        }
+
+        return match (mb_strtolower($nombre, 'UTF-8')) {
+            'efectivo' => 'Efectivo',
+            'transferencia' => 'Transferencia',
+            'deposito', 'depósito' => 'Depósito',
+            'tarjeta' => 'Tarjeta',
+            'yape' => 'Yape',
+            'plin' => 'Plin',
+            default => $nombre,
+        };
     }
 
     protected static function ventaIdDesdePagoAlquiler(RentalPayment $payment): ?int

@@ -35,7 +35,7 @@
                 <td>{{ $p->cliente ? trim($p->cliente->nombres . ' ' . $p->cliente->apellidos) : '-' }}</td>
                 <td class="text-right">S/ {{ number_format($p->monto, 2) }}</td>
                 <td>{{ $p->moneda ?? 'PEN' }}</td>
-                <td>{{ $p->metodo_pago ?? '-' }}</td>
+                <td>{{ method_exists($p, 'metodosPagoResumen') ? $p->metodosPagoResumen() : ($p->metodo_pago ?? '-') }}</td>
                 <td>{{ ($p->comprobante_tipo ?? '') . ' ' . ($p->comprobante_numero ?? '') }}</td>
             </tr>
         @endforeach

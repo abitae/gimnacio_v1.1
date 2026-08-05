@@ -6,8 +6,8 @@ use App\Models\Core\Caja;
 use App\Models\Core\CajaMovimiento;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\Pago;
+use App\Models\Core\PagoDetalle;
 use App\Models\Core\RentalPayment;
-use App\Support\PermissionCatalog;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
@@ -277,6 +277,51 @@ class CajaService
             referenciaId: $referenciaId ?? $pago->id,
             observaciones: $observaciones
         );
+    }
+
+    /**
+     * Registra cada forma de pago como una entrada separada de Caja, conservando
+     * un único Pago principal para historial y comprobante.
+     */
+    public function registrarIngresosPorPago(
+        Pago $pago,
+        string $concepto,
+        string $categoria,
+        string $origenModulo,
+        ?string $observaciones = null
+    ): \Illuminate\Support\Collection {
+        $pago->loadMissing('detalles.paymentMethod');
+
+        if ($pago->detalles->isEmpty()) {
+            return collect([$this->registrarIngresoPorPago(
+                $pago,
+                $concepto,
+                $categoria,
+                $origenModulo,
+                observaciones: $observaciones,
+            )]);
+        }
+
+        return $pago->detalles->map(function (PagoDetalle $detalle) use ($pago, $concepto, $categoria, $origenModulo, $observaciones) {
+            $detalleObservaciones = 'Método de pago: '.($detalle->paymentMethod?->nombre ?? $detalle->metodo_pago);
+            if ($detalle->numero_operacion) {
+                $detalleObservaciones .= ', Operación: '.$detalle->numero_operacion;
+            }
+            if ($observaciones) {
+                $detalleObservaciones .= ', '.$observaciones;
+            }
+
+            return $this->registrarIngresoAutomatico(
+                cajaId: (int) $pago->caja_id,
+                monto: (float) $detalle->monto,
+                concepto: $concepto,
+                categoria: $categoria,
+                origenModulo: $origenModulo,
+                referenciaTipo: PagoDetalle::class,
+                referenciaId: $detalle->id,
+                observaciones: $detalleObservaciones,
+            );
+        });
     }
 
     public function registrarIngresoAlquiler(

@@ -8,10 +8,15 @@ use App\Models\Core\ClientePlanTraspaso;
 use App\Models\Core\EnrollmentInstallment;
 use App\Models\Core\EnrollmentInstallmentPlan;
 use App\Models\Core\Membresia;
-use App\Models\Core\Pago;
+use App\Models\Core\PagoDetalle;
 use App\Models\User;
 use App\Services\ClienteMatriculaService;
 use App\Services\EnrollmentInstallmentService;
+use App\Services\SucursalContext;
+
+beforeEach(function () {
+    app(SucursalContext::class)->activate(biotimeSucursal('matricula-service'));
+});
 
 it('registers a caja movement when a matricula payment is processed', function () {
     $user = User::factory()->create();
@@ -68,8 +73,8 @@ it('registers a caja movement when a matricula payment is processed', function (
 
     $movimiento = CajaMovimiento::query()
         ->where('caja_id', $caja->id)
-        ->where('referencia_tipo', Pago::class)
-        ->where('referencia_id', $pago->id)
+        ->where('referencia_tipo', PagoDetalle::class)
+        ->whereIn('referencia_id', $pago->detalles()->pluck('id'))
         ->latest('id')
         ->first();
 

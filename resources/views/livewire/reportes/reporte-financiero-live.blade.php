@@ -45,6 +45,7 @@
                             <th class="px-3 py-1.5 text-left font-medium">Fecha</th>
                             <th class="px-3 py-1.5 text-left font-medium">Cliente</th>
                             <th class="px-3 py-1.5 text-right font-medium">Monto</th>
+                            <th class="px-3 py-1.5 text-left font-medium">Forma(s) de pago</th>
                             <th class="px-3 py-1.5 text-right font-medium">Ticket</th>
                         </tr>
                     </thead>
@@ -54,12 +55,13 @@
                                 <td class="px-3 py-1.5">{{ $p->fecha_pago?->format('d/m/Y H:i') }}</td>
                                 <td class="px-3 py-1.5">{{ $p->cliente ? $p->cliente->nombres . ' ' . $p->cliente->apellidos : '-' }}</td>
                                 <td class="px-3 py-1.5 text-right">S/ {{ number_format($p->monto, 2) }}</td>
+                                <td class="px-3 py-1.5">{{ $p->metodosPagoResumen() }}</td>
                                 <td class="px-3 py-1.5 text-right">
                                     <flux:button size="xs" variant="ghost" icon="printer" wire:click="abrirTicketPago({{ $p->id }})">Reimprimir</flux:button>
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="4" class="px-3 py-2 text-center text-zinc-500">Sin pagos</td></tr>
+                            <tr><td colspan="5" class="px-3 py-2 text-center text-zinc-500">Sin pagos</td></tr>
                         @endforelse
                     </tbody>
                 </table>

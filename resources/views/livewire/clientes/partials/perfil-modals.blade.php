@@ -169,18 +169,13 @@
         </div>
         <flux:input size="xs" type="number" step="0.01" wire:model="cobroForm.monto_pago" label="{{ __('Monto') }}" required />
         <flux:input size="xs" type="date" wire:model="cobroForm.fecha_pago" label="{{ __('Fecha pago') }}" required />
-        <div>
-            <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ __('Medio de pago') }}</label>
-            <select wire:model="cobroForm.payment_method_id"
-                class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800">
-                <option value="">{{ __('—') }}</option>
-                @foreach ($paymentMethods as $pm)
-                    <option value="{{ $pm->id }}">{{ $pm->nombre }}</option>
-                @endforeach
-            </select>
-        </div>
-        <flux:input size="xs" wire:model="cobroForm.numero_operacion" label="{{ __('Nº operación') }}" />
-        <flux:input size="xs" wire:model="cobroForm.entidad_financiera" label="{{ __('Entidad') }}" />
+        @include('livewire.shared.pago-mixto-fields', [
+            'formPrefix' => 'cobroForm',
+            'totalAsignado' => $this->cobroMatriculaTotalAsignado,
+            'diferencia' => $this->cobroMatriculaDiferencia,
+            'agregarAction' => 'agregarFormaCobroMatricula',
+            'quitarAction' => 'quitarFormaCobroMatricula',
+        ])
         <div class="flex justify-end gap-2 pt-2">
             <flux:button type="button" variant="ghost" size="xs" wire:click="closeCobroMatriculaModal">{{ __('Cancelar') }}</flux:button>
             <flux:button type="submit" variant="primary" size="xs">{{ __('Registrar') }}</flux:button>
@@ -244,6 +239,10 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                    @php
+                        $cuotaCobrableModalId = $cuotasModalInstallments
+                            ->first(fn ($item) => in_array($item->estado, ['pendiente', 'vencida', 'parcial'], true))?->id;
+                    @endphp
                     @forelse ($cuotasModalInstallments as $cuota)
                         <tr>
                             <td class="px-4 py-3">{{ $cuota->numero_cuota }}</td>
@@ -254,8 +253,10 @@
                             <td class="px-4 py-3">{{ \App\Models\Core\EnrollmentInstallment::ESTADOS[$cuota->estado] ?? ucfirst((string) $cuota->estado) }}</td>
                             <td class="px-4 py-3 text-right">
                                 @can('matricula_cliente.editar')
-                                    @if (in_array($cuota->estado, ['pendiente', 'vencida', 'parcial'], true))
+                                    @if ((int) $cuota->id === (int) $cuotaCobrableModalId)
                                         <flux:button size="xs" variant="primary" type="button" wire:click="openRegistrarPagoCuota({{ $cuota->id }})">{{ __('Pagar') }}</flux:button>
+                                    @elseif (in_array($cuota->estado, ['pendiente', 'vencida', 'parcial'], true))
+                                        <flux:button size="xs" variant="outline" type="button" disabled title="{{ __('Primero paga la cuota pendiente más inmediata.') }}">{{ __('Pagar') }}</flux:button>
                                     @endif
                                 @endcan
                             </td>
@@ -288,18 +289,13 @@
         <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. Puedes registrar un abono parcial o completar el saldo de la cuota.') }}</p>
         <flux:input size="xs" type="number" step="0.01" wire:model="pagoCuotaForm.monto" label="{{ __('Monto') }}" required />
         <flux:input size="xs" type="date" wire:model="pagoCuotaForm.fecha_pago" label="{{ __('Fecha') }}" required />
-        <div>
-            <label class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ __('Medio de pago') }}</label>
-            <select wire:model="pagoCuotaForm.payment_method_id"
-                class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800">
-                <option value="">{{ __('—') }}</option>
-                @foreach ($paymentMethods as $pm)
-                    <option value="{{ $pm->id }}">{{ $pm->nombre }}</option>
-                @endforeach
-            </select>
-        </div>
-        <flux:input size="xs" wire:model="pagoCuotaForm.numero_operacion" label="{{ __('Nº operación') }}" />
-        <flux:input size="xs" wire:model="pagoCuotaForm.entidad_financiera" label="{{ __('Entidad') }}" />
+        @include('livewire.shared.pago-mixto-fields', [
+            'formPrefix' => 'pagoCuotaForm',
+            'totalAsignado' => $this->pagoCuotaTotalAsignado,
+            'diferencia' => $this->pagoCuotaDiferencia,
+            'agregarAction' => 'agregarFormaPagoCuota',
+            'quitarAction' => 'quitarFormaPagoCuota',
+        ])
         <div class="flex justify-end gap-2 pt-2">
             <flux:button type="button" variant="ghost" size="xs" wire:click="closeCuotaPagoModal">{{ __('Cancelar') }}</flux:button>
             <flux:button type="submit" variant="primary" size="xs">{{ __('Registrar pago') }}</flux:button>

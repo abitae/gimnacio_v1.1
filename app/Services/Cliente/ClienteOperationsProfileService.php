@@ -46,7 +46,7 @@ class ClienteOperationsProfileService
 
         $pagosRecientes = Pago::query()
             ->where('cliente_id', $clienteId)
-            ->with(['registradoPor', 'clienteMembresia.membresia', 'clienteMatricula.clase', 'clienteMatricula.membresia'])
+            ->with(['registradoPor', 'clienteMembresia.membresia', 'clienteMatricula.clase', 'clienteMatricula.membresia', 'detalles.paymentMethod'])
             ->orderByDesc('fecha_pago')
             ->limit(5)
             ->get()

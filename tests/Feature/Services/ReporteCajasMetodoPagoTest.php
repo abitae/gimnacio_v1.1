@@ -7,13 +7,18 @@ use App\Models\Core\Cliente;
 use App\Models\Core\Pago;
 use App\Models\Core\Venta;
 use App\Models\User;
+use App\Services\CajaService;
 use App\Services\ReporteModuloService;
+use App\Services\SucursalContext;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 
 it('breaks down cash report payment totals by operation type', function () {
-    $user = User::factory()->create();
+    $sucursal = biotimeSucursal('cash-report-breakdown');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
     $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
 
     $cliente = Cliente::factory()->create(['created_by' => $user->id]);
 
@@ -91,9 +96,80 @@ it('breaks down cash report payment totals by operation type', function () {
         ->and($movVenta)->not->toBeNull();
 });
 
-it('excludes credit sale debt from cash totals and lists credit sales separately', function () {
-    $user = User::factory()->create();
+it('consolidates legacy cash names and distinguishes their operation origins', function () {
+    $sucursal = biotimeSucursal('cash-report');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
     $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $caja = Caja::create([
+        'usuario_id' => $user->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now()->subMinute(),
+        'estado' => 'abierta',
+    ]);
+
+    $pagoMembresia = Pago::create([
+        'cliente_id' => $cliente->id,
+        'monto' => 100,
+        'fecha_pago' => now(),
+        'metodo_pago' => 'efectivo',
+        'registrado_por' => $user->id,
+    ]);
+    $venta = Venta::create([
+        'caja_id' => $caja->id,
+        'cliente_id' => $cliente->id,
+        'usuario_id' => $user->id,
+        'numero_venta' => 'V-CASH-NORMALIZED',
+        'fecha_venta' => now(),
+        'subtotal' => 40,
+        'descuento' => 0,
+        'total' => 40,
+        'monto_pagado' => 40,
+        'estado' => 'completada',
+        'metodo_pago' => 'Efectivo',
+    ]);
+
+    foreach ([
+        [$pagoMembresia, CajaMovimiento::CATEGORIA_MEMBRESIA, 'Cobro membresía', 100],
+        [$venta, CajaMovimiento::CATEGORIA_POS, 'Venta POS', 40],
+    ] as [$referencia, $categoria, $concepto, $monto]) {
+        CajaMovimiento::create([
+            'caja_id' => $caja->id,
+            'usuario_id' => $user->id,
+            'tipo' => 'entrada',
+            'categoria' => $categoria,
+            'origen_modulo' => $referencia instanceof Pago
+                ? CajaMovimiento::ORIGEN_CLIENTE_MEMBRESIAS
+                : CajaMovimiento::ORIGEN_VENTAS,
+            'concepto' => $concepto,
+            'monto' => $monto,
+            'fecha_movimiento' => now(),
+            'referencia_tipo' => $referencia::class,
+            'referencia_id' => $referencia->id,
+        ]);
+    }
+
+    $data = app(CajaService::class)->obtenerReporteEntradasDetallado($caja);
+    $metodos = collect($data['resumen']['metodos']);
+    $efectivo = $metodos->firstWhere('metodo', 'Efectivo');
+    $tipos = collect($efectivo['tipos'] ?? [])->keyBy('label');
+
+    expect($metodos)->toHaveCount(1)
+        ->and($efectivo)->not->toBeNull()
+        ->and((float) $efectivo['total'])->toBe(140.0)
+        ->and((float) $tipos['Membresia']['total'])->toBe(100.0)
+        ->and((float) $tipos['POS']['total'])->toBe(40.0);
+});
+
+it('excludes credit sale debt from cash totals and lists credit sales separately', function () {
+    $sucursal = biotimeSucursal('cash-report-credit');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
 
     $cliente = Cliente::factory()->create(['created_by' => $user->id]);
 

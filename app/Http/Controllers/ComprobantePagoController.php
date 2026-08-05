@@ -32,6 +32,7 @@ class ComprobantePagoController extends Controller
             'clientDebt.venta',
             'registradoPor',
             'paymentMethod',
+            'detalles.paymentMethod',
         ]);
 
         $html = view('pagos.comprobante-pago-pdf', ['pago' => $pago])->render();
