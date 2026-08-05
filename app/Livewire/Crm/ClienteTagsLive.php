@@ -19,10 +19,10 @@ class ClienteTagsLive extends Component
         $this->flashToast('success', 'Etiquetas actualizadas');
     }
 
-    public function mount($cliente)
+    public function mount(Cliente $cliente)
     {
         $this->authorize('crm.ver');
-        $this->clienteId = (int) $cliente;
+        $this->clienteId = (int) $cliente->id;
     }
 
     public function getClienteProperty(): ?Cliente
