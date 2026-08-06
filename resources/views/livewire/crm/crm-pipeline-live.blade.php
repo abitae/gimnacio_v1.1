@@ -4,13 +4,20 @@
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Pipeline CRM</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">Leads por etapa · Arrastra o mueve entre columnas</p>
         </div>
-        @can('crm.crear')
-        <flux:button icon="plus" variant="primary" size="sm" wire:click="openNewLead"
-            wire:loading.attr="disabled" wire:target="openNewLead">
-            <span wire:loading.remove wire:target="openNewLead">Nuevo Lead</span>
-            <span wire:loading wire:target="openNewLead">Abriendo...</span>
-        </flux:button>
-        @endcan
+        <div class="flex flex-wrap items-center gap-2">
+            @can('crm.editar')
+            <flux:button icon="cog-6-tooth" variant="ghost" size="sm" wire:click="openManageStages">
+                Gestionar etapas
+            </flux:button>
+            @endcan
+            @can('crm.crear')
+            <flux:button icon="plus" variant="primary" size="sm" wire:click="openNewLead"
+                wire:loading.attr="disabled" wire:target="openNewLead">
+                <span wire:loading.remove wire:target="openNewLead">Nuevo Lead</span>
+                <span wire:loading wire:target="openNewLead">Abriendo...</span>
+            </flux:button>
+            @endcan
+        </div>
     </div>
 
     <div class="flex flex-wrap gap-2 items-center">
@@ -72,9 +79,15 @@
                 $hasMore = $totalInStage > $showing;
             @endphp
             <div class="flex-shrink-0 w-80 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 overflow-hidden flex flex-col">
-                <div class="px-3 py-2.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between shrink-0">
-                    <span class="font-medium text-sm text-zinc-800 dark:text-zinc-200">{{ $stage->nombre }}</span>
-                    <span class="text-xs bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-full px-2 py-0.5">{{ $totalInStage }}</span>
+                <div class="px-3 py-2.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between shrink-0 gap-2">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <span class="font-medium text-sm text-zinc-800 dark:text-zinc-200 truncate">{{ $stage->nombre }}</span>
+                        @can('crm.editar')
+                        <flux:button size="xs" variant="ghost" icon="pencil" class="shrink-0 opacity-60 hover:opacity-100"
+                            wire:click="openEditStage({{ $stage->id }})" title="Editar etapa" />
+                        @endcan
+                    </div>
+                    <span class="text-xs bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-full px-2 py-0.5 shrink-0">{{ $totalInStage }}</span>
                 </div>
                 @if($hasMore)
                 <div class="px-3 py-1 border-b border-zinc-100 dark:border-zinc-800 text-xs text-zinc-500 dark:text-zinc-400 shrink-0">
@@ -164,6 +177,87 @@
     <flux:modal name="convert-lead" wire:model="modalConvert" focusable flyout variant="floating" class="md:w-lg">
         @if($modalConvert && $selectedLeadId)
         <livewire:crm.convert-lead-live :lead-id="$selectedLeadId" :key="'convert-'.$selectedLeadId" />
+        @endif
+    </flux:modal>
+
+    <flux:modal name="manage-stages" wire:model="modalStages" focusable flyout variant="floating" class="md:w-lg">
+        @if($modalStages)
+        <div>
+            @if($stageFormOpen)
+            <flux:heading size="lg">{{ $editingStageId ? 'Editar etapa' : 'Nueva etapa' }}</flux:heading>
+            <form wire:submit="saveStage" class="mt-4 space-y-3">
+                <flux:field>
+                    <flux:label>Nombre</flux:label>
+                    <flux:input wire:model="stageNombre" required maxlength="80" />
+                    <flux:error name="stageNombre" />
+                </flux:field>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                        <input type="checkbox" wire:model.live="stageIsDefault" class="rounded border-zinc-300 dark:border-zinc-600" />
+                        Etapa por defecto (nuevos leads)
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                        <input type="checkbox" wire:model.live="stageIsWon" class="rounded border-zinc-300 dark:border-zinc-600" />
+                        Cerrado ganado
+                    </label>
+                    <label class="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+                        <input type="checkbox" wire:model.live="stageIsLost" class="rounded border-zinc-300 dark:border-zinc-600" />
+                        Cerrado perdido
+                    </label>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <flux:button type="button" variant="ghost" wire:click="backToStageList">Volver</flux:button>
+                    <flux:button type="submit" variant="primary">Guardar</flux:button>
+                </div>
+            </form>
+            @else
+            <div class="flex items-center justify-between gap-2">
+                <flux:heading size="lg">Gestionar etapas</flux:heading>
+                @can('crm.crear')
+                <flux:button size="sm" variant="primary" icon="plus" wire:click="openCreateStage">Nueva</flux:button>
+                @endcan
+            </div>
+            <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Ordena, edita o elimina las columnas del pipeline.</p>
+            <ul class="mt-4 divide-y divide-zinc-200 dark:divide-zinc-700 rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
+                @forelse($manageStages as $manageStage)
+                <li wire:key="manage-stage-{{ $manageStage->id }}" class="flex items-center justify-between gap-2 p-3 bg-white dark:bg-zinc-900">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="font-medium text-sm text-zinc-900 dark:text-zinc-100">{{ $manageStage->nombre }}</span>
+                            @if($manageStage->is_default)
+                            <span class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">Default</span>
+                            @endif
+                            @if($manageStage->is_won)
+                            <span class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-200">Ganado</span>
+                            @endif
+                            @if($manageStage->is_lost)
+                            <span class="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 dark:bg-rose-900/40 dark:text-rose-200">Perdido</span>
+                            @endif
+                        </div>
+                        <p class="text-xs text-zinc-500 mt-0.5">{{ $manageStage->leads_count }} lead(s)</p>
+                    </div>
+                    <div class="flex items-center gap-0.5 shrink-0">
+                        @can('crm.editar')
+                        <flux:button size="xs" variant="ghost" icon="chevron-up" wire:click="moveStageUp({{ $manageStage->id }})" title="Subir" />
+                        <flux:button size="xs" variant="ghost" icon="chevron-down" wire:click="moveStageDown({{ $manageStage->id }})" title="Bajar" />
+                        <flux:button size="xs" variant="ghost" wire:click="openEditStage({{ $manageStage->id }})">Editar</flux:button>
+                        @endcan
+                        @can('crm.eliminar')
+                        <flux:button size="xs" variant="ghost" wire:click="deleteStage({{ $manageStage->id }})"
+                            wire:confirm="¿Eliminar esta etapa?"
+                            :disabled="$manageStage->leads_count > 0">Eliminar</flux:button>
+                        @endcan
+                    </div>
+                </li>
+                @empty
+                <li class="p-6 text-center text-sm text-zinc-500">No hay etapas configuradas.</li>
+                @endforelse
+            </ul>
+            <div class="flex justify-end pt-4">
+                <flux:button type="button" variant="ghost" wire:click="closeManageStages">Cerrar</flux:button>
+            </div>
+            @endif
+        </div>
         @endif
     </flux:modal>
 </div>

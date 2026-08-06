@@ -3,8 +3,10 @@
 namespace App\Livewire\Crm;
 
 use App\Livewire\Concerns\FlashesToast;
+use App\Models\Crm\CrmStage;
 use App\Models\Crm\Lead;
 use App\Services\Crm\CrmOperationalSummaryService;
+use App\Services\Crm\CrmStageService;
 use App\Services\Crm\LeadService;
 use Livewire\Component;
 
@@ -34,14 +36,31 @@ class CrmPipelineLive extends Component
 
     public $movingToStageId = null;
 
+    public bool $modalStages = false;
+
+    public bool $stageFormOpen = false;
+
+    public ?int $editingStageId = null;
+
+    public string $stageNombre = '';
+
+    public bool $stageIsDefault = false;
+
+    public bool $stageIsWon = false;
+
+    public bool $stageIsLost = false;
+
     protected LeadService $leadService;
 
     protected CrmOperationalSummaryService $summaryService;
 
-    public function boot(LeadService $leadService, CrmOperationalSummaryService $summaryService)
+    protected CrmStageService $stageService;
+
+    public function boot(LeadService $leadService, CrmOperationalSummaryService $summaryService, CrmStageService $stageService)
     {
         $this->leadService = $leadService;
         $this->summaryService = $summaryService;
+        $this->stageService = $stageService;
     }
 
     public function mount()
@@ -65,6 +84,11 @@ class CrmPipelineLive extends Component
             'assigned_to' => $this->assignedFilter,
             'canal_origen' => $this->canalFilter,
         ], $this->perStageLimit);
+    }
+
+    public function getManageStagesProperty()
+    {
+        return $this->stageService->listForManage();
     }
 
     public function getCanalesProperty()
@@ -154,6 +178,155 @@ class CrmPipelineLive extends Component
         $this->flashToast('success', 'Lead convertido a cliente');
     }
 
+    public function openManageStages(): void
+    {
+        $this->authorize('crm.editar');
+        $this->stageFormOpen = false;
+        $this->editingStageId = null;
+        $this->modalStages = true;
+    }
+
+    public function closeManageStages(): void
+    {
+        $this->modalStages = false;
+        $this->stageFormOpen = false;
+        $this->editingStageId = null;
+        $this->resetStageForm();
+    }
+
+    public function openCreateStage(): void
+    {
+        $this->authorize('crm.crear');
+        $this->editingStageId = null;
+        $this->resetStageForm();
+        $this->stageFormOpen = true;
+        $this->modalStages = true;
+    }
+
+    public function openEditStage(int $id): void
+    {
+        $this->authorize('crm.editar');
+        $stage = CrmStage::find($id);
+        if (! $stage) {
+            $this->flashToast('error', 'Etapa no encontrada');
+
+            return;
+        }
+
+        $this->editingStageId = $id;
+        $this->stageNombre = $stage->nombre;
+        $this->stageIsDefault = (bool) $stage->is_default;
+        $this->stageIsWon = (bool) $stage->is_won;
+        $this->stageIsLost = (bool) $stage->is_lost;
+        $this->stageFormOpen = true;
+        $this->modalStages = true;
+    }
+
+    public function backToStageList(): void
+    {
+        $this->stageFormOpen = false;
+        $this->editingStageId = null;
+        $this->resetStageForm();
+    }
+
+    public function saveStage(): void
+    {
+        $this->authorize($this->editingStageId ? 'crm.editar' : 'crm.crear');
+
+        $this->validate([
+            'stageNombre' => 'required|string|max:80',
+            'stageIsDefault' => 'boolean',
+            'stageIsWon' => 'boolean',
+            'stageIsLost' => 'boolean',
+        ], [], [
+            'stageNombre' => 'nombre',
+        ]);
+
+        $payload = [
+            'nombre' => $this->stageNombre,
+            'is_default' => $this->stageIsDefault,
+            'is_won' => $this->stageIsWon,
+            'is_lost' => $this->stageIsLost,
+        ];
+
+        try {
+            if ($this->editingStageId) {
+                $stage = CrmStage::findOrFail($this->editingStageId);
+                $this->stageService->update($stage, $payload);
+            } else {
+                $this->stageService->create($payload);
+            }
+            $this->flashToast('success', 'Etapa guardada');
+            $this->backToStageList();
+        } catch (\InvalidArgumentException $e) {
+            $this->flashToast('error', $e->getMessage());
+        }
+    }
+
+    public function deleteStage(int $id): void
+    {
+        $this->authorize('crm.eliminar');
+        $stage = CrmStage::find($id);
+        if (! $stage) {
+            $this->flashToast('error', 'Etapa no encontrada');
+
+            return;
+        }
+
+        try {
+            $this->stageService->delete($stage);
+            $this->flashToast('success', 'Etapa eliminada');
+            if ($this->editingStageId === $id) {
+                $this->backToStageList();
+            }
+        } catch (\InvalidArgumentException $e) {
+            $this->flashToast('error', $e->getMessage());
+        }
+    }
+
+    public function moveStageUp(int $id): void
+    {
+        $this->authorize('crm.editar');
+        $stage = CrmStage::find($id);
+        if (! $stage) {
+            return;
+        }
+        $this->stageService->moveUp($stage);
+    }
+
+    public function moveStageDown(int $id): void
+    {
+        $this->authorize('crm.editar');
+        $stage = CrmStage::find($id);
+        if (! $stage) {
+            return;
+        }
+        $this->stageService->moveDown($stage);
+    }
+
+    public function updatedStageIsWon(bool $value): void
+    {
+        if ($value) {
+            $this->stageIsLost = false;
+        }
+    }
+
+    public function updatedStageIsLost(bool $value): void
+    {
+        if ($value) {
+            $this->stageIsWon = false;
+        }
+    }
+
+    protected function resetStageForm(): void
+    {
+        $this->stageNombre = '';
+        $this->stageIsDefault = false;
+        $this->stageIsWon = false;
+        $this->stageIsLost = false;
+        $this->resetValidation();
+    }
+
     public function getUsersProperty()
     {
         return \App\Models\User::query()
@@ -166,6 +339,7 @@ class CrmPipelineLive extends Component
         return view('livewire.crm.crm-pipeline-live', [
             'stages' => $this->getStagesProperty(),
             'summary' => $this->getSummaryProperty(),
+            'manageStages' => $this->modalStages ? $this->getManageStagesProperty() : collect(),
         ]);
     }
 }
