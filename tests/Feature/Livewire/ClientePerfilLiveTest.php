@@ -590,7 +590,9 @@ it('muestra matriculas en cuotas y solo permite pagar cuotas pendientes', functi
         ->call('selectCliente', $cliente->id)
         ->set('perfilFinanzasTab', 'cuotas_pendientes')
         ->assertSee('Plan Cuotas')
-        ->assertSee('Pagar');
+        ->assertSee('Pagar')
+        ->assertSee('Pendiente')
+        ->assertDontSee('Pagada');
 });
 
 it('permite registrar un pago a cuenta de una cuota desde el perfil', function () {

@@ -355,9 +355,9 @@
                         @endcan
                     </div>
 
-                    <div class="mb-4 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
+                    <div class="mb-4 flex h-[28rem] flex-col overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800">
                         @can('matricula_cliente.ver')
-                        <div class="flex flex-wrap border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/80">
+                        <div class="flex shrink-0 flex-wrap border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950/80">
                             <flux:button type="button" wire:click="$set('perfilFinanzasTab', 'pagos')" variant="ghost" size="xs"
                                 class="!rounded-none border-b-2 border-transparent px-4 py-2.5 text-xs font-semibold {{ $perfilFinanzasTab === 'pagos' ? '!border-violet-600 text-violet-700 dark:text-violet-300' : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200' }}">
                                 {{ __('Pagos') }}
@@ -368,8 +368,10 @@
                             </flux:button>
                         </div>
                         @else
-                        <p class="border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">{{ __('Pagos') }}</p>
+                        <p class="shrink-0 border-b border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold text-zinc-700 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-300">{{ __('Pagos') }}</p>
                         @endcan
+
+                        <div class="min-h-0 flex-1 overflow-y-auto">
 
                         @can('matricula_cliente.ver')
                             @if ($perfilFinanzasTab === 'cuotas_pendientes')
@@ -406,9 +408,9 @@
                                                     </flux:button>
                                                 </div>
 
-                                                @if ($matriculaCuotas['tiene_cronograma'])
+                                                @if ($matriculaCuotas['tiene_cronograma'] && count($matriculaCuotas['cuotas']) > 0)
                                                     <table class="min-w-full text-sm">
-                                                        <thead class="bg-zinc-50 dark:bg-zinc-950">
+                                                        <thead class="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-950">
                                                             <tr class="text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                                                                 <th class="px-4 py-3">{{ __('Cuota') }}</th>
                                                                 <th class="px-4 py-3">{{ __('Vencimiento') }}</th>
@@ -462,6 +464,10 @@
                                                             @endforeach
                                                         </tbody>
                                                     </table>
+                                                @elseif ($matriculaCuotas['tiene_cronograma'])
+                                                    <p class="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-3 py-3 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950/40 dark:text-zinc-400">
+                                                        {{ __('No hay cuotas pendientes. El historial completo está en «Ver cuotas».') }}
+                                                    </p>
                                                 @else
                                                     <div class="rounded-lg border border-dashed border-amber-200 bg-amber-50 px-3 py-3 text-xs text-amber-700 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-300">
                                                         {{ __('Esta matrícula está en cuotas pero aún no tiene cronograma.') }}
@@ -514,7 +520,7 @@
                                     <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">{{ __('Pagos recientes') }}</p>
                                     <div class="overflow-x-auto rounded-lg border border-zinc-200 dark:border-zinc-800">
                                         <table class="min-w-full text-xs">
-                                            <thead class="bg-zinc-50 text-left text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
+                                            <thead class="sticky top-0 z-10 bg-zinc-50 text-left text-zinc-500 dark:bg-zinc-950 dark:text-zinc-400">
                                                 <tr>
                                                     <th class="px-3 py-2">{{ __('Fecha') }}</th>
                                                     <th class="px-3 py-2">{{ __('Concepto') }}</th>
@@ -542,7 +548,7 @@
                             @endif
                             <div class="overflow-x-auto">
                                 <table class="min-w-full text-sm">
-                                    <thead class="bg-zinc-50 dark:bg-zinc-950">
+                                    <thead class="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-950">
                                         <tr class="text-left text-xs font-medium uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
                                             <th class="px-4 py-3">{{ __('Tipo') }}</th>
                                             <th class="px-4 py-3">{{ __('Estado') }}</th>
@@ -615,6 +621,7 @@
                                 </table>
                             </div>
                         @endif
+                        </div>
                     </div>
                 </div>
 

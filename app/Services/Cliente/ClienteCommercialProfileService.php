@@ -194,6 +194,10 @@ class ClienteCommercialProfileService
                 ];
             });
 
+        $cuotasPendientes = $installments
+            ->filter(fn (array $cuota) => in_array($cuota['estado'], ['pendiente', 'vencida', 'parcial'], true))
+            ->values();
+
         return [
             'id' => $matricula->id,
             'tipo_label' => $matricula->esMembresia() ? 'Membresía' : 'Clase',
@@ -202,7 +206,7 @@ class ClienteCommercialProfileService
             'precio_total' => round((float) $matricula->precio_final, 2),
             'saldo_total' => round((float) $matricula->saldo_pendiente_actual, 2),
             'tiene_cronograma' => $installments->isNotEmpty(),
-            'cuotas' => $installments->all(),
+            'cuotas' => $cuotasPendientes->all(),
             'is_legacy' => false,
         ];
     }
