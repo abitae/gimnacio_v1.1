@@ -27,14 +27,12 @@ Salida:
 
 1. Copia a una carpeta local (ej. `C:\BioTimeBridge\`):
    - `BioTimeBridge.exe`
-   - `config.yaml.example` → renómbralo a `config.yaml` y completa token/URLs
-2. Verifica:
+   - `config.yaml.example` → renómbralo a `config.yaml` y completa token/URLs  
+     (`config.yaml` debe quedar **en la misma carpeta** que el `.exe`)
+2. **Doble clic** en `BioTimeBridge.exe` abre la GUI (sin argumentos = `gui`).
+3. Verifica desde la GUI (botón Doctor) o, en desarrollo:
    ```bat
-   BioTimeBridge.exe --config config.yaml doctor
-   ```
-3. GUI: doble clic en `start-gui.bat` o:
-   ```bat
-   BioTimeBridge.exe --config config.yaml gui
+   python -m bridge --config config.yaml doctor
    ```
 4. Segundo plano / Task Scheduler: `start-background.bat` o `scripts\install-task-continuous.ps1` (detectan el `.exe` automáticamente).
 
@@ -52,7 +50,8 @@ Ventana tkinter (sin dependencias extra) para operación en sede:
 python -m bridge --config config.yaml gui
 ```
 
-O doble clic en `start-gui.bat` (usa `.venv` si existe).
+En sede: **doble clic** en `BioTimeBridge.exe` (misma carpeta que `config.yaml`).  
+En desarrollo: doble clic en `start-gui.bat` (usa el `.exe` si existe; si no, el `.venv`).
 
 | Acción | Qué hace |
 | --- | --- |
@@ -155,9 +154,10 @@ Auth: `Authorization: Bearer <token_sede>` (o `X-BioTime-Secret`).
 
 ## Comandos CLI
 
-`--config` va **antes** del subcomando:
+`--config` va **antes** del subcomando. Sin subcomando (doble clic en el `.exe`) abre la GUI.
 
 ```bat
+python -m bridge --config config.yaml
 python -m bridge --config config.yaml gui
 python -m bridge --config config.yaml doctor
 python -m bridge --config config.yaml once
@@ -170,7 +170,7 @@ python -m bridge --config config.yaml sync-transactions
 
 | Comando | Qué hace | Exit code |
 | --- | --- | --- |
-| `gui` | Interfaz gráfica (tkinter) | |
+| *(ninguno)* / `gui` | Interfaz gráfica (tkinter). Default al doble clic del `.exe` | |
 | `doctor` | Laravel `/api/biotime/health` (valida token sede) + login BioTime | `0` OK / `1` FAIL |
 | `once` | Un ciclo de commands (+ roster/sync si están activos en config) | |
 | `run` | Loop continuo (producción) | |

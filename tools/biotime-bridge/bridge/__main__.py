@@ -18,7 +18,8 @@ def build_parser():
         help="Ruta a config.yaml",
     )
     sub = p.add_subparsers(dest="command")
-    sub.required = True
+    # Sin subcomando (doble clic en el .exe) abre la GUI.
+    sub.required = False
 
     sub.add_parser("gui", help="Interfaz grafica (tkinter)")
     sub.add_parser("run", help="Loop continuo: poll commands + opcional roster/sync")
@@ -35,6 +36,8 @@ def build_parser():
 def main(argv=None):
     parser = build_parser()
     args = parser.parse_args(argv)
+    if not args.command:
+        args.command = "gui"
 
     if args.command == "gui":
         from .gui import run_gui
