@@ -40,6 +40,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'sucursal.context' => \App\Http\Middleware\EnsureSucursalContext::class,
             'biotime.sync' => \App\Http\Middleware\VerifyBioTimeSyncToken::class,
+            'cliente.app' => \App\Http\Middleware\EnsureClienteAppAccount::class,
+            'cliente.sucursal' => \App\Http\Middleware\SetClienteAppSucursalContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

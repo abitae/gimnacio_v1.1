@@ -6,6 +6,7 @@ use App\Models\Core\Asistencia;
 use App\Models\Core\Caja;
 use App\Models\Core\Clase;
 use App\Models\Core\Cliente;
+use App\Models\Core\ClienteAppAccount;
 use App\Models\Core\ClienteMatricula;
 use App\Models\Core\EnrollmentInstallment;
 use App\Models\Core\EnrollmentInstallmentPlan;
@@ -926,4 +927,27 @@ it('registra salida desde el perfil del cliente cuando existe un ingreso en curs
         ->assertSee('Registrar ingreso');
 
     expect($asistencia->fresh()->fecha_hora_salida)->not->toBeNull();
+});
+
+it('resetea el acceso de la app del cliente', function () {
+    $sucursal = biotimeSucursal();
+    $user = User::factory()->create();
+    $user->givePermissionTo(['cliente.ver', 'cliente.editar']);
+    $user->sucursales()->attach($sucursal->id);
+    $user->forceFill(['default_sucursal_id' => $sucursal->id])->save();
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $cliente = Cliente::factory()->create([
+        'created_by' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+    $account = ClienteAppAccount::factory()->create(['cliente_id' => $cliente->id]);
+    $account->createToken('mobile');
+
+    Livewire::test(ClientePerfilLive::class)
+        ->call('selectCliente', $cliente->id)
+        ->call('resetearAccesoApp');
+
+    expect(ClienteAppAccount::query()->where('cliente_id', $cliente->id)->exists())->toBeFalse();
 });

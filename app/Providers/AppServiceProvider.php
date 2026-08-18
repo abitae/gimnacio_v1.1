@@ -64,6 +64,16 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(120)->by(sha1((string) $key));
         });
 
+        RateLimiter::for('cliente-app-auth', function (Request $request) {
+            $documento = strtolower(trim((string) $request->input('numero_documento', '')));
+
+            return Limit::perMinute(10)->by($request->ip().'|'.$documento);
+        });
+
+        RateLimiter::for('cliente-app-api', function (Request $request) {
+            return Limit::perMinute(60)->by((string) ($request->user()?->id ?: $request->ip()));
+        });
+
         $slowMs = (int) env('DB_SLOW_QUERY_LOG_MS', 0);
         if ($slowMs > 0 && (bool) config('app.debug')) {
             DB::listen(function ($query) use ($slowMs): void {

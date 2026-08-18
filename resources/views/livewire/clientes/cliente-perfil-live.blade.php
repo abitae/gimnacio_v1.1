@@ -169,6 +169,17 @@
                         </flux:button>
                     @endcan
                     @can('cliente.editar')
+                        @if ($selectedCliente->appAccount()->exists())
+                            <flux:button variant="outline" size="xs" icon="device-phone-mobile" class="w-full"
+                                type="button" wire:click="resetearAccesoApp"
+                                wire:confirm="{{ __('¿Restablecer el acceso de la app? El cliente deberá crear su contraseña de nuevo.') }}">
+                                {{ __('Resetear acceso app') }}
+                            </flux:button>
+                        @else
+                            <p class="px-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                {{ __('App: sin cuenta') }}
+                            </p>
+                        @endif
                         <flux:button variant="outline" size="xs" icon="user-plus" class="w-full"
                             type="button" wire:click="openTrainerModal">
                             {{ $selectedCliente->trainerUser ? __('Cambiar trainer') : __('Agregar trainer') }}

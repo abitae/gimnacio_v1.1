@@ -103,6 +103,11 @@ class Cliente extends Model
         return $this->hasMany(ClienteMembresia::class);
     }
 
+    public function appAccount(): HasOne
+    {
+        return $this->hasOne(ClienteAppAccount::class, 'cliente_id');
+    }
+
     public function clienteMatriculas(): HasMany
     {
         return $this->hasMany(ClienteMatricula::class, 'cliente_id');

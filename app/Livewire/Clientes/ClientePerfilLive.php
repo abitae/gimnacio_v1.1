@@ -805,6 +805,27 @@ class ClientePerfilLive extends Component
         }
     }
 
+    public function resetearAccesoApp(): void
+    {
+        $this->authorize('cliente.editar');
+
+        if (! $this->selectedCliente) {
+            return;
+        }
+
+        $reseteado = app(\App\Services\ClienteAppAuthService::class)
+            ->resetearAcceso($this->selectedCliente);
+
+        if (! $reseteado) {
+            $this->flashToast('error', 'El cliente no tiene cuenta de la app.');
+
+            return;
+        }
+
+        $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+        $this->flashToast('success', 'Acceso de la app restablecido. El cliente puede volver a activar su cuenta.');
+    }
+
     protected function refreshSelectedClienteContext(int $clienteId): void
     {
         $this->profileContextService->clearCache($clienteId);

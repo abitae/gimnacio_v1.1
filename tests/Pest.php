@@ -89,3 +89,8 @@ function biotimeAdmin(?App\Models\System\Sucursal $sucursal = null): App\Models\
 
     return $user;
 }
+
+function clienteAppToken(App\Models\Core\ClienteAppAccount $account, string $name = 'mobile'): string
+{
+    return $account->createToken($name)->plainTextToken;
+}
