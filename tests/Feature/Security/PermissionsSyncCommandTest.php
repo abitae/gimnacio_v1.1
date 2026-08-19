@@ -25,6 +25,31 @@ it('assigns role permissions according to catalog', function () {
     expect($assigned->all())->toBe($expected->all());
 });
 
+it('does not overwrite existing role permissions without --reset', function () {
+    $this->artisan('permissions:sync')->assertSuccessful();
+
+    $caja = Role::findByName('caja');
+    $caja->givePermissionTo('crm.crear');
+    expect($caja->hasPermissionTo('crm.crear'))->toBeTrue();
+
+    $this->artisan('permissions:sync')->assertSuccessful();
+
+    $caja->refresh();
+    expect($caja->hasPermissionTo('crm.crear'))->toBeTrue();
+});
+
+it('overwrites existing role permissions only with --reset', function () {
+    $this->artisan('permissions:sync')->assertSuccessful();
+
+    $caja = Role::findByName('caja');
+    $caja->givePermissionTo('crm.crear');
+
+    $this->artisan('permissions:sync', ['--reset' => true])->assertSuccessful();
+
+    $caja->refresh();
+    expect($caja->hasPermissionTo('crm.crear'))->toBeFalse();
+});
+
 it('produces same result as RoleSeeder', function () {
     $this->seed(RoleSeeder::class);
 

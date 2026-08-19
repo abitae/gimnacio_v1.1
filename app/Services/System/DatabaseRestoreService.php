@@ -599,7 +599,7 @@ class DatabaseRestoreService
     private function restoreSuperAdminCredentials(string $restoreId): void
     {
         $restoredSuperAdmin = User::query()
-            ->role(PermissionCatalog::SUPER_ADMIN_ROLE_NAME)
+            ->withExistingRoles(PermissionCatalog::SUPER_ADMIN_ROLE_NAME)
             ->where('estado', 'activo')
             ->whereNotNull('email_verified_at')
             ->first();

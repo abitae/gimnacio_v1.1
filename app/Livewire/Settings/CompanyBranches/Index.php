@@ -315,7 +315,7 @@ class Index extends Component
                 ->get(),
             'branchAdmins' => User::query()
                 ->with(['sucursales', 'roles'])
-                ->role(PermissionCatalog::BRANCH_ADMIN_ROLE_NAME)
+                ->withExistingRoles(PermissionCatalog::BRANCH_ADMIN_ROLE_NAME)
                 ->orderBy('name')
                 ->get(),
         ]);

@@ -13,7 +13,8 @@ class PermissionsAuditCommand extends Command
 {
     protected $signature = 'permissions:audit
                             {--roles : Verificar tambien roles y asignaciones del catalogo}
-                            {--sync : Crear permisos faltantes y re-sincronizar roles del catalogo}
+                            {--sync : Crear roles y permisos faltantes sin modificar asignaciones existentes}
+                            {--reset : Con --sync, alinea roles existentes al catalogo (puede cambiar produccion)}
                             {--json : Salida en JSON}';
 
     protected $description = 'Sincroniza y verifica permisos y roles del catalogo en la base de datos';
@@ -24,7 +25,7 @@ class PermissionsAuditCommand extends Command
         app(PermissionRegistrar::class)->forgetCachedPermissions();
 
         if ($this->option('sync')) {
-            $this->syncCatalog($guard);
+            $this->syncCatalog($guard, (bool) $this->option('reset'));
             app(PermissionRegistrar::class)->forgetCachedPermissions();
         }
 
@@ -121,21 +122,27 @@ class PermissionsAuditCommand extends Command
 
         if ($hasIssues && ! $this->option('sync')) {
             $this->newLine();
-            $this->comment('Sugerencia: ejecuta php artisan permissions:audit --sync para crear permisos y re-sincronizar roles.');
+            $this->comment('Sugerencia: php artisan permissions:sync crea lo faltante sin cambiar roles existentes.');
         }
 
         return $hasIssues ? self::FAILURE : self::SUCCESS;
     }
 
-    private function syncCatalog(string $guard): void
+    private function syncCatalog(string $guard, bool $reset = false): void
     {
-        $this->info('Sincronizando permisos y roles desde PermissionCatalog...');
+        $this->info($reset
+            ? 'Sincronizando desde PermissionCatalog (reset de roles existentes)...'
+            : 'Creando roles y permisos faltantes (sin modificar asignaciones actuales)...');
 
-        $result = RolePermissionSynchronizer::sync($guard);
+        $result = RolePermissionSynchronizer::sync($guard, reset: $reset);
 
         $this->components->info(
-            'Sincronizados '.$result['permissions'].' permisos y '.$result['roles'].' roles del catalogo.'
+            'Revisados '.$result['permissions'].' permisos y '.$result['roles'].' roles del catalogo.'
         );
+
+        if ($result['created_roles'] !== []) {
+            $this->components->info('Roles creados: '.implode(', ', $result['created_roles']));
+        }
     }
 
     /**

@@ -204,6 +204,32 @@ final class PermissionCatalog
     }
 
     /**
+     * Nombres de roles que existen en Spatie para el guard (evita RoleDoesNotExist).
+     *
+     * @param  list<string>|string  $names
+     * @return list<string>
+     */
+    public static function existingRoleNames(array|string $names, ?string $guard = null): array
+    {
+        $names = array_values(array_filter(
+            is_array($names) ? $names : [$names],
+            fn ($name) => is_string($name) && $name !== ''
+        ));
+
+        if ($names === []) {
+            return [];
+        }
+
+        $guard ??= (string) config('auth.defaults.guard');
+
+        return Role::query()
+            ->where('guard_name', $guard)
+            ->whereIn('name', $names)
+            ->pluck('name')
+            ->all();
+    }
+
+    /**
      * @return array<string, array{label:string, permissions:list<string>}>
      */
     public static function roleDefinitions(): array
@@ -353,9 +379,11 @@ final class PermissionCatalog
     }
 
     /**
+     * Crea o actualiza permisos del catálogo.
+     *
      * @return list<string>
      */
-    public static function sync(?string $guard = null): array
+    public static function sync(?string $guard = null, bool $deleteLegacy = false): array
     {
         $guard ??= config('auth.defaults.guard');
         $activePermissions = [];
@@ -375,15 +403,17 @@ final class PermissionCatalog
             $activePermissions[] = $permission['name'];
         }
 
-        Permission::query()
-            ->where('guard_name', $guard)
-            ->whereNotIn('name', $activePermissions)
-            ->where(function ($query) {
-                foreach (array_merge(self::legacyPermissionNames(), ['manage-users', 'manage-roles']) as $legacyName) {
-                    $query->orWhere('name', $legacyName);
-                }
-            })
-            ->delete();
+        if ($deleteLegacy) {
+            Permission::query()
+                ->where('guard_name', $guard)
+                ->whereNotIn('name', $activePermissions)
+                ->where(function ($query) {
+                    foreach (array_merge(self::legacyPermissionNames(), ['manage-users', 'manage-roles']) as $legacyName) {
+                        $query->orWhere('name', $legacyName);
+                    }
+                })
+                ->delete();
+        }
 
         return $activePermissions;
     }

@@ -156,13 +156,30 @@ class User extends Authenticatable
     ];
 
     /**
+     * Aplica el filtro Spatie `role` solo con roles que existen en BD.
+     * Evita RoleDoesNotExist si producción no corrió `permissions:sync`.
+     *
+     * @param  list<string>|string  $roles
+     */
+    public function scopeWithExistingRoles($query, array|string $roles)
+    {
+        $existing = PermissionCatalog::existingRoleNames($roles);
+
+        if ($existing === []) {
+            return $query->whereRaw('1 = 0');
+        }
+
+        return $query->role($existing);
+    }
+
+    /**
      * Usuarios activos con rol de asesor/vendedor (listados en filtros de clientes).
      */
     public function scopeAsesoresActivos($query)
     {
         return $query
             ->where('estado', 'activo')
-            ->role(self::ASESOR_ROLE_NAMES)
+            ->withExistingRoles(self::ASESOR_ROLE_NAMES)
             ->orderBy('name');
     }
 
@@ -171,7 +188,7 @@ class User extends Authenticatable
      */
     public function scopeTrainersForSucursal($query, ?int $sucursalId = null)
     {
-        $query->role('trainer');
+        $query->withExistingRoles('trainer');
 
         if ($sucursalId) {
             $query->where(function ($inner) use ($sucursalId): void {
