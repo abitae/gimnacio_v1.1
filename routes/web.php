@@ -317,8 +317,9 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     });
     Route::get('crm/mensajes', \App\Livewire\Crm\MensajesLive::class)->middleware('permission:crm_mensaje.ver')->name('crm.mensajes');
 
-    // Configuración: Métodos de pago
+    // Configuración
     Route::get('configuracion/metodos-pago', \App\Livewire\Settings\PaymentMethods\Index::class)->middleware('permission:metodo_pago.ver')->name('payment-methods.index');
+    Route::get('configuracion/publicidad-app', \App\Livewire\Settings\AppPublicidad\Index::class)->middleware('permission:publicidad_app.ver')->name('app-publicidad.index');
     Route::get('configuracion/empresa-sucursales', \App\Livewire\Settings\CompanyBranches\Index::class)->middleware('role:super_administrador')->name('company-branches.index');
 
     // Administración (por permiso)

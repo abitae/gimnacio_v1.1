@@ -4,6 +4,7 @@ namespace App\Livewire\Clientes;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Core\Cliente;
+use App\Services\ClienteAppAuthService;
 use App\Services\ClienteContratoMembresiaService;
 use App\Services\ClienteService;
 use Livewire\Component;
@@ -34,16 +35,34 @@ class ClienteLive extends Component
 
     public ?int $clienteIdContrato = null;
 
+    public bool $mostrarModalPassword = false;
+
+    public ?int $clienteIdPassword = null;
+
+    public string $clienteNombrePassword = '';
+
+    public bool $tieneCuentaApp = false;
+
+    public string $passwordApp = '';
+
+    public string $passwordAppConfirmation = '';
+
     protected $paginationTheme = 'tailwind';
 
     protected ClienteService $service;
 
     protected ClienteContratoMembresiaService $contratoService;
 
-    public function boot(ClienteService $service, ClienteContratoMembresiaService $contratoService): void
-    {
+    protected ClienteAppAuthService $appAuthService;
+
+    public function boot(
+        ClienteService $service,
+        ClienteContratoMembresiaService $contratoService,
+        ClienteAppAuthService $appAuthService,
+    ): void {
         $this->service = $service;
         $this->contratoService = $contratoService;
+        $this->appAuthService = $appAuthService;
     }
 
     public function mount(): void
@@ -107,6 +126,59 @@ class ClienteLive extends Component
     {
         $this->mostrarModalContrato = false;
         $this->clienteIdContrato = null;
+    }
+
+    public function abrirModalPassword(int $clienteId): void
+    {
+        $this->authorize('cliente.editar');
+
+        $cliente = Cliente::query()->findOrFail($clienteId);
+
+        $this->resetErrorBag();
+        $this->clienteIdPassword = $cliente->id;
+        $this->clienteNombrePassword = trim($cliente->nombres.' '.$cliente->apellidos);
+        $this->tieneCuentaApp = $cliente->appAccount()->exists();
+        $this->passwordApp = '';
+        $this->passwordAppConfirmation = '';
+        $this->mostrarModalPassword = true;
+    }
+
+    public function cerrarModalPassword(): void
+    {
+        $this->mostrarModalPassword = false;
+        $this->clienteIdPassword = null;
+        $this->clienteNombrePassword = '';
+        $this->tieneCuentaApp = false;
+        $this->passwordApp = '';
+        $this->passwordAppConfirmation = '';
+        $this->resetErrorBag();
+    }
+
+    public function guardarPasswordApp(): void
+    {
+        $this->authorize('cliente.editar');
+
+        $this->validate([
+            'clienteIdPassword' => ['required', 'integer'],
+            'passwordApp' => ['required', 'string', 'min:8', 'same:passwordAppConfirmation'],
+        ], [
+            'passwordApp.required' => 'La contraseña es obligatoria.',
+            'passwordApp.min' => 'La contraseña debe tener al menos 8 caracteres.',
+            'passwordApp.same' => 'La confirmación de contraseña no coincide.',
+        ]);
+
+        $cliente = Cliente::query()->findOrFail($this->clienteIdPassword);
+        $teniaCuenta = $cliente->appAccount()->exists();
+
+        $this->appAuthService->establecerPassword($cliente, $this->passwordApp);
+
+        $this->cerrarModalPassword();
+        $this->flashToast(
+            'success',
+            $teniaCuenta
+                ? __('Contraseña de la app actualizada. El cliente deberá iniciar sesión de nuevo.')
+                : __('Cuenta de la app creada. El cliente ya puede iniciar sesión.'),
+        );
     }
 
     public function enviarContratoPorWhatsApp(int $clienteId): void

@@ -68,6 +68,10 @@ final class PermissionCatalog
                 'label' => 'Métodos de pago',
                 'actions' => self::crudDescriptions('metodos de pago'),
             ],
+            'publicidad_app' => [
+                'label' => 'Publicidad app',
+                'actions' => self::crudDescriptions('publicidad de la app'),
+            ],
             'categoria_producto' => [
                 'label' => 'Categorías de productos',
                 'actions' => self::crudDescriptions('categorias de productos'),

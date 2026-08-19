@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\SucursalContext;
 use App\Support\PermissionCatalog;
 use Database\Seeders\RoleSeeder;
+use Illuminate\Support\Facades\Hash;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 
@@ -950,4 +951,81 @@ it('resetea el acceso de la app del cliente', function () {
         ->call('resetearAccesoApp');
 
     expect(ClienteAppAccount::query()->where('cliente_id', $cliente->id)->exists())->toBeFalse();
+});
+
+it('crea la cuenta de la app desde el listado de clientes', function () {
+    $sucursal = biotimeSucursal();
+    $user = User::factory()->create();
+    $user->givePermissionTo(['cliente.ver', 'cliente.editar']);
+    $user->sucursales()->attach($sucursal->id);
+    $user->forceFill(['default_sucursal_id' => $sucursal->id])->save();
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $cliente = Cliente::factory()->create([
+        'nombres' => 'Lucia',
+        'apellidos' => 'App Password',
+        'created_by' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    Livewire::test(ClienteLive::class)
+        ->call('abrirModalPassword', $cliente->id)
+        ->assertSet('mostrarModalPassword', true)
+        ->assertSet('tieneCuentaApp', false)
+        ->set('passwordApp', 'nuevaClave9')
+        ->set('passwordAppConfirmation', 'nuevaClave9')
+        ->call('guardarPasswordApp')
+        ->assertHasNoErrors()
+        ->assertSet('mostrarModalPassword', false);
+
+    $account = ClienteAppAccount::query()->where('cliente_id', $cliente->id)->first();
+
+    expect($account)->not->toBeNull()
+        ->and(Hash::check('nuevaClave9', $account->password))->toBeTrue();
+});
+
+it('cambia la contraseña de la app desde el listado y cierra sesiones', function () {
+    $sucursal = biotimeSucursal();
+    $user = User::factory()->create();
+    $user->givePermissionTo(['cliente.ver', 'cliente.editar']);
+    $user->sucursales()->attach($sucursal->id);
+    $user->forceFill(['default_sucursal_id' => $sucursal->id])->save();
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $cliente = Cliente::factory()->create([
+        'nombres' => 'Mario',
+        'apellidos' => 'Clave App',
+        'created_by' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+    $account = ClienteAppAccount::factory()->create([
+        'cliente_id' => $cliente->id,
+        'password' => 'secreto123',
+    ]);
+    $account->createToken('mobile');
+
+    Livewire::test(ClienteLive::class)
+        ->call('abrirModalPassword', $cliente->id)
+        ->assertSet('tieneCuentaApp', true)
+        ->set('passwordApp', 'otraClave88')
+        ->set('passwordAppConfirmation', 'otraClave88')
+        ->call('guardarPasswordApp')
+        ->assertHasNoErrors();
+
+    expect(Hash::check('otraClave88', $account->fresh()->password))->toBeTrue()
+        ->and($account->tokens()->count())->toBe(0);
+});
+
+it('no permite cambiar la contraseña de la app sin permiso cliente.editar', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo('cliente.ver');
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+
+    Livewire::test(ClienteLive::class)
+        ->call('abrirModalPassword', $cliente->id)
+        ->assertForbidden();
 });

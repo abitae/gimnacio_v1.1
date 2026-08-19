@@ -33,5 +33,6 @@ Route::prefix('v1')->group(function (): void {
         Route::get('/membresias', [MembresiaController::class, 'index']);
         Route::get('/pagos/pendientes', [PagoController::class, 'pendientes']);
         Route::get('/pagos', [PagoController::class, 'index']);
+        Route::get('/publicidades', [\App\Http\Controllers\Api\V1\PublicidadController::class, 'index']);
     });
 });

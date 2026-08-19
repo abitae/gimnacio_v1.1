@@ -230,6 +230,13 @@
                                             title="{{ __('Enviar contrato por WhatsApp') }}"
                                             aria-label="{{ __('Enviar contrato por WhatsApp') }}" />
                                     @endif
+                                    @can('cliente.editar')
+                                        <flux:button size="xs" variant="ghost" icon="key" type="button"
+                                            wire:click="abrirModalPassword({{ $cliente->id }})"
+                                            title="{{ __('Cambiar contraseña de la app') }}">
+                                            {{ __('Contraseña') }}
+                                        </flux:button>
+                                    @endcan
                                     <flux:button size="xs" variant="primary" icon="user-circle" type="button"
                                         wire:click="verPerfil({{ $cliente->id }})">
                                         {{ __('Ver perfil') }}
@@ -282,5 +289,43 @@
                 ></iframe>
             @endif
         </div>
+    </flux:modal>
+
+    <flux:modal wire:model="mostrarModalPassword" class="md:w-lg">
+        <form wire:submit="guardarPasswordApp" class="space-y-3 p-4">
+            <div>
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Contraseña de la app') }}</h2>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                    {{ $clienteNombrePassword }}
+                    —
+                    {{ $tieneCuentaApp
+                        ? __('Se actualizará la clave y se cerrarán las sesiones activas.')
+                        : __('Se creará la cuenta para que el cliente pueda iniciar sesión.') }}
+                </p>
+            </div>
+            <div>
+                <flux:input
+                    type="password"
+                    wire:model="passwordApp"
+                    :label="__('Nueva contraseña')"
+                    placeholder="********"
+                    autocomplete="new-password"
+                />
+                <flux:error name="passwordApp" />
+            </div>
+            <div>
+                <flux:input
+                    type="password"
+                    wire:model="passwordAppConfirmation"
+                    :label="__('Confirmar contraseña')"
+                    placeholder="********"
+                    autocomplete="new-password"
+                />
+            </div>
+            <div class="flex justify-end gap-2">
+                <flux:button type="button" variant="ghost" wire:click="cerrarModalPassword">{{ __('Cancelar') }}</flux:button>
+                <flux:button type="submit" variant="primary">{{ __('Guardar contraseña') }}</flux:button>
+            </div>
+        </form>
     </flux:modal>
 </div>

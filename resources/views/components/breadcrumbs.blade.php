@@ -60,6 +60,7 @@
             'roles.index' => __('Roles'),
             'administracion.backups.index' => __('Backups de base de datos'),
             'payment-methods.index' => __('Métodos de pago'),
+            'app-publicidad.index' => __('Publicidad app'),
             'reportes.index' => __('Centro de reportes'),
             'reportes.ventas' => __('Reporte de Ventas'),
             'reportes.matriculas' => __('Reporte de Matrículas'),
@@ -143,9 +144,15 @@
                 $parentLabel = __('Analítica');
                 $parentRoute = 'reportes.index';
             }
-            if (str_starts_with($routeName, 'payment-methods.') || str_starts_with($routeName, 'usuarios.') || str_starts_with($routeName, 'roles.') || str_starts_with($routeName, 'employees.') || str_starts_with($routeName, 'administracion.backups.')) {
+            if (str_starts_with($routeName, 'payment-methods.') || str_starts_with($routeName, 'app-publicidad.') || str_starts_with($routeName, 'usuarios.') || str_starts_with($routeName, 'roles.') || str_starts_with($routeName, 'employees.') || str_starts_with($routeName, 'administracion.backups.')) {
                 $parentLabel = __('Administración');
-                $parentRoute = str_starts_with($routeName, 'employees.') ? 'employees.index' : (str_starts_with($routeName, 'payment-methods.') ? 'payment-methods.index' : 'usuarios.index');
+                $parentRoute = str_starts_with($routeName, 'employees.')
+                    ? 'employees.index'
+                    : (str_starts_with($routeName, 'payment-methods.')
+                        ? 'payment-methods.index'
+                        : (str_starts_with($routeName, 'app-publicidad.')
+                            ? 'app-publicidad.index'
+                            : 'usuarios.index'));
             }
             if (str_starts_with($routeName, 'ejercicios.') || str_starts_with($routeName, 'rutinas-base.') || str_starts_with($routeName, 'clientes.rutinas.') || str_starts_with($routeName, 'clientes.sesiones.') || str_starts_with($routeName, 'ejercicios-rutinas.')) {
                 $parentLabel = __('Bienestar');

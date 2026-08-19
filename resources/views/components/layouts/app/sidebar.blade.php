@@ -258,8 +258,8 @@
                 </flux:sidebar.group>
                 @endif
 
-                @canany(['empleado.ver', 'metodo_pago.ver', 'usuario.ver', 'rol.ver'])
-                <flux:sidebar.group expandable icon="cog-6-tooth" heading="Administracion" class="grid" :expanded="request()->routeIs('employees.*') || request()->routeIs('payment-methods.*') || request()->routeIs('usuarios.*') || request()->routeIs('roles.*')">
+                @canany(['empleado.ver', 'metodo_pago.ver', 'publicidad_app.ver', 'usuario.ver', 'rol.ver'])
+                <flux:sidebar.group expandable icon="cog-6-tooth" heading="Administracion" class="grid" :expanded="request()->routeIs('employees.*') || request()->routeIs('payment-methods.*') || request()->routeIs('app-publicidad.*') || request()->routeIs('usuarios.*') || request()->routeIs('roles.*')">
                     @can('empleado.ver')
                     <div class="px-3 pt-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 in-data-flux-sidebar-collapsed-desktop:hidden">{{ __('Personal') }}</div>
                     <flux:sidebar.item icon="users" :href="route('employees.index')" :current="request()->routeIs('employees.index') || request()->routeIs('employees.show') || request()->routeIs('employees.edit') || request()->routeIs('employees.create')" wire:navigate>
@@ -269,10 +269,17 @@
                         {{ __('Asistencia del personal') }}
                     </flux:sidebar.item>
                     @endcan
-                    @can('metodo_pago.ver')
+                    @canany(['metodo_pago.ver', 'publicidad_app.ver'])
                     <div class="px-3 pt-2 text-[10px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 in-data-flux-sidebar-collapsed-desktop:hidden">{{ __('Configuración') }}</div>
+                    @endcanany
+                    @can('metodo_pago.ver')
                     <flux:sidebar.item icon="credit-card" :href="route('payment-methods.index')" :current="request()->routeIs('payment-methods.*')" wire:navigate>
                         {{ __('Metodos de pago') }}
+                    </flux:sidebar.item>
+                    @endcan
+                    @can('publicidad_app.ver')
+                    <flux:sidebar.item icon="photo" :href="route('app-publicidad.index')" :current="request()->routeIs('app-publicidad.*')" wire:navigate>
+                        {{ __('Publicidad app') }}
                     </flux:sidebar.item>
                     @endcan
                     @can('usuario.ver')

@@ -82,6 +82,26 @@ class ClienteAppAuthService
         $account->tokens()->delete();
     }
 
+    public function establecerPassword(Cliente $cliente, string $password): ClienteAppAccount
+    {
+        $account = ClientePortalQuery::accounts()->where('cliente_id', $cliente->id)->first();
+
+        if ($account === null) {
+            return ClienteAppAccount::query()->create([
+                'cliente_id' => $cliente->id,
+                'password' => $password,
+            ]);
+        }
+
+        $account->forceFill([
+            'password' => $password,
+        ])->save();
+
+        $account->tokens()->delete();
+
+        return $account->fresh();
+    }
+
     public function resetearAcceso(Cliente $cliente): bool
     {
         $account = ClientePortalQuery::accounts()->where('cliente_id', $cliente->id)->first();
