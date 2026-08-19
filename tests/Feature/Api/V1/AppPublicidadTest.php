@@ -60,6 +60,34 @@ it('crea una publicidad con imagen para la sucursal activa', function () {
         ->and(Storage::disk('public')->exists($item->imagen))->toBeTrue();
 });
 
+it('comunica error de validacion si se guarda publicidad sin imagen', function () {
+    ['user' => $user, 'sucursal' => $sucursal] = publicidadStaff();
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    Livewire::test(Index::class)
+        ->call('openCreateModal')
+        ->set('formData.titulo', 'Promo verano')
+        ->set('formData.orden', 1)
+        ->set('formData.estado', 'activo')
+        ->call('save')
+        ->assertHasErrors(['imagen'])
+        ->assertSee('Sube una imagen para mostrar en la app.');
+
+    expect(AppPublicidad::query()->count())->toBe(0);
+});
+
+it('acepta jpeg en la subida temporal de livewire', function () {
+    Storage::fake('public');
+
+    $controller = new \Livewire\Features\SupportFileUploads\FileUploadController;
+    $file = UploadedFile::fake()->image('banner.jpg', 800, 400);
+
+    $paths = $controller->validateAndStore([$file], 'public');
+
+    expect($paths)->not->toBeEmpty();
+});
+
 it('lista publicidades activas de la sucursal del socio', function () {
     Storage::fake('public');
     $sucursal = biotimeSucursal();

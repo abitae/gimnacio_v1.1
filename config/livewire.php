@@ -5,7 +5,14 @@ $backupRestoreMaxKb = max(1, (int) env('BACKUP_RESTORE_MAX_MB', 1024)) * 1024;
 return [
     'temporary_file_upload' => [
         'disk' => env('LIVEWIRE_TMP_DISK', env('FILESYSTEM_DISK', 'public')),
-        'rules' => ['required', 'file', 'mimes:zip,sql,txt,xlsx,xls,csv', 'max:'.$backupRestoreMaxKb],
+        // Allowlist global: imágenes (publicidad, productos, clientes) + Excel + backups.
+        // Cada componente sigue validando tipo y tamaño con más detalle al guardar.
+        'rules' => [
+            'required',
+            'file',
+            'mimes:jpeg,jpg,png,webp,zip,sql,txt,xlsx,xls,csv',
+            'max:'.$backupRestoreMaxKb,
+        ],
         'directory' => 'livewire-tmp',
         'middleware' => null,
         'max_upload_time' => (int) env('LIVEWIRE_MAX_UPLOAD_TIME', 60),

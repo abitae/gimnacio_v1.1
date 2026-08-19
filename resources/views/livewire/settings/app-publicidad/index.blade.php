@@ -90,19 +90,20 @@
                 <flux:field>
                     <flux:label>{{ __('Título') }}</flux:label>
                     <flux:input wire:model="formData.titulo" placeholder="{{ __('Promo de verano') }}" />
-                    @error('formData.titulo')
-                        <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                    <flux:error name="formData.titulo" />
                 </flux:field>
 
                 <flux:field>
                     <flux:label>{{ $publicidadId ? __('Imagen (opcional para reemplazar)') : __('Imagen') }}</flux:label>
                     <flux:input type="file" wire:model="imagen" accept="image/jpeg,image/jpg,image/png,image/webp" />
                     <p class="mt-1 text-[11px] text-zinc-500">{{ __('JPG, PNG o WEBP. Máximo 4 MB. Recomendado 16:9.') }}</p>
-                    @error('imagen')
-                        <flux:error>{{ $message }}</flux:error>
-                    @enderror
-                    @if ($currentImagen)
+                    <p wire:loading wire:target="imagen" class="mt-1 text-xs text-zinc-500">{{ __('Subiendo imagen…') }}</p>
+                    <flux:error name="imagen" />
+                    @if ($imagen)
+                        <p class="mt-1 text-xs text-zinc-600 dark:text-zinc-400">
+                            {{ __('Archivo seleccionado') }}: {{ $imagen->getClientOriginalName() }}
+                        </p>
+                    @elseif ($currentImagen)
                         <img src="{{ asset('storage/'.$currentImagen) }}" alt="" class="mt-2 h-24 w-full rounded-lg object-cover">
                     @endif
                 </flux:field>
@@ -110,15 +111,14 @@
                 <flux:field>
                     <flux:label>{{ __('Enlace (opcional)') }}</flux:label>
                     <flux:input wire:model="formData.enlace_url" placeholder="https://" />
-                    @error('formData.enlace_url')
-                        <flux:error>{{ $message }}</flux:error>
-                    @enderror
+                    <flux:error name="formData.enlace_url" />
                 </flux:field>
 
                 <div class="grid grid-cols-2 gap-3">
                     <flux:field>
                         <flux:label>{{ __('Orden') }}</flux:label>
                         <flux:input type="number" wire:model="formData.orden" min="0" />
+                        <flux:error name="formData.orden" />
                     </flux:field>
                     <flux:field>
                         <flux:label>{{ __('Estado') }}</flux:label>
@@ -131,7 +131,10 @@
 
                 <div class="flex justify-end gap-2 pt-2">
                     <flux:button variant="ghost" type="button" wire:click="closeModal">{{ __('Cancelar') }}</flux:button>
-                    <flux:button type="submit">{{ __('Guardar') }}</flux:button>
+                    <flux:button type="submit" wire:loading.attr="disabled" wire:target="save,imagen">
+                        <span wire:loading.remove wire:target="save,imagen">{{ __('Guardar') }}</span>
+                        <span wire:loading wire:target="save,imagen">{{ __('Guardando…') }}</span>
+                    </flux:button>
                 </div>
             </div>
         </form>

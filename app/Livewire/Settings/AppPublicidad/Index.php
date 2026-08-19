@@ -5,6 +5,7 @@ namespace App\Livewire\Settings\AppPublicidad;
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Core\AppPublicidad;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 use Livewire\WithPagination;
@@ -94,22 +95,12 @@ class Index extends Component
     {
         $this->authorize($this->publicidadId ? 'publicidad_app.editar' : 'publicidad_app.crear');
 
-        $rules = [
-            'formData.titulo' => 'required|string|max:80',
-            'formData.enlace_url' => 'nullable|url|max:255',
-            'formData.orden' => 'required|integer|min:0|max:999',
-            'formData.estado' => 'required|in:activo,inactivo',
-            'imagen' => $this->publicidadId
-                ? 'nullable|image|max:4096'
-                : 'required|image|max:4096',
-        ];
-
-        $this->validate($rules, [
-            'formData.titulo.required' => 'El título es obligatorio.',
-            'imagen.required' => 'Sube una imagen para mostrar en la app.',
-            'imagen.image' => 'El archivo debe ser una imagen.',
-            'formData.enlace_url.url' => 'El enlace no es una URL válida.',
-        ]);
+        try {
+            $this->validate($this->rules(), $this->validationMessages());
+        } catch (ValidationException $e) {
+            $this->flashToast('error', $e->validator->errors()->first() ?: 'Revisa los datos del formulario.');
+            throw $e;
+        }
 
         try {
             $payload = [
@@ -140,6 +131,33 @@ class Index extends Component
             report($e);
             $this->flashToast('error', $e->getMessage());
         }
+    }
+
+    protected function rules(): array
+    {
+        return [
+            'formData.titulo' => 'required|string|max:80',
+            'formData.enlace_url' => 'nullable|url|max:255',
+            'formData.orden' => 'required|integer|min:0|max:999',
+            'formData.estado' => 'required|in:activo,inactivo',
+            'imagen' => $this->publicidadId
+                ? 'nullable|image|mimes:jpeg,jpg,png,webp|max:4096'
+                : 'required|image|mimes:jpeg,jpg,png,webp|max:4096',
+        ];
+    }
+
+    protected function validationMessages(): array
+    {
+        return [
+            'formData.titulo.required' => 'El título es obligatorio.',
+            'formData.enlace_url.url' => 'El enlace no es una URL válida.',
+            'formData.orden.required' => 'El orden es obligatorio.',
+            'formData.orden.integer' => 'El orden debe ser un número.',
+            'imagen.required' => 'Sube una imagen para mostrar en la app.',
+            'imagen.image' => 'El archivo debe ser una imagen.',
+            'imagen.mimes' => 'La imagen debe ser JPG, PNG o WEBP.',
+            'imagen.max' => 'La imagen no debe pesar más de 4 MB.',
+        ];
     }
 
     public function delete(): void
