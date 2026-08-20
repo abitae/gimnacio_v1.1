@@ -29,6 +29,7 @@ it('seeds a permission catalog aligned with active modules', function () {
     expect($superAdmin->permissions)->toHaveCount(0);
     expect($vendedor->hasPermissionTo('crm.crear'))->toBeTrue();
     expect($vendedor->hasPermissionTo('matricula_cliente.crear'))->toBeTrue();
+    expect(Role::findByName('ventas')->hasPermissionTo('matricula_cliente.crear'))->toBeTrue();
     expect($caja->hasPermissionTo('reporte.ver'))->toBeTrue();
     expect($caja->hasPermissionTo('crm.crear'))->toBeFalse();
     expect($trainer->hasPermissionTo('gestion_nutricional.editar'))->toBeTrue();

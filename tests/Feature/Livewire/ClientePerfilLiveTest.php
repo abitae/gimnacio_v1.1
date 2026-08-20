@@ -174,15 +174,15 @@ it('el filtro asesor solo muestra vendedores activos de la sucursal actual', fun
     session([SucursalContext::SUCURSAL_ID_KEY => $sucursal->id]);
 
     $asesorActivo = User::factory()->create(['name' => 'Asesor Activo Filtro', 'estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
-    $asesorActivo->assignRole('vendedor');
+    $asesorActivo->assignRole('ventas');
     $asesorActivo->sucursales()->attach($sucursal->id);
 
     $asesorInactivo = User::factory()->create(['name' => 'Asesor Inactivo Filtro', 'estado' => 'inactivo', 'default_sucursal_id' => $sucursal->id]);
-    $asesorInactivo->assignRole('vendedor');
+    $asesorInactivo->assignRole('ventas');
     $asesorInactivo->sucursales()->attach($sucursal->id);
 
     $asesorOtraSucursal = User::factory()->create(['name' => 'Asesor Otra Sucursal Filtro', 'estado' => 'activo', 'default_sucursal_id' => $sucursalOtra->id]);
-    $asesorOtraSucursal->assignRole('vendedor');
+    $asesorOtraSucursal->assignRole('ventas');
     $asesorOtraSucursal->sucursales()->attach($sucursalOtra->id);
 
     $usuarioCaja = User::factory()->create(['name' => 'Usuario Caja Filtro', 'estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
@@ -207,11 +207,11 @@ it('cambia el asesor en todas las matrículas del cliente desde el listado', fun
     session([SucursalContext::SUCURSAL_ID_KEY => $sucursal->id]);
 
     $asesorOriginal = User::factory()->create(['name' => 'Asesor Original Cambio', 'estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
-    $asesorOriginal->assignRole('vendedor');
+    $asesorOriginal->assignRole('ventas');
     $asesorOriginal->sucursales()->attach($sucursal->id);
 
     $asesorNuevo = User::factory()->create(['name' => 'Asesor Nuevo Cambio', 'estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
-    $asesorNuevo->assignRole('vendedor');
+    $asesorNuevo->assignRole('ventas');
     $asesorNuevo->sucursales()->attach($sucursal->id);
 
     $cliente = Cliente::factory()->create([
@@ -284,11 +284,11 @@ it('rechaza cambiar asesor a un vendedor de otra sucursal', function () {
     session([SucursalContext::SUCURSAL_ID_KEY => $sucursal->id]);
 
     $asesorOriginal = User::factory()->create(['estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
-    $asesorOriginal->assignRole('vendedor');
+    $asesorOriginal->assignRole('ventas');
     $asesorOriginal->sucursales()->attach($sucursal->id);
 
     $asesorOtraSucursal = User::factory()->create(['estado' => 'activo', 'default_sucursal_id' => $sucursalOtra->id]);
-    $asesorOtraSucursal->assignRole('vendedor');
+    $asesorOtraSucursal->assignRole('ventas');
     $asesorOtraSucursal->sucursales()->attach($sucursalOtra->id);
 
     $cliente = Cliente::factory()->create(['created_by' => $user->id, 'sucursal_id' => $sucursal->id]);

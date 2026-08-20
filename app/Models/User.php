@@ -149,7 +149,8 @@ class User extends Authenticatable
      * @var list<string>
      */
     public const ASESOR_ROLE_NAMES = [
-        'vendedor',
+        'ventas',
+        'Ventas',
     ];
 
     /**
@@ -170,7 +171,7 @@ class User extends Authenticatable
     }
 
     /**
-     * Usuarios activos con rol de asesor/vendedor (listados en filtros de clientes).
+     * Usuarios activos con rol Ventas (listados en filtros de clientes).
      */
     public function scopeAsesoresActivos($query, ?int $sucursalId = null)
     {

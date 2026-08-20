@@ -467,7 +467,7 @@ class ClienteService
             ->contains(fn (User $user) => (int) $user->id === $asesorId);
 
         if (! $asesorValido) {
-            throw new \InvalidArgumentException('El asesor seleccionado no es un vendedor activo de esta sucursal.');
+            throw new \InvalidArgumentException('El asesor seleccionado no es un usuario de Ventas activo de esta sucursal.');
         }
 
         return ClienteMatricula::query()
