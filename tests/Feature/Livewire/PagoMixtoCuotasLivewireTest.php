@@ -123,14 +123,14 @@ function agregarCuotasInterfazPagoMixto(array $ctx): array
     return compact('plan', 'primera', 'segunda');
 }
 
-it('cobra una cuota con dos formas desde el cronograma y bloquea la siguiente', function () {
+it('cobra una cuota con dos formas desde el cronograma y permite abrir cualquier cuota pendiente', function () {
     $ctx = prepararInterfazPagoMixto('ui-cronograma');
     $cuotas = agregarCuotasInterfazPagoMixto($ctx);
 
     Livewire::test(Schedule::class, ['cliente' => $ctx['cliente']])
-        ->assertSee('Primero paga la cuota pendiente más inmediata.')
         ->call('openRegistrarPagoCuota', $cuotas['segunda']->id)
-        ->assertSet('pagoCuotaInstallmentId', null)
+        ->assertSet('pagoCuotaInstallmentId', $cuotas['segunda']->id)
+        ->call('closeCuotaPagoModal')
         ->call('openRegistrarPagoCuota', $cuotas['primera']->id)
         ->assertSet('pagoCuotaForm.monto', '95')
         ->assertSet('pagoCuotaForm.pagos.0.payment_method_id', $ctx['efectivo']->id)
@@ -149,17 +149,17 @@ it('cobra una cuota con dos formas desde el cronograma y bloquea la siguiente', 
         ->and(app(EnrollmentInstallmentService::class)->isFirstPayableInstallment($cuotas['segunda']->fresh()))->toBeTrue();
 });
 
-it('muestra la restricción de orden en perfil y cuotas vencidas', function () {
+it('muestra botones de pago activos para todas las cuotas pendientes en perfil y cuotas vencidas', function () {
     $ctx = prepararInterfazPagoMixto('ui-prioridad');
     agregarCuotasInterfazPagoMixto($ctx);
 
     Livewire::test(ClientePerfilLive::class)
         ->call('selectCliente', $ctx['cliente']->id)
         ->set('perfilFinanzasTab', 'cuotas_pendientes')
-        ->assertSee('Primero paga la cuota pendiente más inmediata.');
+        ->assertDontSee('Primero paga la cuota pendiente más inmediata.');
 
     Livewire::test(ReporteCuotasVencidasLive::class)
-        ->assertSee('Primero paga la cuota pendiente más inmediata.');
+        ->assertDontSee('Primero paga la cuota pendiente más inmediata.');
 });
 
 it('cobra una matrícula con dos formas desde el POS y abre un único ticket', function () {

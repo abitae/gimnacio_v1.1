@@ -1,0 +1,5 @@
+# Secretos locales del puente (no versionar)
+config.yaml
+config.yaml.bak
+logs/
+*.log

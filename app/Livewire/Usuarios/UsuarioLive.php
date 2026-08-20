@@ -6,6 +6,7 @@ use App\Livewire\Concerns\FlashesToast;
 use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\SucursalContext;
+use App\Services\UserMergeService;
 use App\Support\PermissionCatalog;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -24,9 +25,14 @@ class UsuarioLive extends Component
 
     public int $perPage = 15;
 
-    public array $modalState = ['form' => false, 'delete' => false];
+    public array $modalState = ['form' => false, 'delete' => false, 'merge' => false];
 
     public ?int $userId = null;
+
+    /** @var list<int|string> */
+    public array $selectedUserIds = [];
+
+    public string $mergeKeepUserId = '';
 
     public array $formData = [
         'name' => '',
@@ -43,9 +49,12 @@ class UsuarioLive extends Component
 
     protected SucursalContext $sucursalContext;
 
-    public function boot(SucursalContext $sucursalContext): void
+    protected UserMergeService $mergeService;
+
+    public function boot(SucursalContext $sucursalContext, UserMergeService $mergeService): void
     {
         $this->sucursalContext = $sucursalContext;
+        $this->mergeService = $mergeService;
     }
 
     public function mount(): void
@@ -219,9 +228,91 @@ class UsuarioLive extends Component
 
     public function closeModal(): void
     {
-        $this->modalState = ['form' => false, 'delete' => false];
+        $this->modalState = ['form' => false, 'delete' => false, 'merge' => false];
         $this->userId = null;
+        $this->mergeKeepUserId = '';
         $this->resetForm();
+    }
+
+    public function toggleSelectAll(array $pageIds): void
+    {
+        $pageIds = collect($pageIds)->map(fn ($id) => (int) $id)->all();
+        $selected = collect($this->selectedUserIds)->map(fn ($id) => (int) $id);
+        $allSelected = count($pageIds) > 0 && collect($pageIds)->every(fn (int $id) => $selected->contains($id));
+
+        if ($allSelected) {
+            $this->selectedUserIds = $selected->reject(fn (int $id) => in_array($id, $pageIds, true))->values()->all();
+
+            return;
+        }
+
+        $this->selectedUserIds = $selected->merge($pageIds)->unique()->values()->all();
+    }
+
+    public function openMergeModal(): void
+    {
+        $this->authorize('usuario.eliminar');
+
+        $ids = $this->selectedIds();
+        if (count($ids) < 2) {
+            $this->flashToast('error', 'Selecciona al menos dos usuarios para unificar.');
+
+            return;
+        }
+
+        $this->mergeKeepUserId = (string) $ids[0];
+        $this->modalState['merge'] = true;
+    }
+
+    public function confirmMerge(): void
+    {
+        $this->authorize('usuario.eliminar');
+
+        $ids = $this->selectedIds();
+        $this->validate([
+            'mergeKeepUserId' => ['required', 'integer'],
+        ], [
+            'mergeKeepUserId.required' => 'Elige el usuario que se conservará.',
+        ]);
+
+        $keepId = (int) $this->mergeKeepUserId;
+        if (! in_array($keepId, $ids, true)) {
+            $this->addError('mergeKeepUserId', 'El usuario a conservar debe estar entre los seleccionados.');
+
+            return;
+        }
+
+        $destino = User::query()->findOrFail($keepId);
+        $origenIds = array_values(array_filter($ids, fn (int $id) => $id !== $keepId));
+
+        try {
+            $eliminados = $this->mergeService->unificar($destino, $origenIds);
+        } catch (\InvalidArgumentException $e) {
+            $this->flashToast('error', $e->getMessage());
+
+            return;
+        }
+
+        $this->selectedUserIds = [];
+        $this->closeModal();
+        $this->resetPage();
+        $this->flashToast('success', __('Se unificaron :count usuario(s) en :name. Los clientes y matrículas ahora muestran este asesor.', [
+            'count' => $eliminados,
+            'name' => $destino->name,
+        ]));
+    }
+
+    /**
+     * @return list<int>
+     */
+    protected function selectedIds(): array
+    {
+        return collect($this->selectedUserIds)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn (int $id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
     }
 
     protected function resetForm(): void
@@ -270,8 +361,16 @@ class UsuarioLive extends Component
             ->orderBy('name')
             ->get();
 
+        $usuarios = $query->orderBy('name')->paginate($this->perPage);
+        $mergeCandidates = User::query()
+            ->whereIn('id', $this->selectedIds())
+            ->orderBy('name')
+            ->get(['id', 'name', 'email']);
+
         return view('livewire.usuarios.usuario-live', [
-            'usuarios' => $query->orderBy('name')->paginate($this->perPage),
+            'usuarios' => $usuarios,
+            'pageUserIds' => $usuarios->pluck('id')->all(),
+            'mergeCandidates' => $mergeCandidates,
             'roles' => $roles,
             'sucursales' => Sucursal::query()
                 ->with('empresa')

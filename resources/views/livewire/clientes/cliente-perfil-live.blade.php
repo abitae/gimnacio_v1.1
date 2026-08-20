@@ -463,10 +463,6 @@
                                                                                     {{ __('Pagar') }}
                                                                                 </flux:button>
                                                                             @endcan
-                                                                        @elseif (! empty($cuota['bloqueada_por_orden']))
-                                                                            <flux:button type="button" size="xs" variant="outline" disabled title="{{ __('Primero paga la cuota pendiente más inmediata.') }}">
-                                                                                {{ __('Pagar') }}
-                                                                            </flux:button>
                                                                         @else
                                                                             <span class="text-xs text-zinc-400">—</span>
                                                                         @endif

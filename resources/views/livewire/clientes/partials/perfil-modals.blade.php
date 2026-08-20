@@ -239,10 +239,6 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
-                    @php
-                        $cuotaCobrableModalId = $cuotasModalInstallments
-                            ->first(fn ($item) => in_array($item->estado, ['pendiente', 'vencida', 'parcial'], true))?->id;
-                    @endphp
                     @forelse ($cuotasModalInstallments as $cuota)
                         <tr>
                             <td class="px-4 py-3">{{ $cuota->numero_cuota }}</td>
@@ -253,10 +249,8 @@
                             <td class="px-4 py-3">{{ \App\Models\Core\EnrollmentInstallment::ESTADOS[$cuota->estado] ?? ucfirst((string) $cuota->estado) }}</td>
                             <td class="px-4 py-3 text-right">
                                 @can('matricula_cliente.editar')
-                                    @if ((int) $cuota->id === (int) $cuotaCobrableModalId)
+                                    @if (in_array($cuota->estado, ['pendiente', 'vencida', 'parcial'], true))
                                         <flux:button size="xs" variant="primary" type="button" wire:click="openRegistrarPagoCuota({{ $cuota->id }})">{{ __('Pagar') }}</flux:button>
-                                    @elseif (in_array($cuota->estado, ['pendiente', 'vencida', 'parcial'], true))
-                                        <flux:button size="xs" variant="outline" type="button" disabled title="{{ __('Primero paga la cuota pendiente más inmediata.') }}">{{ __('Pagar') }}</flux:button>
                                     @endif
                                 @endcan
                             </td>

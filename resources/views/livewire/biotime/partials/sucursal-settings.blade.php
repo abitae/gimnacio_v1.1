@@ -4,6 +4,29 @@
         <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Cada sede usa su propio token (Bearer / X-BioTime-Secret). El area BioTime autorizada se usa al activar acceso.
         </p>
+        <div class="mt-4">
+            @if (is_file(public_path('dist/dist/BioTimeBridge.exe')) && is_file(public_path('dist/dist/config.yaml.example')))
+                <div class="flex flex-wrap items-center gap-2">
+                    <a href="{{ asset('dist/dist/BioTimeBridge.exe') }}" download="BioTimeBridge.exe"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700">
+                        <flux:icon name="arrow-down-tray" class="size-4" />
+                        BioTimeBridge.exe
+                    </a>
+                    <a href="{{ asset('dist/dist/config.yaml.example') }}" download="config.yaml.example"
+                        class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700">
+                        <flux:icon name="arrow-down-tray" class="size-4" />
+                        config.yaml.example
+                    </a>
+                </div>
+                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    Descarga ambos en la misma carpeta, renombra el YAML a config.yaml, pega el token de esta sede en laravel_token y abre BioTimeBridge.exe con doble clic.
+                </p>
+            @else
+                <p class="text-xs text-amber-700 dark:text-amber-300">
+                    Faltan archivos en public/dist/dist/: BioTimeBridge.exe y/o config.yaml.example.
+                </p>
+            @endif
+        </div>
     </div>
 
     @forelse ($allowedSucursales as $sucursal)

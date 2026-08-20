@@ -56,12 +56,6 @@ trait ManagesCuotaPagoModal
             return;
         }
 
-        if (! app(EnrollmentInstallmentService::class)->isFirstPayableInstallment($inst)) {
-            $this->flashToast('error', __('Primero debes pagar la cuota pendiente más inmediata de esta matrícula.'));
-
-            return;
-        }
-
         $this->pagoCuotaInstallmentId = $installmentId;
         $monto = (string) $inst->saldo_pendiente;
         $this->pagoCuotaForm = [

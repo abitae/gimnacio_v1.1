@@ -47,6 +47,16 @@ class ClienteLive extends Component
 
     public string $passwordAppConfirmation = '';
 
+    public bool $mostrarModalAsesor = false;
+
+    public ?int $clienteIdAsesor = null;
+
+    public string $clienteNombreAsesor = '';
+
+    public ?string $asesorActualNombre = null;
+
+    public string $nuevoAsesorId = '';
+
     protected $paginationTheme = 'tailwind';
 
     protected ClienteService $service;
@@ -179,6 +189,71 @@ class ClienteLive extends Component
                 ? __('Contraseña de la app actualizada. El cliente deberá iniciar sesión de nuevo.')
                 : __('Cuenta de la app creada. El cliente ya puede iniciar sesión.'),
         );
+    }
+
+    public function abrirModalAsesor(int $clienteId): void
+    {
+        $this->authorize('matricula_cliente.editar');
+
+        $cliente = Cliente::query()
+            ->with([
+                'registroPor:id,name',
+                'matriculaMembresiaReciente.asesor:id,name',
+                'ultimaMatricula.asesor:id,name',
+            ])
+            ->findOrFail($clienteId);
+
+        $this->resetErrorBag();
+        $this->clienteIdAsesor = $cliente->id;
+        $this->clienteNombreAsesor = trim($cliente->nombres.' '.$cliente->apellidos);
+        $this->asesorActualNombre = $cliente->asesor_nombre;
+        $this->nuevoAsesorId = '';
+        $this->mostrarModalAsesor = true;
+    }
+
+    public function cerrarModalAsesor(): void
+    {
+        $this->mostrarModalAsesor = false;
+        $this->clienteIdAsesor = null;
+        $this->clienteNombreAsesor = '';
+        $this->asesorActualNombre = null;
+        $this->nuevoAsesorId = '';
+        $this->resetErrorBag();
+    }
+
+    public function guardarCambioAsesor(): void
+    {
+        $this->authorize('matricula_cliente.editar');
+
+        $this->validate([
+            'clienteIdAsesor' => ['required', 'integer'],
+            'nuevoAsesorId' => ['required', 'integer'],
+        ], [
+            'nuevoAsesorId.required' => __('Selecciona un asesor.'),
+        ]);
+
+        $cliente = Cliente::query()->findOrFail($this->clienteIdAsesor);
+
+        try {
+            $actualizadas = $this->service->cambiarAsesorEnTodasMatriculas(
+                $cliente,
+                (int) $this->nuevoAsesorId,
+            );
+        } catch (\InvalidArgumentException $e) {
+            $this->addError('nuevoAsesorId', $e->getMessage());
+
+            return;
+        }
+
+        $this->cerrarModalAsesor();
+
+        if ($actualizadas === 0) {
+            $this->flashToast('info', __('Este cliente no tiene matrículas para reasignar asesor.'));
+
+            return;
+        }
+
+        $this->flashToast('success', __('Asesor actualizado en :count matrícula(s).', ['count' => $actualizadas]));
     }
 
     public function enviarContratoPorWhatsApp(int $clienteId): void

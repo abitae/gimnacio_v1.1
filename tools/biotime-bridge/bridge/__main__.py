@@ -34,6 +34,15 @@ def build_parser():
 
 
 def main(argv=None):
+    if argv is None:
+        argv = sys.argv[1:]
+
+    # Doble clic en BioTimeBridge.exe (PyInstaller, sin consola): abrir GUI directamente.
+    if not argv and getattr(sys, "frozen", False):
+        from .gui import run_gui
+
+        return run_gui(default_config_path())
+
     parser = build_parser()
     args = parser.parse_args(argv)
     if not args.command:
