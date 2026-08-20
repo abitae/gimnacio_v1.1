@@ -393,8 +393,21 @@ class BioTimeDashboard extends Component
             'devices' => $this->devicesForMapping($selectedId),
             'logs' => $this->logs($selectedId),
             'accessCommands' => $this->accessCommands($selectedId),
-            'bridgePackageAvailable' => app(\App\Services\BioTime\BioTimeBridgePackageService::class)->isAvailable(),
+            ...$this->bridgePackageViewData(),
         ])->layout('layouts.app', ['title' => 'BioTime']);
+    }
+
+    /**
+     * @return array{bridgePackageAvailable: bool, bridgePackageMissing: list<string>}
+     */
+    private function bridgePackageViewData(): array
+    {
+        $package = app(\App\Services\BioTime\BioTimeBridgePackageService::class);
+
+        return [
+            'bridgePackageAvailable' => $package->isAvailable(),
+            'bridgePackageMissing' => $package->missingComponents(),
+        ];
     }
 
     private function resolvedSelectedSucursalId(Collection $allowed): ?int
