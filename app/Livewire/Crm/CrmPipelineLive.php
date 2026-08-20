@@ -50,6 +50,9 @@ class CrmPipelineLive extends Component
 
     public bool $stageIsLost = false;
 
+    /** @var list<int> */
+    public array $collapsedStageIds = [];
+
     protected LeadService $leadService;
 
     protected CrmOperationalSummaryService $summaryService;
@@ -66,6 +69,52 @@ class CrmPipelineLive extends Component
     public function mount()
     {
         $this->authorize('crm.ver');
+        $this->collapsedStageIds = $this->normalizedCollapsedIds(
+            session('crm.pipeline.collapsed_stages', [])
+        );
+    }
+
+    public function toggleStageCollapse(int $stageId): void
+    {
+        $ids = $this->normalizedCollapsedIds($this->collapsedStageIds);
+
+        if (in_array($stageId, $ids, true)) {
+            $this->collapsedStageIds = array_values(array_filter(
+                $ids,
+                fn (int $id) => $id !== $stageId
+            ));
+        } else {
+            $ids[] = $stageId;
+            $this->collapsedStageIds = $ids;
+        }
+
+        $this->persistCollapsedStages();
+    }
+
+    public function expandAllStages(): void
+    {
+        $this->collapsedStageIds = [];
+        $this->persistCollapsedStages();
+    }
+
+    public function collapseEmptyStages(): void
+    {
+        $emptyIds = $this->getStagesProperty()
+            ->filter(fn ($stage) => (int) ($stage->leads_count ?? 0) === 0)
+            ->pluck('id')
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $this->collapsedStageIds = array_values(array_unique([
+            ...$this->collapsedStageIds,
+            ...$emptyIds,
+        ]));
+        $this->persistCollapsedStages();
+    }
+
+    public function isStageCollapsed(int $stageId): bool
+    {
+        return in_array($stageId, $this->normalizedCollapsedIds($this->collapsedStageIds), true);
     }
 
     public function getSummaryProperty(): array
@@ -325,6 +374,25 @@ class CrmPipelineLive extends Component
         $this->stageIsWon = false;
         $this->stageIsLost = false;
         $this->resetValidation();
+    }
+
+    /**
+     * @param  mixed  $ids
+     * @return list<int>
+     */
+    protected function normalizedCollapsedIds(mixed $ids): array
+    {
+        if (! is_array($ids)) {
+            return [];
+        }
+
+        return array_values(array_unique(array_map('intval', $ids)));
+    }
+
+    protected function persistCollapsedStages(): void
+    {
+        $this->collapsedStageIds = $this->normalizedCollapsedIds($this->collapsedStageIds);
+        session(['crm.pipeline.collapsed_stages' => $this->collapsedStageIds]);
     }
 
     public function getUsersProperty()

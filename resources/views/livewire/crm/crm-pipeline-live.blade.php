@@ -68,6 +68,16 @@
             @endforeach
         </select>
         @endif
+        <div class="flex items-center gap-1 ml-auto">
+            <flux:button size="xs" variant="ghost" wire:click="collapseEmptyStages" title="Minimizar etapas sin leads">
+                Colapsar vacías
+            </flux:button>
+            @if(count($collapsedStageIds) > 0)
+            <flux:button size="xs" variant="ghost" wire:click="expandAllStages" title="Mostrar todas las etapas">
+                Expandir todas
+            </flux:button>
+            @endif
+        </div>
     </div>
 
     <div class="overflow-x-auto pb-4">
@@ -77,11 +87,38 @@
                 $totalInStage = $stage->leads_count ?? 0;
                 $showing = count($stage->leads ?? []);
                 $hasMore = $totalInStage > $showing;
+                $collapsed = $this->isStageCollapsed((int) $stage->id);
             @endphp
-            <div class="flex-shrink-0 w-80 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 overflow-hidden flex flex-col">
+            <div wire:key="stage-col-{{ $stage->id }}"
+                class="flex-shrink-0 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 overflow-hidden flex flex-col transition-[width] duration-200 {{ $collapsed ? 'w-12' : 'w-80' }}">
+                @if($collapsed)
+                <button type="button"
+                    wire:click="toggleStageCollapse({{ $stage->id }})"
+                    class="flex h-full min-h-[220px] flex-col items-center gap-2 px-1 py-3 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-800/80"
+                    title="Expandir {{ $stage->nombre }}"
+                    aria-expanded="false"
+                    aria-label="Expandir etapa {{ $stage->nombre }}">
+                    <flux:icon name="chevron-right" class="h-4 w-4 shrink-0" />
+                    <span class="text-[11px] font-medium leading-none [writing-mode:vertical-rl] rotate-180 truncate max-h-40">{{ $stage->nombre }}</span>
+                    <span class="mt-auto text-[10px] bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300 rounded-full min-w-5 px-1.5 py-0.5 text-center">{{ $totalInStage }}</span>
+                </button>
+                @else
                 <div class="px-3 py-2.5 border-b border-zinc-200 dark:border-zinc-700 flex items-center justify-between shrink-0 gap-2">
-                    <div class="flex items-center gap-1.5 min-w-0">
-                        <span class="font-medium text-sm text-zinc-800 dark:text-zinc-200 truncate">{{ $stage->nombre }}</span>
+                    <div class="flex items-center gap-1 min-w-0">
+                        <button type="button"
+                            wire:click="toggleStageCollapse({{ $stage->id }})"
+                            class="shrink-0 rounded-md p-0.5 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
+                            title="Minimizar {{ $stage->nombre }}"
+                            aria-expanded="true"
+                            aria-label="Minimizar etapa {{ $stage->nombre }}">
+                            <flux:icon name="chevron-down" class="h-4 w-4" />
+                        </button>
+                        <button type="button"
+                            wire:click="toggleStageCollapse({{ $stage->id }})"
+                            class="min-w-0 truncate text-left font-medium text-sm text-zinc-800 dark:text-zinc-200 hover:underline decoration-zinc-300 underline-offset-2"
+                            title="Minimizar {{ $stage->nombre }}">
+                            {{ $stage->nombre }}
+                        </button>
                         @can('crm.editar')
                         <flux:button size="xs" variant="ghost" icon="pencil" class="shrink-0 opacity-60 hover:opacity-100"
                             wire:click="openEditStage({{ $stage->id }})" title="Editar etapa" />
@@ -163,6 +200,7 @@
                     </div>
                     @endforelse
                 </div>
+                @endif
             </div>
             @endforeach
         </div>

@@ -1,5 +1,6 @@
 <?php
 
+use App\Livewire\Crm\CrmPipelineLive;
 use App\Livewire\Crm\LeadDetailLive;
 use App\Models\Crm\CrmStage;
 use App\Models\Crm\Lead;
@@ -154,4 +155,52 @@ it('abre el detalle del lead cuando la ruta inyecta el modelo', function () {
     $this->get(route('crm.leads.show', $lead))
         ->assertOk()
         ->assertSee('Luis Perez');
+});
+
+it('colapsa y expande columnas de etapa en el pipeline', function () {
+    $sucursal = biotimeSucursal();
+    $user = User::factory()->create();
+    $user->givePermissionTo('crm.ver');
+    $user->sucursales()->attach($sucursal->id);
+    $user->forceFill(['default_sucursal_id' => $sucursal->id])->save();
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $conLeads = CrmStage::create([
+        'sucursal_id' => $sucursal->id,
+        'nombre' => 'Nuevo',
+        'orden' => 1,
+        'is_default' => true,
+        'is_won' => false,
+        'is_lost' => false,
+    ]);
+    $vacia = CrmStage::create([
+        'sucursal_id' => $sucursal->id,
+        'nombre' => 'Perdido',
+        'orden' => 2,
+        'is_default' => false,
+        'is_won' => false,
+        'is_lost' => true,
+    ]);
+
+    Lead::create([
+        'sucursal_id' => $sucursal->id,
+        'telefono' => '911222335',
+        'estado' => 'nuevo',
+        'stage_id' => $conLeads->id,
+        'created_by' => $user->id,
+    ]);
+
+    Livewire::test(CrmPipelineLive::class)
+        ->assertDontSee('Expandir todas')
+        ->call('toggleStageCollapse', $conLeads->id)
+        ->assertSet('collapsedStageIds', [$conLeads->id])
+        ->assertSee('Expandir todas')
+        ->call('collapseEmptyStages')
+        ->assertSet('collapsedStageIds', [$conLeads->id, $vacia->id])
+        ->call('expandAllStages')
+        ->assertSet('collapsedStageIds', [])
+        ->call('toggleStageCollapse', $vacia->id)
+        ->call('toggleStageCollapse', $vacia->id)
+        ->assertSet('collapsedStageIds', []);
 });
