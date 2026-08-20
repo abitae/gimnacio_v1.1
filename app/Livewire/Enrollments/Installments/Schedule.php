@@ -111,18 +111,11 @@ class Schedule extends Component
         $paymentMethods = $this->cuotaPagoModalAbierto
             ? $this->paymentMethodsForCuotaModal()
             : collect();
-        $cuotasCobrablesIds = $installments
-            ->filter(fn (EnrollmentInstallment $row) => in_array($row->estado, ['pendiente', 'vencida', 'parcial'], true))
-            ->groupBy('cliente_matricula_id')
-            ->map(fn ($rows) => (int) $rows->first()->id)
-            ->values()
-            ->all();
 
         return view('livewire.enrollments.installments.schedule', [
             'plan' => $plan,
             'installments' => $installments,
             'paymentMethods' => $paymentMethods,
-            'cuotasCobrablesIds' => $cuotasCobrablesIds,
         ])->layout('layouts.app', ['title' => 'Cronograma de cuotas']);
     }
 }

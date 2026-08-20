@@ -452,8 +452,27 @@ class ClienteService
     public function asesoresActivosParaFiltro(): Collection
     {
         return User::query()
-            ->asesoresActivos()
+            ->asesoresActivos($this->sucursalContext->getSucursalId())
             ->get(['id', 'name']);
+    }
+
+    /**
+     * Reasigna el asesor en todas las matrículas del cliente.
+     *
+     * @throws \InvalidArgumentException
+     */
+    public function cambiarAsesorEnTodasMatriculas(Cliente $cliente, int $asesorId): int
+    {
+        $asesorValido = $this->asesoresActivosParaFiltro()
+            ->contains(fn (User $user) => (int) $user->id === $asesorId);
+
+        if (! $asesorValido) {
+            throw new \InvalidArgumentException('El asesor seleccionado no es un vendedor activo de esta sucursal.');
+        }
+
+        return ClienteMatricula::query()
+            ->where('cliente_id', $cliente->id)
+            ->update(['asesor_id' => $asesorId]);
     }
 
     /**

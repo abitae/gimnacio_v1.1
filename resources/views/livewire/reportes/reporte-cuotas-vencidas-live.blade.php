@@ -48,10 +48,8 @@
                         <td class="px-4 py-2">
                             <x-ui.table-actions align="left">
                             @can('matricula_cliente.editar')
-                            @if(in_array((int) $c->id, $cuotasCobrablesIds, true))
+                            @if(in_array($c->estado, ['pendiente', 'vencida', 'parcial'], true))
                             <flux:button size="xs" variant="ghost" icon="credit-card" type="button" wire:click="openRegistrarPagoCuota({{ $c->id }})" aria-label="{{ __('Pagar') }}" />
-                            @else
-                            <flux:button size="xs" variant="ghost" icon="credit-card" type="button" disabled aria-label="{{ __('Pagar bloqueado') }}" title="{{ __('Primero paga la cuota pendiente más inmediata.') }}" />
                             @endif
                             @endcan
                             </x-ui.table-actions>

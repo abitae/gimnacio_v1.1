@@ -168,11 +168,8 @@ class ClienteCommercialProfileService
                 ['numero_cuota', 'asc'],
             ])
             ->values();
-        $primeraCobrableId = $installments
-            ->first(fn ($installment) => in_array((string) $installment->estado, ['pendiente', 'vencida', 'parcial'], true))?->id;
-
         $installments = $installments
-            ->map(function ($installment) use ($primeraCobrableId) {
+            ->map(function ($installment) {
                 $estado = (string) ($installment->estado ?? 'pendiente');
                 $ultimaFechaPago = $this->latestPaymentDateFromCollection($installment->pagos);
 
@@ -188,9 +185,7 @@ class ClienteCommercialProfileService
                     'saldo' => round((float) $installment->saldo_pendiente, 2),
                     'estado' => $estado,
                     'estado_label' => Str::ucfirst($estado),
-                    'puede_pagar' => (int) $installment->id === (int) $primeraCobrableId,
-                    'bloqueada_por_orden' => in_array($estado, ['pendiente', 'vencida', 'parcial'], true)
-                        && (int) $installment->id !== (int) $primeraCobrableId,
+                    'puede_pagar' => in_array($estado, ['pendiente', 'vencida', 'parcial'], true),
                 ];
             });
 

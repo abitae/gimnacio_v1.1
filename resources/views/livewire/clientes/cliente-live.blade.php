@@ -230,6 +230,13 @@
                                             title="{{ __('Enviar contrato por WhatsApp') }}"
                                             aria-label="{{ __('Enviar contrato por WhatsApp') }}" />
                                     @endif
+                                    @can('matricula_cliente.editar')
+                                        <flux:button size="xs" variant="ghost" icon="user-plus" type="button"
+                                            wire:click="abrirModalAsesor({{ $cliente->id }})"
+                                            title="{{ __('Cambiar asesor') }}">
+                                            {{ __('Asesor') }}
+                                        </flux:button>
+                                    @endcan
                                     @can('cliente.editar')
                                         <flux:button size="xs" variant="ghost" icon="key" type="button"
                                             wire:click="abrirModalPassword({{ $cliente->id }})"
@@ -325,6 +332,39 @@
             <div class="flex justify-end gap-2">
                 <flux:button type="button" variant="ghost" wire:click="cerrarModalPassword">{{ __('Cancelar') }}</flux:button>
                 <flux:button type="submit" variant="primary">{{ __('Guardar contraseña') }}</flux:button>
+            </div>
+        </form>
+    </flux:modal>
+
+    <flux:modal wire:model="mostrarModalAsesor" class="md:w-lg">
+        <form wire:submit="guardarCambioAsesor" class="space-y-3 p-4">
+            <div>
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Cambiar asesor') }}</h2>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                    {{ $clienteNombreAsesor }}
+                    —
+                    {{ __('Asesor actual:') }}
+                    <span class="font-medium text-zinc-700 dark:text-zinc-300">{{ $asesorActualNombre ?? '—' }}</span>
+                </p>
+                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {{ __('Se actualizará el asesor en todas las matrículas del cliente.') }}
+                </p>
+            </div>
+            <div>
+                <label for="nuevoAsesorId" class="mb-1 block text-xs font-medium text-zinc-700 dark:text-zinc-300">{{ __('Nuevo asesor') }}</label>
+                <select id="nuevoAsesorId" wire:model="nuevoAsesorId"
+                    class="w-full rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs text-zinc-900 shadow-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
+                    required>
+                    <option value="">{{ __('Seleccionar asesor…') }}</option>
+                    @foreach ($asesores as $asesor)
+                        <option value="{{ $asesor->id }}">{{ $asesor->name }}</option>
+                    @endforeach
+                </select>
+                <flux:error name="nuevoAsesorId" />
+            </div>
+            <div class="flex justify-end gap-2">
+                <flux:button type="button" variant="ghost" wire:click="cerrarModalAsesor">{{ __('Cancelar') }}</flux:button>
+                <flux:button type="submit" variant="primary">{{ __('Guardar') }}</flux:button>
             </div>
         </form>
     </flux:modal>

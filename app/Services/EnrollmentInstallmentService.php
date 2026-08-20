@@ -433,19 +433,6 @@ class EnrollmentInstallmentService
                 throw new \InvalidArgumentException('La cuota no tiene una matrícula asociada para registrar el pago.');
             }
 
-            $primeraCobrable = EnrollmentInstallment::query()
-                ->where('cliente_matricula_id', $matricula->id)
-                ->whereIn('estado', ['pendiente', 'vencida', 'parcial'])
-                ->orderBy('fecha_vencimiento')
-                ->orderBy('numero_cuota')
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->first();
-
-            if (! $primeraCobrable || (int) $primeraCobrable->id !== (int) $row->id) {
-                throw new \InvalidArgumentException('Primero debes pagar la cuota pendiente más inmediata de esta matrícula.');
-            }
-
             $monto = round((float) ($data['monto'] ?? $row->saldo_pendiente), 2);
             $cajaService = app(CajaService::class);
 
@@ -552,13 +539,8 @@ class EnrollmentInstallmentService
 
     public function isFirstPayableInstallment(EnrollmentInstallment $installment): bool
     {
-        if (! in_array($installment->estado, ['pendiente', 'vencida', 'parcial'], true)
-            || ! $installment->cliente_matricula_id) {
-            return false;
-        }
-
-        return (int) $this->firstPayableInstallmentForMatricula((int) $installment->cliente_matricula_id)?->id
-            === (int) $installment->id;
+        return in_array($installment->estado, ['pendiente', 'vencida', 'parcial'], true)
+            && (bool) $installment->cliente_matricula_id;
     }
 
     /**

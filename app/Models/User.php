@@ -150,9 +150,6 @@ class User extends Authenticatable
      */
     public const ASESOR_ROLE_NAMES = [
         'vendedor',
-        'caja',
-        PermissionCatalog::BRANCH_ADMIN_ROLE_NAME,
-        PermissionCatalog::SUPER_ADMIN_ROLE_NAME,
     ];
 
     /**
@@ -175,12 +172,20 @@ class User extends Authenticatable
     /**
      * Usuarios activos con rol de asesor/vendedor (listados en filtros de clientes).
      */
-    public function scopeAsesoresActivos($query)
+    public function scopeAsesoresActivos($query, ?int $sucursalId = null)
     {
-        return $query
+        $query
             ->where('estado', 'activo')
-            ->withExistingRoles(self::ASESOR_ROLE_NAMES)
-            ->orderBy('name');
+            ->withExistingRoles(self::ASESOR_ROLE_NAMES);
+
+        if ($sucursalId) {
+            $query->where(function ($inner) use ($sucursalId): void {
+                $inner->whereHas('sucursales', fn ($s) => $s->whereKey($sucursalId))
+                    ->orWhere('default_sucursal_id', $sucursalId);
+            });
+        }
+
+        return $query->orderBy('name');
     }
 
     /**

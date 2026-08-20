@@ -161,20 +161,161 @@ it('filtra el listado de clientes por asesor de matrícula', function () {
         ->assertDontSee('Asesor Dos Filtro');
 });
 
-it('el filtro asesor solo muestra vendedores activos', function () {
-    $user = User::factory()->create();
+it('el filtro asesor solo muestra vendedores activos de la sucursal actual', function () {
+    $this->seed(RoleSeeder::class);
+
+    $sucursal = biotimeSucursal('asesor-filtro-a');
+    $sucursalOtra = biotimeSucursal('asesor-filtro-b', false);
+
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
     $user->givePermissionTo('cliente.ver');
     $this->actingAs($user);
+    session([SucursalContext::SUCURSAL_ID_KEY => $sucursal->id]);
 
-    $asesorActivo = User::factory()->create(['name' => 'Asesor Activo Filtro', 'estado' => 'activo']);
+    $asesorActivo = User::factory()->create(['name' => 'Asesor Activo Filtro', 'estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
     $asesorActivo->assignRole('vendedor');
+    $asesorActivo->sucursales()->attach($sucursal->id);
 
-    $asesorInactivo = User::factory()->create(['name' => 'Asesor Inactivo Filtro', 'estado' => 'inactivo']);
+    $asesorInactivo = User::factory()->create(['name' => 'Asesor Inactivo Filtro', 'estado' => 'inactivo', 'default_sucursal_id' => $sucursal->id]);
     $asesorInactivo->assignRole('vendedor');
+    $asesorInactivo->sucursales()->attach($sucursal->id);
+
+    $asesorOtraSucursal = User::factory()->create(['name' => 'Asesor Otra Sucursal Filtro', 'estado' => 'activo', 'default_sucursal_id' => $sucursalOtra->id]);
+    $asesorOtraSucursal->assignRole('vendedor');
+    $asesorOtraSucursal->sucursales()->attach($sucursalOtra->id);
+
+    $usuarioCaja = User::factory()->create(['name' => 'Usuario Caja Filtro', 'estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
+    $usuarioCaja->assignRole('caja');
+    $usuarioCaja->sucursales()->attach($sucursal->id);
 
     Livewire::test(ClienteLive::class)
         ->assertSee('Asesor Activo Filtro')
-        ->assertDontSee('Asesor Inactivo Filtro');
+        ->assertDontSee('Asesor Inactivo Filtro')
+        ->assertDontSee('Asesor Otra Sucursal Filtro')
+        ->assertDontSee('Usuario Caja Filtro');
+});
+
+it('cambia el asesor en todas las matrículas del cliente desde el listado', function () {
+    $this->seed(RoleSeeder::class);
+
+    $sucursal = biotimeSucursal('asesor-cambio');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.editar']);
+    $this->actingAs($user);
+    session([SucursalContext::SUCURSAL_ID_KEY => $sucursal->id]);
+
+    $asesorOriginal = User::factory()->create(['name' => 'Asesor Original Cambio', 'estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
+    $asesorOriginal->assignRole('vendedor');
+    $asesorOriginal->sucursales()->attach($sucursal->id);
+
+    $asesorNuevo = User::factory()->create(['name' => 'Asesor Nuevo Cambio', 'estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
+    $asesorNuevo->assignRole('vendedor');
+    $asesorNuevo->sucursales()->attach($sucursal->id);
+
+    $cliente = Cliente::factory()->create([
+        'nombres' => 'Cliente',
+        'apellidos' => 'Cambio Asesor Test',
+        'created_by' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    $membresia = Membresia::factory()->create(['nombre' => 'Plan Cambio Asesor', 'precio_base' => 100, 'estado' => 'activa']);
+    $clase = Clase::factory()->create(['nombre' => 'Clase Cambio Asesor']);
+
+    $matriculaMembresia = ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 100,
+        'descuento_monto' => 0,
+        'precio_final' => 100,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $asesorOriginal->id,
+    ]);
+
+    $matriculaClase = ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'clase',
+        'clase_id' => $clase->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 80,
+        'descuento_monto' => 0,
+        'precio_final' => 80,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $asesorOriginal->id,
+    ]);
+
+    Livewire::test(ClienteLive::class)
+        ->call('abrirModalAsesor', $cliente->id)
+        ->assertSet('clienteIdAsesor', $cliente->id)
+        ->assertSet('asesorActualNombre', 'Asesor Original Cambio')
+        ->set('nuevoAsesorId', (string) $asesorNuevo->id)
+        ->call('guardarCambioAsesor')
+        ->assertHasNoErrors()
+        ->assertSet('mostrarModalAsesor', false);
+
+    expect($matriculaMembresia->refresh()->asesor_id)->toBe($asesorNuevo->id)
+        ->and($matriculaClase->refresh()->asesor_id)->toBe($asesorNuevo->id);
+});
+
+it('rechaza cambiar asesor a un vendedor de otra sucursal', function () {
+    $this->seed(RoleSeeder::class);
+
+    $sucursal = biotimeSucursal('asesor-rechazo-a');
+    $sucursalOtra = biotimeSucursal('asesor-rechazo-b', false);
+
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.editar']);
+    $this->actingAs($user);
+    session([SucursalContext::SUCURSAL_ID_KEY => $sucursal->id]);
+
+    $asesorOriginal = User::factory()->create(['estado' => 'activo', 'default_sucursal_id' => $sucursal->id]);
+    $asesorOriginal->assignRole('vendedor');
+    $asesorOriginal->sucursales()->attach($sucursal->id);
+
+    $asesorOtraSucursal = User::factory()->create(['estado' => 'activo', 'default_sucursal_id' => $sucursalOtra->id]);
+    $asesorOtraSucursal->assignRole('vendedor');
+    $asesorOtraSucursal->sucursales()->attach($sucursalOtra->id);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id, 'sucursal_id' => $sucursal->id]);
+    $membresia = Membresia::factory()->create(['precio_base' => 100, 'estado' => 'activa']);
+
+    ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 100,
+        'descuento_monto' => 0,
+        'precio_final' => 100,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $asesorOriginal->id,
+    ]);
+
+    Livewire::test(ClienteLive::class)
+        ->call('abrirModalAsesor', $cliente->id)
+        ->set('nuevoAsesorId', (string) $asesorOtraSucursal->id)
+        ->call('guardarCambioAsesor')
+        ->assertHasErrors(['nuevoAsesorId']);
 });
 
 it('filtra el listado de clientes por vigencia comercial', function () {

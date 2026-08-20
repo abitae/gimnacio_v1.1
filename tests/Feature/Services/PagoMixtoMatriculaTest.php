@@ -99,7 +99,7 @@ it('registra un pago mixto de matrícula con un comprobante y dos entradas de ca
         ->and($ticketIds->all())->toBe([$pago->id]);
 });
 
-it('mantiene la cuota parcial como próxima y habilita la siguiente solo al completarla', function () {
+it('permite pagar cualquier cuota pendiente y mantiene parciales como cobrables', function () {
     $ctx = prepararPagoMixtoMatricula('pago-mixto-cuotas');
     $matricula = crearMatriculaPagoMixto($ctx, 'cuotas');
     $plan = EnrollmentInstallmentPlan::create([
@@ -129,10 +129,15 @@ it('mantiene la cuota parcial como próxima y habilita la siguiente solo al comp
     ]);
     $service = app(EnrollmentInstallmentService::class);
 
-    expect(fn () => $service->pagarCuota($segunda, [
+    $pagoSegunda = $service->pagarCuota($segunda, [
         'monto' => 10,
         'pagos' => [['payment_method_id' => $ctx['efectivo']->id, 'monto' => 10]],
-    ]))->toThrow(InvalidArgumentException::class, 'cuota pendiente más inmediata');
+    ]);
+
+    expect($pagoSegunda->monto)->toBe(10.0)
+        ->and($segunda->refresh()->estado)->toBe('parcial')
+        ->and($service->isFirstPayableInstallment($primera->fresh()))->toBeTrue()
+        ->and($service->isFirstPayableInstallment($segunda->fresh()))->toBeTrue();
 
     $pagoParcial = $service->pagarCuota($primera, [
         'monto' => 100,
@@ -145,7 +150,7 @@ it('mantiene la cuota parcial como próxima y habilita la siguiente solo al comp
     expect($pagoParcial->detalles)->toHaveCount(2)
         ->and($primera->refresh()->estado)->toBe('parcial')
         ->and($service->isFirstPayableInstallment($primera->fresh()))->toBeTrue()
-        ->and($service->isFirstPayableInstallment($segunda->fresh()))->toBeFalse();
+        ->and($service->isFirstPayableInstallment($segunda->fresh()))->toBeTrue();
 
     $service->pagarCuota($primera->fresh(), [
         'monto' => 90,
@@ -242,7 +247,7 @@ it('mantiene compatibilidad con pago singular y pagos históricos sin detalles',
         ->and($historico->metodosPagoResumen())->toBe('efectivo');
 });
 
-it('habilita una próxima cuota independiente para cada matrícula del cliente', function () {
+it('marca como cobrables todas las cuotas pendientes de cada matrícula', function () {
     $ctx = prepararPagoMixtoMatricula('cuotas-por-matricula');
     $service = app(EnrollmentInstallmentService::class);
     $primeras = collect();
@@ -278,5 +283,5 @@ it('habilita una próxima cuota independiente para cada matrícula del cliente',
     }
 
     expect($primeras->every(fn ($cuota) => $service->isFirstPayableInstallment($cuota)))->toBeTrue()
-        ->and($segundas->every(fn ($cuota) => ! $service->isFirstPayableInstallment($cuota)))->toBeTrue();
+        ->and($segundas->every(fn ($cuota) => $service->isFirstPayableInstallment($cuota)))->toBeTrue();
 });

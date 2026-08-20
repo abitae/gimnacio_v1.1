@@ -74,11 +74,6 @@ class ReporteCuotasVencidasLive extends Component
 
         $totalMonto = (float) (clone $query)->get()->sum(fn (EnrollmentInstallment $installment) => $installment->saldo_pendiente);
         $cuotas = $query->paginate($this->perPage);
-        $cuotasCobrablesIds = collect($cuotas->items())
-            ->filter(fn (EnrollmentInstallment $row) => app(\App\Services\EnrollmentInstallmentService::class)->isFirstPayableInstallment($row))
-            ->pluck('id')
-            ->map(fn ($id) => (int) $id)
-            ->all();
 
         $paymentMethods = $this->cuotaPagoModalAbierto
             ? $this->paymentMethodsForCuotaModal()
@@ -88,7 +83,6 @@ class ReporteCuotasVencidasLive extends Component
             'cuotas' => $cuotas,
             'totalMonto' => $totalMonto,
             'paymentMethods' => $paymentMethods,
-            'cuotasCobrablesIds' => $cuotasCobrablesIds,
         ], $this->reporteSucursalScopeViewData()))->layout('layouts.app', ['title' => 'Cuotas vencidas']);
     }
 
