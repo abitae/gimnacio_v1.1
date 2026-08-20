@@ -4,6 +4,22 @@
         <p class="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
             Cada sede usa su propio token (Bearer / X-BioTime-Secret). El area BioTime autorizada se usa al activar acceso.
         </p>
+        <div class="mt-4">
+            @if ($bridgePackageAvailable ?? false)
+                <a href="{{ route('biotime.bridge.download') }}"
+                    class="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700">
+                    <flux:icon name="arrow-down-tray" class="size-4" />
+                    {{ __('Descargar puente (exe + config.yaml)') }}
+                </a>
+                <p class="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                    {{ __('Incluye BioTimeBridge.exe y config.yaml. Extrae ambos en la misma carpeta; doble clic abre la GUI. Pega el token de esta sede en laravel_token.') }}
+                </p>
+            @else
+                <p class="text-xs text-amber-700 dark:text-amber-300">
+                    {{ __('El paquete del puente no está disponible en el servidor (falta BioTimeBridge.exe o la plantilla YAML).') }}
+                </p>
+            @endif
+        </div>
     </div>
 
     @forelse ($allowedSucursales as $sucursal)

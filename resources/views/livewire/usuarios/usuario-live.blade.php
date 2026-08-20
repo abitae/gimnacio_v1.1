@@ -12,6 +12,17 @@
             @endcan
         </div>
 
+        @can('usuario.eliminar')
+            @if (count($selectedUserIds) >= 2)
+                <div class="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2 dark:border-violet-800 dark:bg-violet-950/40">
+                    <p class="text-xs text-violet-800 dark:text-violet-200">{{ count($selectedUserIds) }} {{ __('usuarios seleccionados') }}</p>
+                    <flux:button size="xs" variant="primary" icon="arrows-right-left" wire:click="openMergeModal">
+                        {{ __('Unificar') }}
+                    </flux:button>
+                </div>
+            @endif
+        @endcan
+
         <div class="flex items-center justify-end gap-3">
             <div class="w-full"></div>
             <div class="w-48">
@@ -40,6 +51,15 @@
                 <table class="w-full text-sm">
                     <thead class="bg-zinc-50 dark:bg-zinc-900">
                         <tr>
+                            @can('usuario.eliminar')
+                                <th class="w-10 px-3 py-2">
+                                    <input type="checkbox"
+                                        class="rounded border-zinc-300"
+                                        wire:click="toggleSelectAll({{ json_encode($pageUserIds) }})"
+                                        @checked(count($pageUserIds) > 0 && collect($pageUserIds)->every(fn ($id) => in_array($id, collect($selectedUserIds)->map(fn ($v) => (int) $v)->all())))
+                                        aria-label="{{ __('Seleccionar todos') }}" />
+                                </th>
+                            @endcan
                             <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Nombre</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Email</th>
                             <th class="px-4 py-2 text-left text-xs font-medium text-zinc-500 dark:text-zinc-400">Rol</th>
@@ -51,6 +71,11 @@
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                         @forelse ($usuarios as $u)
                             <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-700/50">
+                                @can('usuario.eliminar')
+                                    <td class="px-3 py-2.5">
+                                        <input type="checkbox" wire:model.live="selectedUserIds" value="{{ $u->id }}" class="rounded border-zinc-300" aria-label="{{ __('Seleccionar') }} {{ $u->name }}" />
+                                    </td>
+                                @endcan
                                 <td class="px-4 py-2.5 font-medium text-zinc-900 dark:text-zinc-100">{{ $u->name }}</td>
                                 <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $u->email }}</td>
                                 <td class="px-4 py-2.5">
@@ -83,7 +108,7 @@
                             </tr>
                         @empty
                             <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">No hay usuarios</td>
+                                <td colspan="7" class="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">No hay usuarios</td>
                             </tr>
                         @endforelse
                     </tbody>
@@ -180,6 +205,34 @@
                     <flux:button color="red" variant="primary" wire:click="delete">Eliminar</flux:button>
                 </div>
             </div>
+        </flux:modal>
+
+        <flux:modal name="usuario-merge" wire:model="modalState.merge" focusable flyout variant="floating" class="md:w-lg">
+            <form wire:submit="confirmMerge" class="space-y-3 p-4">
+                <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Unificar usuarios') }}</h2>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                    {{ __('Elige el usuario que se conservará. Los demás se eliminarán y sus clientes, matrículas y demás registros pasarán al usuario destino.') }}
+                </p>
+                <div class="space-y-2 rounded-lg border border-zinc-200 p-3 dark:border-zinc-700">
+                    @forelse ($mergeCandidates as $candidato)
+                        <label class="flex cursor-pointer items-start gap-2">
+                            <input type="radio" wire:model="mergeKeepUserId" value="{{ $candidato->id }}" class="mt-0.5">
+                            <span class="text-sm text-zinc-800 dark:text-zinc-100">
+                                {{ $candidato->name }}
+                                <span class="block text-xs text-zinc-500">{{ $candidato->email }}</span>
+                            </span>
+                        </label>
+                    @empty
+                        <p class="text-xs text-zinc-500">{{ __('No hay usuarios seleccionados.') }}</p>
+                    @endforelse
+                </div>
+                <flux:error name="mergeKeepUserId" />
+                <p class="text-xs text-amber-700 dark:text-amber-300">{{ __('Esta acción no se puede deshacer.') }}</p>
+                <div class="flex justify-end gap-2">
+                    <flux:button type="button" variant="ghost" wire:click="closeModal">{{ __('Cancelar') }}</flux:button>
+                    <flux:button type="submit" variant="primary">{{ __('Unificar') }}</flux:button>
+                </div>
+            </form>
         </flux:modal>
     @endcan
 </div>

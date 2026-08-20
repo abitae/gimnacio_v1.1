@@ -393,6 +393,7 @@ class BioTimeDashboard extends Component
             'devices' => $this->devicesForMapping($selectedId),
             'logs' => $this->logs($selectedId),
             'accessCommands' => $this->accessCommands($selectedId),
+            'bridgePackageAvailable' => app(\App\Services\BioTime\BioTimeBridgePackageService::class)->isAvailable(),
         ])->layout('layouts.app', ['title' => 'BioTime']);
     }
 

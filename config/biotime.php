@@ -11,4 +11,10 @@ return [
 
     /** Umbral de alerta de ocupacion (0-100). */
     'employee_limit_alert_percent' => (int) env('BIOTIME_EMPLOYEE_LIMIT_ALERT_PERCENT', 90),
+
+    /** Ejecutable Windows del puente (PyInstaller). */
+    'bridge_exe_path' => env('BIOTIME_BRIDGE_EXE_PATH', base_path('tools/biotime-bridge/dist/BioTimeBridge.exe')),
+
+    /** Plantilla YAML empaquetada como config.yaml en la descarga. */
+    'bridge_config_path' => env('BIOTIME_BRIDGE_CONFIG_PATH', base_path('tools/biotime-bridge/config.yaml.example')),
 ];
