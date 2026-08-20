@@ -13,8 +13,20 @@ return [
     'employee_limit_alert_percent' => (int) env('BIOTIME_EMPLOYEE_LIMIT_ALERT_PERCENT', 90),
 
     /** Ejecutable Windows del puente (PyInstaller). */
-    'bridge_exe_path' => env('BIOTIME_BRIDGE_EXE_PATH', base_path('tools/biotime-bridge/dist/BioTimeBridge.exe')),
+    'bridge_exe_path' => env('BIOTIME_BRIDGE_EXE_PATH', public_path('dist/dist/BioTimeBridge.exe')),
 
     /** Plantilla YAML empaquetada como config.yaml en la descarga. */
-    'bridge_config_path' => env('BIOTIME_BRIDGE_CONFIG_PATH', base_path('tools/biotime-bridge/config.yaml.example')),
+    'bridge_config_path' => env('BIOTIME_BRIDGE_CONFIG_PATH', public_path('dist/dist/config.yaml.example')),
+
+    /** Rutas alternativas si los archivos publicos no existen (desarrollo local). */
+    'bridge_exe_fallback_paths' => [
+        base_path('tools/biotime-bridge/releases/BioTimeBridge.exe'),
+        base_path('tools/biotime-bridge/dist/BioTimeBridge.exe'),
+        base_path('tools/biotime-bridge/BioTimeBridge.exe'),
+    ],
+
+    'bridge_config_fallback_paths' => [
+        base_path('tools/biotime-bridge/config.yaml.example'),
+        base_path('tools/biotime-bridge/dist/config.yaml.example'),
+    ],
 ];

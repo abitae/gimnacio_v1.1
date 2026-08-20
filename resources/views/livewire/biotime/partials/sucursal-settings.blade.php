@@ -15,8 +15,12 @@
                     {{ __('Incluye BioTimeBridge.exe y config.yaml. Extrae ambos en la misma carpeta; doble clic abre la GUI. Pega el token de esta sede en laravel_token.') }}
                 </p>
             @else
+                @php($missing = app(\App\Services\BioTime\BioTimeBridgePackageService::class)->missingComponents())
                 <p class="text-xs text-amber-700 dark:text-amber-300">
-                    {{ __('El paquete del puente no está disponible en el servidor (falta BioTimeBridge.exe o la plantilla YAML).') }}
+                    {{ __('El paquete del puente no está disponible.') }}
+                    @if ($missing !== [])
+                        {{ __(' Coloca :items en el servidor.', ['items' => implode(' y ', $missing)]) }}
+                    @endif
                 </p>
             @endif
         </div>

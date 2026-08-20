@@ -54,12 +54,20 @@ if (-not (Test-Path $exeDist)) {
 
 Copy-Item -Force (Join-Path $BridgeRoot "config.yaml.example") (Join-Path $BridgeRoot "dist\config.yaml.example")
 
+$publicDir = Join-Path (Resolve-Path (Join-Path $BridgeRoot "..\..")).Path "public\dist\dist"
+if (-not (Test-Path $publicDir)) {
+    New-Item -ItemType Directory -Path $publicDir -Force | Out-Null
+}
+Copy-Item -Force $exeDist (Join-Path $publicDir "BioTimeBridge.exe")
+Copy-Item -Force (Join-Path $BridgeRoot "config.yaml.example") (Join-Path $publicDir "config.yaml.example")
+
 $exeRoot = Join-Path $BridgeRoot "BioTimeBridge.exe"
 Copy-Item -Force $exeDist $exeRoot
 
 Write-Host ""
 Write-Host "OK: ejecutable generado"
 Write-Host "  dist\BioTimeBridge.exe"
+Write-Host "  public\dist\dist\BioTimeBridge.exe (descarga Laravel)"
 Write-Host "  BioTimeBridge.exe (copia en raiz del bridge)"
 Write-Host ""
 Write-Host "Despliegue en sede:"

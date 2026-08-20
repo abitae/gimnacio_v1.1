@@ -35,14 +35,38 @@ it('descarga un zip con el exe y config.yaml', function () {
 it('redirige si falta el ejecutable del puente', function () {
     config([
         'biotime.bridge_exe_path' => storage_path('app/missing-BioTimeBridge.exe'),
-        'biotime.bridge_config_path' => base_path('tools/biotime-bridge/config.yaml.example'),
+        'biotime.bridge_exe_fallback_paths' => [],
+        'biotime.bridge_config_path' => public_path('dist/dist/config.yaml.example'),
+        'biotime.bridge_config_fallback_paths' => [],
     ]);
+
+    if (! is_file(public_path('dist/dist/config.yaml.example'))) {
+        $this->markTestSkipped('Falta public/dist/dist/config.yaml.example');
+    }
 
     $this->actingAs(biotimeAdmin());
 
     $this->from(route('biotime.index', ['tab' => 'sedes']))
         ->get(route('biotime.bridge.download'))
         ->assertRedirect(route('biotime.index', ['tab' => 'sedes']));
+});
+
+it('usa public/dist/dist cuando existen los archivos', function () {
+    $publicExe = public_path('dist/dist/BioTimeBridge.exe');
+    $publicYaml = public_path('dist/dist/config.yaml.example');
+
+    if (! is_file($publicExe) || ! is_file($publicYaml)) {
+        $this->markTestSkipped('Faltan archivos en public/dist/dist');
+    }
+
+    config([
+        'biotime.bridge_exe_path' => public_path('dist/dist/BioTimeBridge.exe'),
+        'biotime.bridge_config_path' => public_path('dist/dist/config.yaml.example'),
+    ]);
+
+    $service = app(\App\Services\BioTime\BioTimeBridgePackageService::class);
+    expect($service->isAvailable())->toBeTrue();
+    expect(str_replace('\\', '/', $service->resolveExePath()))->toBe(str_replace('\\', '/', $publicExe));
 });
 
 it('exige autenticación para descargar el puente', function () {

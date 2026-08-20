@@ -1,0 +1,50 @@
+# Copiar a config.yaml y completar valores por sede.
+# Token: BioTime UI Laravel → Sedes → regenerar/copiar (Bearer / X-BioTime-Secret).
+
+laravel_base_url: "https://tudominio.com"   # sin slash final; rutas bajo /api/biotime/*
+laravel_token: "bt_REEMPLAZAR"
+# false solo en HTTPS local con cert auto-firmado. En Banahosting/produccion: true (default).
+laravel_verify_ssl: true
+# Override si el WAF del hosting bloquea el UA por defecto.
+laravel_user_agent: "BioTimeBridge/0.1 (+gimnasio)"
+
+biotime_base_url: "http://127.0.0.1:8085"
+biotime_user: "admin"
+biotime_password: "changeme"
+biotime_auth_mode: "auto"   # auto | jwt | token
+
+# Valores de arranque/fallback. En operacion Laravel entrega por sucursal
+# area, area denegada, company y department mediante GET /api/biotime/config.
+# Area AUTORIZADA (ej. "autorizado"). NO uses el id de "No autorizado".
+area_id: 2
+# Area denegada: BioTime 8 rechaza area=[]; deactivate asigna este id (ej. "No autorizado"=1).
+denied_area_id: 1
+# Department y company deben coincidir en BioTime (Create falla con
+# "Mismatched company pk and deparment pk" si no).
+department_id: 1
+company_id: 1
+
+sucursal_codigo: "principal"
+poll_seconds: 60
+
+# Reconciliacion periodica con GET /api/biotime/roster (0 = desactivado).
+# En modo de garantia debe permanecer activa; procesa retiros antes que altas.
+roster_reconcile_seconds: 3600
+# Push employees hacia Laravel POST /api/biotime/sync (0 = desactivado)
+sync_push_seconds: 300
+# Push catalogo areas + departments + terminals (0 = off)
+devices_push_seconds: 300
+# Push marcaciones (transactions). Recomendado 60s en sede.
+transactions_push_seconds: 60
+# Ventana hacia atras al listar transactions
+transactions_lookback_minutes: 15
+# Tras create o cambio de area: POST /personnel/api/employees/resync_to_device/
+resync_after_area: true
+
+dry_run: false
+http_timeout_seconds: 30
+max_retries: 3
+retry_backoff_seconds: 2
+
+log_dir: "logs"
+log_level: "INFO"

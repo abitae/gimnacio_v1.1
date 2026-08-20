@@ -1,0 +1,4 @@
+# No exponer config local ni logs (el ZIP se sirve solo vía Laravel autenticado).
+<FilesMatch "^(config\.yaml|config\.yaml\.bak|.*\.log)$">
+    Require all denied
+</FilesMatch>
