@@ -106,9 +106,6 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     Route::get('biotime', \App\Livewire\BioTime\BioTimeDashboard::class)
         ->middleware('permission:biotime.ver')
         ->name('biotime.index');
-    Route::get('biotime/bridge/descargar', \App\Http\Controllers\BioTimeBridgeDownloadController::class)
-        ->middleware('permission:biotime.ver')
-        ->name('biotime.bridge.download');
 
     // Punto de Venta
     Route::get('pos', \App\Livewire\POS\POSLive::class)->middleware('permission:punto_venta.ver')->name('pos.index');
