@@ -1,10 +1,13 @@
 <?php
 
+use App\Livewire\Crm\LeadDetailLive;
 use App\Models\Crm\CrmStage;
 use App\Models\Crm\Lead;
 use App\Models\User;
 use App\Services\Crm\ConvertLeadToClientService;
 use App\Services\Crm\LeadService;
+use App\Services\SucursalContext;
+use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 
 beforeEach(function () {
@@ -114,4 +117,41 @@ it('detects duplicate lead phone on create', function () {
     $duplicate = app(LeadService::class)->findDuplicateByTelefono('911222333');
 
     expect($duplicate)->not->toBeNull();
+});
+
+it('abre el detalle del lead cuando la ruta inyecta el modelo', function () {
+    $sucursal = biotimeSucursal();
+    $user = User::factory()->create();
+    $user->givePermissionTo('crm.ver');
+    $user->sucursales()->attach($sucursal->id);
+    $user->forceFill(['default_sucursal_id' => $sucursal->id])->save();
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $stage = CrmStage::create([
+        'nombre' => 'Nuevo',
+        'orden' => 1,
+        'is_default' => true,
+        'is_won' => false,
+        'is_lost' => false,
+    ]);
+
+    $lead = Lead::create([
+        'sucursal_id' => $sucursal->id,
+        'nombres' => 'Luis',
+        'apellidos' => 'Perez',
+        'telefono' => '911222334',
+        'estado' => 'nuevo',
+        'stage_id' => $stage->id,
+        'created_by' => $user->id,
+    ]);
+
+    Livewire::test(LeadDetailLive::class, ['lead' => $lead])
+        ->assertOk()
+        ->assertSet('leadId', $lead->id)
+        ->assertSee('Luis Perez');
+
+    $this->get(route('crm.leads.show', $lead))
+        ->assertOk()
+        ->assertSee('Luis Perez');
 });

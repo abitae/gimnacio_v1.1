@@ -46,10 +46,10 @@ class LeadDetailLive extends Component
         $this->activityService = $activityService;
     }
 
-    public function mount($lead)
+    public function mount(Lead|int|string $lead): void
     {
         $this->authorize('crm.ver');
-        $this->leadId = (int) $lead;
+        $this->leadId = (int) ($lead instanceof Lead ? $lead->getKey() : $lead);
     }
 
     public function getLeadProperty(): ?Lead
