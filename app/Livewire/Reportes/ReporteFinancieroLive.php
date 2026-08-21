@@ -26,7 +26,11 @@ class ReporteFinancieroLive extends Component
 
     public bool $mostrarModalTicketPago = false;
 
+    public bool $mostrarModalTicketVenta = false;
+
     public ?int $pagoIdTicket = null;
+
+    public ?int $ventaIdTicket = null;
 
     protected $paginationTheme = 'tailwind';
 
@@ -34,8 +38,8 @@ class ReporteFinancieroLive extends Component
     {
         $this->authorizeReport('financiero');
         $this->mountReporteSucursalScope();
-        $this->fechaDesde = now()->startOfMonth()->format('Y-m-d');
-        $this->fechaHasta = now()->format('Y-m-d');
+        $this->fechaDesde = now()->startOfMonth()->startOfDay()->format('Y-m-d\TH:i');
+        $this->fechaHasta = now()->setTime(23, 59)->format('Y-m-d\TH:i');
     }
 
     public function updatingFechaDesde(): void
@@ -68,6 +72,18 @@ class ReporteFinancieroLive extends Component
     {
         $this->mostrarModalTicketPago = false;
         $this->pagoIdTicket = null;
+    }
+
+    public function abrirTicketVenta(int $ventaId): void
+    {
+        $this->ventaIdTicket = $ventaId;
+        $this->mostrarModalTicketVenta = true;
+    }
+
+    public function cerrarModalTicketVenta(): void
+    {
+        $this->mostrarModalTicketVenta = false;
+        $this->ventaIdTicket = null;
     }
 
     public function render()

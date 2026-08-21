@@ -43,8 +43,8 @@ class ReporteClientesLive extends Component
     {
         $this->authorizeReport('clientes');
         $this->mountReporteSucursalScope();
-        $this->fechaDesde = now()->subYear()->format('Y-m-d');
-        $this->fechaHasta = now()->format('Y-m-d');
+        $this->fechaDesde = now()->subYear()->startOfDay()->format('Y-m-d\TH:i');
+        $this->fechaHasta = now()->format('Y-m-d\TH:i');
     }
 
     public function updatingEstadoFilter(): void

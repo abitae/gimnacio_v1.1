@@ -122,8 +122,12 @@ class ReporteModuloController extends Controller
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
         $filter = $this->reporteFilter($request);
         $data = $this->reporteService->datosReporteFinanciero($fechaDesde, $fechaHasta, $filter);
-        $data['fecha_desde'] = $fechaDesde ?: '—';
-        $data['fecha_hasta'] = $fechaHasta ?: '—';
+        $data['fecha_desde'] = $fechaDesde
+            ? \Carbon\Carbon::parse($fechaDesde)->format('d/m/Y H:i')
+            : '—';
+        $data['fecha_hasta'] = $fechaHasta
+            ? \Carbon\Carbon::parse($fechaHasta)->format('d/m/Y H:i')
+            : '—';
         $pdf = $this->pdfService->generarPdfFinanciero($data);
 
         return response($pdf, 200, [

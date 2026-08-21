@@ -1,100 +1,197 @@
-<div class="space-y-5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800/50 shadow-sm overflow-hidden">
-    <div class="bg-gradient-to-r from-amber-600 to-amber-700 dark:from-amber-800 dark:to-amber-900 px-5 py-4">
+<div class="space-y-5 rounded-xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700 dark:bg-zinc-800/50 overflow-hidden">
+    <div class="bg-gradient-to-r from-amber-600 to-amber-700 px-5 py-4 dark:from-amber-800 dark:to-amber-900">
         <div class="flex flex-wrap items-center justify-between gap-3">
             <div>
                 <h1 class="text-xl font-bold text-white">Reporte Financiero</h1>
-                <p class="text-sm text-amber-100">Ingresos por pagos y ventas</p>
+                <p class="text-sm text-amber-100">Ingresos reales por cobros y ventas del período</p>
             </div>
             <x-reportes.exportar-buttons tipo="financiero" :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :reporteModoSucursal="$reporteModoSucursal" :reporteSucursalId="$reporteSucursalId" />
         </div>
     </div>
-    <div class="px-5 space-y-4 pb-5">
-        <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+    <div class="space-y-4 px-5 pb-5">
+        <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :con-hora="true" />
         <x-reportes.sucursal-scope-panel
             :etiqueta="$reporteSucursalEtiqueta"
             :puede-elegir="$reportePuedeElegirSucursal"
             :sucursales="$reporteSucursalesDisponibles"
         />
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="rounded-xl border border-indigo-100 dark:border-indigo-900/50 bg-indigo-50/50 dark:bg-indigo-950/30 p-4">
-            <div class="text-xs font-medium text-indigo-600 dark:text-indigo-400">Total pagos</div>
-            <div class="text-lg font-bold text-indigo-700 dark:text-indigo-300">S/ {{ number_format($resumen['total_pagos'], 2) }}</div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+            <div class="rounded-xl border border-indigo-100 bg-indigo-50/50 p-4 dark:border-indigo-900/50 dark:bg-indigo-950/30">
+                <div class="text-xs font-medium text-indigo-600 dark:text-indigo-400">Cobros</div>
+                <div class="text-lg font-bold text-indigo-700 dark:text-indigo-300">S/ {{ number_format($resumen['total_pagos'], 2) }}</div>
+                <div class="text-xs text-indigo-500/80">{{ $resumen['cantidad_pagos'] }} pagos</div>
+            </div>
+            <div class="rounded-xl border border-emerald-100 bg-emerald-50/60 p-4 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                <div class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Ventas cobradas</div>
+                <div class="text-lg font-bold text-emerald-700 dark:text-emerald-300">S/ {{ number_format($resumen['ventas_cobradas'] ?? 0, 2) }}</div>
+                <div class="text-xs text-emerald-600/80">{{ $resumen['cantidad_ventas'] }} ventas</div>
+            </div>
+            <div class="rounded-xl border border-amber-100 bg-amber-50/60 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+                <div class="text-xs font-medium text-amber-600 dark:text-amber-400">Ingresos reales</div>
+                <div class="text-lg font-bold text-amber-700 dark:text-amber-300">S/ {{ number_format($resumen['ingresos_totales'], 2) }}</div>
+            </div>
+            <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <div class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Ventas facturadas</div>
+                <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100">S/ {{ number_format($resumen['total_ventas'], 2) }}</div>
+            </div>
+            <div class="rounded-xl border border-rose-100 bg-rose-50/60 p-4 dark:border-rose-900/50 dark:bg-rose-950/30">
+                <div class="text-xs font-medium text-rose-600 dark:text-rose-400">Saldo a crédito</div>
+                <div class="text-lg font-bold text-rose-700 dark:text-rose-300">S/ {{ number_format($resumen['saldo_credito'] ?? 0, 2) }}</div>
+            </div>
+            <div class="rounded-xl border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-700 dark:bg-zinc-800/50">
+                <div class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Transacciones</div>
+                <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100">{{ $resumen['cantidad_pagos'] + $resumen['cantidad_ventas'] }}</div>
+                <div class="text-xs text-zinc-500">{{ $resumen['cantidad_pagos'] }} cobros · {{ $resumen['cantidad_ventas'] }} ventas</div>
+            </div>
         </div>
-        <div class="rounded-xl border border-emerald-100 dark:border-emerald-900/50 bg-emerald-50/60 dark:bg-emerald-950/30 p-4">
-            <div class="text-xs font-medium text-emerald-600 dark:text-emerald-400">Total ventas</div>
-            <div class="text-lg font-bold text-emerald-700 dark:text-emerald-300">S/ {{ number_format($resumen['total_ventas'], 2) }}</div>
-        </div>
-        <div class="rounded-xl border border-amber-100 dark:border-amber-900/50 bg-amber-50/60 dark:bg-amber-950/30 p-4">
-            <div class="text-xs font-medium text-amber-600 dark:text-amber-400">Ingresos totales</div>
-            <div class="text-lg font-bold text-amber-700 dark:text-amber-300">S/ {{ number_format($resumen['ingresos_totales'], 2) }}</div>
-        </div>
-        <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/50 p-4">
-            <div class="text-xs font-medium text-zinc-500 dark:text-zinc-400">Transacciones</div>
-            <div class="text-lg font-bold text-zinc-900 dark:text-zinc-100">{{ $resumen['cantidad_pagos'] }} pagos / {{ $resumen['cantidad_ventas'] }} ventas</div>
-        </div>
-    </div>
 
-    <div class="grid gap-4 lg:grid-cols-2">
-        <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-            <div class="bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 px-3 py-2 font-semibold text-sm">Últimos pagos</div>
-            <div class="overflow-x-auto max-h-64 overflow-y-auto">
+        @php
+            $matriz = $resumen['matriz_tipo_metodo'] ?? [];
+            $tiposMatriz = $matriz['tipos'] ?? [];
+            $metodosMatriz = $matriz['metodos'] ?? [];
+            $celdasMatriz = $matriz['celdas'] ?? [];
+        @endphp
+        <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Totales por tipo y método de pago</h2>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">Solo dinero ingresado. El crédito pendiente no se incluye.</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-full text-sm">
+                    <thead class="bg-zinc-50 dark:bg-zinc-900">
+                        <tr>
+                            <th class="sticky left-0 z-10 bg-zinc-50 px-3 py-2 text-left text-xs font-medium dark:bg-zinc-900">Tipo</th>
+                            @foreach ($metodosMatriz as $metodo)
+                                <th class="whitespace-nowrap px-3 py-2 text-right text-xs font-medium">{{ $metodo }}</th>
+                            @endforeach
+                            <th class="px-3 py-2 text-right text-xs font-medium">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        @forelse ($tiposMatriz as $tipo)
+                            <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                                <td class="sticky left-0 bg-white px-3 py-2 text-xs font-medium text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100">{{ $tipo }}</td>
+                                @foreach ($metodosMatriz as $metodo)
+                                    @php $celda = $celdasMatriz[$tipo][$metodo] ?? null; @endphp
+                                    <td class="px-3 py-2 text-right text-xs">
+                                        @if ($celda)
+                                            S/ {{ number_format((float) $celda['total'], 2) }}
+                                            @if (! empty($celda['cantidad']))
+                                                <span class="text-zinc-400">({{ $celda['cantidad'] }})</span>
+                                            @endif
+                                        @else
+                                            <span class="text-zinc-300 dark:text-zinc-600">—</span>
+                                        @endif
+                                    </td>
+                                @endforeach
+                                <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_tipo'][$tipo] ?? 0), 2) }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="{{ max(2, count($metodosMatriz) + 2) }}" class="px-3 py-6 text-center text-zinc-500">Sin ingresos reales en el período.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                    @if (count($tiposMatriz) > 0)
+                        <tfoot class="bg-zinc-50 dark:bg-zinc-900">
+                            <tr>
+                                <td class="sticky left-0 bg-zinc-50 px-3 py-2 text-xs font-semibold dark:bg-zinc-900">Total período</td>
+                                @foreach ($metodosMatriz as $metodo)
+                                    <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_metodo'][$metodo] ?? 0), 2) }}</td>
+                                @endforeach
+                                <td class="px-3 py-2 text-right text-xs font-bold text-amber-700 dark:text-amber-400">S/ {{ number_format((float) ($matriz['total_general'] ?? 0), 2) }}</td>
+                            </tr>
+                        </tfoot>
+                    @endif
+                </table>
+            </div>
+        </div>
+
+        <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Pagos / cobros</h2>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $pagos->total() }} registro(s) en el período.</p>
+            </div>
+            <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-amber-50 dark:bg-amber-900/30">
                         <tr>
-                            <th class="px-3 py-1.5 text-left font-medium">Fecha</th>
-                            <th class="px-3 py-1.5 text-left font-medium">Cliente</th>
-                            <th class="px-3 py-1.5 text-right font-medium">Monto</th>
-                            <th class="px-3 py-1.5 text-left font-medium">Forma(s) de pago</th>
-                            <th class="px-3 py-1.5 text-right font-medium">Ticket</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Fecha</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Cliente</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Tipo</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Monto</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Forma(s) de pago</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Registrado por</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Ticket</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                         @forelse($pagos as $p)
-                            <tr>
-                                <td class="px-3 py-1.5">{{ $p->fecha_pago?->format('d/m/Y H:i') }}</td>
-                                <td class="px-3 py-1.5">{{ $p->cliente ? $p->cliente->nombres . ' ' . $p->cliente->apellidos : '-' }}</td>
-                                <td class="px-3 py-1.5 text-right">S/ {{ number_format($p->monto, 2) }}</td>
-                                <td class="px-3 py-1.5">{{ $p->metodosPagoResumen() }}</td>
-                                <td class="px-3 py-1.5 text-right">
-                                    <flux:button size="xs" variant="ghost" icon="printer" wire:click="abrirTicketPago({{ $p->id }})">Reimprimir</flux:button>
+                            <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                                <td class="px-3 py-2 text-xs">{{ $p->fecha_pago?->format('d/m/Y H:i') }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $p->cliente ? $p->cliente->nombres . ' ' . $p->cliente->apellidos : '-' }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $p->etiquetaOrigen() }}</td>
+                                <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format($p->monto, 2) }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $p->metodosPagoResumen() }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $p->registradoPor?->name ?? '—' }}</td>
+                                <td class="px-3 py-2 text-right print:hidden">
+                                    <flux:button size="xs" variant="ghost" icon="printer" wire:click="abrirTicketPago({{ $p->id }})" aria-label="Reimprimir ticket" />
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="px-3 py-2 text-center text-zinc-500">Sin pagos</td></tr>
+                            <tr><td colspan="7" class="px-3 py-6 text-center text-zinc-500">Sin pagos en el período.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             <x-reportes.table-pagination :paginator="$pagos" model="perPagePagos" />
         </div>
-        <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 overflow-hidden">
-            <div class="bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-200 px-3 py-2 font-semibold text-sm">Últimas ventas</div>
-            <div class="overflow-x-auto max-h-64 overflow-y-auto">
+
+        <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Ventas POS</h2>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $ventas->total() }} venta(s) en el período.</p>
+            </div>
+            <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-amber-50 dark:bg-amber-900/30">
                         <tr>
-                            <th class="px-3 py-1.5 text-left font-medium">Fecha</th>
-                            <th class="px-3 py-1.5 text-left font-medium">Cliente</th>
-                            <th class="px-3 py-1.5 text-right font-medium">Total</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Fecha</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Nº</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Cliente</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Total</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Método</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Estado</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Ticket</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                         @forelse($ventas as $v)
-                            <tr>
-                                <td class="px-3 py-1.5">{{ $v->fecha_venta?->format('d/m/Y H:i') }}</td>
-                                <td class="px-3 py-1.5">{{ $v->cliente ? $v->cliente->nombres . ' ' . $v->cliente->apellidos : '-' }}</td>
-                                <td class="px-3 py-1.5 text-right">S/ {{ number_format($v->total, 2) }}</td>
+                            <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                                <td class="px-3 py-2 text-xs">{{ $v->fecha_venta?->format('d/m/Y H:i') }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $v->numero_venta ?? $v->id }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $v->cliente ? $v->cliente->nombres . ' ' . $v->cliente->apellidos : ($v->nombre_comprador ?? '-') }}</td>
+                                <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format($v->total, 2) }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $v->metodosPagoResumen() }}</td>
+                                <td class="px-3 py-2 text-xs capitalize">
+                                    {{ $v->estado ?? '—' }}
+                                    @if ($v->es_credito)
+                                        <span class="text-rose-600 dark:text-rose-400">· crédito</span>
+                                    @endif
+                                </td>
+                                <td class="px-3 py-2 text-right print:hidden">
+                                    <flux:button size="xs" variant="ghost" icon="printer" wire:click="abrirTicketVenta({{ $v->id }})" aria-label="Reimprimir comprobante" />
+                                </td>
                             </tr>
                         @empty
-                            <tr><td colspan="3" class="px-3 py-2 text-center text-zinc-500">Sin ventas</td></tr>
+                            <tr><td colspan="7" class="px-3 py-6 text-center text-zinc-500">Sin ventas en el período.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
             </div>
             <x-reportes.table-pagination :paginator="$ventas" model="perPageVentas" />
         </div>
-    </div>
     </div>
 
     <flux:modal wire:model="mostrarModalTicketPago" focusable class="md:max-w-4xl">
@@ -117,6 +214,31 @@
                     class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
                     style="height: 75vh; min-height: 400px;"
                     title="Ticket PDF">
+                </iframe>
+            @endif
+        </div>
+    </flux:modal>
+
+    <flux:modal wire:model="mostrarModalTicketVenta" focusable class="md:max-w-4xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Comprobante de venta</h2>
+                <div class="flex gap-2">
+                    @if ($ventaIdTicket)
+                        <a href="{{ route('ventas.comprobante.pdf', ['venta' => $ventaIdTicket]) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestaña
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarModalTicketVenta">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($ventaIdTicket)
+                <iframe
+                    src="{{ route('ventas.comprobante.pdf', ['venta' => $ventaIdTicket]) }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="Comprobante PDF de venta">
                 </iframe>
             @endif
         </div>

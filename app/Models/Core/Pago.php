@@ -148,4 +148,24 @@ class Pago extends Model
                 .' S/ '.number_format((float) $detalle->monto, 2))
             ->implode(' + ');
     }
+
+    public function etiquetaOrigen(): string
+    {
+        if ($this->enrollment_installment_id) {
+            return 'Cuotas';
+        }
+        if ($this->client_debt_id) {
+            return 'Deudas';
+        }
+
+        $tipoMatricula = $this->clienteMatricula?->tipo;
+        if ($tipoMatricula === 'clase') {
+            return 'Clases';
+        }
+        if ($tipoMatricula === 'membresia' || $this->cliente_membresia_id) {
+            return 'Membresías';
+        }
+
+        return 'Otros cobros';
+    }
 }

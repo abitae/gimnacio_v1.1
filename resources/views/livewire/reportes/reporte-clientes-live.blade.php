@@ -10,7 +10,7 @@
     </div>
 
     <div class="px-5 space-y-4">
-        <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" />
+        <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :con-hora="true" />
         <x-reportes.sucursal-scope-panel
             :etiqueta="$reporteSucursalEtiqueta"
             :puede-elegir="$reportePuedeElegirSucursal"

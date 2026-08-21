@@ -11,9 +11,11 @@ use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\ReporteModuloService;
 use App\Services\SucursalContext;
+use Carbon\Carbon;
 
 afterEach(function () {
     app(SucursalContext::class)->clearDelegateContext();
+    Carbon::setTestNow();
 });
 
 it('builds the detailed client report summary with attendance and transfer metrics', function () {
@@ -115,4 +117,57 @@ it('builds the detailed client report summary with attendance and transfer metri
     expect($row->asistencias_count)->toBe(1);
     expect($row->inasistencias_count)->toBe(1);
     expect($row->traspasos_count)->toBe(1);
+});
+
+it('corta el reporte de clientes en la hora final indicada', function () {
+    Carbon::setTestNow(Carbon::parse('2026-08-20 19:20:00'));
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $empresa = Empresa::query()->create(['nombre' => 'Empresa hora', 'estado' => 'activa']);
+    $sucursal = Sucursal::query()->create([
+        'empresa_id' => $empresa->id,
+        'codigo' => 'RPT-HORA',
+        'nombre' => 'Sucursal hora',
+        'estado' => 'activa',
+        'es_principal' => true,
+    ]);
+    app(SucursalContext::class)->setDelegateContext($sucursal->id, $sucursal->empresa_id);
+
+    $incluido = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000011',
+        'nombres' => 'Ana',
+        'apellidos' => 'Hora',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+    $incluido->forceFill(['created_at' => now()->subHour()])->save();
+
+    $excluido = Cliente::create([
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '70000012',
+        'nombres' => 'Bruno',
+        'apellidos' => 'Hora',
+        'estado_cliente' => 'activo',
+        'created_by' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+    $excluido->forceFill(['created_at' => now()->addHour()])->save();
+
+    $data = app(ReporteModuloService::class)->datosReporteClientes(
+        null,
+        now()->startOfDay()->format('Y-m-d\TH:i'),
+        now()->format('Y-m-d\TH:i'),
+        null,
+        null,
+        null,
+        15
+    );
+
+    expect($data['clientes']->pluck('id')->all())->toBe([$incluido->id]);
+
+    Carbon::setTestNow();
 });

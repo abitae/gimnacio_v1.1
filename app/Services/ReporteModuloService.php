@@ -52,10 +52,10 @@ class ReporteModuloService
         $query = Venta::with(['cliente', 'usuario', 'caja.usuario', 'items', 'pagos.paymentMethod', 'clientDebt', 'sucursal']);
         $query = $this->applyReporteScope($query, $filter);
         if ($fechaDesde) {
-            $query->where('fecha_venta', '>=', $fechaDesde);
+            $query->where('fecha_venta', '>=', $this->inicioPeriodo($fechaDesde));
         }
         if ($fechaHasta) {
-            $query->where('fecha_venta', '<=', $fechaHasta.' 23:59:59');
+            $query->where('fecha_venta', '<=', $this->finPeriodo($fechaHasta));
         }
         $ventas = $query->orderBy('fecha_venta', 'desc')->get();
 
@@ -222,29 +222,91 @@ class ReporteModuloService
      */
     public function datosReporteFinanciero(?string $fechaDesde, ?string $fechaHasta, ?ReporteSucursalFilter $filter = null): array
     {
-        $pagosQuery = Pago::with(['cliente', 'caja', 'clienteMatricula', 'clienteMembresia', 'sucursal', 'detalles.paymentMethod']);
+        $pagosQuery = Pago::with([
+            'cliente',
+            'caja',
+            'clienteMatricula',
+            'clienteMembresia',
+            'sucursal',
+            'detalles.paymentMethod',
+            'paymentMethod',
+            'registradoPor',
+        ]);
         $pagosQuery = $this->applyReporteScope($pagosQuery, $filter);
         if ($fechaDesde) {
-            $pagosQuery->where('fecha_pago', '>=', $fechaDesde);
+            $pagosQuery->where('fecha_pago', '>=', $this->inicioPeriodo($fechaDesde));
         }
         if ($fechaHasta) {
-            $pagosQuery->where('fecha_pago', '<=', $fechaHasta.' 23:59:59');
+            $pagosQuery->where('fecha_pago', '<=', $this->finPeriodo($fechaHasta));
         }
         $pagos = $pagosQuery->orderBy('fecha_pago', 'desc')->get();
 
         $ventasData = $this->datosReporteVentas($fechaDesde, $fechaHasta, $filter);
-        $totalVentas = $ventasData['resumen']['total'];
-        $totalPagos = (float) $pagos->sum('monto');
+        $ventas = $ventasData['ventas'];
+        $totalVentas = (float) ($ventasData['resumen']['total'] ?? 0);
+        $ventasCobradas = (float) ($ventasData['resumen']['total_cobrado'] ?? 0);
+        $saldoCredito = (float) ($ventasData['resumen']['saldo_pendiente'] ?? 0);
+        $totalPagos = round((float) $pagos->sum('monto'), 2);
+
+        $filasMatriz = [];
+        foreach ($pagos as $pago) {
+            $tipo = $pago->etiquetaOrigen();
+            $detalles = $pago->detalles;
+            if ($detalles->isNotEmpty()) {
+                foreach ($detalles as $detalle) {
+                    $filasMatriz[] = [
+                        'tipo' => $tipo,
+                        'metodo_pago' => $detalle->paymentMethod?->nombre ?? $detalle->metodo_pago,
+                        'monto' => (float) $detalle->monto,
+                    ];
+                }
+            } else {
+                $filasMatriz[] = [
+                    'tipo' => $tipo,
+                    'metodo_pago' => $pago->paymentMethod?->nombre ?? $pago->metodo_pago,
+                    'monto' => (float) $pago->monto,
+                ];
+            }
+        }
+
+        foreach ($ventas as $venta) {
+            if ($venta->pagos->isNotEmpty()) {
+                foreach ($venta->pagos as $pagoVenta) {
+                    $metodo = $pagoVenta->paymentMethod?->nombre ?? $pagoVenta->metodo_pago;
+                    if (CajaCreditoHelper::esMetodoPagoCredito($metodo)) {
+                        continue;
+                    }
+                    $filasMatriz[] = [
+                        'tipo' => 'Venta POS',
+                        'metodo_pago' => $metodo,
+                        'monto' => (float) $pagoVenta->monto,
+                    ];
+                }
+            } elseif (! CajaCreditoHelper::esMetodoPagoCredito($venta->metodo_pago)) {
+                $filasMatriz[] = [
+                    'tipo' => 'Venta POS',
+                    'metodo_pago' => $venta->paymentMethod?->nombre ?? $venta->metodo_pago,
+                    'monto' => $venta->montoPagadoInicial(),
+                ];
+            }
+        }
+
+        $matriz = CajaMatrizTotales::fromFilas($filasMatriz);
 
         return [
             'pagos' => $pagos,
-            'ventas' => $ventasData['ventas'],
+            'ventas' => $ventas,
             'resumen' => [
                 'total_pagos' => $totalPagos,
                 'total_ventas' => $totalVentas,
-                'ingresos_totales' => $totalPagos + $totalVentas,
+                'ventas_cobradas' => $ventasCobradas,
+                'saldo_credito' => $saldoCredito,
+                'ingresos_totales' => (float) ($matriz['total_general'] ?? 0),
                 'cantidad_pagos' => $pagos->count(),
-                'cantidad_ventas' => $ventasData['resumen']['cantidad'],
+                'cantidad_ventas' => (int) ($ventasData['resumen']['cantidad'] ?? 0),
+                'por_tipo' => $matriz['totales_tipo'],
+                'por_metodo_pago' => $matriz['totales_metodo'],
+                'matriz_tipo_metodo' => $matriz,
             ],
         ];
     }
@@ -269,10 +331,10 @@ class ReporteModuloService
             $query->where('estado_cliente', $estado);
         }
         if ($fechaDesde) {
-            $query->whereDate('created_at', '>=', $fechaDesde);
+            $query->where('created_at', '>=', $this->inicioPeriodo($fechaDesde));
         }
         if ($fechaHasta) {
-            $query->whereDate('created_at', '<=', $fechaHasta);
+            $query->where('created_at', '<=', $this->finPeriodo($fechaHasta));
         }
         if ($createdBy !== null) {
             $query->where('created_by', $createdBy);
@@ -285,8 +347,8 @@ class ReporteModuloService
 
         $hoy = Carbon::today();
         $ventanaLimite = $hoy->copy()->addDays(max($ventanaDias, 1));
-        $rangoDesde = $fechaDesde ? Carbon::parse($fechaDesde)->startOfDay() : null;
-        $rangoHasta = $fechaHasta ? Carbon::parse($fechaHasta)->endOfDay() : null;
+        $rangoDesde = $fechaDesde ? Carbon::parse($this->inicioPeriodo($fechaDesde)) : null;
+        $rangoHasta = $fechaHasta ? Carbon::parse($this->finPeriodo($fechaHasta)) : null;
 
         $membresiasLegacy = $this->applyReporteScope(ClienteMembresia::query(), $filter)
             ->with('membresia')
@@ -623,10 +685,10 @@ class ReporteModuloService
         $query = $this->applyReporteScope($query, $filter);
 
         if ($fechaDesde) {
-            $query->where('fecha_apertura', '>=', $this->inicioPeriodoCajas($fechaDesde));
+            $query->where('fecha_apertura', '>=', $this->inicioPeriodo($fechaDesde));
         }
         if ($fechaHasta) {
-            $query->where('fecha_apertura', '<=', $this->finPeriodoCajas($fechaHasta));
+            $query->where('fecha_apertura', '<=', $this->finPeriodo($fechaHasta));
         }
         if ($filter === null || $filter->isActive()) {
             $sucursalId ??= $this->sucursalContext->getSucursalId();
@@ -1037,7 +1099,7 @@ class ReporteModuloService
         ];
     }
 
-    protected function inicioPeriodoCajas(string $fecha): string
+    protected function inicioPeriodo(string $fecha): string
     {
         $inicio = Carbon::parse($fecha);
 
@@ -1048,14 +1110,14 @@ class ReporteModuloService
         return $inicio->format('Y-m-d H:i:s');
     }
 
-    protected function finPeriodoCajas(string $fecha): string
+    protected function finPeriodo(string $fecha): string
     {
         $fin = Carbon::parse($fecha);
 
         if ($this->esSoloFecha($fecha)) {
             $fin = $fin->endOfDay();
-        } elseif ($fin->second === 0 && $fin->format('H:i') === '23:59') {
-            $fin = $fin->setSecond(59);
+        } elseif ($fin->second === 0) {
+            $fin = $fin->endOfMinute();
         }
 
         return $fin->format('Y-m-d H:i:s');

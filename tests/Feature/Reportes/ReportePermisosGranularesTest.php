@@ -6,6 +6,7 @@ use App\Models\System\Empresa;
 use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\SucursalContext;
+use Carbon\Carbon;
 use Illuminate\Support\Collection;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
@@ -107,4 +108,15 @@ it('lists only trainers from active sucursal in clientes report filter', functio
             return in_array('Entrenador Sede A', $names, true)
                 && ! in_array('Entrenador Sede B', $names, true);
         });
+});
+
+it('inicia el reporte de clientes con la hora final en el momento actual', function () {
+    Carbon::setTestNow(Carbon::parse('2026-08-20 19:20:33'));
+    reporteTestUserWithSucursal(['reporte.clientes']);
+
+    Livewire::test(ReporteClientesLive::class)
+        ->assertSet('fechaDesde', '2025-08-20T00:00')
+        ->assertSet('fechaHasta', '2026-08-20T19:20');
+
+    Carbon::setTestNow();
 });
