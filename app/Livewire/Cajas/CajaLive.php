@@ -56,8 +56,6 @@ class CajaLive extends Component
 
     public bool $mostrarModalTicketVenta = false;
 
-    public bool $mostrarModalReporteEntradas = false;
-
     public ?int $pagoIdTicketCaja = null;
 
     public ?int $ventaIdTicketCaja = null;
@@ -359,22 +357,6 @@ class CajaLive extends Component
         $this->ventaDetalle = null;
     }
 
-    public function abrirModalReporteEntradas(): void
-    {
-        if (! $this->cajaActiva) {
-            $this->flashToast('error', 'Debes tener una caja abierta para ver el reporte de entradas.');
-
-            return;
-        }
-
-        $this->mostrarModalReporteEntradas = true;
-    }
-
-    public function cerrarModalReporteEntradas(): void
-    {
-        $this->mostrarModalReporteEntradas = false;
-    }
-
     public function abrirTicketPagoCaja(int $pagoId): void
     {
         $this->pagoIdTicketCaja = $pagoId;
@@ -412,15 +394,6 @@ class CajaLive extends Component
     public function getCajaActivaProperty(): ?Caja
     {
         return $this->service->obtenerCajaAbiertaPorUsuario(Auth::id());
-    }
-
-    public function getReporteEntradasTicketUrlProperty(): ?string
-    {
-        if (! $this->cajaActiva) {
-            return null;
-        }
-
-        return route('cajas.entradas-ticket.pdf', ['caja' => $this->cajaActiva->id]);
     }
 
     protected function resetFormApertura(): void

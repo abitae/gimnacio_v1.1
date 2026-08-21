@@ -2,7 +2,12 @@
 
 use App\Livewire\Cajas\CajaLive;
 use App\Models\Core\Caja;
+use App\Models\Core\CajaMovimiento;
+use App\Models\Core\Cliente;
+use App\Models\Core\Pago;
+use App\Models\Core\Venta;
 use App\Models\User;
+use App\Services\SucursalContext;
 use Livewire\Livewire;
 use Spatie\Permission\Models\Permission;
 
@@ -55,4 +60,106 @@ it('forbids caja component without permission', function () {
     $this->actingAs($user);
 
     Livewire::test(CajaLive::class)->assertForbidden();
+});
+
+it('muestra totales por tipo y metodo de pago solo de la caja abierta del usuario', function () {
+    $sucursal = biotimeSucursal('caja-live-matriz');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $otro = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
+    $otro->sucursales()->attach($sucursal->id);
+    $user->givePermissionTo('caja.ver');
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+
+    $caja = Caja::create([
+        'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    $cajaAjena = Caja::create([
+        'usuario_id' => $otro->id,
+        'sucursal_id' => $sucursal->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    $pagoMembresia = Pago::create([
+        'cliente_id' => $cliente->id,
+        'monto' => 100,
+        'fecha_pago' => now(),
+        'metodo_pago' => 'Efectivo',
+        'registrado_por' => $user->id,
+    ]);
+
+    $venta = Venta::create([
+        'caja_id' => $caja->id,
+        'cliente_id' => $cliente->id,
+        'usuario_id' => $user->id,
+        'numero_venta' => 'V-CAJA-1',
+        'fecha_venta' => now(),
+        'subtotal' => 40,
+        'descuento' => 0,
+        'total' => 40,
+        'monto_pagado' => 40,
+        'estado' => 'completada',
+        'metodo_pago' => 'Efectivo',
+    ]);
+
+    CajaMovimiento::create([
+        'caja_id' => $caja->id,
+        'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+        'tipo' => 'entrada',
+        'categoria' => CajaMovimiento::CATEGORIA_MEMBRESIA,
+        'origen_modulo' => CajaMovimiento::ORIGEN_CLIENTE_MEMBRESIAS,
+        'concepto' => 'Cobro membresía',
+        'monto' => 100,
+        'fecha_movimiento' => now(),
+        'referencia_tipo' => Pago::class,
+        'referencia_id' => $pagoMembresia->id,
+    ]);
+
+    CajaMovimiento::create([
+        'caja_id' => $caja->id,
+        'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+        'tipo' => 'entrada',
+        'categoria' => CajaMovimiento::CATEGORIA_POS,
+        'origen_modulo' => CajaMovimiento::ORIGEN_VENTAS,
+        'concepto' => 'Venta POS',
+        'monto' => 40,
+        'fecha_movimiento' => now(),
+        'referencia_tipo' => Venta::class,
+        'referencia_id' => $venta->id,
+    ]);
+
+    CajaMovimiento::create([
+        'caja_id' => $cajaAjena->id,
+        'usuario_id' => $otro->id,
+        'sucursal_id' => $sucursal->id,
+        'tipo' => 'entrada',
+        'categoria' => CajaMovimiento::CATEGORIA_MEMBRESIA,
+        'origen_modulo' => CajaMovimiento::ORIGEN_CLIENTE_MEMBRESIAS,
+        'concepto' => 'Cobro ajeno',
+        'monto' => 999,
+        'fecha_movimiento' => now(),
+    ]);
+
+    $component = Livewire::test(CajaLive::class)
+        ->assertSee('Totales por tipo y método de pago');
+
+    $matriz = $component->viewData('resumenCaja')['matriz_tipo_metodo'] ?? [];
+
+    expect($component->viewData('cajaActiva')?->id)->toBe($caja->id)
+        ->and($matriz['tipos'])->toBe(['Membresías', 'Venta POS'])
+        ->and((float) $matriz['total_general'])->toBe(140.0)
+        ->and((float) ($matriz['celdas']['Membresías']['Efectivo']['total'] ?? 0))->toBe(100.0)
+        ->and((float) ($matriz['celdas']['Venta POS']['Efectivo']['total'] ?? 0))->toBe(40.0);
 });

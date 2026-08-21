@@ -87,9 +87,14 @@ class ReporteModuloPdfService
 
     public function generarPdfCajas(array $data): string
     {
-        $esTicket = ($data['formato'] ?? null) === 'ticket';
-        $html = view($esTicket ? 'reportes.modulo.pdf-cajas-ticket' : 'reportes.modulo.pdf-cajas', $data)->render();
-        $mpdf = new Mpdf($esTicket ? $this->configTicketMpdf() : $this->configMpdf('L'));
+        $formato = (string) ($data['formato'] ?? 'reporte');
+        $vista = match ($formato) {
+            'ticket' => 'reportes.modulo.pdf-cajas-ticket',
+            'matriz' => 'reportes.modulo.pdf-cajas-matriz',
+            default => 'reportes.modulo.pdf-cajas',
+        };
+        $html = view($vista, $data)->render();
+        $mpdf = new Mpdf($formato === 'ticket' ? $this->configTicketMpdf() : $this->configMpdf('L'));
         $mpdf->WriteHTML($html);
 
         return $mpdf->Output('', 'S');

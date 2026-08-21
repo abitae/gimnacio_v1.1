@@ -3,16 +3,16 @@
 namespace App\Livewire\Reportes;
 
 use App\Livewire\Reportes\Concerns\AuthorizesReportAccess;
+use App\Livewire\Reportes\Concerns\PaginatesReportTables;
 use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\ReporteModuloService;
-use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 use Livewire\Component;
 use Livewire\WithPagination;
 
 class ReporteCajasLive extends Component
 {
     use AuthorizesReportAccess;
+    use PaginatesReportTables;
     use ScopesReporteBySucursal;
     use WithPagination;
 
@@ -26,11 +26,19 @@ class ReporteCajasLive extends Component
 
     public int $perPageMovimientos = 15;
 
+    public int $perPageUsuarios = 10;
+
+    public int $perPageVentasCredito = 10;
+
+    public int $perPageMatriz = 10;
+
     public bool $mostrarModalDetalleCaja = false;
 
     public bool $mostrarModalTicketVenta = false;
 
     public bool $mostrarModalTicketPago = false;
+
+    public bool $mostrarModalMatrizPdf = false;
 
     public ?int $cajaDetalleId = null;
 
@@ -44,23 +52,23 @@ class ReporteCajasLive extends Component
     {
         $this->authorizeReport('cajas');
         $this->mountReporteSucursalScope();
-        $this->fechaDesde = now()->startOfMonth()->format('Y-m-d');
-        $this->fechaHasta = now()->format('Y-m-d');
+        $this->fechaDesde = now()->startOfDay()->format('Y-m-d\TH:i');
+        $this->fechaHasta = now()->setTime(23, 59)->format('Y-m-d\TH:i');
     }
 
     public function updatingFechaDesde(): void
     {
-        $this->resetReportPages();
+        $this->resetReportePagination();
     }
 
     public function updatingFechaHasta(): void
     {
-        $this->resetReportPages();
+        $this->resetReportePagination();
     }
 
     public function updatingUsuarioId(): void
     {
-        $this->resetReportPages();
+        $this->resetReportePagination();
     }
 
     public function updatingPerPageCajas(): void
@@ -71,6 +79,21 @@ class ReporteCajasLive extends Component
     public function updatingPerPageMovimientos(): void
     {
         $this->resetPage('movimientosPage');
+    }
+
+    public function updatingPerPageUsuarios(): void
+    {
+        $this->resetPage('usuariosPage');
+    }
+
+    public function updatingPerPageVentasCredito(): void
+    {
+        $this->resetPage('ventasCreditoPage');
+    }
+
+    public function updatingPerPageMatriz(): void
+    {
+        $this->resetPage('matrizTiposPage');
     }
 
     public function abrirDetalleCaja(int $cajaId): void
@@ -109,6 +132,34 @@ class ReporteCajasLive extends Component
         $this->pagoIdTicketReporte = null;
     }
 
+    public function abrirPreviewMatrizPdf(): void
+    {
+        $this->mostrarModalMatrizPdf = true;
+    }
+
+    public function cerrarPreviewMatrizPdf(): void
+    {
+        $this->mostrarModalMatrizPdf = false;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function matrizPdfQuery(bool $inline = true): array
+    {
+        return array_filter([
+            'fecha_desde' => $this->fechaDesde ?: null,
+            'fecha_hasta' => $this->fechaHasta ?: null,
+            'usuario_id' => $this->usuarioId ?: null,
+            'reporte_modo_sucursal' => $this->reporteModoSucursal,
+            'reporte_sucursal_id' => ($this->reporteModoSucursal === 'specific' && $this->reporteSucursalId)
+                ? $this->reporteSucursalId
+                : null,
+            'seccion' => 'matriz',
+            'inline' => $inline ? 1 : null,
+        ], fn ($value) => $value !== null && $value !== '');
+    }
+
     public function render()
     {
         $service = app(ReporteModuloService::class);
@@ -121,13 +172,16 @@ class ReporteCajasLive extends Component
             $this->reporteSucursalFilter(),
         );
 
+        $matriz = $data['resumen']['matriz_tipo_metodo'] ?? [];
+
         return view('livewire.reportes.reporte-cajas-live', array_merge([
-            'cajas' => $this->paginateCollection($data['cajas'], $this->perPageCajas, 'cajasPage'),
+            'cajas' => $this->paginateReportCollection($data['cajas'], $this->perPageCajas, 'cajasPage'),
             'resumen' => $data['resumen'],
-            'matrizTipoMetodo' => $data['resumen']['matriz_tipo_metodo'] ?? [],
-            'ventasCredito' => collect($data['ventas_credito'] ?? []),
-            'porUsuario' => collect($data['resumen']['por_usuario'] ?? []),
-            'detalleMovimientos' => $this->paginateCollection($data['detalle_movimientos'], $this->perPageMovimientos, 'movimientosPage'),
+            'matrizTipoMetodo' => $matriz,
+            'tiposMatriz' => $this->paginateReportCollection($matriz['tipos'] ?? [], $this->perPageMatriz, 'matrizTiposPage'),
+            'ventasCredito' => $this->paginateReportCollection($data['ventas_credito'] ?? [], $this->perPageVentasCredito, 'ventasCreditoPage'),
+            'porUsuario' => $this->paginateReportCollection($data['resumen']['por_usuario'] ?? [], $this->perPageUsuarios, 'usuariosPage'),
+            'detalleMovimientos' => $this->paginateReportCollection($data['detalle_movimientos'], $this->perPageMovimientos, 'movimientosPage'),
             'usuarios' => \App\Models\User::query()
                 ->whereIn('id', $data['cajas']->pluck('usuario_id')->filter()->unique())
                 ->orderBy('name')
@@ -135,32 +189,14 @@ class ReporteCajasLive extends Component
         ], $this->reporteSucursalScopeViewData()));
     }
 
-    protected function resetReportPages(): void
-    {
-        $this->resetPage('cajasPage');
-        $this->resetPage('movimientosPage');
-    }
-
     protected function resetReportePagination(): void
     {
-        $this->resetReportPages();
-    }
-
-    protected function paginateCollection($items, int $perPage, string $pageName): LengthAwarePaginator
-    {
-        $collection = $items instanceof Collection ? $items->values() : collect($items)->values();
-        $page = max(1, (int) $this->getPage($pageName));
-        $perPage = max(1, $perPage);
-
-        return new LengthAwarePaginator(
-            $collection->forPage($page, $perPage)->values(),
-            $collection->count(),
-            $perPage,
-            $page,
-            [
-                'path' => request()->url(),
-                'pageName' => $pageName,
-            ]
-        );
+        $this->resetReportPages([
+            'cajasPage',
+            'movimientosPage',
+            'usuariosPage',
+            'ventasCreditoPage',
+            'matrizTiposPage',
+        ]);
     }
 }

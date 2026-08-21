@@ -206,28 +206,44 @@ class ReporteModuloController extends Controller
     public function exportarPdfCajas(Request $request): Response|RedirectResponse
     {
         $this->authorizeReporte('cajas');
-        if ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'cajas', 'pdf')) {
+        $esMatriz = $request->query('seccion') === 'matriz';
+        $esInline = $request->boolean('inline');
+        if (! $esInline && ! $esMatriz && ($redirect = $this->dispatchQueuedExportIfEnabled($request, 'cajas', 'pdf'))) {
             return $redirect;
         }
         [$fechaDesde, $fechaHasta] = $this->filtrosBasicos($request);
         $filter = $this->reporteFilter($request);
+        $usuarioId = $request->integer('usuario_id') ?: null;
         $data = $this->reporteService->datosReporteCajas(
             $fechaDesde,
             $fechaHasta,
             null,
-            $request->integer('usuario_id') ?: null,
+            $usuarioId,
             $request->integer('caja_id') ?: null,
             $filter,
         );
-        $data['fecha_desde'] = $fechaDesde ?: '—';
-        $data['fecha_hasta'] = $fechaHasta ?: '—';
-        $data['formato'] = $request->filled('caja_id') ? 'ticket' : 'reporte';
+        $data['fecha_desde'] = $fechaDesde
+            ? \Carbon\Carbon::parse($fechaDesde)->format('d/m/Y H:i')
+            : '—';
+        $data['fecha_hasta'] = $fechaHasta
+            ? \Carbon\Carbon::parse($fechaHasta)->format('d/m/Y H:i')
+            : '—';
+        $data['sucursal_etiqueta'] = $filter->etiqueta(app(SucursalContext::class));
+        $data['usuario_filtro'] = $usuarioId
+            ? (\App\Models\User::query()->whereKey($usuarioId)->value('name') ?: 'Usuario #'.$usuarioId)
+            : null;
+        $data['formato'] = $esMatriz
+            ? 'matriz'
+            : ($request->filled('caja_id') ? 'ticket' : 'reporte');
         $pdf = $this->pdfService->generarPdfCajas($data);
-        $disposition = $request->boolean('inline') ? 'inline' : 'attachment';
+        $disposition = $esInline ? 'inline' : 'attachment';
+        $nombre = $esMatriz
+            ? 'reporte_cajas_totales_metodo_pago_'.now()->format('Y-m-d_His').'.pdf'
+            : 'reporte_cajas_'.now()->format('Y-m-d_His').'.pdf';
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => $disposition.'; filename="reporte_cajas_'.now()->format('Y-m-d_His').'.pdf"',
+            'Content-Disposition' => $disposition.'; filename="'.$nombre.'"',
         ]);
     }
 

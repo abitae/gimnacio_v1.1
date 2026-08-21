@@ -69,17 +69,74 @@
         </div>
     </section>
 
+    @php
+        $matriz = $resumenCaja['matriz_tipo_metodo'] ?? [];
+        $tiposMatriz = $matriz['tipos'] ?? [];
+        $metodosMatriz = $matriz['metodos'] ?? [];
+        $celdasMatriz = $matriz['celdas'] ?? [];
+    @endphp
+    <section class="overflow-hidden rounded-3xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+        <div class="border-b border-zinc-200 bg-zinc-50 px-5 py-4 dark:border-zinc-800 dark:bg-zinc-950/60">
+            <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Totales por tipo y método de pago</h2>
+            <p class="mt-1 text-sm text-zinc-500 dark:text-zinc-400">Solo ingresos reales de tu caja abierta. Las ventas a crédito no se incluyen.</p>
+        </div>
+        @if ($cajaActiva && count($tiposMatriz) > 0)
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-full text-sm">
+                    <thead class="bg-zinc-50 dark:bg-zinc-950/40">
+                        <tr>
+                            <th class="sticky left-0 z-10 bg-zinc-50 px-4 py-2 text-left text-xs font-medium dark:bg-zinc-950/40">Tipo</th>
+                            @foreach ($metodosMatriz as $metodo)
+                                <th class="px-4 py-2 text-right text-xs font-medium whitespace-nowrap">{{ $metodo }}</th>
+                            @endforeach
+                            <th class="px-4 py-2 text-right text-xs font-medium">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-800">
+                        @foreach ($tiposMatriz as $tipo)
+                            <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                                <td class="sticky left-0 bg-white px-4 py-2 text-xs font-medium text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">{{ $tipo }}</td>
+                                @foreach ($metodosMatriz as $metodo)
+                                    @php $celda = $celdasMatriz[$tipo][$metodo] ?? null; @endphp
+                                    <td class="px-4 py-2 text-right text-xs">
+                                        @if ($celda)
+                                            S/ {{ number_format((float) $celda['total'], 2) }}
+                                            @if (! empty($celda['cantidad']))
+                                                <span class="text-zinc-400">({{ $celda['cantidad'] }})</span>
+                                            @endif
+                                        @else
+                                            <span class="text-zinc-300 dark:text-zinc-600">—</span>
+                                        @endif
+                                    </td>
+                                @endforeach
+                                <td class="px-4 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_tipo'][$tipo] ?? 0), 2) }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    <tfoot class="bg-zinc-50 dark:bg-zinc-950/40">
+                        <tr>
+                            <td class="sticky left-0 bg-zinc-50 px-4 py-2 text-xs font-semibold dark:bg-zinc-950/40">Total caja</td>
+                            @foreach ($metodosMatriz as $metodo)
+                                <td class="px-4 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_metodo'][$metodo] ?? 0), 2) }}</td>
+                            @endforeach
+                            <td class="px-4 py-2 text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) ($matriz['total_general'] ?? 0), 2) }}</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        @elseif (! $cajaActiva)
+            <p class="m-5 rounded-2xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-600">Abre tu caja para ver los totales por tipo y método de pago.</p>
+        @else
+            <p class="m-5 rounded-2xl border border-dashed border-zinc-300 p-8 text-center text-sm text-zinc-500 dark:border-zinc-600">Sin ingresos reales en esta sesión.</p>
+        @endif
+    </section>
+
     <section class="grid gap-6 lg:grid-cols-2">
         {{-- Card ENTRADAS: solo movimientos tipo entrada, pestañas por categoría --}}
         <div class="flex flex-col rounded-3xl border border-emerald-200/80 bg-white p-5 shadow-sm dark:border-emerald-900/50 dark:bg-zinc-900">
-            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-emerald-100 pb-4 dark:border-emerald-950/50">
-                <div>
-                    <h2 class="text-lg font-semibold text-emerald-900 dark:text-emerald-100">Entradas</h2>
-                    <p class="text-sm text-emerald-800/80 dark:text-emerald-300/80">S/ {{ number_format($resumenCaja['total_ingresos'] ?? 0, 2) }} total</p>
-                </div>
-                <flux:button icon="receipt-percent" variant="outline" size="sm" wire:click="abrirModalReporteEntradas" :disabled="!$cajaActiva">
-                    Reporte ticket
-                </flux:button>
+            <div class="border-b border-emerald-100 pb-4 dark:border-emerald-950/50">
+                <h2 class="text-lg font-semibold text-emerald-900 dark:text-emerald-100">Entradas</h2>
+                <p class="text-sm text-emerald-800/80 dark:text-emerald-300/80">S/ {{ number_format($resumenCaja['total_ingresos'] ?? 0, 2) }} total</p>
             </div>
             @if ($cajaActiva && $entradasPorCategoria->isNotEmpty())
                 <div class="mt-3 flex gap-1 overflow-x-auto border-b border-zinc-100 pb-2 dark:border-zinc-800 scrollbar-thin">
@@ -394,40 +451,6 @@
                 </div>
             </div>
         @endif
-    </flux:modal>
-
-    <flux:modal wire:model="mostrarModalReporteEntradas" focusable class="md:max-w-4xl">
-        <div class="flex flex-col p-4">
-            <div class="mb-3 flex items-center justify-between">
-                <div>
-                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Reporte detallado de entradas</h2>
-                    @if ($cajaActiva)
-                        <p class="text-sm text-zinc-500 dark:text-zinc-400">Caja #{{ $cajaActiva->id }} · Ticket imprimible por tipo y método de pago</p>
-                    @endif
-                </div>
-                <div class="flex gap-2">
-                    @if ($this->reporteEntradasTicketUrl)
-                        <a href="{{ $this->reporteEntradasTicketUrl }}" target="_blank" rel="noopener"
-                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
-                            Abrir en nueva pestaña
-                        </a>
-                    @endif
-                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarModalReporteEntradas">Cerrar</flux:button>
-                </div>
-            </div>
-            @if ($this->reporteEntradasTicketUrl)
-                <iframe
-                    src="{{ $this->reporteEntradasTicketUrl }}"
-                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
-                    style="height: 75vh; min-height: 400px;"
-                    title="Reporte detallado de entradas">
-                </iframe>
-            @else
-                <div class="rounded-2xl border border-dashed border-zinc-300 px-6 py-12 text-center text-sm text-zinc-500 dark:border-zinc-700 dark:text-zinc-400">
-                    No se pudo preparar el reporte de entradas.
-                </div>
-            @endif
-        </div>
     </flux:modal>
 
     <flux:modal wire:model="mostrarModalTicketVenta" focusable class="md:max-w-4xl">

@@ -176,6 +176,9 @@ class ExportReporteModuloJob implements ShouldQueue
         string $slugBase
     ): array {
         $filename = $slugBase.'.pdf';
+        if ($this->modulo === 'cajas' && ($q['seccion'] ?? '') === 'matriz') {
+            $filename = $slugBase.'_totales_metodo_pago.pdf';
+        }
         $filter = ReporteSucursalFilter::fromArray($q);
 
         $data = match ($this->modulo) {
@@ -239,9 +242,16 @@ class ExportReporteModuloJob implements ShouldQueue
                     null,
                     $filter,
                 ),
-                function (&$d) use ($fechaDesde, $fechaHasta) {
-                    $d['fecha_desde'] = $fechaDesde ?: '—';
-                    $d['fecha_hasta'] = $fechaHasta ?: '—';
+                function (&$d) use ($fechaDesde, $fechaHasta, $q) {
+                    $d['fecha_desde'] = $fechaDesde
+                        ? \Carbon\Carbon::parse($fechaDesde)->format('d/m/Y H:i')
+                        : '—';
+                    $d['fecha_hasta'] = $fechaHasta
+                        ? \Carbon\Carbon::parse($fechaHasta)->format('d/m/Y H:i')
+                        : '—';
+                    if (($q['seccion'] ?? '') === 'matriz') {
+                        $d['formato'] = 'matriz';
+                    }
                 }
             ),
             'productos-servicios' => tap(

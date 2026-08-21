@@ -96,9 +96,6 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
 
     // Cajas
     Route::get('cajas', \App\Livewire\Cajas\CajaLive::class)->middleware('permission:caja.ver')->name('cajas.index');
-    Route::get('cajas/{caja}/reporte-entradas-ticket.pdf', [\App\Http\Controllers\CajaReporteController::class, 'entradasTicketPdf'])
-        ->middleware('permission:caja.ver')
-        ->name('cajas.entradas-ticket.pdf');
 
     // Checking - Registro de Ingreso
     // Checking: acceso para cualquier usuario autenticado (recepción / operación diaria).

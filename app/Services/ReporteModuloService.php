@@ -18,6 +18,7 @@ use App\Models\Core\Venta;
 use App\Models\Core\VentaItem;
 use App\Models\User;
 use App\Support\CajaCreditoHelper;
+use App\Support\CajaMatrizTotales;
 use App\Support\SucursalScope;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder;
@@ -622,10 +623,10 @@ class ReporteModuloService
         $query = $this->applyReporteScope($query, $filter);
 
         if ($fechaDesde) {
-            $query->where('fecha_apertura', '>=', $fechaDesde);
+            $query->where('fecha_apertura', '>=', $this->inicioPeriodoCajas($fechaDesde));
         }
         if ($fechaHasta) {
-            $query->where('fecha_apertura', '<=', $fechaHasta.' 23:59:59');
+            $query->where('fecha_apertura', '<=', $this->finPeriodoCajas($fechaHasta));
         }
         if ($filter === null || $filter->isActive()) {
             $sucursalId ??= $this->sucursalContext->getSucursalId();
@@ -719,7 +720,7 @@ class ReporteModuloService
 
         $detalleMovimientos = $detalleMovimientos->sortByDesc('fecha')->values();
         $totalesPorMetodo = $this->agregarTotalesPorMetodoYTipoCaja($detalleMovimientos);
-        $matrizTipoMetodo = $this->matrizTotalesPorTipoYMetodoCaja($detalleMovimientos);
+        $matrizTipoMetodo = CajaMatrizTotales::fromMovimientos($detalleMovimientos);
         $ventasCredito = $this->ventasCreditoEnCajas($cajas, $filter);
         $resumenCredito = [
             'cantidad' => count($ventasCredito),
@@ -795,7 +796,7 @@ class ReporteModuloService
             $metodo = filled($movimiento['metodo_pago'] ?? null)
                 ? (string) $movimiento['metodo_pago']
                 : 'Sin método';
-            $tipoLabel = $this->etiquetaTipoMovimientoCaja($movimiento);
+            $tipoLabel = CajaMatrizTotales::etiquetaTipo($movimiento);
             $monto = round((float) ($movimiento['monto'] ?? 0), 2);
 
             $totales[$metodo] ??= [
@@ -826,76 +827,6 @@ class ReporteModuloService
         unset($metodoRow);
 
         return $totales;
-    }
-
-    /**
-     * @param  array<string, mixed>  $movimiento
-     */
-    protected function etiquetaTipoMovimientoCaja(array $movimiento): string
-    {
-        return match ($movimiento['categoria'] ?? null) {
-            CajaMovimiento::CATEGORIA_POS => 'Venta POS',
-            CajaMovimiento::CATEGORIA_MEMBRESIA => 'Membresías',
-            CajaMovimiento::CATEGORIA_CLASE => 'Clases',
-            CajaMovimiento::CATEGORIA_ALQUILER => 'Alquileres',
-            CajaMovimiento::CATEGORIA_CUOTA => 'Cuotas',
-            CajaMovimiento::CATEGORIA_MANUAL_INGRESO => 'Ingreso manual',
-            CajaMovimiento::CATEGORIA_MANUAL_SALIDA => 'Salida manual',
-            default => (string) ($movimiento['tipo_visual'] ?? 'Otros'),
-        };
-    }
-
-    /**
-     * Matriz ancho completo: filas = tipo de operación, columnas = método de pago.
-     *
-     * @param  \Illuminate\Support\Collection<int, array<string, mixed>>  $movimientos
-     * @return array{
-     *     tipos: list<string>,
-     *     metodos: list<string>,
-     *     celdas: array<string, array<string, array{total: float, cantidad: int}>>,
-     *     totales_tipo: array<string, float>,
-     *     totales_metodo: array<string, float>,
-     *     total_general: float
-     * }
-     */
-    protected function matrizTotalesPorTipoYMetodoCaja($movimientos): array
-    {
-        $celdas = [];
-        $totalesTipo = [];
-        $totalesMetodo = [];
-        $totalGeneral = 0.0;
-
-        foreach ($movimientos as $movimiento) {
-            if (CajaCreditoHelper::movimientoExcluirDeTotalesCaja($movimiento)) {
-                continue;
-            }
-
-            $tipo = $this->etiquetaTipoMovimientoCaja($movimiento);
-            $metodo = filled($movimiento['metodo_pago'] ?? null)
-                ? (string) $movimiento['metodo_pago']
-                : 'Sin método';
-            $monto = round((float) ($movimiento['monto'] ?? 0), 2);
-
-            $celdas[$tipo][$metodo] ??= ['total' => 0.0, 'cantidad' => 0];
-            $celdas[$tipo][$metodo]['total'] = round($celdas[$tipo][$metodo]['total'] + $monto, 2);
-            $celdas[$tipo][$metodo]['cantidad']++;
-
-            $totalesTipo[$tipo] = round(($totalesTipo[$tipo] ?? 0) + $monto, 2);
-            $totalesMetodo[$metodo] = round(($totalesMetodo[$metodo] ?? 0) + $monto, 2);
-            $totalGeneral = round($totalGeneral + $monto, 2);
-        }
-
-        arsort($totalesTipo);
-        arsort($totalesMetodo);
-
-        return [
-            'tipos' => array_keys($totalesTipo),
-            'metodos' => array_keys($totalesMetodo),
-            'celdas' => $celdas,
-            'totales_tipo' => $totalesTipo,
-            'totales_metodo' => $totalesMetodo,
-            'total_general' => $totalGeneral,
-        ];
     }
 
     /**
@@ -1104,5 +1035,34 @@ class ReporteModuloService
             'fecha_desde' => $fechaDesde,
             'fecha_hasta' => $fechaHasta,
         ];
+    }
+
+    protected function inicioPeriodoCajas(string $fecha): string
+    {
+        $inicio = Carbon::parse($fecha);
+
+        if ($this->esSoloFecha($fecha)) {
+            $inicio = $inicio->startOfDay();
+        }
+
+        return $inicio->format('Y-m-d H:i:s');
+    }
+
+    protected function finPeriodoCajas(string $fecha): string
+    {
+        $fin = Carbon::parse($fecha);
+
+        if ($this->esSoloFecha($fecha)) {
+            $fin = $fin->endOfDay();
+        } elseif ($fin->second === 0 && $fin->format('H:i') === '23:59') {
+            $fin = $fin->setSecond(59);
+        }
+
+        return $fin->format('Y-m-d H:i:s');
+    }
+
+    protected function esSoloFecha(string $fecha): bool
+    {
+        return (bool) preg_match('/^\d{4}-\d{2}-\d{2}$/', trim($fecha));
     }
 }

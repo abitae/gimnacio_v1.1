@@ -152,16 +152,14 @@ it('consolidates legacy cash names and distinguishes their operation origins', f
         ]);
     }
 
-    $data = app(CajaService::class)->obtenerReporteEntradasDetallado($caja);
-    $metodos = collect($data['resumen']['metodos']);
-    $efectivo = $metodos->firstWhere('metodo', 'Efectivo');
-    $tipos = collect($efectivo['tipos'] ?? [])->keyBy('label');
+    $resumen = app(CajaService::class)->obtenerResumenCaja($caja);
+    $movimientos = collect($resumen['movimientos']);
+    $matriz = $resumen['matriz_tipo_metodo'] ?? [];
 
-    expect($metodos)->toHaveCount(1)
-        ->and($efectivo)->not->toBeNull()
-        ->and((float) $efectivo['total'])->toBe(140.0)
-        ->and((float) $tipos['Membresia']['total'])->toBe(100.0)
-        ->and((float) $tipos['POS']['total'])->toBe(40.0);
+    expect($movimientos->pluck('metodo_pago')->unique()->values()->all())->toBe(['Efectivo'])
+        ->and((float) ($matriz['total_general'] ?? 0))->toBe(140.0)
+        ->and((float) ($matriz['celdas']['Membresías']['Efectivo']['total'] ?? 0))->toBe(100.0)
+        ->and((float) ($matriz['celdas']['Venta POS']['Efectivo']['total'] ?? 0))->toBe(40.0);
 });
 
 it('excludes credit sale debt from cash totals and lists credit sales separately', function () {
@@ -249,4 +247,102 @@ it('allows printing membership payment detail from cash report movements', funct
         ->call('cerrarTicketPago')
         ->assertSet('mostrarModalTicketPago', false)
         ->assertSet('pagoIdTicketReporte', null);
+});
+
+it('inicia el reporte de cajas en el dia actual de 00:00 a 23:59', function () {
+    Permission::findOrCreate('reporte.ver', 'web');
+    $user = User::factory()->create();
+    $user->givePermissionTo('reporte.ver');
+    $this->actingAs($user);
+
+    Livewire::test(ReporteCajasLive::class)
+        ->assertSet('fechaDesde', now()->startOfDay()->format('Y-m-d\TH:i'))
+        ->assertSet('fechaHasta', now()->setTime(23, 59)->format('Y-m-d\TH:i'));
+});
+
+it('incluye solo cajas abiertas entre las 00:00 y las 23:59 del rango', function () {
+    $sucursal = biotimeSucursal('cash-report-day-range');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $hoy = Caja::create([
+        'usuario_id' => $user->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now()->setTime(8, 30),
+        'estado' => 'abierta',
+    ]);
+
+    Caja::create([
+        'usuario_id' => $user->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now()->subDay()->setTime(10, 0),
+        'estado' => 'abierta',
+    ]);
+
+    $data = app(ReporteModuloService::class)->datosReporteCajas(
+        now()->startOfDay()->format('Y-m-d\TH:i'),
+        now()->setTime(23, 59)->format('Y-m-d\TH:i'),
+    );
+
+    expect($data['resumen']['cantidad'])->toBe(1)
+        ->and($data['cajas']->first()->id)->toBe($hoy->id);
+});
+
+it('pagina todas las tablas del reporte de cajas', function () {
+    Permission::findOrCreate('reporte.ver', 'web');
+    $user = User::factory()->create();
+    $user->givePermissionTo('reporte.ver');
+    $this->actingAs($user);
+
+    Livewire::test(ReporteCajasLive::class)
+        ->assertOk()
+        ->assertSet('perPageCajas', 10)
+        ->assertSet('perPageMovimientos', 15)
+        ->assertSet('perPageUsuarios', 10)
+        ->assertSet('perPageVentasCredito', 10)
+        ->assertSet('perPageMatriz', 10)
+        ->assertSee('Totales por tipo y método de pago')
+        ->assertSee('Resumen por usuario de caja')
+        ->assertSee('Ventas al crédito')
+        ->assertSee('Detalle de movimientos')
+        ->set('perPageCajas', 25)
+        ->assertSet('perPageCajas', 25);
+});
+
+it('abre y cierra el modal de previsualizacion pdf de la matriz de cajas', function () {
+    Permission::findOrCreate('reporte.ver', 'web');
+    $user = User::factory()->create();
+    $user->givePermissionTo('reporte.ver');
+    $this->actingAs($user);
+
+    Livewire::test(ReporteCajasLive::class)
+        ->call('abrirPreviewMatrizPdf')
+        ->assertSet('mostrarModalMatrizPdf', true)
+        ->assertSee('Descargar PDF')
+        ->call('cerrarPreviewMatrizPdf')
+        ->assertSet('mostrarModalMatrizPdf', false);
+});
+
+it('exporta a pdf la matriz de tipo y metodo de pago', function () {
+    $sucursal = biotimeSucursal('cash-report-matriz-pdf');
+    Permission::findOrCreate('reporte.ver', 'web');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
+    $user->givePermissionTo('reporte.ver');
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $response = $this->get(route('reportes.cajas.exportar.pdf', [
+        'seccion' => 'matriz',
+        'inline' => 1,
+        'fecha_desde' => now()->toDateString(),
+        'fecha_hasta' => now()->toDateString(),
+    ]));
+
+    $response->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+    expect($response->headers->get('content-disposition'))->toContain('inline')
+        ->and($response->headers->get('content-disposition'))->toContain('totales_metodo_pago');
 });

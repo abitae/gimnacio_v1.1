@@ -21,15 +21,18 @@
             :sucursales="$reporteSucursalesDisponibles"
         />
 
-        <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-3 print:hidden">
-            <flux:input type="date" size="xs" wire:model.live="fechaDesde" label="Fecha inicio" />
-            <flux:input type="date" size="xs" wire:model.live="fechaHasta" label="Fecha fin" />
-            <flux:select size="xs" wire:model.live="usuarioId" label="Usuario">
-                <option value="">Todos</option>
-                @foreach ($usuarios as $usuario)
-                    <option value="{{ $usuario->id }}">{{ $usuario->name }}</option>
-                @endforeach
-            </flux:select>
+        <div class="grid gap-3 lg:grid-cols-[1fr_auto] print:hidden">
+            <x-reportes.filtros-periodo :fechaDesde="$fechaDesde" :fechaHasta="$fechaHasta" :con-hora="true" />
+            <div class="rounded-xl border border-indigo-200/60 bg-gradient-to-br from-indigo-50/80 to-white p-4 shadow-sm dark:border-indigo-800/60 dark:from-indigo-950/30 dark:to-zinc-900/80">
+                <p class="mb-3 text-xs font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400">Usuario de caja</p>
+                <select wire:model.live="usuarioId"
+                    class="w-full min-w-52 rounded-lg border border-indigo-200 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500 dark:border-indigo-700 dark:bg-zinc-800 dark:text-zinc-100">
+                    <option value="">Todos</option>
+                    @foreach ($usuarios as $usuario)
+                        <option value="{{ $usuario->id }}">{{ $usuario->name }}</option>
+                    @endforeach
+                </select>
+            </div>
         </div>
 
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7">
@@ -66,138 +69,156 @@
 
         @php
             $matriz = $matrizTipoMetodo ?? ($resumen['matriz_tipo_metodo'] ?? []);
-            $tiposMatriz = $matriz['tipos'] ?? [];
             $metodosMatriz = $matriz['metodos'] ?? [];
             $celdasMatriz = $matriz['celdas'] ?? [];
         @endphp
 
-        @if (! empty($metodosMatriz))
-            <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-                <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+        <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="flex flex-wrap items-start justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                <div>
                     <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Totales por tipo y método de pago</h2>
-                    <p class="text-xs text-zinc-500 dark:text-zinc-400">Solo ingresos en efectivo/reales de caja. Las ventas a crédito no se incluyen.</p>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400">Solo ingresos reales de caja. Las ventas a crédito no se incluyen. El pie muestra el total del período.</p>
                 </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full min-w-full text-sm">
-                        <thead class="bg-zinc-50 dark:bg-zinc-900">
-                            <tr>
-                                <th class="px-3 py-2 text-left text-xs font-medium">Tipo</th>
-                                @foreach ($metodosMatriz as $metodo)
-                                    <th class="px-3 py-2 text-right text-xs font-medium whitespace-nowrap">{{ $metodo }}</th>
-                                @endforeach
-                                <th class="px-3 py-2 text-right text-xs font-medium">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                            @foreach ($tiposMatriz as $tipo)
-                                <tr>
-                                    <td class="px-3 py-2 text-xs font-medium text-zinc-900 dark:text-zinc-100">{{ $tipo }}</td>
-                                    @foreach ($metodosMatriz as $metodo)
-                                        @php $celda = $celdasMatriz[$tipo][$metodo] ?? null; @endphp
-                                        <td class="px-3 py-2 text-right text-xs">
-                                            @if ($celda)
-                                                S/ {{ number_format((float) $celda['total'], 2) }}
-                                                @if (! empty($celda['cantidad']))
-                                                    <span class="text-zinc-400">({{ $celda['cantidad'] }})</span>
-                                                @endif
-                                            @else
-                                                <span class="text-zinc-300 dark:text-zinc-600">—</span>
-                                            @endif
-                                        </td>
-                                    @endforeach
-                                    <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_tipo'][$tipo] ?? 0), 2) }}</td>
-                                </tr>
+                <div class="print:hidden">
+                    <flux:button type="button" size="xs" variant="ghost" icon="document-arrow-down"
+                        wire:click="abrirPreviewMatrizPdf"
+                        wire:loading.attr="disabled"
+                        wire:target="abrirPreviewMatrizPdf">
+                        Exportar PDF
+                    </flux:button>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full min-w-full text-sm">
+                    <thead class="bg-zinc-50 dark:bg-zinc-900">
+                        <tr>
+                            <th class="sticky left-0 z-10 bg-zinc-50 px-3 py-2 text-left text-xs font-medium dark:bg-zinc-900">Tipo</th>
+                            @foreach ($metodosMatriz as $metodo)
+                                <th class="px-3 py-2 text-right text-xs font-medium whitespace-nowrap">{{ $metodo }}</th>
                             @endforeach
-                        </tbody>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        @forelse ($tiposMatriz as $tipo)
+                            <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                                <td class="sticky left-0 bg-white px-3 py-2 text-xs font-medium text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100">{{ $tipo }}</td>
+                                @foreach ($metodosMatriz as $metodo)
+                                    @php $celda = $celdasMatriz[$tipo][$metodo] ?? null; @endphp
+                                    <td class="px-3 py-2 text-right text-xs">
+                                        @if ($celda)
+                                            S/ {{ number_format((float) $celda['total'], 2) }}
+                                            @if (! empty($celda['cantidad']))
+                                                <span class="text-zinc-400">({{ $celda['cantidad'] }})</span>
+                                            @endif
+                                        @else
+                                            <span class="text-zinc-300 dark:text-zinc-600">—</span>
+                                        @endif
+                                    </td>
+                                @endforeach
+                                <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_tipo'][$tipo] ?? 0), 2) }}</td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="{{ max(2, count($metodosMatriz) + 2) }}" class="px-3 py-6 text-center text-zinc-500">Sin ingresos de caja en el período.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                    @if ($tiposMatriz->total() > 0)
                         <tfoot class="bg-zinc-50 dark:bg-zinc-900">
                             <tr>
-                                <td class="px-3 py-2 text-xs font-semibold">Total</td>
+                                <td class="sticky left-0 bg-zinc-50 px-3 py-2 text-xs font-semibold dark:bg-zinc-900">Total período</td>
                                 @foreach ($metodosMatriz as $metodo)
                                     <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_metodo'][$metodo] ?? 0), 2) }}</td>
                                 @endforeach
                                 <td class="px-3 py-2 text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) ($matriz['total_general'] ?? 0), 2) }}</td>
                             </tr>
                         </tfoot>
-                    </table>
-                </div>
+                    @endif
+                </table>
             </div>
-        @endif
+            <x-reportes.table-pagination :paginator="$tiposMatriz" model="perPageMatriz" />
+        </div>
 
         <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
             <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
                 <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Resumen por usuario de caja</h2>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $porUsuario->total() }} usuario(s) en el período.</p>
             </div>
-            <table class="w-full text-sm">
-                <thead class="bg-white dark:bg-zinc-950">
-                    <tr>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Usuario</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium">Cajas</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium">Ingresos caja</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium">Salidas</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium">Ventas crédito</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium">Saldo crédito</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                    @forelse($porUsuario as $filaUsuario)
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-white dark:bg-zinc-950">
                         <tr>
-                            <td class="px-3 py-2 text-xs font-medium">{{ $filaUsuario['usuario'] ?? 'Sin usuario' }}</td>
-                            <td class="px-3 py-2 text-right text-xs">{{ $filaUsuario['cantidad_cajas'] ?? 0 }}</td>
-                            <td class="px-3 py-2 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) ($filaUsuario['total_ingresos'] ?? 0), 2) }}</td>
-                            <td class="px-3 py-2 text-right text-xs text-red-600 dark:text-red-400">S/ {{ number_format((float) ($filaUsuario['total_salidas'] ?? 0), 2) }}</td>
-                            <td class="px-3 py-2 text-right text-xs text-amber-700 dark:text-amber-400">S/ {{ number_format((float) ($filaUsuario['ventas_credito_total'] ?? 0), 2) }}</td>
-                            <td class="px-3 py-2 text-right text-xs text-amber-800 dark:text-amber-300">S/ {{ number_format((float) ($filaUsuario['saldo_credito_pendiente'] ?? 0), 2) }}</td>
-                            <td class="px-3 py-2 text-right text-xs print:hidden">
-                                <x-ui.table-actions>
-                                <flux:button type="button" size="xs" variant="ghost" icon="eye"
-                                    wire:click="$set('usuarioId', '{{ $filaUsuario['usuario_id'] ?? '' }}')"
-                                    aria-label="Ver cajas" />
-                                </x-ui.table-actions>
-                            </td>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Usuario</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Cajas</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Ingresos caja</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Salidas</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Ventas crédito</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Saldo crédito</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
                         </tr>
-                        @if (! empty($filaUsuario['cajas']) && filled($usuarioId) && (int) $usuarioId === (int) ($filaUsuario['usuario_id'] ?? 0))
-                            @foreach ($filaUsuario['cajas'] as $cajaUsuario)
-                                <tr class="bg-zinc-50/80 dark:bg-zinc-900/40">
-                                    <td class="px-3 py-1.5 pl-8 text-xs text-zinc-600 dark:text-zinc-400">Caja #{{ $cajaUsuario['caja_id'] }}</td>
-                                    <td class="px-3 py-1.5 text-right text-xs capitalize">{{ $cajaUsuario['estado'] ?? '-' }}</td>
-                                    <td class="px-3 py-1.5 text-right text-xs">S/ {{ number_format((float) ($cajaUsuario['total_ingresos'] ?? 0), 2) }}</td>
-                                    <td class="px-3 py-1.5 text-right text-xs">S/ {{ number_format((float) ($cajaUsuario['total_salidas'] ?? 0), 2) }}</td>
-                                    <td class="px-3 py-1.5 text-right text-xs" colspan="2">
-                                        {{ $cajaUsuario['fecha_apertura']?->format('d/m/Y H:i') ?? '—' }}
-                                        @if ($cajaUsuario['fecha_cierre'])
-                                            → {{ $cajaUsuario['fecha_cierre']->format('d/m/Y H:i') }}
-                                        @endif
-                                    </td>
-                                    <td class="px-3 py-1.5 text-right text-xs print:hidden">
-                                        <x-ui.table-actions>
-                                        <flux:button type="button" size="xs" variant="ghost" icon="document-text"
-                                            wire:click="abrirDetalleCaja({{ $cajaUsuario['caja_id'] }})"
-                                            aria-label="Detalle" />
-                                        </x-ui.table-actions>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        @endif
-                    @empty
-                        <tr>
-                            <td colspan="7" class="px-3 py-4 text-center text-zinc-500">Sin movimientos agrupados por usuario.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        @forelse($porUsuario as $filaUsuario)
+                            <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                                <td class="px-3 py-2 text-xs font-medium">{{ $filaUsuario['usuario'] ?? 'Sin usuario' }}</td>
+                                <td class="px-3 py-2 text-right text-xs">{{ $filaUsuario['cantidad_cajas'] ?? 0 }}</td>
+                                <td class="px-3 py-2 text-right text-xs font-semibold text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) ($filaUsuario['total_ingresos'] ?? 0), 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs text-red-600 dark:text-red-400">S/ {{ number_format((float) ($filaUsuario['total_salidas'] ?? 0), 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs text-amber-700 dark:text-amber-400">S/ {{ number_format((float) ($filaUsuario['ventas_credito_total'] ?? 0), 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs text-amber-800 dark:text-amber-300">S/ {{ number_format((float) ($filaUsuario['saldo_credito_pendiente'] ?? 0), 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs print:hidden">
+                                    <x-ui.table-actions>
+                                    <flux:button type="button" size="xs" variant="ghost" icon="eye"
+                                        wire:click="$set('usuarioId', '{{ $filaUsuario['usuario_id'] ?? '' }}')"
+                                        aria-label="Ver cajas" />
+                                    </x-ui.table-actions>
+                                </td>
+                            </tr>
+                            @if (! empty($filaUsuario['cajas']) && filled($usuarioId) && (int) $usuarioId === (int) ($filaUsuario['usuario_id'] ?? 0))
+                                @foreach ($filaUsuario['cajas'] as $cajaUsuario)
+                                    <tr class="bg-zinc-50/80 dark:bg-zinc-900/40">
+                                        <td class="px-3 py-1.5 pl-8 text-xs text-zinc-600 dark:text-zinc-400">Caja #{{ $cajaUsuario['caja_id'] }}</td>
+                                        <td class="px-3 py-1.5 text-right text-xs capitalize">{{ $cajaUsuario['estado'] ?? '-' }}</td>
+                                        <td class="px-3 py-1.5 text-right text-xs">S/ {{ number_format((float) ($cajaUsuario['total_ingresos'] ?? 0), 2) }}</td>
+                                        <td class="px-3 py-1.5 text-right text-xs">S/ {{ number_format((float) ($cajaUsuario['total_salidas'] ?? 0), 2) }}</td>
+                                        <td class="px-3 py-1.5 text-right text-xs" colspan="2">
+                                            {{ $cajaUsuario['fecha_apertura']?->format('d/m/Y H:i') ?? '—' }}
+                                            @if ($cajaUsuario['fecha_cierre'])
+                                                → {{ $cajaUsuario['fecha_cierre']->format('d/m/Y H:i') }}
+                                            @endif
+                                        </td>
+                                        <td class="px-3 py-1.5 text-right text-xs print:hidden">
+                                            <x-ui.table-actions>
+                                            <flux:button type="button" size="xs" variant="ghost" icon="document-text"
+                                                wire:click="abrirDetalleCaja({{ $cajaUsuario['caja_id'] }})"
+                                                aria-label="Detalle" />
+                                            </x-ui.table-actions>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @endif
+                        @empty
+                            <tr>
+                                <td colspan="7" class="px-3 py-6 text-center text-zinc-500">Sin movimientos agrupados por usuario.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <x-reportes.table-pagination :paginator="$porUsuario" model="perPageUsuarios" />
         </div>
 
-        @if ($ventasCredito->isNotEmpty())
-            <div class="overflow-hidden rounded-xl border border-amber-200 dark:border-amber-900/50">
-                <div class="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/40">
-                    <h2 class="text-sm font-semibold text-amber-900 dark:text-amber-100">Ventas al crédito (no suman a caja)</h2>
-                    <p class="text-xs text-amber-800/80 dark:text-amber-300/80">
-                        {{ $ventasCredito->count() }} ventas · Total S/ {{ number_format((float) ($resumen['ventas_credito']['total_ventas'] ?? 0), 2) }} ·
-                        Anticipos S/ {{ number_format((float) ($resumen['ventas_credito']['total_anticipos'] ?? 0), 2) }} ·
-                        Pendiente S/ {{ number_format((float) ($resumen['ventas_credito']['total_saldo_pendiente'] ?? 0), 2) }}
-                    </p>
-                </div>
+        <div class="overflow-hidden rounded-xl border border-amber-200 dark:border-amber-900/50">
+            <div class="border-b border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/50 dark:bg-amber-950/40">
+                <h2 class="text-sm font-semibold text-amber-900 dark:text-amber-100">Ventas al crédito (no suman a caja)</h2>
+                <p class="text-xs text-amber-800/80 dark:text-amber-300/80">
+                    {{ $ventasCredito->total() }} ventas · Total S/ {{ number_format((float) ($resumen['ventas_credito']['total_ventas'] ?? 0), 2) }} ·
+                    Anticipos S/ {{ number_format((float) ($resumen['ventas_credito']['total_anticipos'] ?? 0), 2) }} ·
+                    Pendiente S/ {{ number_format((float) ($resumen['ventas_credito']['total_saldo_pendiente'] ?? 0), 2) }}
+                </p>
+            </div>
+            <div class="overflow-x-auto">
                 <table class="w-full text-sm">
                     <thead class="bg-white dark:bg-zinc-950">
                         <tr>
@@ -212,8 +233,8 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-amber-100 dark:divide-amber-900/30">
-                        @foreach ($ventasCredito as $ventaCredito)
-                            <tr>
+                        @forelse ($ventasCredito as $ventaCredito)
+                            <tr class="hover:bg-amber-50/60 dark:hover:bg-amber-950/20">
                                 <td class="px-3 py-2 text-xs font-medium">{{ $ventaCredito['numero_venta'] }}</td>
                                 <td class="px-3 py-2 text-xs">{{ $ventaCredito['fecha']?->format('d/m/Y H:i') ?? '—' }}</td>
                                 <td class="px-3 py-2 text-xs">#{{ $ventaCredito['caja_id'] }} · {{ $ventaCredito['usuario_caja'] }}</td>
@@ -229,148 +250,158 @@
                                     </x-ui.table-actions>
                                 </td>
                             </tr>
-                        @endforeach
+                        @empty
+                            <tr>
+                                <td colspan="8" class="px-3 py-6 text-center text-zinc-500">No hay ventas al crédito en el período.</td>
+                            </tr>
+                        @endforelse
                     </tbody>
                 </table>
             </div>
-        @endif
-
-        <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
-                <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Cajas</h2>
-                <label class="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 print:hidden">
-                    Filas
-                    <select wire:model.live="perPageCajas"
-                        class="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
-                        <option value="10">10</option>
-                        <option value="15">15</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                    </select>
-                </label>
-            </div>
-            <table class="w-full text-sm">
-                <thead class="bg-zinc-50 dark:bg-zinc-900">
-                    <tr>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Caja</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Usuario</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Sucursal</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Apertura</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Cierre</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Estado</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium">Inicial</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium">Final</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                    @forelse($cajas as $c)
-                        <tr>
-                            <td class="px-3 py-2 text-xs font-semibold">#{{ $c->id }}</td>
-                            <td class="px-3 py-2 text-xs">{{ $c->usuario?->name ?? '-' }}</td>
-                            <td class="px-3 py-2 text-xs">{{ $c->sucursal?->nombre ?? '-' }}</td>
-                            <td class="px-3 py-2 text-xs">{{ $c->fecha_apertura?->format('d/m/Y H:i') }}</td>
-                            <td class="px-3 py-2 text-xs">{{ $c->fecha_cierre?->format('d/m/Y H:i') ?? '-' }}</td>
-                            <td class="px-3 py-2 text-xs capitalize">{{ $c->estado }}</td>
-                            <td class="px-3 py-2 text-right text-xs">S/ {{ number_format((float) $c->saldo_inicial, 2) }}</td>
-                            <td class="px-3 py-2 text-right text-xs">S/ {{ number_format((float) ($c->saldo_final ?? 0), 2) }}</td>
-                            <td class="px-3 py-2 text-right text-xs print:hidden">
-                                <x-ui.table-actions>
-                                <flux:button type="button" size="xs" variant="ghost" icon="eye"
-                                    wire:click="abrirDetalleCaja({{ $c->id }})"
-                                    aria-label="Detalle" />
-                                </x-ui.table-actions>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="9" class="px-3 py-4 text-center text-zinc-500">No hay cajas en el período.</td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-            @if ($cajas->hasPages())
-                <div class="border-t border-zinc-200 px-4 py-3 dark:border-zinc-700 print:hidden">
-                    {{ $cajas->links() }}
-                </div>
-            @endif
+            <x-reportes.table-pagination :paginator="$ventasCredito" model="perPageVentasCredito" />
         </div>
 
         <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
-            <div class="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
-                <div class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-                    Detalle de movimientos
-                </div>
-                <label class="flex items-center gap-2 text-xs text-zinc-600 dark:text-zinc-400 print:hidden">
-                    Filas
-                    <select wire:model.live="perPageMovimientos"
-                        class="rounded-lg border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
-                        <option value="10">10</option>
-                        <option value="15">15</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                    </select>
-                </label>
+            <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Cajas</h2>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $cajas->total() }} caja(s) en el período.</p>
             </div>
-            <table class="w-full text-sm">
-                <thead class="bg-white dark:bg-zinc-950">
-                    <tr>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Fecha</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Caja</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Usuario</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Sucursal</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Concepto</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Método</th>
-                        <th class="px-3 py-2 text-left text-xs font-medium">Operación</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium">Monto</th>
-                        <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
-                    @forelse($detalleMovimientos as $movimiento)
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-zinc-50 dark:bg-zinc-900">
                         <tr>
-                            <td class="px-3 py-2 text-xs">{{ $movimiento['fecha']?->format('d/m/Y H:i') ?? '-' }}</td>
-                            <td class="px-3 py-2 text-xs">#{{ $movimiento['caja_id'] }}</td>
-                            <td class="px-3 py-2 text-xs">{{ $movimiento['usuario_caja'] ?? $movimiento['usuario'] ?? '-' }}</td>
-                            <td class="px-3 py-2 text-xs">{{ $movimiento['sucursal_caja'] ?? $movimiento['sucursal'] ?? '-' }}</td>
-                            <td class="px-3 py-2 text-xs">{{ $movimiento['concepto'] }}</td>
-                            <td class="px-3 py-2 text-xs">{{ $movimiento['metodo_pago'] ?: '-' }}</td>
-                            <td class="px-3 py-2 text-xs">{{ $movimiento['numero_operacion'] ?: ($movimiento['referencia_label'] ?: '-') }}</td>
-                            <td class="px-3 py-2 text-right text-xs font-semibold {{ $movimiento['tipo'] === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">
-                                {{ $movimiento['tipo'] === 'entrada' ? '+' : '-' }} S/ {{ number_format((float) $movimiento['monto'], 2) }}
-                            </td>
-                            <td class="px-3 py-2 text-right text-xs print:hidden">
-                                <x-ui.table-actions>
-                                @if (! empty($movimiento['ticket_venta_id']))
-                                    <flux:button type="button" size="xs" variant="ghost" icon="printer"
-                                        wire:click="abrirTicketVenta({{ $movimiento['ticket_venta_id'] }})"
-                                        title="Ver ticket de venta"
-                                        aria-label="Detalle venta" />
-                                @elseif (! empty($movimiento['ticket_pago_id']))
-                                    <flux:button type="button" size="xs" variant="ghost" icon="printer"
-                                        wire:click="abrirTicketPago({{ $movimiento['ticket_pago_id'] }})"
-                                        title="Ver ticket de pago / membresía"
-                                        aria-label="Detalle pago" />
-                                @else
-                                    <span class="text-zinc-400">-</span>
-                                @endif
-                                </x-ui.table-actions>
-                            </td>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Caja</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Usuario</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Sucursal</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Apertura</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Cierre</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Estado</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Inicial</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Final</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
                         </tr>
-                    @empty
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        @forelse($cajas as $c)
+                            <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                                <td class="px-3 py-2 text-xs font-semibold">#{{ $c->id }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $c->usuario?->name ?? '-' }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $c->sucursal?->nombre ?? '-' }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $c->fecha_apertura?->format('d/m/Y H:i') }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $c->fecha_cierre?->format('d/m/Y H:i') ?? '-' }}</td>
+                                <td class="px-3 py-2 text-xs capitalize">{{ $c->estado }}</td>
+                                <td class="px-3 py-2 text-right text-xs">S/ {{ number_format((float) $c->saldo_inicial, 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs">S/ {{ number_format((float) ($c->saldo_final ?? 0), 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs print:hidden">
+                                    <x-ui.table-actions>
+                                    <flux:button type="button" size="xs" variant="ghost" icon="eye"
+                                        wire:click="abrirDetalleCaja({{ $c->id }})"
+                                        aria-label="Detalle" />
+                                    </x-ui.table-actions>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="9" class="px-3 py-6 text-center text-zinc-500">No hay cajas en el período.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <x-reportes.table-pagination :paginator="$cajas" model="perPageCajas" />
+        </div>
+
+        <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+            <div class="border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-zinc-700 dark:bg-zinc-900">
+                <h2 class="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Detalle de movimientos</h2>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ $detalleMovimientos->total() }} movimiento(s) en el período.</p>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-white dark:bg-zinc-950">
                         <tr>
-                            <td colspan="9" class="px-3 py-6 text-center text-zinc-500">Sin movimientos en el período.</td>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Fecha</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Caja</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Usuario</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Sucursal</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Concepto</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Método</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium">Operación</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium">Monto</th>
+                            <th class="px-3 py-2 text-right text-xs font-medium print:hidden">Acciones</th>
                         </tr>
-                    @endforelse
-                </tbody>
-            </table>
-            @if ($detalleMovimientos->hasPages())
-                <div class="border-t border-zinc-200 px-4 py-3 dark:border-zinc-700 print:hidden">
-                    {{ $detalleMovimientos->links() }}
-                </div>
-            @endif
+                    </thead>
+                    <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                        @forelse($detalleMovimientos as $movimiento)
+                            <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                                <td class="px-3 py-2 text-xs">{{ $movimiento['fecha']?->format('d/m/Y H:i') ?? '-' }}</td>
+                                <td class="px-3 py-2 text-xs">#{{ $movimiento['caja_id'] }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $movimiento['usuario_caja'] ?? $movimiento['usuario'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $movimiento['sucursal_caja'] ?? $movimiento['sucursal'] ?? '-' }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $movimiento['concepto'] }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $movimiento['metodo_pago'] ?: '-' }}</td>
+                                <td class="px-3 py-2 text-xs">{{ $movimiento['numero_operacion'] ?: ($movimiento['referencia_label'] ?: '-') }}</td>
+                                <td class="px-3 py-2 text-right text-xs font-semibold {{ $movimiento['tipo'] === 'entrada' ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400' }}">
+                                    {{ $movimiento['tipo'] === 'entrada' ? '+' : '-' }} S/ {{ number_format((float) $movimiento['monto'], 2) }}
+                                </td>
+                                <td class="px-3 py-2 text-right text-xs print:hidden">
+                                    <x-ui.table-actions>
+                                    @if (! empty($movimiento['ticket_venta_id']))
+                                        <flux:button type="button" size="xs" variant="ghost" icon="printer"
+                                            wire:click="abrirTicketVenta({{ $movimiento['ticket_venta_id'] }})"
+                                            title="Ver ticket de venta"
+                                            aria-label="Detalle venta" />
+                                    @elseif (! empty($movimiento['ticket_pago_id']))
+                                        <flux:button type="button" size="xs" variant="ghost" icon="printer"
+                                            wire:click="abrirTicketPago({{ $movimiento['ticket_pago_id'] }})"
+                                            title="Ver ticket de pago / membresía"
+                                            aria-label="Detalle pago" />
+                                    @else
+                                        <span class="text-zinc-400">-</span>
+                                    @endif
+                                    </x-ui.table-actions>
+                                </td>
+                            </tr>
+                        @empty
+                            <tr>
+                                <td colspan="9" class="px-3 py-6 text-center text-zinc-500">Sin movimientos en el período.</td>
+                            </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+            <x-reportes.table-pagination :paginator="$detalleMovimientos" model="perPageMovimientos" />
         </div>
     </div>
+
+    <flux:modal wire:model="mostrarModalMatrizPdf" focusable class="md:max-w-5xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Totales por tipo y método de pago</h2>
+                <div class="flex flex-wrap gap-2">
+                    @if ($mostrarModalMatrizPdf)
+                        <a href="{{ route('reportes.cajas.exportar.pdf', $this->matrizPdfQuery(true)) }}" target="_blank" rel="noopener"
+                            class="inline-flex items-center gap-1 rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700">
+                            Abrir en nueva pestaña
+                        </a>
+                        <a href="{{ route('reportes.cajas.exportar.pdf', $this->matrizPdfQuery(false)) }}"
+                            class="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-3 py-1.5 text-sm font-medium text-red-700 shadow-sm hover:bg-red-100 dark:border-red-800 dark:bg-red-900/20 dark:text-red-300 dark:hover:bg-red-900/30">
+                            Descargar PDF
+                        </a>
+                    @endif
+                    <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarPreviewMatrizPdf">Cerrar</flux:button>
+                </div>
+            </div>
+            @if ($mostrarModalMatrizPdf)
+                <iframe
+                    src="{{ route('reportes.cajas.exportar.pdf', $this->matrizPdfQuery(true)) }}"
+                    class="w-full rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800"
+                    style="height: 75vh; min-height: 400px;"
+                    title="PDF de totales por tipo y método de pago">
+                </iframe>
+            @endif
+        </div>
+    </flux:modal>
 
     <flux:modal wire:model="mostrarModalDetalleCaja" focusable class="md:max-w-4xl">
         <div class="flex flex-col p-4">
