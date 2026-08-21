@@ -109,14 +109,29 @@
                                         @if ($celda)
                                             S/ {{ number_format((float) $celda['total'], 2) }}
                                             @if (! empty($celda['cantidad']))
-                                                <span class="text-zinc-400">({{ $celda['cantidad'] }})</span>
+                                                <button type="button"
+                                                    wire:click="abrirDetalleMatriz(@js($tipo), @js($metodo))"
+                                                    class="ml-0.5 text-indigo-600 hover:underline dark:text-indigo-400 print:text-zinc-400 print:no-underline"
+                                                    title="Ver operaciones">
+                                                    ({{ $celda['cantidad'] }})
+                                                </button>
                                             @endif
                                         @else
                                             <span class="text-zinc-300 dark:text-zinc-600">—</span>
                                         @endif
                                     </td>
                                 @endforeach
-                                <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_tipo'][$tipo] ?? 0), 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs font-semibold">
+                                    S/ {{ number_format((float) ($matriz['totales_tipo'][$tipo] ?? 0), 2) }}
+                                    @if (! empty($matriz['cantidades_tipo'][$tipo]))
+                                        <button type="button"
+                                            wire:click="abrirDetalleMatriz(@js($tipo), null)"
+                                            class="ml-0.5 font-normal text-indigo-600 hover:underline dark:text-indigo-400 print:text-zinc-400 print:no-underline"
+                                            title="Ver operaciones del tipo">
+                                            ({{ $matriz['cantidades_tipo'][$tipo] }})
+                                        </button>
+                                    @endif
+                                </td>
                             </tr>
                         @empty
                             <tr>
@@ -129,9 +144,29 @@
                             <tr>
                                 <td class="sticky left-0 bg-zinc-50 px-3 py-2 text-xs font-semibold dark:bg-zinc-900">Total período</td>
                                 @foreach ($metodosMatriz as $metodo)
-                                    <td class="px-3 py-2 text-right text-xs font-semibold">S/ {{ number_format((float) ($matriz['totales_metodo'][$metodo] ?? 0), 2) }}</td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold">
+                                        S/ {{ number_format((float) ($matriz['totales_metodo'][$metodo] ?? 0), 2) }}
+                                        @if (! empty($matriz['cantidades_metodo'][$metodo]))
+                                            <button type="button"
+                                                wire:click="abrirDetalleMatriz(null, @js($metodo))"
+                                                class="ml-0.5 font-normal text-indigo-600 hover:underline dark:text-indigo-400 print:text-zinc-400 print:no-underline"
+                                                title="Ver operaciones del método">
+                                                ({{ $matriz['cantidades_metodo'][$metodo] }})
+                                            </button>
+                                        @endif
+                                    </td>
                                 @endforeach
-                                <td class="px-3 py-2 text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) ($matriz['total_general'] ?? 0), 2) }}</td>
+                                <td class="px-3 py-2 text-right text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                    S/ {{ number_format((float) ($matriz['total_general'] ?? 0), 2) }}
+                                    @if (! empty($matriz['cantidad_general']))
+                                        <button type="button"
+                                            wire:click="abrirDetalleMatriz(null, null)"
+                                            class="ml-0.5 font-normal text-indigo-600 hover:underline dark:text-indigo-400 print:text-zinc-400 print:no-underline"
+                                            title="Ver todas las operaciones">
+                                            ({{ $matriz['cantidad_general'] }})
+                                        </button>
+                                    @endif
+                                </td>
                             </tr>
                         </tfoot>
                     @endif
@@ -373,6 +408,73 @@
             <x-reportes.table-pagination :paginator="$detalleMovimientos" model="perPageMovimientos" />
         </div>
     </div>
+
+    <flux:modal wire:model="mostrarModalMatrizDetalle" focusable class="md:max-w-5xl">
+        <div class="flex flex-col p-4">
+            <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h2 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">Detalle de operaciones</h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ $this->matrizDetalleTitulo }} · {{ $movimientosMatrizDetalle->total() }} operación(es)</p>
+                </div>
+                <flux:button variant="ghost" size="sm" type="button" wire:click="cerrarDetalleMatriz">Cerrar</flux:button>
+            </div>
+            <div class="overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-700">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-zinc-50 dark:bg-zinc-900">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium">Fecha</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium">Caja</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium">Usuario</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium">Sucursal</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium">Concepto</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium">Método</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium">Operación</th>
+                                <th class="px-3 py-2 text-right text-xs font-medium">Monto</th>
+                                <th class="px-3 py-2 text-right text-xs font-medium">Ticket</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
+                            @forelse ($movimientosMatrizDetalle as $movimiento)
+                                <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
+                                    <td class="px-3 py-2 text-xs">{{ $movimiento['fecha']?->format('d/m/Y H:i') ?? '-' }}</td>
+                                    <td class="px-3 py-2 text-xs">#{{ $movimiento['caja_id'] ?? '-' }}</td>
+                                    <td class="px-3 py-2 text-xs">{{ $movimiento['usuario_caja'] ?? $movimiento['usuario'] ?? '-' }}</td>
+                                    <td class="px-3 py-2 text-xs">{{ $movimiento['sucursal_caja'] ?? $movimiento['sucursal'] ?? '-' }}</td>
+                                    <td class="px-3 py-2 text-xs">{{ $movimiento['concepto'] ?? '-' }}</td>
+                                    <td class="px-3 py-2 text-xs">{{ $movimiento['metodo_pago'] ?: '-' }}</td>
+                                    <td class="px-3 py-2 text-xs">{{ $movimiento['numero_operacion'] ?: ($movimiento['referencia_label'] ?: '-') }}</td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                        + S/ {{ number_format((float) ($movimiento['monto'] ?? 0), 2) }}
+                                    </td>
+                                    <td class="px-3 py-2 text-right text-xs">
+                                        @if (! empty($movimiento['ticket_venta_id']))
+                                            <flux:button type="button" size="xs" variant="ghost" icon="printer"
+                                                wire:click="abrirTicketVenta({{ $movimiento['ticket_venta_id'] }})"
+                                                title="Ver ticket de venta"
+                                                aria-label="Detalle venta" />
+                                        @elseif (! empty($movimiento['ticket_pago_id']))
+                                            <flux:button type="button" size="xs" variant="ghost" icon="printer"
+                                                wire:click="abrirTicketPago({{ $movimiento['ticket_pago_id'] }})"
+                                                title="Ver ticket de pago / membresía"
+                                                aria-label="Detalle pago" />
+                                        @else
+                                            <span class="text-zinc-400">-</span>
+                                        @endif
+                                    </td>
+                                </tr>
+                            @empty
+                                <tr>
+                                    <td colspan="9" class="px-3 py-6 text-center text-zinc-500">Sin operaciones para este filtro.</td>
+                                </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                <x-reportes.table-pagination :paginator="$movimientosMatrizDetalle" model="perPageMatrizDetalle" />
+            </div>
+        </div>
+    </flux:modal>
 
     <flux:modal wire:model="mostrarModalMatrizPdf" focusable class="md:max-w-5xl">
         <div class="flex flex-col p-4">

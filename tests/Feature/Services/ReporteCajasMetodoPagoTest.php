@@ -311,6 +311,98 @@ it('pagina todas las tablas del reporte de cajas', function () {
         ->assertSet('perPageCajas', 25);
 });
 
+it('abre el modal de detalle de la matriz con solo las operaciones de la celda', function () {
+    $sucursal = biotimeSucursal('cash-report-matriz-detalle');
+    Permission::findOrCreate('reporte.ver', 'web');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
+    $user->givePermissionTo('reporte.ver');
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+
+    $caja = Caja::create([
+        'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    $pagoMembresia = Pago::create([
+        'cliente_id' => $cliente->id,
+        'monto' => 100,
+        'fecha_pago' => now(),
+        'metodo_pago' => 'Efectivo',
+        'registrado_por' => $user->id,
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    $venta = Venta::create([
+        'caja_id' => $caja->id,
+        'cliente_id' => $cliente->id,
+        'usuario_id' => $user->id,
+        'numero_venta' => 'V-MATRIZ-DET',
+        'fecha_venta' => now(),
+        'subtotal' => 40,
+        'descuento' => 0,
+        'total' => 40,
+        'monto_pagado' => 40,
+        'estado' => 'completada',
+        'metodo_pago' => 'Efectivo',
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    CajaMovimiento::create([
+        'caja_id' => $caja->id,
+        'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+        'tipo' => 'entrada',
+        'categoria' => CajaMovimiento::CATEGORIA_MEMBRESIA,
+        'origen_modulo' => CajaMovimiento::ORIGEN_CLIENTE_MEMBRESIAS,
+        'concepto' => 'Cobro membresía matriz detalle',
+        'monto' => 100,
+        'fecha_movimiento' => now(),
+        'referencia_tipo' => Pago::class,
+        'referencia_id' => $pagoMembresia->id,
+    ]);
+
+    CajaMovimiento::create([
+        'caja_id' => $caja->id,
+        'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+        'tipo' => 'entrada',
+        'categoria' => CajaMovimiento::CATEGORIA_POS,
+        'origen_modulo' => CajaMovimiento::ORIGEN_VENTAS,
+        'concepto' => 'Venta POS matriz detalle',
+        'monto' => 40,
+        'fecha_movimiento' => now(),
+        'referencia_tipo' => Venta::class,
+        'referencia_id' => $venta->id,
+    ]);
+
+    $component = Livewire::test(ReporteCajasLive::class)
+        ->call('abrirDetalleMatriz', 'Membresías', 'Efectivo')
+        ->assertSet('mostrarModalMatrizDetalle', true)
+        ->assertSet('matrizDetalleTipo', 'Membresías')
+        ->assertSet('matrizDetalleMetodo', 'Efectivo')
+        ->assertSee('Detalle de operaciones')
+        ->assertSee('Membresías · Efectivo');
+
+    $movimientos = $component->viewData('movimientosMatrizDetalle');
+
+    expect($movimientos->total())->toBe(1)
+        ->and(collect($movimientos->items())->pluck('concepto')->all())
+        ->toBe(['Cobro membresía matriz detalle']);
+
+    $component
+        ->call('cerrarDetalleMatriz')
+        ->assertSet('mostrarModalMatrizDetalle', false)
+        ->assertSet('matrizDetalleTipo', null)
+        ->assertSet('matrizDetalleMetodo', null);
+});
+
 it('abre y cierra el modal de previsualizacion pdf de la matriz de cajas', function () {
     Permission::findOrCreate('reporte.ver', 'web');
     $user = User::factory()->create();

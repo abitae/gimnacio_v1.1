@@ -6,6 +6,7 @@ use App\Livewire\Reportes\Concerns\AuthorizesReportAccess;
 use App\Livewire\Reportes\Concerns\PaginatesReportTables;
 use App\Livewire\Reportes\Concerns\ScopesReporteBySucursal;
 use App\Services\ReporteModuloService;
+use App\Support\CajaMatrizTotales;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -32,6 +33,8 @@ class ReporteCajasLive extends Component
 
     public int $perPageMatriz = 10;
 
+    public int $perPageMatrizDetalle = 15;
+
     public bool $mostrarModalDetalleCaja = false;
 
     public bool $mostrarModalTicketVenta = false;
@@ -39,6 +42,12 @@ class ReporteCajasLive extends Component
     public bool $mostrarModalTicketPago = false;
 
     public bool $mostrarModalMatrizPdf = false;
+
+    public bool $mostrarModalMatrizDetalle = false;
+
+    public ?string $matrizDetalleTipo = null;
+
+    public ?string $matrizDetalleMetodo = null;
 
     public ?int $cajaDetalleId = null;
 
@@ -96,6 +105,11 @@ class ReporteCajasLive extends Component
         $this->resetPage('matrizTiposPage');
     }
 
+    public function updatingPerPageMatrizDetalle(): void
+    {
+        $this->resetPage('matrizDetallePage');
+    }
+
     public function abrirDetalleCaja(int $cajaId): void
     {
         $this->cajaDetalleId = $cajaId;
@@ -142,6 +156,22 @@ class ReporteCajasLive extends Component
         $this->mostrarModalMatrizPdf = false;
     }
 
+    public function abrirDetalleMatriz(?string $tipo = null, ?string $metodo = null): void
+    {
+        $this->matrizDetalleTipo = filled($tipo) ? $tipo : null;
+        $this->matrizDetalleMetodo = filled($metodo) ? $metodo : null;
+        $this->resetPage('matrizDetallePage');
+        $this->mostrarModalMatrizDetalle = true;
+    }
+
+    public function cerrarDetalleMatriz(): void
+    {
+        $this->mostrarModalMatrizDetalle = false;
+        $this->matrizDetalleTipo = null;
+        $this->matrizDetalleMetodo = null;
+        $this->resetPage('matrizDetallePage');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -160,6 +190,23 @@ class ReporteCajasLive extends Component
         ], fn ($value) => $value !== null && $value !== '');
     }
 
+    public function getMatrizDetalleTituloProperty(): string
+    {
+        if ($this->matrizDetalleTipo && $this->matrizDetalleMetodo) {
+            return $this->matrizDetalleTipo.' · '.$this->matrizDetalleMetodo;
+        }
+
+        if ($this->matrizDetalleTipo) {
+            return 'Total · '.$this->matrizDetalleTipo;
+        }
+
+        if ($this->matrizDetalleMetodo) {
+            return 'Total · '.$this->matrizDetalleMetodo;
+        }
+
+        return 'Total del período';
+    }
+
     public function render()
     {
         $service = app(ReporteModuloService::class);
@@ -173,6 +220,13 @@ class ReporteCajasLive extends Component
         );
 
         $matriz = $data['resumen']['matriz_tipo_metodo'] ?? [];
+        $movimientosMatrizDetalle = collect($data['detalle_movimientos'] ?? [])
+            ->filter(fn (array $movimiento): bool => CajaMatrizTotales::coincide(
+                $movimiento,
+                $this->matrizDetalleTipo,
+                $this->matrizDetalleMetodo,
+            ))
+            ->values();
 
         return view('livewire.reportes.reporte-cajas-live', array_merge([
             'cajas' => $this->paginateReportCollection($data['cajas'], $this->perPageCajas, 'cajasPage'),
@@ -182,6 +236,11 @@ class ReporteCajasLive extends Component
             'ventasCredito' => $this->paginateReportCollection($data['ventas_credito'] ?? [], $this->perPageVentasCredito, 'ventasCreditoPage'),
             'porUsuario' => $this->paginateReportCollection($data['resumen']['por_usuario'] ?? [], $this->perPageUsuarios, 'usuariosPage'),
             'detalleMovimientos' => $this->paginateReportCollection($data['detalle_movimientos'], $this->perPageMovimientos, 'movimientosPage'),
+            'movimientosMatrizDetalle' => $this->paginateReportCollection(
+                $movimientosMatrizDetalle,
+                $this->perPageMatrizDetalle,
+                'matrizDetallePage'
+            ),
             'usuarios' => \App\Models\User::query()
                 ->whereIn('id', $data['cajas']->pluck('usuario_id')->filter()->unique())
                 ->orderBy('name')
@@ -197,6 +256,7 @@ class ReporteCajasLive extends Component
             'usuariosPage',
             'ventasCreditoPage',
             'matrizTiposPage',
+            'matrizDetallePage',
         ]);
     }
 }
