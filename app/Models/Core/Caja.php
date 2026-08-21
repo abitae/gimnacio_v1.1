@@ -148,7 +148,30 @@ class Caja extends Model
     public function movimientosNormalizados(): array
     {
         $movimientos = $this->movimientosPeriodo()
-            ->with(['usuario', 'referencia'])
+            ->with([
+                'usuario',
+                'referencia' => function ($morphTo): void {
+                    $morphTo->morphWith([
+                        Venta::class => ['items'],
+                        VentaPago::class => ['venta.items'],
+                        Pago::class => [
+                            'clienteMatricula.membresia',
+                            'clienteMatricula.clase',
+                            'clienteMembresia.membresia',
+                        ],
+                        PagoDetalle::class => [
+                            'pago.clienteMatricula.membresia',
+                            'pago.clienteMatricula.clase',
+                            'pago.clienteMembresia.membresia',
+                        ],
+                        EnrollmentInstallment::class => [
+                            'pago.clienteMatricula.membresia',
+                            'pago.clienteMatricula.clase',
+                        ],
+                        RentalPayment::class => ['rental'],
+                    ]);
+                },
+            ])
             ->orderByDesc('fecha_movimiento')
             ->get();
 
@@ -233,8 +256,92 @@ class Caja extends Model
                         : ('Cuota '.$referencia->numero_cuota),
                     default => null,
                 },
+                'detalle_items' => self::detalleItemsDesdeReferencia($referencia, $movimiento->concepto),
             ];
         })->values()->all();
+    }
+
+    /**
+     * @return list<array{nombre: string, cantidad: int|null, subtotal: float|null}>
+     */
+    protected static function detalleItemsDesdeReferencia(mixed $referencia, ?string $conceptoFallback = null): array
+    {
+        $venta = match (true) {
+            $referencia instanceof Venta => $referencia,
+            $referencia instanceof VentaPago => $referencia->venta,
+            default => null,
+        };
+
+        if ($venta) {
+            $venta->loadMissing('items');
+            $items = $venta->items
+                ->map(fn (VentaItem $item): array => [
+                    'nombre' => (string) $item->nombre_item,
+                    'cantidad' => (int) $item->cantidad,
+                    'subtotal' => round((float) $item->subtotal, 2),
+                ])
+                ->values()
+                ->all();
+
+            if ($items !== []) {
+                return $items;
+            }
+
+            return [[
+                'nombre' => $venta->numero_venta ? 'Venta '.$venta->numero_venta : ($conceptoFallback ?: 'Venta'),
+                'cantidad' => null,
+                'subtotal' => round((float) $venta->total, 2),
+            ]];
+        }
+
+        $pago = match (true) {
+            $referencia instanceof Pago => $referencia,
+            $referencia instanceof PagoDetalle => $referencia->pago,
+            $referencia instanceof EnrollmentInstallment => $referencia->pago,
+            default => null,
+        };
+
+        if ($pago) {
+            $pago->loadMissing(['clienteMatricula.membresia', 'clienteMatricula.clase', 'clienteMembresia.membresia']);
+            $nombre = $pago->clienteMatricula?->membresia?->nombre
+                ?? $pago->clienteMatricula?->clase?->nombre
+                ?? $pago->clienteMembresia?->membresia?->nombre
+                ?? $conceptoFallback
+                ?? 'Cobro';
+
+            if ($referencia instanceof EnrollmentInstallment) {
+                $nombre = 'Cuota '.$referencia->numero_cuota.($nombre ? ' · '.$nombre : '');
+            }
+
+            return [[
+                'nombre' => (string) $nombre,
+                'cantidad' => null,
+                'subtotal' => round((float) ($referencia instanceof PagoDetalle ? $referencia->monto : $pago->monto), 2),
+            ]];
+        }
+
+        if ($referencia instanceof RentalPayment) {
+            $referencia->loadMissing('rental');
+            $nombre = $referencia->rental
+                ? 'Alquiler #'.$referencia->rental_id
+                : ($conceptoFallback ?: 'Alquiler');
+
+            return [[
+                'nombre' => (string) $nombre,
+                'cantidad' => null,
+                'subtotal' => round((float) $referencia->monto, 2),
+            ]];
+        }
+
+        if (filled($conceptoFallback)) {
+            return [[
+                'nombre' => (string) $conceptoFallback,
+                'cantidad' => null,
+                'subtotal' => null,
+            ]];
+        }
+
+        return [];
     }
 
     /**

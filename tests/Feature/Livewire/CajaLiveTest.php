@@ -163,3 +163,125 @@ it('muestra totales por tipo y metodo de pago solo de la caja abierta del usuari
         ->and((float) ($matriz['celdas']['Membresías']['Efectivo']['total'] ?? 0))->toBe(100.0)
         ->and((float) ($matriz['celdas']['Venta POS']['Efectivo']['total'] ?? 0))->toBe(40.0);
 });
+
+it('abre el modal de detalle de la matriz en caja con solo las operaciones de la celda', function () {
+    $sucursal = biotimeSucursal('caja-live-matriz-detalle');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
+    $user->givePermissionTo('caja.ver');
+    $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+
+    $caja = Caja::create([
+        'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    $pagoMembresia = Pago::create([
+        'cliente_id' => $cliente->id,
+        'monto' => 100,
+        'fecha_pago' => now(),
+        'metodo_pago' => 'Efectivo',
+        'registrado_por' => $user->id,
+    ]);
+
+    $venta = Venta::create([
+        'caja_id' => $caja->id,
+        'cliente_id' => $cliente->id,
+        'usuario_id' => $user->id,
+        'numero_venta' => 'V-CAJA-DET',
+        'fecha_venta' => now(),
+        'subtotal' => 40,
+        'descuento' => 0,
+        'total' => 40,
+        'monto_pagado' => 40,
+        'estado' => 'completada',
+        'metodo_pago' => 'Efectivo',
+    ]);
+
+    \App\Models\Core\VentaItem::create([
+        'venta_id' => $venta->id,
+        'tipo_item' => 'producto',
+        'item_id' => 1,
+        'nombre_item' => 'Proteína 1kg',
+        'cantidad' => 1,
+        'precio_unitario' => 25,
+        'descuento' => 0,
+        'subtotal' => 25,
+    ]);
+
+    \App\Models\Core\VentaItem::create([
+        'venta_id' => $venta->id,
+        'tipo_item' => 'producto',
+        'item_id' => 2,
+        'nombre_item' => 'Shaker',
+        'cantidad' => 1,
+        'precio_unitario' => 15,
+        'descuento' => 0,
+        'subtotal' => 15,
+    ]);
+
+    CajaMovimiento::create([
+        'caja_id' => $caja->id,
+        'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+        'tipo' => 'entrada',
+        'categoria' => CajaMovimiento::CATEGORIA_MEMBRESIA,
+        'origen_modulo' => CajaMovimiento::ORIGEN_CLIENTE_MEMBRESIAS,
+        'concepto' => 'Cobro membresía caja detalle',
+        'monto' => 100,
+        'fecha_movimiento' => now(),
+        'referencia_tipo' => Pago::class,
+        'referencia_id' => $pagoMembresia->id,
+    ]);
+
+    CajaMovimiento::create([
+        'caja_id' => $caja->id,
+        'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
+        'tipo' => 'entrada',
+        'categoria' => CajaMovimiento::CATEGORIA_POS,
+        'origen_modulo' => CajaMovimiento::ORIGEN_VENTAS,
+        'concepto' => 'Venta POS caja detalle',
+        'monto' => 40,
+        'fecha_movimiento' => now(),
+        'referencia_tipo' => Venta::class,
+        'referencia_id' => $venta->id,
+    ]);
+
+    $component = Livewire::test(CajaLive::class)
+        ->call('abrirDetalleMatriz', 'Membresías', 'Efectivo')
+        ->assertSet('mostrarModalMatrizDetalle', true)
+        ->assertSet('matrizDetalleTipo', 'Membresías')
+        ->assertSet('matrizDetalleMetodo', 'Efectivo')
+        ->assertSee('Detalle de operaciones')
+        ->assertSee('Membresías · Efectivo');
+
+    $movimientos = $component->viewData('movimientosMatrizDetalle');
+
+    expect($movimientos->total())->toBe(1)
+        ->and(collect($movimientos->items())->pluck('concepto')->all())
+        ->toBe(['Cobro membresía caja detalle']);
+
+    $component
+        ->call('abrirDetalleMatriz', 'Venta POS', 'Efectivo')
+        ->assertSet('matrizDetalleTipo', 'Venta POS')
+        ->assertSee('Proteína 1kg')
+        ->assertSee('Shaker');
+
+    $posItems = collect($component->viewData('movimientosMatrizDetalle')->items())->first();
+    expect($posItems['detalle_items'] ?? [])->toHaveCount(2)
+        ->and(collect($posItems['detalle_items'])->pluck('nombre')->all())
+        ->toBe(['Proteína 1kg', 'Shaker']);
+
+    $component
+        ->call('cerrarDetalleMatriz')
+        ->assertSet('mostrarModalMatrizDetalle', false)
+        ->assertSet('matrizDetalleTipo', null)
+        ->assertSet('matrizDetalleMetodo', null);
+});

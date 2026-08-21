@@ -354,6 +354,30 @@ it('abre el modal de detalle de la matriz con solo las operaciones de la celda',
         'sucursal_id' => $sucursal->id,
     ]);
 
+    \App\Models\Core\VentaItem::create([
+        'venta_id' => $venta->id,
+        'tipo_item' => 'producto',
+        'item_id' => 1,
+        'nombre_item' => 'Proteína 1kg',
+        'cantidad' => 1,
+        'precio_unitario' => 25,
+        'descuento' => 0,
+        'subtotal' => 25,
+        'sucursal_id' => $sucursal->id,
+    ]);
+
+    \App\Models\Core\VentaItem::create([
+        'venta_id' => $venta->id,
+        'tipo_item' => 'producto',
+        'item_id' => 2,
+        'nombre_item' => 'Shaker',
+        'cantidad' => 1,
+        'precio_unitario' => 15,
+        'descuento' => 0,
+        'subtotal' => 15,
+        'sucursal_id' => $sucursal->id,
+    ]);
+
     CajaMovimiento::create([
         'caja_id' => $caja->id,
         'usuario_id' => $user->id,
@@ -395,6 +419,17 @@ it('abre el modal de detalle de la matriz con solo las operaciones de la celda',
     expect($movimientos->total())->toBe(1)
         ->and(collect($movimientos->items())->pluck('concepto')->all())
         ->toBe(['Cobro membresía matriz detalle']);
+
+    $component
+        ->call('abrirDetalleMatriz', 'Venta POS', 'Efectivo')
+        ->assertSet('matrizDetalleTipo', 'Venta POS')
+        ->assertSee('Proteína 1kg')
+        ->assertSee('Shaker');
+
+    $posItems = collect($component->viewData('movimientosMatrizDetalle')->items())->first();
+    expect($posItems['detalle_items'] ?? [])->toHaveCount(2)
+        ->and(collect($posItems['detalle_items'])->pluck('nombre')->all())
+        ->toBe(['Proteína 1kg', 'Shaker']);
 
     $component
         ->call('cerrarDetalleMatriz')

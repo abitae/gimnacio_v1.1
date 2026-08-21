@@ -10,6 +10,8 @@ use App\Models\Core\Venta;
 use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\CajaService;
+use App\Support\CajaMatrizTotales;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -55,6 +57,14 @@ class CajaLive extends Component
     public bool $mostrarModalTicketPago = false;
 
     public bool $mostrarModalTicketVenta = false;
+
+    public bool $mostrarModalMatrizDetalle = false;
+
+    public ?string $matrizDetalleTipo = null;
+
+    public ?string $matrizDetalleMetodo = null;
+
+    public int $perPageMatrizDetalle = 15;
 
     public ?int $pagoIdTicketCaja = null;
 
@@ -381,6 +391,50 @@ class CajaLive extends Component
         $this->ventaIdTicketCaja = null;
     }
 
+    public function abrirDetalleMatriz(?string $tipo = null, ?string $metodo = null): void
+    {
+        if (! $this->cajaActiva) {
+            $this->flashToast('error', 'Debes tener una caja abierta para ver el detalle.');
+
+            return;
+        }
+
+        $this->matrizDetalleTipo = filled($tipo) ? $tipo : null;
+        $this->matrizDetalleMetodo = filled($metodo) ? $metodo : null;
+        $this->resetPage('matrizDetallePage');
+        $this->mostrarModalMatrizDetalle = true;
+    }
+
+    public function cerrarDetalleMatriz(): void
+    {
+        $this->mostrarModalMatrizDetalle = false;
+        $this->matrizDetalleTipo = null;
+        $this->matrizDetalleMetodo = null;
+        $this->resetPage('matrizDetallePage');
+    }
+
+    public function updatingPerPageMatrizDetalle(): void
+    {
+        $this->resetPage('matrizDetallePage');
+    }
+
+    public function getMatrizDetalleTituloProperty(): string
+    {
+        if ($this->matrizDetalleTipo && $this->matrizDetalleMetodo) {
+            return $this->matrizDetalleTipo.' · '.$this->matrizDetalleMetodo;
+        }
+
+        if ($this->matrizDetalleTipo) {
+            return 'Total · '.$this->matrizDetalleTipo;
+        }
+
+        if ($this->matrizDetalleMetodo) {
+            return 'Total · '.$this->matrizDetalleMetodo;
+        }
+
+        return 'Total de la caja';
+    }
+
     public function setTabEntrada(string $categoria): void
     {
         $this->tabEntradaCategoria = $categoria;
@@ -473,6 +527,20 @@ class CajaLive extends Component
         $entradasPorCategoria = collect($movimientos)->where('tipo', 'entrada')->groupBy('categoria')->sortKeys();
         $salidasPorCategoria = collect($movimientos)->where('tipo', 'salida')->groupBy('categoria')->sortKeys();
 
+        $movimientosMatrizDetalle = collect($movimientos)
+            ->map(function (array $movimiento) use ($cajaActiva): array {
+                $movimiento['caja_id'] ??= $cajaActiva?->id;
+                $movimiento['usuario_caja'] ??= $cajaActiva?->usuario?->name ?? $movimiento['usuario'] ?? null;
+
+                return $movimiento;
+            })
+            ->filter(fn (array $movimiento): bool => CajaMatrizTotales::coincide(
+                $movimiento,
+                $this->matrizDetalleTipo,
+                $this->matrizDetalleMetodo,
+            ))
+            ->values();
+
         $tabEntradaActiva = $entradasPorCategoria->isNotEmpty()
             ? ($entradasPorCategoria->has($this->tabEntradaCategoria)
                 ? $this->tabEntradaCategoria
@@ -500,6 +568,25 @@ class CajaLive extends Component
             'tabSalidaActiva' => $tabSalidaActiva,
             'usuariosCaja' => $usuariosCaja,
             'sucursalesFiltro' => $sucursalesFiltro,
+            'movimientosMatrizDetalle' => $this->paginateMatrizDetalle($movimientosMatrizDetalle),
         ]);
+    }
+
+    protected function paginateMatrizDetalle($items): LengthAwarePaginator
+    {
+        $collection = collect($items)->values();
+        $page = max(1, (int) $this->getPage('matrizDetallePage'));
+        $perPage = max(1, $this->perPageMatrizDetalle);
+
+        return new LengthAwarePaginator(
+            $collection->forPage($page, $perPage)->values(),
+            $collection->count(),
+            $perPage,
+            $page,
+            [
+                'path' => request()->url(),
+                'pageName' => 'matrizDetallePage',
+            ]
+        );
     }
 }

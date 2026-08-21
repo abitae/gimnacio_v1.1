@@ -426,10 +426,8 @@
                                 <th class="px-3 py-2 text-left text-xs font-medium">Fecha</th>
                                 <th class="px-3 py-2 text-left text-xs font-medium">Caja</th>
                                 <th class="px-3 py-2 text-left text-xs font-medium">Usuario</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium">Sucursal</th>
                                 <th class="px-3 py-2 text-left text-xs font-medium">Concepto</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium">Método</th>
-                                <th class="px-3 py-2 text-left text-xs font-medium">Operación</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium">Detalle</th>
                                 <th class="px-3 py-2 text-right text-xs font-medium">Monto</th>
                                 <th class="px-3 py-2 text-right text-xs font-medium">Ticket</th>
                             </tr>
@@ -437,14 +435,31 @@
                         <tbody class="divide-y divide-zinc-200 dark:divide-zinc-700">
                             @forelse ($movimientosMatrizDetalle as $movimiento)
                                 <tr class="hover:bg-zinc-50 dark:hover:bg-zinc-800/40">
-                                    <td class="px-3 py-2 text-xs">{{ $movimiento['fecha']?->format('d/m/Y H:i') ?? '-' }}</td>
+                                    <td class="px-3 py-2 text-xs whitespace-nowrap">{{ $movimiento['fecha']?->format('d/m/Y H:i') ?? '-' }}</td>
                                     <td class="px-3 py-2 text-xs">#{{ $movimiento['caja_id'] ?? '-' }}</td>
                                     <td class="px-3 py-2 text-xs">{{ $movimiento['usuario_caja'] ?? $movimiento['usuario'] ?? '-' }}</td>
-                                    <td class="px-3 py-2 text-xs">{{ $movimiento['sucursal_caja'] ?? $movimiento['sucursal'] ?? '-' }}</td>
                                     <td class="px-3 py-2 text-xs">{{ $movimiento['concepto'] ?? '-' }}</td>
-                                    <td class="px-3 py-2 text-xs">{{ $movimiento['metodo_pago'] ?: '-' }}</td>
-                                    <td class="px-3 py-2 text-xs">{{ $movimiento['numero_operacion'] ?: ($movimiento['referencia_label'] ?: '-') }}</td>
-                                    <td class="px-3 py-2 text-right text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                    <td class="px-3 py-2 text-xs">
+                                        @php $detalleItems = $movimiento['detalle_items'] ?? []; @endphp
+                                        @if (! empty($detalleItems))
+                                            <ul class="space-y-0.5">
+                                                @foreach ($detalleItems as $item)
+                                                    <li>
+                                                        {{ $item['nombre'] ?? '-' }}
+                                                        @if (! empty($item['cantidad']))
+                                                            <span class="text-zinc-400">×{{ $item['cantidad'] }}</span>
+                                                        @endif
+                                                        @if (isset($item['subtotal']) && $item['subtotal'] !== null)
+                                                            <span class="text-zinc-500">· S/ {{ number_format((float) $item['subtotal'], 2) }}</span>
+                                                        @endif
+                                                    </li>
+                                                @endforeach
+                                            </ul>
+                                        @else
+                                            <span class="text-zinc-400">—</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-3 py-2 text-right text-xs font-semibold text-emerald-600 dark:text-emerald-400 whitespace-nowrap">
                                         + S/ {{ number_format((float) ($movimiento['monto'] ?? 0), 2) }}
                                     </td>
                                     <td class="px-3 py-2 text-right text-xs">
@@ -465,7 +480,7 @@
                                 </tr>
                             @empty
                                 <tr>
-                                    <td colspan="9" class="px-3 py-6 text-center text-zinc-500">Sin operaciones para este filtro.</td>
+                                    <td colspan="7" class="px-3 py-6 text-center text-zinc-500">Sin operaciones para este filtro.</td>
                                 </tr>
                             @endforelse
                         </tbody>
