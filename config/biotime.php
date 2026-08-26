@@ -1,6 +1,10 @@
 <?php
 
 return [
+    /*
+     * Identidad: Laravel usa numero_documento; BioTime usa emp_code (mismo valor).
+     * Altas nuevas nunca envían cliente.codigo como emp_code.
+     */
     'queue' => env('BIOTIME_SYNC_QUEUE', true),
 
     /** Intervalo del schedule de reconcile de acceso (minutos). Default 60 = cada hora. */

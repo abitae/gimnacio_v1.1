@@ -93,6 +93,46 @@ class BioTimeAccessCommandService
     }
 
     /**
+     * Alta puntual Laravel → BioTime si el cliente ya es elegible.
+     * emp_code del comando = numero_documento. No-op si sede off, sin documento o sin matrícula vigente.
+     */
+    public function syncClienteIfEligible(Cliente $cliente): ?BioTimeAccessCommand
+    {
+        $sucursalId = (int) $cliente->sucursal_id;
+        if ($sucursalId <= 0) {
+            return null;
+        }
+
+        $setting = BioTimeSucursalSetting::forSucursal($sucursalId);
+        if (! $setting->enabled) {
+            return null;
+        }
+
+        if (BioTimeEmpCode::forCliente($cliente) === null) {
+            return null;
+        }
+
+        if (! $this->eligibility->isEligible($cliente, $sucursalId)) {
+            return null;
+        }
+
+        if ($this->lastDesiredAction($sucursalId, (int) $cliente->id) === BioTimeAccessCommand::ACTION_ACTIVATE) {
+            return null;
+        }
+
+        try {
+            return $this->enqueue($sucursalId, $cliente, BioTimeAccessCommand::ACTION_ACTIVATE);
+        } catch (InvalidArgumentException $e) {
+            Log::warning('BioTime syncClienteIfEligible skipped: '.$e->getMessage(), [
+                'cliente_id' => $cliente->id,
+                'sucursal_id' => $sucursalId,
+            ]);
+
+            return null;
+        }
+    }
+
+    /**
      * Compara elegibles vs ultimo estado deseado / empleados conocidos y encola faltantes.
      *
      * @return array{activated:int, deactivated:int, deleted:int, skipped:bool}

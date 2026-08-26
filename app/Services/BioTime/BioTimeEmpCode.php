@@ -7,8 +7,10 @@ namespace App\Services\BioTime;
 use App\Models\Core\Cliente;
 
 /**
- * Identidad puente BioTime: emp_code canónico = cliente.numero_documento.
- * cliente.codigo queda como alias de transición (relojes enrolados con el código interno).
+ * Identidad puente BioTime (un valor, dos nombres):
+ * - Laravel → BioTime: se envía cliente.numero_documento; en el reloj es emp_code.
+ * - BioTime → Laravel: el sync llega con emp_code y se enlaza a numero_documento.
+ * cliente.codigo queda como alias de transición (fichas viejas); no se usa en altas nuevas.
  */
 final class BioTimeEmpCode
 {

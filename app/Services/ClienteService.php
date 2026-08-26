@@ -597,7 +597,7 @@ class ClienteService
         $validated['created_by'] = $validated['created_by'] ?? auth()->id();
         $validated['sucursal_id'] = $validated['sucursal_id'] ?? $this->sucursalContext->getFallbackSucursalId();
 
-        return DB::transaction(function () use ($validated) {
+        $cliente = DB::transaction(function () use ($validated) {
             $sucursalId = (int) $validated['sucursal_id'];
             if ($sucursalId <= 0) {
                 throw new \InvalidArgumentException('sucursal_id es obligatorio para crear un cliente.');
@@ -609,6 +609,18 @@ class ClienteService
 
             return Cliente::create($validated);
         });
+
+        try {
+            app(\App\Services\BioTime\BioTimeAccessCommandService::class)
+                ->syncClienteIfEligible($cliente);
+        } catch (\Throwable $e) {
+            \Illuminate\Support\Facades\Log::warning('BioTime: skip enqueue after cliente create', [
+                'cliente_id' => $cliente->id,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return $cliente;
     }
 
     /**

@@ -32,6 +32,23 @@ class ClienteMatricula extends Model
                 ?: 0);
 
             if ($sucursalId > 0) {
+                $cliente = $clienteMatricula->cliente;
+                if (! $cliente instanceof Cliente && $clienteMatricula->cliente_id) {
+                    $cliente = Cliente::query()->find((int) $clienteMatricula->cliente_id);
+                }
+                if ($cliente instanceof Cliente) {
+                    try {
+                        app(\App\Services\BioTime\BioTimeAccessCommandService::class)
+                            ->syncClienteIfEligible($cliente);
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::warning('BioTime: skip enqueue after matricula save', [
+                            'cliente_id' => $cliente->id,
+                            'matricula_id' => $clienteMatricula->id,
+                            'error' => $e->getMessage(),
+                        ]);
+                    }
+                }
+
                 \App\Jobs\BioTime\ReconcileBioTimeAccessForSucursal::dispatch($sucursalId);
             }
         });

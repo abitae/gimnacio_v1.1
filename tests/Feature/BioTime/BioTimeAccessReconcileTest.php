@@ -13,6 +13,7 @@ use App\Models\System\Empresa;
 use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\BioTime\BioTimeAccessCommandService;
+use App\Services\ClienteService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Str;
@@ -381,4 +382,99 @@ it('never deletes inactive biometric identities to free capacity', function () {
             ->where('sucursal_id', $sucursal->id)
             ->where('emp_code', 'RC-PURGE-OLD')
             ->exists())->toBeTrue();
+});
+
+it('does not enqueue biotime when creating a cliente without membership', function () {
+    $sucursal = reconcileSucursal('create-no-mem');
+    BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
+        'enabled' => true,
+        'area_biotime_id' => 2,
+    ])->save();
+
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $cliente = app(ClienteService::class)->create([
+        'sucursal_id' => $sucursal->id,
+        'tipo_documento' => 'DNI',
+        'numero_documento' => '55112233',
+        'nombres' => 'Sin',
+        'apellidos' => 'Matricula',
+        'estado_cliente' => 'inactivo',
+    ]);
+
+    expect(BioTimeAccessCommand::query()->where('cliente_id', $cliente->id)->count())->toBe(0)
+        ->and($cliente->codigo)->not->toBe('55112233');
+});
+
+it('enqueues activate with numero_documento when eligible matricula is saved', function () {
+    $sucursal = reconcileSucursal('create-mem');
+    BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
+        'enabled' => true,
+        'area_biotime_id' => 2,
+    ])->save();
+
+    $user = User::factory()->create();
+    $membresia = Membresia::factory()->create(['sucursal_id' => $sucursal->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        ...biotimeIdentity('87654321', '10099'),
+        'nombres' => 'Ana',
+        'apellidos' => 'Doc',
+    ]);
+
+    reconcileMatricula($cliente, $sucursal, $user, $membresia, fireEvents: true);
+
+    $command = BioTimeAccessCommand::query()
+        ->where('cliente_id', $cliente->id)
+        ->where('action', BioTimeAccessCommand::ACTION_ACTIVATE)
+        ->where('status', 'pending')
+        ->first();
+
+    expect($command)->not->toBeNull()
+        ->and($command->emp_code)->toBe('87654321')
+        ->and($command->emp_code)->not->toBe('10099')
+        ->and($command->ensure_create)->toBeTrue();
+});
+
+it('does not enqueue when biotime is disabled for the sucursal', function () {
+    $sucursal = reconcileSucursal('create-off');
+    BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
+        'enabled' => false,
+        'area_biotime_id' => 2,
+    ])->save();
+
+    $user = User::factory()->create();
+    $membresia = Membresia::factory()->create(['sucursal_id' => $sucursal->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        ...biotimeIdentity('99887766', '10100'),
+    ]);
+
+    reconcileMatricula($cliente, $sucursal, $user, $membresia, fireEvents: true);
+
+    expect(BioTimeAccessCommand::query()->where('cliente_id', $cliente->id)->count())->toBe(0);
+});
+
+it('does not enqueue when cliente has no numero_documento', function () {
+    $sucursal = reconcileSucursal('create-nodoc');
+    BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
+        'enabled' => true,
+        'area_biotime_id' => 2,
+    ])->save();
+
+    $user = User::factory()->create();
+    $membresia = Membresia::factory()->create(['sucursal_id' => $sucursal->id]);
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        'codigo' => '10101',
+        'numero_documento' => '   ',
+    ]);
+
+    reconcileMatricula($cliente, $sucursal, $user, $membresia, fireEvents: true);
+
+    expect(BioTimeAccessCommand::query()->where('cliente_id', $cliente->id)->count())->toBe(0);
 });

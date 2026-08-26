@@ -515,6 +515,10 @@ class BioTimeSyncService
         return $this->sucursalId;
     }
 
+    /**
+     * Sync inbound BioTime: emp_code del reloj → cliente Laravel por numero_documento.
+     * Fallback: cliente.codigo (fichas enroladas antes del cambio de identidad).
+     */
     private function findClienteByEmpCode(string $empCode, ?int $sucursalId): ?Cliente
     {
         $base = Cliente::query()->withoutGlobalScope('active_sucursal');
