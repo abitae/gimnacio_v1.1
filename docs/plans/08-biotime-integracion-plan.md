@@ -18,7 +18,7 @@
 | Gracia post-vencimiento | **0 dias** (`BioTimeAccessEligibilityService`: `fecha_fin >= hoy`) |
 | Alerta operativa | Dashboard BioTime por sede (`biotime.ver`); reconcile con `biotime.editar` |
 | Bloqueo en BioTime | Area denegada / quitar area autorizada (conservar biometria; BioTime rechaza `area: []`) |
-| Identidad | `emp_code` = `cliente.codigo` (string; no el id interno) |
+| Identidad | `emp_code` = `cliente.numero_documento` (canónico); `cliente.codigo` como alias de transición |
 | Sedes | Una instalacion BioTime + un puente Python por sucursal |
 | Roster | Solo clientes de la sucursal autenticada |
 | Auth puente → Laravel | Token distinto por sede |
@@ -319,7 +319,7 @@ Objetivo: Implementar API:
 Controller dedicado (ej. BioTimeBridgeController) + Form Requests.
 commands: solo status pending de biotime_sucursal_id del token; opcional limit=100; al entregar puedes marcar processing.
 ack: solo si el comando pertenece a esa sede; acked o failed; incrementa attempts en failed; set last_heartbeat_at del setting.
-roster: clientes de esa sucursal con flag active segun regla provisional: existe matricula vigente (implementacion minima o stub que llama servicio vacio documentado — si BioTimeAccessEligibilityService aun no existe, calcula inline: cliente_matriculas tipo membresia, estado activa, fecha_inicio<=hoy, fecha_fin null o >=hoy, misma sucursal_id). emp_code = cliente.codigo.
+roster: clientes de esa sucursal con flag active segun regla provisional: existe matricula vigente (implementacion minima o stub que llama servicio vacio documentado — si BioTimeAccessEligibilityService aun no existe, calcula inline: cliente_matriculas tipo membresia, estado activa, fecha_inicio<=hoy, fecha_fin null o >=hoy, misma sucursal_id). emp_code = cliente.numero_documento.
 
 Tests Feature exhaustivos multi-sede.
 Actualizar /api/biotime/health para listar los nuevos endpoints.
@@ -405,13 +405,13 @@ GET /api/biotime/commands, POST ack, GET roster, POST /api/biotime/sync (auth Be
 
 Objetivo: Crear aplicacion puente Python en tools/biotime-bridge/ con:
 - config.yaml.example
-- loop: poll commands → aplicar en BioTime (activate=asignar area_id; deactivate=area []) buscando empleado por emp_code=cliente.codigo → ack
+- loop: poll commands → aplicar en BioTime (activate=asignar area_id; deactivate=area []) buscando empleado por emp_code=cliente.numero_documento (alias: cliente.codigo) → ack
 - reconcile periodico con roster (opcional flag)
 - push sync de employees/transactions basico reutilizando forma JSON del sync Laravel (puede empezar solo employees)
 - logging, retries con backoff, dry_run
 - README: instalar deps, Task Scheduler / NSSM en Windows, variables
 
-Emp_code es string del cliente.codigo Laravel. No WebSockets. No tocar PHP salvo documentar URLs.
+Emp_code es string del cliente.numero_documento Laravel (alias de transición: cliente.codigo). No WebSockets. No tocar PHP salvo documentar URLs.
 Requirements.txt con httpx o requests.
 No commits salvo que se pida.
 ```
@@ -513,13 +513,13 @@ X-BioTime-Secret: <webhook_secret_sede>
 
 ### Alta de cliente con acceso biometrico
 
-1. Crear/activar cliente y matricula vigente en Laravel (sucursal correcta; con **codigo** asignado).
-2. Asegurar `emp_code` = `cliente.codigo` en BioTime (recepcion crea persona con ese codigo si no existe).
+1. Crear/activar cliente y matricula vigente en Laravel (sucursal correcta; con **numero_documento** asignado).
+2. Asegurar `emp_code` = `cliente.numero_documento` en BioTime (recepcion crea persona con ese documento si no existe).
 3. Enrollar huella/cara en BioTime.
 4. Esperar reconcile/comando `activate` (o forzar "Reconciliar acceso") → area de la sede asignada.
 5. Probar marcacion en dispositivo.
 
-> Tras unificar identidad: si quedaron commands pending con `emp_code` = id numerico antiguo, fallaran en BioTime. Usa **Reconciliar acceso** para re-encolar con el codigo correcto (o marca esos failed a mano).
+> Tras unificar identidad a documento: si quedaron commands pending con `emp_code` = codigo interno, usa **Reconciliar acceso** para re-encolar con el DNI. El puente busca también el codigo antiguo (`emp_code_aliases`) para no duplicar fichas.
 
 ### Cliente vencido
 

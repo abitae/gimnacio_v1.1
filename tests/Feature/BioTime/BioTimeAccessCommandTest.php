@@ -31,14 +31,16 @@ function accessCommandSucursal(string $suffix = ''): Sucursal
 
 function accessCommandCliente(Sucursal $sucursal, User $user, ?string $codigo = null): Cliente
 {
+    $identity = $codigo ?? 'C'.Str::upper(Str::random(8));
+
     return Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => $codigo ?? 'C'.Str::upper(Str::random(8)),
+        ...biotimeIdentity($identity),
     ]);
 }
 
-it('enqueues activate with desired area and emp_code = cliente.codigo', function () {
+it('enqueues activate with desired area and emp_code = cliente.numero_documento', function () {
     $sucursal = accessCommandSucursal();
     BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
         'area_biotime_id' => 2,
@@ -64,7 +66,7 @@ it('enqueues activate with desired area and emp_code = cliente.codigo', function
         ->and($command->attempts)->toBe(0);
 });
 
-it('does not enqueue when cliente has no codigo', function () {
+it('does not enqueue when cliente has no numero_documento', function () {
     $sucursal = accessCommandSucursal('nocod');
     BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
         'area_biotime_id' => 2,
@@ -75,6 +77,7 @@ it('does not enqueue when cliente has no codigo', function () {
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
         'codigo' => null,
+        'numero_documento' => '   ',
     ]);
 
     $command = app(BioTimeAccessCommandService::class)->enqueue(
@@ -123,14 +126,41 @@ it('allows a new pending after previous was acked', function () {
 
     expect($second->id)->not->toBe($first->id)
         ->and($second->status)->toBe('pending')
-        ->and($second->emp_code)->toBe($cliente->codigo);
+        ->and($second->emp_code)->toBe($cliente->numero_documento);
 });
 
-it('creates via factory with emp_code = cliente.codigo', function () {
+it('creates via factory with emp_code = cliente.numero_documento', function () {
     $command = BioTimeAccessCommand::factory()->deactivate()->create();
     $cliente = Cliente::query()->findOrFail($command->cliente_id);
 
     expect($command->action)->toBe('deactivate')
         ->and($command->status)->toBe('pending')
-        ->and($command->emp_code)->toBe((string) $cliente->codigo);
+        ->and($command->emp_code)->toBe((string) $cliente->numero_documento);
+});
+
+it('exposes codigo as emp_code_aliases when it differs from the document', function () {
+    $sucursal = accessCommandSucursal('alias');
+    BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
+        'area_biotime_id' => 2,
+    ])->save();
+    biotimeAgentSetting($sucursal, 'alias-token');
+
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        ...biotimeIdentity('87654321', '10001'),
+    ]);
+
+    app(BioTimeAccessCommandService::class)->enqueue(
+        $sucursal,
+        $cliente,
+        BioTimeAccessCommand::ACTION_ACTIVATE
+    );
+
+    $this->getJson('/api/biotime/commands', [
+        'Authorization' => 'Bearer alias-token',
+    ])->assertOk()
+        ->assertJsonPath('data.0.emp_code', '87654321')
+        ->assertJsonPath('data.0.emp_code_aliases.0', '10001');
 });

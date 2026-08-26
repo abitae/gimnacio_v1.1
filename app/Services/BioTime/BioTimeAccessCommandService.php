@@ -22,7 +22,7 @@ class BioTimeAccessCommandService
 
     /**
      * Encola activate/deactivate/delete evitando pending identicos (misma sede+cliente+action).
-     * emp_code = cliente.codigo. Si codigo vacio: no encola (null).
+     * emp_code = cliente.numero_documento. Si documento vacio: no encola (null).
      */
     public function enqueue(Sucursal|int $sucursal, Cliente $cliente, string $action): ?BioTimeAccessCommand
     {
@@ -39,7 +39,7 @@ class BioTimeAccessCommandService
 
         $empCode = BioTimeEmpCode::forCliente($cliente);
         if ($empCode === null) {
-            Log::warning('BioTime access: skip enqueue, cliente sin codigo', [
+            Log::warning('BioTime access: skip enqueue, cliente sin numero_documento', [
                 'cliente_id' => $cliente->id,
                 'sucursal_id' => $sucursalId,
                 'action' => $action,
@@ -275,14 +275,14 @@ class BioTimeAccessCommandService
 
     private function isKnownInBioTime(Cliente $cliente, int $sucursalId): bool
     {
-        $empCode = BioTimeEmpCode::forCliente($cliente);
+        $lookupKeys = BioTimeEmpCode::lookupKeysForCliente($cliente);
 
         return BioTimeEmployee::query()
             ->where('sucursal_id', $sucursalId)
-            ->where(function ($query) use ($cliente, $empCode): void {
+            ->where(function ($query) use ($cliente, $lookupKeys): void {
                 $query->where('cliente_id', $cliente->id);
-                if ($empCode !== null) {
-                    $query->orWhere('emp_code', $empCode);
+                if ($lookupKeys !== []) {
+                    $query->orWhereIn('emp_code', $lookupKeys);
                 }
             })
             ->exists();

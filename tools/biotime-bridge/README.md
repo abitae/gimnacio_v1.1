@@ -59,11 +59,36 @@ En desarrollo: doble clic en `start-gui.bat` (usa el `.exe` si existe; si no, el
 | Una vez | Un ciclo `once` (commands / roster / sync según config) |
 | Iniciar / Detener | Loop `run` en hilo; stop cooperativo |
 | Segundo plano | Inicia (si hace falta) y **oculta la ventana**; el poll sigue activo |
+| Iniciar con Windows | Checkbox en **Operación**: atajo en la carpeta Startup del usuario (sin admin). Al iniciar sesión lanza `--autostart` |
 | Mostrar ventana | Restaura la GUI si estaba minimizada |
 | Cerrar (X) | Si está corriendo: pregunta minimizar vs detener |
 | Configuración | Editar y **guardar** `config.yaml` (URLs, token, áreas, tiempos) |
-| Pruebas | Crear / buscar / cambiar área / eliminar empleados **directo en BioTime** (sin Laravel) |
-| Log | Vista en vivo + recargar `logs/biotime-bridge.log` |
+| Pruebas | Conectividad (Laravel / BioTime / Doctor) + crear / buscar / área / eliminar. `emp_code` = **número de documento** del cliente |
+| Log | Vista en vivo, recargar archivo, **Reiniciar log** (trunca el archivo) |
+
+### Arranque con Windows (`--autostart`)
+
+Marca **Iniciar con Windows** en la pestaña Operación. Se crea:
+
+`%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\BioTimeBridge.cmd`
+
+Ese `.cmd` lanza el `.exe` (o `python -m bridge`) con `--autostart` y working directory = carpeta del puente (`config.yaml` / `logs/`).
+
+```bat
+REM Equivalente manual:
+BioTimeBridge.exe --autostart
+python -m bridge --config config.yaml --autostart
+```
+
+Secuencia de `--autostart`:
+
+1. Carga `config.yaml`
+2. **Doctor** (Laravel health + login BioTime)
+3. Si OK → inicia el loop `run` y minimiza a segundo plano
+4. Si FAIL → deja la ventana visible con un aviso (no arranca el loop)
+
+**Doble clic** en el `.exe` (sin argumentos) abre la GUI **sin** auto-run.  
+Task Scheduler / NSSM / `start-background.bat` siguen siendo la opción para 24/7 **sin sesión de usuario**.
 
 ### Segundo plano (sin GUI)
 
@@ -150,7 +175,7 @@ Auth: `Authorization: Bearer <token_sede>` (o `X-BioTime-Secret`).
 | `POST` | `/api/biotime/heartbeat` | Inventario, capacidad y códigos por reloj |
 | `POST` | `/api/biotime/sync` | Push (`employees`, …) |
 
-`emp_code` = `cliente.codigo` Laravel (no el id interno).
+`emp_code` = `cliente.numero_documento` Laravel (alias de transición: `cliente.codigo`).
 
 ## Comandos CLI
 

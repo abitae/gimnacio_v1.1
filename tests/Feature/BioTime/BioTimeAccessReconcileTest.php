@@ -89,7 +89,7 @@ it('reconciles eligible cliente into pending activate', function () {
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'RC-ACT-001',
+        ...biotimeIdentity('RC-ACT-001'),
     ]);
     reconcileMatricula($cliente, $sucursal, $user, $membresia);
 
@@ -118,7 +118,7 @@ it('enqueues deactivate when cliente becomes vencido after being active', functi
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'RC-VENC-001',
+        ...biotimeIdentity('RC-VENC-001'),
     ]);
     $matricula = reconcileMatricula($cliente, $sucursal, $user, $membresia);
 
@@ -157,7 +157,7 @@ it('enqueues activate again when matricula is reactivated', function () {
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'RC-RE-001',
+        ...biotimeIdentity('RC-RE-001'),
     ]);
     $matricula = reconcileMatricula($cliente, $sucursal, $user, $membresia, [
         'fecha_fin' => '2026-06-01',
@@ -205,7 +205,7 @@ it('skips reconcile when sucursal setting is disabled', function () {
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'RC-OFF-001',
+        ...biotimeIdentity('RC-OFF-001'),
     ]);
     reconcileMatricula($cliente, $sucursal, $user, $membresia);
 
@@ -225,7 +225,7 @@ it('dispatches reconcile job when cliente matricula is saved', function () {
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'RC-HOOK-001',
+        ...biotimeIdentity('RC-HOOK-001'),
     ]);
 
     reconcileMatricula($cliente, $sucursal, $user, $membresia, fireEvents: true);
@@ -245,7 +245,7 @@ it('dispatches reconcile job when clase matricula is saved', function () {
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'RC-HOOK-CLASE',
+        ...biotimeIdentity('RC-HOOK-CLASE'),
     ]);
 
     ClienteMatricula::query()->create([
@@ -284,7 +284,7 @@ it('reconciles eligible clase-only cliente into pending activate with ensure_cre
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'RC-CLASE-001',
+        ...biotimeIdentity('RC-CLASE-001'),
         'nombres' => 'Ana',
         'apellidos' => 'Clase',
     ]);
@@ -338,7 +338,7 @@ it('never deletes inactive biometric identities to free capacity', function () {
     $inactive = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'RC-PURGE-OLD',
+        ...biotimeIdentity('RC-PURGE-OLD'),
     ]);
     BioTimeEmployee::query()->create([
         'biotime_id' => 8001,
@@ -359,7 +359,7 @@ it('never deletes inactive biometric identities to free capacity', function () {
     $active = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'RC-PURGE-NEW',
+        ...biotimeIdentity('RC-PURGE-NEW'),
         'nombres' => 'Nuevo',
         'apellidos' => 'Cliente',
     ]);

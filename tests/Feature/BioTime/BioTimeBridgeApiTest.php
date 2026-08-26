@@ -21,12 +21,12 @@ it('lists pending commands for the authenticated sucursal and marks them process
     $clienteA = Cliente::factory()->create([
         'sucursal_id' => $sedeA->id,
         'created_by' => $user->id,
-        'codigo' => 'CA-001',
+        ...biotimeIdentity('CA-001'),
     ]);
     $clienteB = Cliente::factory()->create([
         'sucursal_id' => $sedeB->id,
         'created_by' => $user->id,
-        'codigo' => 'CB-001',
+        ...biotimeIdentity('CB-001'),
     ]);
 
     $service = app(BioTimeAccessCommandService::class);
@@ -40,6 +40,7 @@ it('lists pending commands for the authenticated sucursal and marks them process
         ->assertJsonCount(1, 'data')
         ->assertJsonPath('data.0.id', $cmdA->id)
         ->assertJsonPath('data.0.emp_code', 'CA-001')
+        ->assertJsonPath('data.0.emp_code_aliases', [])
         ->assertJsonPath('data.0.status', 'processing');
 
     expect($cmdA->fresh()->status)->toBe(BioTimeAccessCommand::STATUS_PROCESSING)
@@ -55,7 +56,7 @@ it('leases again a processing command whose lease expired or was never recorded'
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sede->id,
         'created_by' => $user->id,
-        'codigo' => 'RECOVER-001',
+        ...biotimeIdentity('RECOVER-001'),
     ]);
     $command = app(BioTimeAccessCommandService::class)
         ->enqueue($sede, $cliente, BioTimeAccessCommand::ACTION_ACTIVATE);
@@ -87,7 +88,7 @@ it('acks a command only for its own sucursal and updates heartbeat', function ()
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sedeA->id,
         'created_by' => $user->id,
-        'codigo' => 'ACK-001',
+        ...biotimeIdentity('ACK-001'),
     ]);
     $command = app(BioTimeAccessCommandService::class)->enqueue($sedeA, $cliente, BioTimeAccessCommand::ACTION_ACTIVATE);
 
@@ -117,7 +118,7 @@ it('increments attempts on failed ack', function () {
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sede->id,
         'created_by' => $user->id,
-        'codigo' => 'FAIL-001',
+        ...biotimeIdentity('FAIL-001'),
     ]);
     $command = app(BioTimeAccessCommandService::class)->enqueue($sede, $cliente, BioTimeAccessCommand::ACTION_DEACTIVATE);
 
@@ -146,22 +147,23 @@ it('builds roster with active flag from vigente matricula only', function () {
     $activo = Cliente::factory()->create([
         'sucursal_id' => $sedeA->id,
         'created_by' => $user->id,
-        'codigo' => 'ACTIVO-01',
+        ...biotimeIdentity('ACTIVO-01'),
     ]);
     $vencido = Cliente::factory()->create([
         'sucursal_id' => $sedeA->id,
         'created_by' => $user->id,
-        'codigo' => 'VENCIDO-01',
+        ...biotimeIdentity('VENCIDO-01'),
     ]);
     $otraSede = Cliente::factory()->create([
         'sucursal_id' => $sedeB->id,
         'created_by' => $user->id,
-        'codigo' => 'OTRA-01',
+        ...biotimeIdentity('OTRA-01'),
     ]);
-    $sinCodigo = Cliente::factory()->create([
+    $sinDocumento = Cliente::factory()->create([
         'sucursal_id' => $sedeA->id,
         'created_by' => $user->id,
         'codigo' => null,
+        'numero_documento' => '   ',
     ]);
 
     ClienteMatricula::query()->create([
@@ -206,7 +208,7 @@ it('builds roster with active flag from vigente matricula only', function () {
         ->assertJsonFragment(['cliente_id' => $activo->id, 'emp_code' => 'ACTIVO-01', 'active' => true])
         ->assertJsonFragment(['cliente_id' => $vencido->id, 'emp_code' => 'VENCIDO-01', 'active' => false])
         ->assertJsonMissing(['cliente_id' => $otraSede->id])
-        ->assertJsonMissing(['cliente_id' => $sinCodigo->id]);
+        ->assertJsonMissing(['cliente_id' => $sinDocumento->id]);
 
     Carbon::setTestNow();
 });

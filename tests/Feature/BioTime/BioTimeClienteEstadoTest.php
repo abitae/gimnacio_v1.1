@@ -59,7 +59,7 @@ it('activates estado_cliente when cliente has vigente clase', function () {
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
         'estado_cliente' => 'inactivo',
-        'codigo' => 'EST-ACT-001',
+        ...biotimeIdentity('EST-ACT-001'),
     ]);
 
     ClienteMatricula::withoutEvents(fn () => ClienteMatricula::query()->create([
@@ -98,14 +98,14 @@ it('refuses activate estado_cliente without subscription', function () {
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
         'estado_cliente' => 'inactivo',
-        'codigo' => 'EST-NOSUB',
+        ...biotimeIdentity('EST-NOSUB'),
     ]);
 
     expect(fn () => app(BioTimeClienteEstadoService::class)->activateEstadoCliente($cliente))
         ->toThrow(InvalidArgumentException::class);
 });
 
-it('activates without biotime command when cliente has no codigo', function () {
+it('activates without biotime command when cliente has no numero_documento', function () {
     $sucursal = estadoSucursal('nocod');
     enableBioTimeSede($sucursal);
     $user = User::factory()->create();
@@ -115,6 +115,7 @@ it('activates without biotime command when cliente has no codigo', function () {
         'created_by' => $user->id,
         'estado_cliente' => 'inactivo',
         'codigo' => null,
+        'numero_documento' => '   ',
     ]);
 
     ClienteMatricula::withoutEvents(fn () => ClienteMatricula::query()->create([
@@ -151,7 +152,7 @@ it('deactivates and enqueues biotime deactivate when employee is known', functio
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
         'estado_cliente' => 'activo',
-        'codigo' => 'EST-DEACT-001',
+        ...biotimeIdentity('EST-DEACT-001'),
     ]);
 
     BioTimeEmployee::query()->create([
@@ -196,7 +197,7 @@ it('deactivates and enqueues biotime deactivate even when employee is unknown lo
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
         'estado_cliente' => 'activo',
-        'codigo' => 'EST-UNK-001',
+        ...biotimeIdentity('EST-UNK-001'),
         'biotime_id' => null,
     ]);
 

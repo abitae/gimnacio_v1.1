@@ -127,7 +127,7 @@ it('processes employees sync inline even when queue is enabled', function () {
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'EMP-INLINE-1',
+        ...biotimeIdentity('EMP-INLINE-1'),
         'biotime_id' => null,
     ]);
 
@@ -164,7 +164,7 @@ it('processes transactions sync inline even when queue is enabled', function () 
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
-        'codigo' => 'TX-INLINE-1',
+        ...biotimeIdentity('TX-INLINE-1'),
     ]);
 
     \App\Models\BioTime\BioTimeDevice::query()->create([
@@ -249,11 +249,11 @@ it('requires auth on health and updates heartbeat', function () {
     expect($setting->fresh()->last_heartbeat_at)->not->toBeNull();
 });
 
-it('links BioTime employees to Cliente.codigo without creating missing clients', function () {
+it('links BioTime employees to Cliente.numero_documento without creating missing clients', function () {
     $sucursal = biotimeSucursal();
     $user = User::factory()->create();
     $cliente = Cliente::factory()->create([
-        'codigo' => 'C001',
+        ...biotimeIdentity('C001'),
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
     ]);
@@ -272,7 +272,7 @@ it('creates BioTime attendance when a transaction is linked to a client', functi
     $sucursal = biotimeSucursal('tx-sede');
     $user = User::factory()->create();
     $cliente = Cliente::factory()->create([
-        'codigo' => 'C002',
+        ...biotimeIdentity('C002'),
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
     ]);
@@ -318,7 +318,7 @@ it('uses terminal access_role for entry/exit and ignores punch_state', function 
     $sucursal = biotimeSucursal('role-sede');
     $user = User::factory()->create();
     $cliente = Cliente::factory()->create([
-        'codigo' => 'ROLE-01',
+        ...biotimeIdentity('ROLE-01'),
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
     ]);
@@ -390,7 +390,7 @@ it('toggles entry/exit on terminal access_role ambos', function () {
     $sucursal = biotimeSucursal('ambos-sede');
     $user = User::factory()->create();
     $cliente = Cliente::factory()->create([
-        'codigo' => 'AMB-01',
+        ...biotimeIdentity('AMB-01'),
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
     ]);
@@ -426,7 +426,7 @@ it('skips asistencia when terminal has no access_role', function () {
     $sucursal = biotimeSucursal('norole-sede');
     $user = User::factory()->create();
     $cliente = Cliente::factory()->create([
-        'codigo' => 'NOROLE-01',
+        ...biotimeIdentity('NOROLE-01'),
         'sucursal_id' => $sucursal->id,
         'created_by' => $user->id,
     ]);
@@ -507,7 +507,7 @@ it('renders operational dashboard per sucursal and dispatches reconcile', functi
 
     $cliente = Cliente::factory()->create([
         'sucursal_id' => $sucursal->id,
-        'codigo' => 'OPS-001',
+        ...biotimeIdentity('OPS-001'),
     ]);
 
     BioTimeAccessCommand::factory()->create([
@@ -543,4 +543,95 @@ it('renders operational dashboard per sucursal and dispatches reconcile', functi
     Queue::assertPushed(ReconcileBioTimeAccessForSucursal::class, function (ReconcileBioTimeAccessForSucursal $job) use ($sucursal): bool {
         return $job->sucursalId === $sucursal->id;
     });
+});
+
+it('links employees and transactions by numero_documento even when codigo differs', function () {
+    $sucursal = biotimeSucursal('dni-link');
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        ...biotimeIdentity('44556677', '10042'),
+    ]);
+
+    app(BioTimeSyncService::class)->process('employees', '2026-05-28 16:00:00', [
+        ['id' => 88, 'emp_code' => '44556677', 'first_name' => 'Dni'],
+    ], (string) Str::uuid(), $sucursal->id);
+
+    app(BioTimeSyncService::class)->process('transactions', '2026-05-28 16:00:00', [
+        [
+            'id' => 8801,
+            'emp_code' => '44556677',
+            'punch_time' => '2026-05-28 08:00:00',
+        ],
+    ], (string) Str::uuid(), $sucursal->id);
+
+    expect($cliente->refresh()->biotime_id)->toBe(88)
+        ->and(BioTimeTransaction::query()->where('emp_code', '44556677')->value('cliente_id'))->toBe($cliente->id);
+});
+
+it('still links employees by legacy cliente.codigo', function () {
+    $sucursal = biotimeSucursal('legacy-code');
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        ...biotimeIdentity('44556678', '10043'),
+    ]);
+
+    app(BioTimeSyncService::class)->process('employees', '2026-05-28 16:00:00', [
+        ['id' => 89, 'emp_code' => '10043', 'first_name' => 'Legacy'],
+    ], (string) Str::uuid(), $sucursal->id);
+
+    app(BioTimeSyncService::class)->process('transactions', '2026-05-28 16:00:00', [
+        [
+            'id' => 8901,
+            'emp_code' => '10043',
+            'punch_time' => '2026-05-28 08:05:00',
+        ],
+    ], (string) Str::uuid(), $sucursal->id);
+
+    expect($cliente->refresh()->biotime_id)->toBe(89)
+        ->and(BioTimeTransaction::query()->where('emp_code', '10043')->value('cliente_id'))->toBe($cliente->id);
+});
+
+it('counts heartbeat employee_codes as managed by documento or codigo', function () {
+    $sucursal = biotimeSucursal('hb-managed');
+    biotimeAgentSetting($sucursal, 'hb-managed-token');
+    $user = User::factory()->create();
+    Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        ...biotimeIdentity('11223344', '10050'),
+    ]);
+
+    \App\Models\BioTime\BioTimeDevice::query()->create([
+        'sucursal_id' => $sucursal->id,
+        'biotime_id' => 1,
+        'serial_number' => 'HB-1',
+        'access_enabled' => true,
+        'capacity_limit' => 500,
+    ]);
+
+    $this->postJson('/api/biotime/heartbeat', [
+        'bridge_version' => 'test',
+        'devices' => [[
+            'biotime_id' => 1,
+            'serial_number' => 'HB-1',
+            'online' => true,
+            'capacity' => 500,
+            'employees_count' => 3,
+            'employee_codes' => ['11223344', '10050', 'STAFF-99'],
+            'inventory_at' => now()->toIso8601String(),
+            'inventory_source' => 'terminal_counter',
+        ]],
+    ], ['Authorization' => 'Bearer hb-managed-token'])->assertOk();
+
+    $device = \App\Models\BioTime\BioTimeDevice::query()
+        ->where('sucursal_id', $sucursal->id)
+        ->where('serial_number', 'HB-1')
+        ->firstOrFail();
+
+    // 11223344 y 10050 son el mismo cliente; STAFF-99 es protected.
+    expect($device->protected_users_count)->toBe(1);
 });

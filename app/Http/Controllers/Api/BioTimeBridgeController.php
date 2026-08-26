@@ -12,6 +12,7 @@ use App\Models\BioTime\BioTimeEmployee;
 use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\Core\Cliente;
 use App\Services\BioTime\BioTimeCapacityService;
+use App\Services\BioTime\BioTimeEmpCode;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -74,6 +75,7 @@ class BioTimeBridgeController extends Controller
 
         $commands = DB::transaction(function () use ($sucursalId, $limit) {
             $commands = BioTimeAccessCommand::query()
+                ->with('cliente')
                 ->where('sucursal_id', $sucursalId)
                 ->where(function ($query): void {
                     $query->where('status', BioTimeAccessCommand::STATUS_PENDING)
@@ -109,6 +111,9 @@ class BioTimeBridgeController extends Controller
                 'id' => $cmd->id,
                 'idempotency_key' => $cmd->idempotency_key,
                 'emp_code' => $cmd->emp_code,
+                'emp_code_aliases' => $cmd->cliente instanceof Cliente
+                    ? BioTimeEmpCode::aliasesForCliente($cmd->cliente)
+                    : [],
                 'cliente_id' => $cmd->cliente_id,
                 'action' => $cmd->action,
                 'desired_area_biotime_id' => $cmd->desired_area_biotime_id,
@@ -223,9 +228,13 @@ class BioTimeBridgeController extends Controller
         BioTimeEmployee::query()
             ->where('sucursal_id', (int) $command->sucursal_id)
             ->where(function ($query) use ($command): void {
+                $command->loadMissing('cliente');
                 $query->where('cliente_id', $command->cliente_id);
-                if (filled($command->emp_code)) {
-                    $query->orWhere('emp_code', $command->emp_code);
+                $keys = $command->cliente instanceof Cliente
+                    ? BioTimeEmpCode::lookupKeysForCliente($command->cliente)
+                    : (filled($command->emp_code) ? [(string) $command->emp_code] : []);
+                if ($keys !== []) {
+                    $query->orWhereIn('emp_code', $keys);
                 }
             })
             ->delete();

@@ -33,6 +33,29 @@ class BridgeRunner(object):
         self._lock_handle = None
         self._reserved_additions = 0
 
+    def _lookup_codes(self, emp_code, aliases=None):
+        codes = []
+        primary = str(emp_code or "").strip()
+        if primary:
+            codes.append(primary)
+        if aliases is None:
+            aliases = []
+        if not isinstance(aliases, (list, tuple)):
+            aliases = [aliases]
+        for alias in aliases:
+            value = str(alias or "").strip()
+            if value and value not in codes:
+                codes.append(value)
+        return codes
+
+    def _find_employee(self, emp_code, aliases=None):
+        """Busca por emp_code canónico y luego por aliases (codigo Laravel antiguo)."""
+        for code in self._lookup_codes(emp_code, aliases):
+            emp = self.biotime.find_employee_by_code(code)
+            if emp and emp.get("id") is not None:
+                return emp
+        return None
+
     def close(self):
         self._release_instance_lock()
         try:
@@ -138,6 +161,7 @@ class BridgeRunner(object):
         cmd_id = cmd.get("id")
         action = (cmd.get("action") or "").lower()
         emp_code = str(cmd.get("emp_code") or "")
+        aliases = cmd.get("emp_code_aliases") or []
         desired_area = cmd.get("desired_area_biotime_id")
         ensure_create = bool(cmd.get("ensure_create"))
         first_name = cmd.get("first_name") or emp_code
@@ -150,7 +174,7 @@ class BridgeRunner(object):
             return
 
         try:
-            emp = self.biotime.find_employee_by_code(emp_code)
+            emp = self._find_employee(emp_code, aliases)
 
             if action == "delete":
                 if not emp or emp.get("id") is None:
@@ -334,11 +358,12 @@ class BridgeRunner(object):
                 self.refresh_config()
                 capacity = self.remote_config.get("capacity") or capacity
             emp_code = str(row.get("emp_code") or row.get("cliente_id") or "")
+            aliases = row.get("emp_code_aliases") or []
             active = should_be_active(row)
             if not emp_code:
                 continue
             try:
-                emp = self.biotime.find_employee_by_code(emp_code)
+                emp = self._find_employee(emp_code, aliases)
                 areas = [self.cfg.area_id] if active else [self.cfg.denied_area_id]
                 if not emp or emp.get("id") is None:
                     if not active:

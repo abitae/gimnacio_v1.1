@@ -17,11 +17,22 @@ def build_parser():
         default=os.environ.get("BIOTIME_BRIDGE_CONFIG") or default_config_path(),
         help="Ruta a config.yaml",
     )
+    p.add_argument(
+        "--autostart",
+        action="store_true",
+        help="GUI: doctor (Laravel+BioTime) y, si OK, inicia run en segundo plano",
+    )
     sub = p.add_subparsers(dest="command")
     # Sin subcomando (doble clic en el .exe) abre la GUI.
     sub.required = False
 
-    sub.add_parser("gui", help="Interfaz grafica (tkinter)")
+    gui_p = sub.add_parser("gui", help="Interfaz grafica (tkinter)")
+    gui_p.add_argument(
+        "--autostart",
+        action="store_true",
+        dest="gui_autostart",
+        help="Doctor Laravel+BioTime y, si OK, inicia run en segundo plano",
+    )
     sub.add_parser("run", help="Loop continuo: poll commands + opcional roster/sync")
     sub.add_parser("once", help="Un ciclo: commands (+ roster/sync si toca por timers=0 forzado)")
     sub.add_parser("doctor", help="Verifica Laravel health + BioTime login")
@@ -41,7 +52,7 @@ def main(argv=None):
     if not argv and getattr(sys, "frozen", False):
         from .gui import run_gui
 
-        return run_gui(default_config_path())
+        return run_gui(default_config_path(), autostart=False)
 
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -51,7 +62,12 @@ def main(argv=None):
     if args.command == "gui":
         from .gui import run_gui
 
-        return run_gui(args.config)
+        return run_gui(
+            args.config,
+            autostart=bool(
+                getattr(args, "autostart", False) or getattr(args, "gui_autostart", False)
+            ),
+        )
 
     try:
         cfg = load_config(args.config)

@@ -44,7 +44,10 @@ class BioTimeSyncService
                 ->values();
             $candidateSucursales = Cliente::query()
                 ->withoutGlobalScope('active_sucursal')
-                ->whereIn('codigo', $empCodes)
+                ->where(function ($query) use ($empCodes): void {
+                    $query->whereIn('numero_documento', $empCodes)
+                        ->orWhereIn('codigo', $empCodes);
+                })
                 ->distinct()
                 ->pluck('sucursal_id');
             if ($candidateSucursales->count() === 1) {
@@ -442,7 +445,7 @@ class BioTimeSyncService
 
         $sucursalId = $this->resolveSucursalId(null, $areaIds, $departmentId);
 
-        return $this->findClienteByCodigo($empCode, $sucursalId);
+        return $this->findClienteByEmpCode($empCode, $sucursalId);
     }
 
     private function resolveClienteForTransaction(?string $empCode, ?string $terminalSn, ?int $departmentId): ?Cliente
@@ -466,7 +469,7 @@ class BioTimeSyncService
             : null;
         $sucursalId = $this->resolveSucursalId($device, $device?->area_biotime_id ? [(int) $device->area_biotime_id] : [], $departmentId);
 
-        return $this->findClienteByCodigo($empCode, $sucursalId);
+        return $this->findClienteByEmpCode($empCode, $sucursalId);
     }
 
     private function resolveSucursalId(?BioTimeDevice $device, array $areaIds, ?int $departmentId): ?int
@@ -512,17 +515,29 @@ class BioTimeSyncService
         return $this->sucursalId;
     }
 
-    private function findClienteByCodigo(string $codigo, ?int $sucursalId): ?Cliente
+    private function findClienteByEmpCode(string $empCode, ?int $sucursalId): ?Cliente
     {
-        $query = Cliente::query()
-            ->withoutGlobalScope('active_sucursal')
-            ->where('codigo', $codigo);
+        $base = Cliente::query()->withoutGlobalScope('active_sucursal');
 
         if ($sucursalId !== null) {
-            return (clone $query)->where('sucursal_id', $sucursalId)->first();
+            return (clone $base)
+                ->where('sucursal_id', $sucursalId)
+                ->where('numero_documento', $empCode)
+                ->first()
+                ?? (clone $base)
+                    ->where('sucursal_id', $sucursalId)
+                    ->where('codigo', $empCode)
+                    ->first();
         }
 
-        return $query->limit(2)->get()->count() === 1 ? $query->first() : null;
+        $byDocumento = (clone $base)->where('numero_documento', $empCode)->limit(2)->get();
+        if ($byDocumento->count() === 1) {
+            return $byDocumento->first();
+        }
+
+        $byCodigo = (clone $base)->where('codigo', $empCode)->limit(2)->get();
+
+        return $byCodigo->count() === 1 ? $byCodigo->first() : null;
     }
 
     private function findDeviceBySerial(string $serial): ?BioTimeDevice

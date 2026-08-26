@@ -15,6 +15,7 @@ use App\Models\BioTime\BioTimeDeviceUser;
 use App\Models\BioTime\BioTimeSucursalSetting;
 use App\Models\BioTime\BioTimeSyncBatch;
 use App\Models\Core\Cliente;
+use App\Services\BioTime\BioTimeEmpCode;
 use App\Services\BioTime\BioTimeSyncService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -159,13 +160,17 @@ class BioTimeSyncController extends Controller
 
         $setting = $this->authenticatedSetting($request);
         $sucursalId = (int) $setting->sucursal_id;
-        $managedClientes = Cliente::query()
+        $managedByCode = [];
+        Cliente::query()
             ->where('sucursal_id', $sucursalId)
-            ->whereNotNull('codigo')
-            ->get(['id', 'codigo'])
-            ->keyBy(fn (Cliente $cliente) => (string) $cliente->codigo);
+            ->get(['id', 'codigo', 'numero_documento'])
+            ->each(function (Cliente $cliente) use (&$managedByCode): void {
+                foreach (BioTimeEmpCode::lookupKeysForCliente($cliente) as $key) {
+                    $managedByCode[$key] = $cliente;
+                }
+            });
 
-        DB::transaction(function () use ($payload, $sucursalId, $managedClientes): void {
+        DB::transaction(function () use ($payload, $sucursalId, $managedByCode): void {
             foreach ($payload['devices'] as $row) {
                 $codes = collect($row['employee_codes'])
                     ->map(fn ($code) => trim((string) $code))
@@ -173,7 +178,7 @@ class BioTimeSyncController extends Controller
                     ->unique()
                     ->values();
                 $managedCount = $codes
-                    ->filter(fn (string $code) => $managedClientes->has($code))
+                    ->filter(fn (string $code) => isset($managedByCode[$code]))
                     ->count();
                 $protectedCount = max(
                     $codes->count() - $managedCount,
@@ -205,8 +210,7 @@ class BioTimeSyncController extends Controller
 
                 BioTimeDeviceUser::query()->where('bio_time_device_id', $device->id)->delete();
                 foreach ($codes as $code) {
-                    /** @var Cliente|null $cliente */
-                    $cliente = $managedClientes->get($code);
+                    $cliente = $managedByCode[$code] ?? null;
                     BioTimeDeviceUser::query()->create([
                         'bio_time_device_id' => $device->id,
                         'cliente_id' => $cliente?->id,

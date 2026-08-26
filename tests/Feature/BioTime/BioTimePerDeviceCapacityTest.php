@@ -90,6 +90,7 @@ it('prioritizes the most recent active enrollment and leaves overflow waiting', 
             'sucursal_id' => $sucursal->id,
             'created_by' => $user->id,
             'codigo' => 'PRIO-'.$daysAgo,
+            'numero_documento' => 'PRIO-'.$daysAgo,
         ]);
         ClienteMatricula::withoutEvents(fn () => ClienteMatricula::query()->create([
             'cliente_id' => $cliente->id,
@@ -185,7 +186,7 @@ it('selects exactly 500 of 501 eligible clients', function () {
 
     expect($roster->where('status', 'selected')->count())->toBe(500)
         ->and($roster->where('status', 'waiting')->count())->toBe(1)
-        ->and($roster->firstWhere('status', 'waiting')['emp_code'])->toBe('HARD-0501');
+        ->and($roster->firstWhere('status', 'waiting')['emp_code'])->toBe('95000501');
 });
 
 it('fails closed until every access clock has a fresh verified inventory', function () {

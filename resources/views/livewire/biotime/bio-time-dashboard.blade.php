@@ -62,7 +62,7 @@
 
             <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 @foreach ([
-                    ['Clientes enlazados', $stats['clientes'], 'Automático: emp_code = codigo'],
+                    ['Clientes enlazados', $stats['clientes'], 'Automático: emp_code = numero_documento'],
                     ['Departamentos', $stats['departments'], 'Mapeados a esta sede'],
                     ['Areas mapeadas', $stats['areasMapped'], 'Homologadas a esta sede'],
                     ['Dispositivos online', $stats['devicesOnline'], 'Mapeados y activos'],

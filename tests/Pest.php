@@ -90,6 +90,19 @@ function biotimeAdmin(?App\Models\System\Sucursal $sucursal = null): App\Models\
     return $user;
 }
 
+/**
+ * Identidad BioTime en tests: emp_code canónico = numero_documento.
+ *
+ * @return array{numero_documento: string, codigo: string}
+ */
+function biotimeIdentity(string $empCode, ?string $legacyCodigo = null): array
+{
+    return [
+        'numero_documento' => $empCode,
+        'codigo' => $legacyCodigo ?? $empCode,
+    ];
+}
+
 function clienteAppToken(App\Models\Core\ClienteAppAccount $account, string $name = 'mobile'): string
 {
     return $account->createToken($name)->plainTextToken;

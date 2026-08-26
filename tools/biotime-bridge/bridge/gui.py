@@ -18,10 +18,12 @@ except ImportError:  # pragma: no cover
         "o usa la CLI: python -m bridge --config config.yaml doctor"
     )
 
+from .app_paths import resolve_data_path
 from .biotime_client import BioTimeClient, BioTimeError
 from .config import default_config_path, load_config, save_config
-from .logging_setup import setup_logging
+from .logging_setup import restart_log_file, setup_logging
 from .runner import BridgeRunner
+from . import windows_startup
 
 
 class QueueLogHandler(logging.Handler):
@@ -39,13 +41,14 @@ class QueueLogHandler(logging.Handler):
 
 
 class BridgeGuiApp(object):
-    def __init__(self, config_path=None):
+    def __init__(self, config_path=None, autostart=False):
         self.config_path = config_path or default_config_path()
         self.cfg = None
         self.runner = None
         self._worker = None
         self._stop_event = threading.Event()
         self._busy = False
+        self._autostart = bool(autostart)
         self._log_queue = queue.Queue()
         self._form = {}
 
@@ -62,12 +65,15 @@ class BridgeGuiApp(object):
         self.sede_var = tk.StringVar(master=self.root, value="—")
         self.config_var = tk.StringVar(master=self.root, value=self.config_path)
         self.dry_run_var = tk.StringVar(master=self.root, value="—")
+        self.startup_var = tk.BooleanVar(master=self.root, value=False)
 
         self._build_ui()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self.root.after(200, self._drain_log_queue)
 
         self._reload_config(silent=True)
+        if self._autostart:
+            self.root.after(400, self._autostart_sequence)
 
     def _build_ui(self):
         pad = {"padx": 10, "pady": 6}
@@ -110,7 +116,7 @@ class BridgeGuiApp(object):
         footer.pack(fill=tk.X, **pad)
         ttk.Label(
             footer,
-            text="Segundo plano: botón o cerrar ventana (minimizar). Producción: Task Scheduler / start-background.bat",
+            text="Segundo plano: botón o cerrar ventana (minimizar). Iniciar con Windows: checkbox en Operación. Producción 24/7: Task Scheduler / start-background.bat",
             foreground="#555555",
         ).pack(side=tk.LEFT)
 
@@ -145,6 +151,30 @@ class BridgeGuiApp(object):
         )
         self.btn_restore.pack(side=tk.LEFT, padx=6)
 
+        startup_row = ttk.Frame(parent)
+        startup_row.pack(fill=tk.X, **pad)
+        self.chk_startup = ttk.Checkbutton(
+            startup_row,
+            text="Iniciar con Windows",
+            variable=self.startup_var,
+            command=self._on_startup_toggle,
+        )
+        self.chk_startup.pack(side=tk.LEFT)
+        if windows_startup.is_windows():
+            ttk.Label(
+                startup_row,
+                text="Al iniciar sesión: doctor y, si OK, el loop en segundo plano.",
+                foreground="#555555",
+            ).pack(side=tk.LEFT, padx=8)
+        else:
+            self.chk_startup.configure(state=tk.DISABLED)
+            ttk.Label(
+                startup_row,
+                text="(solo Windows)",
+                foreground="#555555",
+            ).pack(side=tk.LEFT, padx=8)
+        self._sync_startup_checkbox()
+
         log_frame = ttk.LabelFrame(parent, text="Registro")
         log_frame.pack(fill=tk.BOTH, expand=True, **pad)
         self.log_text = scrolledtext.ScrolledText(
@@ -153,26 +183,71 @@ class BridgeGuiApp(object):
         self.log_text.pack(fill=tk.BOTH, expand=True, padx=6, pady=6)
 
     def _build_tests_tab(self, parent):
-        """Operaciones manuales contra BioTime (sin Laravel)."""
+        """Operaciones manuales contra BioTime (sin Laravel) + chequeo de conectividad."""
         pad = {"padx": 10, "pady": 6}
         self._test_btns = []
 
+        canvas = tk.Canvas(parent, highlightthickness=0)
+        scroll = ttk.Scrollbar(parent, orient=tk.VERTICAL, command=canvas.yview)
+        form = ttk.Frame(canvas)
+        form.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+        canvas.create_window((0, 0), window=form, anchor=tk.NW)
+        canvas.configure(yscrollcommand=scroll.set)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(10, 0), pady=6)
+        scroll.pack(side=tk.RIGHT, fill=tk.Y, pady=6, padx=(0, 10))
+
         warn = ttk.Label(
-            parent,
+            form,
             text=(
-                "Opera directo sobre BioTime local (no encola en Laravel). "
-                "Usa emp_code de prueba. dry_run de config no aplica aquí."
+                "emp_code = número de documento del cliente (no el código interno del gimnasio). "
+                "CRUD opera directo sobre BioTime local (no encola en Laravel). "
+                "dry_run de config no aplica aquí."
             ),
             foreground="#8a5a00",
-            wraplength=860,
+            wraplength=820,
         )
         warn.pack(fill=tk.X, **pad)
 
-        find_fr = ttk.LabelFrame(parent, text="Buscar empleado")
+        conn_fr = ttk.LabelFrame(form, text="Conectividad")
+        conn_fr.pack(fill=tk.X, **pad)
+        conn_row = ttk.Frame(conn_fr)
+        conn_row.pack(fill=tk.X, padx=8, pady=6)
+        self.btn_test_laravel = ttk.Button(
+            conn_row, text="Probar Laravel", command=self._test_laravel_conn
+        )
+        self.btn_test_laravel.pack(side=tk.LEFT)
+        self._test_btns.append(self.btn_test_laravel)
+        self.test_laravel_status = tk.StringVar(master=self.root, value="—")
+        ttk.Label(conn_row, textvariable=self.test_laravel_status, width=10).pack(
+            side=tk.LEFT, padx=(4, 12)
+        )
+        self.btn_test_biotime = ttk.Button(
+            conn_row, text="Probar BioTime", command=self._test_biotime_conn
+        )
+        self.btn_test_biotime.pack(side=tk.LEFT)
+        self._test_btns.append(self.btn_test_biotime)
+        self.test_biotime_status = tk.StringVar(master=self.root, value="—")
+        ttk.Label(conn_row, textvariable=self.test_biotime_status, width=10).pack(
+            side=tk.LEFT, padx=(4, 12)
+        )
+        self.btn_test_doctor = ttk.Button(
+            conn_row, text="Doctor (ambos)", command=self._test_doctor_conn
+        )
+        self.btn_test_doctor.pack(side=tk.LEFT)
+        self._test_btns.append(self.btn_test_doctor)
+        self.test_doctor_status = tk.StringVar(master=self.root, value="—")
+        ttk.Label(conn_row, textvariable=self.test_doctor_status, width=10).pack(
+            side=tk.LEFT, padx=4
+        )
+
+        find_fr = ttk.LabelFrame(form, text="Buscar empleado")
         find_fr.pack(fill=tk.X, **pad)
         find_row = ttk.Frame(find_fr)
         find_row.pack(fill=tk.X, padx=8, pady=6)
-        ttk.Label(find_row, text="emp_code", width=12).pack(side=tk.LEFT)
+        ttk.Label(find_row, text="Documento", width=12).pack(side=tk.LEFT)
         self.test_emp_code = tk.StringVar(master=self.root)
         ttk.Entry(find_row, textvariable=self.test_emp_code, width=24).pack(side=tk.LEFT, padx=4)
         self.btn_test_find = ttk.Button(find_row, text="Buscar", command=self._test_find)
@@ -181,11 +256,11 @@ class BridgeGuiApp(object):
         self.test_found_var = tk.StringVar(master=self.root, value="(sin búsqueda)")
         ttk.Label(find_fr, textvariable=self.test_found_var).pack(anchor=tk.W, padx=8, pady=(0, 6))
 
-        create_fr = ttk.LabelFrame(parent, text="Crear empleado")
+        create_fr = ttk.LabelFrame(form, text="Crear empleado")
         create_fr.pack(fill=tk.X, **pad)
         crow = ttk.Frame(create_fr)
         crow.pack(fill=tk.X, padx=8, pady=4)
-        ttk.Label(crow, text="emp_code", width=12).pack(side=tk.LEFT)
+        ttk.Label(crow, text="Documento", width=12).pack(side=tk.LEFT)
         self.test_create_code = tk.StringVar(master=self.root)
         ttk.Entry(crow, textvariable=self.test_create_code, width=16).pack(side=tk.LEFT, padx=4)
         ttk.Label(crow, text="nombre").pack(side=tk.LEFT, padx=(8, 0))
@@ -212,11 +287,12 @@ class BridgeGuiApp(object):
         ttk.Label(
             create_fr,
             text="Vacío → area_id / company_id / department_id de config. "
-            "company y department deben coincidir en BioTime.",
+            "company y department deben coincidir en BioTime. "
+            "emp_code = número de documento.",
             foreground="#555555",
         ).pack(anchor=tk.W, padx=8, pady=(0, 6))
 
-        area_fr = ttk.LabelFrame(parent, text="Actualizar área")
+        area_fr = ttk.LabelFrame(form, text="Actualizar área")
         area_fr.pack(fill=tk.X, **pad)
         arow = ttk.Frame(area_fr)
         arow.pack(fill=tk.X, padx=8, pady=6)
@@ -239,21 +315,26 @@ class BridgeGuiApp(object):
         self.btn_test_resync.pack(side=tk.LEFT)
         self._test_btns.append(self.btn_test_resync)
 
-        del_fr = ttk.LabelFrame(parent, text="Eliminar empleado")
+        del_fr = ttk.LabelFrame(form, text="Eliminar empleado")
         del_fr.pack(fill=tk.X, **pad)
         drow = ttk.Frame(del_fr)
         drow.pack(fill=tk.X, padx=8, pady=6)
         ttk.Label(
             drow,
-            text="Borra por emp_code (pierde biometría). Confirmación obligatoria.",
+            text="Borra por número de documento / emp_code (pierde biometría). Confirmación obligatoria.",
             foreground="#555555",
         ).pack(side=tk.LEFT)
         self.btn_test_delete = ttk.Button(drow, text="Eliminar…", command=self._test_delete)
         self.btn_test_delete.pack(side=tk.RIGHT, padx=4)
         self._test_btns.append(self.btn_test_delete)
 
-        out_fr = ttk.LabelFrame(parent, text="Resultado")
+        out_fr = ttk.LabelFrame(form, text="Resultado")
         out_fr.pack(fill=tk.BOTH, expand=True, **pad)
+        out_bar = ttk.Frame(out_fr)
+        out_bar.pack(fill=tk.X, padx=6, pady=(6, 0))
+        ttk.Button(out_bar, text="Limpiar resultado", command=self._clear_test_out).pack(
+            side=tk.RIGHT
+        )
         self.test_out = scrolledtext.ScrolledText(
             out_fr, height=10, wrap=tk.WORD, font=("Consolas", 9), state=tk.DISABLED
         )
@@ -272,6 +353,9 @@ class BridgeGuiApp(object):
             side=tk.LEFT, padx=6
         )
         ttk.Button(top, text="Recargar archivo", command=self._log_reload_file).pack(side=tk.RIGHT)
+        ttk.Button(top, text="Reiniciar log", command=self._log_restart_file).pack(
+            side=tk.RIGHT, padx=6
+        )
         ttk.Button(top, text="Limpiar vista", command=self._log_clear_view).pack(
             side=tk.RIGHT, padx=6
         )
@@ -614,6 +698,36 @@ class BridgeGuiApp(object):
             widget.configure(state=tk.DISABLED)
         self._append_log("(Recargado desde archivo: {0})".format(path))
 
+    def _log_restart_file(self):
+        if not messagebox.askyesno(
+            "Reiniciar log",
+            "Se vaciará el archivo de log (logs/biotime-bridge.log).\n"
+            "Esta acción no se puede deshacer. ¿Continuar?",
+        ):
+            return
+        log_dir = resolve_data_path("logs")
+        level = "INFO"
+        if self.cfg is not None:
+            if self.cfg.log_dir:
+                log_dir = self.cfg.log_dir
+            if self.cfg.log_level:
+                level = self.cfg.log_level
+        try:
+            try:
+                while True:
+                    self._log_queue.get_nowait()
+            except queue.Empty:
+                pass
+            path = restart_log_file(log_dir, level)
+        except Exception as exc:
+            messagebox.showerror("Reiniciar log", str(exc))
+            return
+        self._attach_gui_log_handler()
+        self._log_clear_view()
+        self._refresh_log_file_path()
+        logging.getLogger(__name__).info("Log reiniciado por usuario (%s)", path)
+        self.status_var.set("Log reiniciado")
+
     def _log_open_dir(self):
         path = self._log_path()
         folder = os.path.dirname(path)
@@ -722,7 +836,7 @@ class BridgeGuiApp(object):
         self.runner = BridgeRunner(self.cfg)
         return self.runner
 
-    def _run_job(self, title, fn, running_loop=False):
+    def _run_job(self, title, fn, running_loop=False, on_done=None):
         if self._busy:
             return
         if not self._ensure_config():
@@ -757,6 +871,8 @@ class BridgeGuiApp(object):
                             self.status_var.set("{0} — FAIL".format(title))
                         else:
                             self.status_var.set("Detenido")
+                    if on_done is not None:
+                        on_done(code)
 
                 self.root.after(0, done)
 
@@ -769,6 +885,85 @@ class BridgeGuiApp(object):
         self.test_out.insert(tk.END, text + "\n")
         self.test_out.see(tk.END)
         self.test_out.configure(state=tk.DISABLED)
+
+    def _clear_test_out(self):
+        self.test_out.configure(state=tk.NORMAL)
+        self.test_out.delete("1.0", tk.END)
+        self.test_out.configure(state=tk.DISABLED)
+
+    def _run_conn_test(self, title, status_var, fn):
+        """Chequeo Laravel/BioTime; escribe OK/FAIL en el label y en Resultado."""
+        if self._busy:
+            messagebox.showwarning("Pruebas", "Detén el puente antes de usar Pruebas.")
+            return
+        if not self._ensure_config():
+            return
+
+        status_var.set("…")
+        self._set_busy(True, running_loop=False)
+        self.status_var.set(title)
+
+        def worker():
+            try:
+                runner = self._make_runner()
+                result = fn(runner)
+                msg = result if isinstance(result, str) else json.dumps(
+                    result, ensure_ascii=False, indent=2, default=str
+                )
+                logging.getLogger(__name__).info("%s OK", title)
+
+                def ok():
+                    status_var.set("OK")
+                    self._append_test_out("=== {0} ===".format(title))
+                    self._append_test_out(msg)
+                    self._append_log("{0}: OK".format(title))
+                    self.status_var.set("{0} — OK".format(title))
+                    self._set_busy(False)
+
+                self.root.after(0, ok)
+            except Exception as exc:
+                logging.getLogger(__name__).error("%s FAIL: %s", title, exc)
+                logging.getLogger(__name__).debug(traceback.format_exc())
+
+                def fail(e=exc):
+                    status_var.set("FAIL")
+                    self._append_test_out("=== {0} FAIL ===\n{1}".format(title, e))
+                    self._append_log("{0}: FAIL — {1}".format(title, e))
+                    self.status_var.set("{0} — FAIL".format(title))
+                    self._set_busy(False)
+
+                self.root.after(0, fail)
+
+        t = threading.Thread(target=worker, name="bridge-gui-conn")
+        t.daemon = True
+        t.start()
+
+    def _test_laravel_conn(self):
+        def job(runner):
+            health = runner.laravel.health()
+            return health if health is not None else "Laravel health OK (sin cuerpo)"
+
+        self._run_conn_test("Laravel", self.test_laravel_status, job)
+
+    def _test_biotime_conn(self):
+        def job(runner):
+            auth = runner.biotime.login(
+                self.cfg.biotime_user,
+                self.cfg.biotime_password,
+                mode=self.cfg.biotime_auth_mode,
+            )
+            return "BioTime auth OK ({0} via {1})".format(auth.scheme, auth.endpoint)
+
+        self._run_conn_test("BioTime", self.test_biotime_status, job)
+
+    def _test_doctor_conn(self):
+        def job(runner):
+            code = runner.doctor()
+            if code != 0:
+                raise RuntimeError("Doctor FAIL (Laravel y/o BioTime). Revisa el log.")
+            return "Laravel health + BioTime login OK"
+
+        self._run_conn_test("Doctor", self.test_doctor_status, job)
 
     def _summarize_emp(self, emp):
         if not isinstance(emp, dict):
@@ -862,7 +1057,7 @@ class BridgeGuiApp(object):
     def _test_find(self):
         code = self._test_emp_code_value()
         if not code:
-            messagebox.showwarning("Buscar", "Indica emp_code")
+            messagebox.showwarning("Buscar", "Indica el número de documento (emp_code)")
             return
 
         def job(client):
@@ -884,7 +1079,7 @@ class BridgeGuiApp(object):
     def _test_create(self):
         code = (self.test_create_code.get() or "").strip() or (self.test_emp_code.get() or "").strip()
         if not code:
-            messagebox.showwarning("Crear", "Indica emp_code")
+            messagebox.showwarning("Crear", "Indica el número de documento (emp_code)")
             return
         first = (self.test_first_name.get() or "").strip() or code
         last = (self.test_last_name.get() or "").strip()
@@ -1035,6 +1230,54 @@ class BridgeGuiApp(object):
 
         self._run_job("Once", job)
 
+    def _sync_startup_checkbox(self):
+        try:
+            self.startup_var.set(windows_startup.is_enabled())
+        except Exception:
+            self.startup_var.set(False)
+
+    def _on_startup_toggle(self):
+        want = bool(self.startup_var.get())
+        try:
+            if want:
+                path = windows_startup.enable()
+                self._append_log("Inicio con Windows: activado ({0})".format(path))
+                self.status_var.set("Inicio con Windows activado")
+            else:
+                windows_startup.disable()
+                self._append_log("Inicio con Windows: desactivado")
+                self.status_var.set("Inicio con Windows desactivado")
+        except Exception as exc:
+            self._sync_startup_checkbox()
+            messagebox.showerror("Iniciar con Windows", str(exc))
+
+    def _autostart_sequence(self):
+        """Doctor Laravel+BioTime; si OK inicia run y minimiza. Si FAIL deja la ventana."""
+        if not self._ensure_config():
+            self.status_var.set("Doctor falló — no se inició")
+            messagebox.showerror(
+                "Arranque automático",
+                "No se pudo cargar config.yaml. El loop no se inició.",
+            )
+            return
+
+        def after_doctor(code):
+            if code == 0:
+                self._do_start()
+                self.root.after(300, self._withdraw_to_background)
+                return
+            self.status_var.set("Doctor falló — no se inició")
+            messagebox.showwarning(
+                "Arranque automático",
+                "Doctor falló (Laravel o BioTime). El puente no se inició.\n"
+                "Revisa Configuración y el log.",
+            )
+
+        def job(runner):
+            return runner.doctor()
+
+        self._run_job("Doctor (autostart)", job, on_done=after_doctor)
+
     def _do_start(self):
         def job(runner):
             runner.start(should_stop=self._stop_event.is_set)
@@ -1111,6 +1354,6 @@ class BridgeGuiApp(object):
         return 0
 
 
-def run_gui(config_path=None):
-    app = BridgeGuiApp(config_path=config_path)
+def run_gui(config_path=None, autostart=False):
+    app = BridgeGuiApp(config_path=config_path, autostart=autostart)
     return app.run()

@@ -150,7 +150,7 @@ class BioTimeClienteEstadoService
         }
 
         if (BioTimeEmpCode::forCliente($cliente) === null) {
-            Log::warning('BioTime perfil: skip enqueue, cliente sin codigo', [
+            Log::warning('BioTime perfil: skip enqueue, cliente sin numero_documento', [
                 'cliente_id' => $cliente->id,
                 'action' => $action,
             ]);
@@ -189,16 +189,16 @@ class BioTimeClienteEstadoService
             return true;
         }
 
-        $empCode = BioTimeEmpCode::forCliente($cliente);
-        if ($empCode === null) {
+        $lookupKeys = BioTimeEmpCode::lookupKeysForCliente($cliente);
+        if ($lookupKeys === []) {
             return false;
         }
 
         if (BioTimeEmployee::query()
             ->where('sucursal_id', (int) $cliente->sucursal_id)
-            ->where(function ($query) use ($cliente, $empCode): void {
+            ->where(function ($query) use ($cliente, $lookupKeys): void {
                 $query->where('cliente_id', $cliente->id)
-                    ->orWhere('emp_code', $empCode);
+                    ->orWhereIn('emp_code', $lookupKeys);
             })
             ->exists()) {
             return true;

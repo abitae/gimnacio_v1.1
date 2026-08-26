@@ -21,6 +21,7 @@ a = Analysis(
         "bridge.laravel_client",
         "bridge.logging_setup",
         "bridge.runner",
+        "bridge.windows_startup",
         "certifi",
         "charset_normalizer",
         "requests",

@@ -125,7 +125,7 @@ class BioTimeCapacityService
 
     /**
      * @return Collection<int, array{
-     *   cliente_id:int,emp_code:string,desired_access:bool,priority_at:?string,
+     *   cliente_id:int,emp_code:string,emp_code_aliases:list<string>,desired_access:bool,priority_at:?string,
      *   rank:?int,status:string
      * }>
      */
@@ -141,24 +141,27 @@ class BioTimeCapacityService
 
         return Cliente::query()
             ->where('sucursal_id', $sucursalId)
-            ->whereNotNull('codigo')
-            ->where('codigo', '!=', '')
+            ->whereNotNull('numero_documento')
+            ->where('numero_documento', '!=', '')
             ->orderBy('id')
-            ->get(['id', 'codigo'])
+            ->get(['id', 'codigo', 'numero_documento'])
             ->map(function (Cliente $cliente) use ($priorityByCliente, $selectedIds): array {
                 $priority = $priorityByCliente->get((int) $cliente->id);
                 $eligible = is_array($priority);
                 $selected = isset($selectedIds[(int) $cliente->id]);
+                $empCode = BioTimeEmpCode::forCliente($cliente) ?? '';
 
                 return [
                     'cliente_id' => (int) $cliente->id,
-                    'emp_code' => (string) $cliente->codigo,
+                    'emp_code' => $empCode,
+                    'emp_code_aliases' => BioTimeEmpCode::aliasesForCliente($cliente),
                     'desired_access' => $selected,
                     'priority_at' => $priority['priority_at'] ?? null,
                     'rank' => $priority['rank'] ?? null,
                     'status' => $selected ? 'selected' : ($eligible ? 'waiting' : 'denied'),
                 ];
             })
+            ->filter(fn (array $row): bool => $row['emp_code'] !== '')
             ->values();
     }
 
@@ -208,8 +211,8 @@ class BioTimeCapacityService
 
         $clientes = Cliente::query()
             ->where('sucursal_id', $sucursalId)
-            ->whereNotNull('codigo')
-            ->where('codigo', '!=', '')
+            ->whereNotNull('numero_documento')
+            ->where('numero_documento', '!=', '')
             ->orderBy('id')
             ->get();
 
@@ -250,12 +253,12 @@ class BioTimeCapacityService
 
     private function estimateOccupiedFromLocalMirror(int $sucursalId): int
     {
-        $codigos = Cliente::query()
+        $identityCodes = Cliente::query()
             ->where('sucursal_id', $sucursalId)
-            ->whereNotNull('codigo')
-            ->where('codigo', '!=', '')
-            ->pluck('codigo')
-            ->map(fn ($c) => (string) $c)
+            ->get(['codigo', 'numero_documento'])
+            ->flatMap(fn (Cliente $cliente) => BioTimeEmpCode::lookupKeysForCliente($cliente))
+            ->unique()
+            ->values()
             ->all();
 
         $clienteIds = Cliente::query()
@@ -265,12 +268,12 @@ class BioTimeCapacityService
 
         return (int) BioTimeEmployee::query()
             ->where('sucursal_id', $sucursalId)
-            ->where(function ($query) use ($clienteIds, $codigos): void {
+            ->where(function ($query) use ($clienteIds, $identityCodes): void {
                 if ($clienteIds !== []) {
                     $query->whereIn('cliente_id', $clienteIds);
                 }
-                if ($codigos !== []) {
-                    $query->orWhereIn('emp_code', $codigos);
+                if ($identityCodes !== []) {
+                    $query->orWhereIn('emp_code', $identityCodes);
                 }
             })
             ->count();
@@ -278,16 +281,16 @@ class BioTimeCapacityService
 
     private function isKnownClientEmployee(Cliente $cliente, int $sucursalId): bool
     {
-        $empCode = BioTimeEmpCode::forCliente($cliente);
-        if ($empCode === null) {
+        $lookupKeys = BioTimeEmpCode::lookupKeysForCliente($cliente);
+        if ($lookupKeys === []) {
             return false;
         }
 
         $inMirror = BioTimeEmployee::query()
             ->where('sucursal_id', $sucursalId)
-            ->where(function ($query) use ($cliente, $empCode): void {
+            ->where(function ($query) use ($cliente, $lookupKeys): void {
                 $query->where('cliente_id', $cliente->id)
-                    ->orWhere('emp_code', $empCode);
+                    ->orWhereIn('emp_code', $lookupKeys);
             })
             ->exists();
 
