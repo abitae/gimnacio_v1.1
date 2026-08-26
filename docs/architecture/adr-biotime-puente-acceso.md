@@ -28,7 +28,7 @@ Ya existe sync **BioTime → Laravel** (`POST /api/biotime/sync`: employees, dev
 | Latencia aceptable | ~1 hora (más inmediato al guardar matrícula) |
 | Sedes | Varias; **cada sede** con su BioTime + su puente |
 | Roster por sede | Solo clientes de **esa** sucursal |
-| Identidad | `emp_code` = `cliente.numero_documento`; `cliente.codigo` es alias de transición |
+| Identidad | `emp_code` = `cliente.numero_documento`; `cliente.codigo` no participa |
 | Inactivo en BioTime | Mover a área denegada (conserva biometría); `delete` solo para liberar cupo |
 | Alta biométrica | Recepción enrolla solo en BioTime |
 | Áreas | Una área BioTime autorizada = una sucursal Laravel |

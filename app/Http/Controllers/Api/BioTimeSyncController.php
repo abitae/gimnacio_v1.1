@@ -163,7 +163,7 @@ class BioTimeSyncController extends Controller
         $managedByCode = [];
         Cliente::query()
             ->where('sucursal_id', $sucursalId)
-            ->get(['id', 'codigo', 'numero_documento'])
+            ->get(['id', 'numero_documento'])
             ->each(function (Cliente $cliente) use (&$managedByCode): void {
                 foreach (BioTimeEmpCode::lookupKeysForCliente($cliente) as $key) {
                     $managedByCode[$key] = $cliente;

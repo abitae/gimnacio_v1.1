@@ -144,7 +144,7 @@ class BioTimeCapacityService
             ->whereNotNull('numero_documento')
             ->where('numero_documento', '!=', '')
             ->orderBy('id')
-            ->get(['id', 'codigo', 'numero_documento'])
+            ->get(['id', 'numero_documento'])
             ->map(function (Cliente $cliente) use ($priorityByCliente, $selectedIds): array {
                 $priority = $priorityByCliente->get((int) $cliente->id);
                 $eligible = is_array($priority);
@@ -154,7 +154,7 @@ class BioTimeCapacityService
                 return [
                     'cliente_id' => (int) $cliente->id,
                     'emp_code' => $empCode,
-                    'emp_code_aliases' => BioTimeEmpCode::aliasesForCliente($cliente),
+                    'emp_code_aliases' => [],
                     'desired_access' => $selected,
                     'priority_at' => $priority['priority_at'] ?? null,
                     'rank' => $priority['rank'] ?? null,
@@ -255,7 +255,7 @@ class BioTimeCapacityService
     {
         $identityCodes = Cliente::query()
             ->where('sucursal_id', $sucursalId)
-            ->get(['codigo', 'numero_documento'])
+            ->get(['numero_documento'])
             ->flatMap(fn (Cliente $cliente) => BioTimeEmpCode::lookupKeysForCliente($cliente))
             ->unique()
             ->values()

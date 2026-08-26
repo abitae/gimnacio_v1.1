@@ -160,7 +160,7 @@
                 Mapeo para <span class="font-semibold text-zinc-900 dark:text-zinc-100">{{ $selectedSucursal->nombre }}</span>
                 (áreas, departamentos y dispositivos de esta sede o sin asignar).
                 Los clientes se enlazan solos: <span class="font-medium text-zinc-800 dark:text-zinc-200">emp_code</span> BioTime =
-                <span class="font-medium text-zinc-800 dark:text-zinc-200">codigo</span> Laravel.
+                <span class="font-medium text-zinc-800 dark:text-zinc-200">numero_documento</span> Laravel.
             </p>
             <section class="grid gap-6 xl:grid-cols-2">
                 <div class="rounded-lg border border-zinc-200 bg-white p-5 dark:border-zinc-700 dark:bg-zinc-900">

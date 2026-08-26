@@ -18,7 +18,7 @@
 | Gracia post-vencimiento | **0 dias** (`BioTimeAccessEligibilityService`: `fecha_fin >= hoy`) |
 | Alerta operativa | Dashboard BioTime por sede (`biotime.ver`); reconcile con `biotime.editar` |
 | Bloqueo en BioTime | Area denegada / quitar area autorizada (conservar biometria; BioTime rechaza `area: []`) |
-| Identidad | `emp_code` = `cliente.numero_documento` (canónico); `cliente.codigo` como alias de transición |
+| Identidad | `emp_code` = `cliente.numero_documento`; `cliente.codigo` no participa |
 | Sedes | Una instalacion BioTime + un puente Python por sucursal |
 | Roster | Solo clientes de la sucursal autenticada |
 | Auth puente → Laravel | Token distinto por sede |
@@ -405,13 +405,13 @@ GET /api/biotime/commands, POST ack, GET roster, POST /api/biotime/sync (auth Be
 
 Objetivo: Crear aplicacion puente Python en tools/biotime-bridge/ con:
 - config.yaml.example
-- loop: poll commands → aplicar en BioTime (activate=asignar area_id; deactivate=area []) buscando empleado por emp_code=cliente.numero_documento (alias: cliente.codigo) → ack
+- loop: poll commands → aplicar en BioTime (activate=asignar area_id; deactivate=area []) buscando empleado por emp_code=cliente.numero_documento → ack
 - reconcile periodico con roster (opcional flag)
 - push sync de employees/transactions basico reutilizando forma JSON del sync Laravel (puede empezar solo employees)
 - logging, retries con backoff, dry_run
 - README: instalar deps, Task Scheduler / NSSM en Windows, variables
 
-Emp_code es string del cliente.numero_documento Laravel (alias de transición: cliente.codigo). No WebSockets. No tocar PHP salvo documentar URLs.
+Emp_code es string del cliente.numero_documento Laravel. No WebSockets. No tocar PHP salvo documentar URLs.
 Requirements.txt con httpx o requests.
 No commits salvo que se pida.
 ```
@@ -519,7 +519,7 @@ X-BioTime-Secret: <webhook_secret_sede>
 4. Esperar reconcile/comando `activate` (o forzar "Reconciliar acceso") → area de la sede asignada.
 5. Probar marcacion en dispositivo.
 
-> Tras unificar identidad a documento: si quedaron commands pending con `emp_code` = codigo interno, usa **Reconciliar acceso** para re-encolar con el DNI. El puente busca también el codigo antiguo (`emp_code_aliases`) para no duplicar fichas.
+> GET /commands reescribe pending viejos: `emp_code` pasa a `numero_documento`. Fichas ya creadas en BioTime con el codigo interno hay que recodificar o recrear en el reloj.
 
 ### Cliente vencido
 

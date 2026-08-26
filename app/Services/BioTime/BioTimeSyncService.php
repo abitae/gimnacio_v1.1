@@ -517,7 +517,6 @@ class BioTimeSyncService
 
     /**
      * Sync inbound BioTime: emp_code del reloj → cliente Laravel por numero_documento.
-     * Fallback: cliente.codigo (fichas enroladas antes del cambio de identidad).
      */
     private function findClienteByEmpCode(string $empCode, ?int $sucursalId): ?Cliente
     {
@@ -527,21 +526,12 @@ class BioTimeSyncService
             return (clone $base)
                 ->where('sucursal_id', $sucursalId)
                 ->where('numero_documento', $empCode)
-                ->first()
-                ?? (clone $base)
-                    ->where('sucursal_id', $sucursalId)
-                    ->where('codigo', $empCode)
-                    ->first();
+                ->first();
         }
 
         $byDocumento = (clone $base)->where('numero_documento', $empCode)->limit(2)->get();
-        if ($byDocumento->count() === 1) {
-            return $byDocumento->first();
-        }
 
-        $byCodigo = (clone $base)->where('codigo', $empCode)->limit(2)->get();
-
-        return $byCodigo->count() === 1 ? $byCodigo->first() : null;
+        return $byDocumento->count() === 1 ? $byDocumento->first() : null;
     }
 
     private function findDeviceBySerial(string $serial): ?BioTimeDevice

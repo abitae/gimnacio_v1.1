@@ -3,7 +3,7 @@
 return [
     /*
      * Identidad: Laravel usa numero_documento; BioTime usa emp_code (mismo valor).
-     * Altas nuevas nunca envían cliente.codigo como emp_code.
+     * cliente.codigo no participa en la sincronización.
      */
     'queue' => env('BIOTIME_SYNC_QUEUE', true),
 

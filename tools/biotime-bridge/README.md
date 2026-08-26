@@ -175,7 +175,7 @@ Auth: `Authorization: Bearer <token_sede>` (o `X-BioTime-Secret`).
 | `POST` | `/api/biotime/heartbeat` | Inventario, capacidad y códigos por reloj |
 | `POST` | `/api/biotime/sync` | Push (`employees`, …) |
 
-`emp_code` = `cliente.numero_documento` Laravel (alias de transición: `cliente.codigo`).
+`emp_code` = `cliente.numero_documento` Laravel. `cliente.codigo` no se usa en la sincronización.
 
 ## Comandos CLI
 
@@ -343,7 +343,7 @@ nssm start BioTimeBridge
 8. [ ] Validar que mover al área denegada retira acceso sin borrar huella/rostro
 9. [ ] Activar **Garantizar máximo 500**; con inventario viejo o reloj offline las altas deben quedar bloqueadas
 10. [ ] Smoke acceso (con `dry_run: false`):
-   - [ ] Activate cliente con `codigo` nuevo → Create + área sede (log `created` / `adjust_area`)  
+   - [ ] Activate cliente con documento nuevo → Create + área sede (log `created` / `adjust_area`)  
    - [ ] Deactivate → `adjust_area` a `denied_area_id`  
    - [ ] Re-activate → `adjust_area` a `area_id`  
    - [ ] Confirmar área en BioTime UI + dispositivo (`resync_to_device` en log)  

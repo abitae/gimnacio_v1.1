@@ -570,7 +570,7 @@ it('links employees and transactions by numero_documento even when codigo differ
         ->and(BioTimeTransaction::query()->where('emp_code', '44556677')->value('cliente_id'))->toBe($cliente->id);
 });
 
-it('still links employees by legacy cliente.codigo', function () {
+it('does not link employees by cliente.codigo', function () {
     $sucursal = biotimeSucursal('legacy-code');
     $user = User::factory()->create();
     $cliente = Cliente::factory()->create([
@@ -591,11 +591,11 @@ it('still links employees by legacy cliente.codigo', function () {
         ],
     ], (string) Str::uuid(), $sucursal->id);
 
-    expect($cliente->refresh()->biotime_id)->toBe(89)
-        ->and(BioTimeTransaction::query()->where('emp_code', '10043')->value('cliente_id'))->toBe($cliente->id);
+    expect($cliente->refresh()->biotime_id)->toBeNull()
+        ->and(BioTimeTransaction::query()->where('emp_code', '10043')->value('cliente_id'))->toBeNull();
 });
 
-it('counts heartbeat employee_codes as managed by documento or codigo', function () {
+it('counts heartbeat employee_codes as managed only by documento', function () {
     $sucursal = biotimeSucursal('hb-managed');
     biotimeAgentSetting($sucursal, 'hb-managed-token');
     $user = User::factory()->create();
@@ -632,6 +632,6 @@ it('counts heartbeat employee_codes as managed by documento or codigo', function
         ->where('serial_number', 'HB-1')
         ->firstOrFail();
 
-    // 11223344 y 10050 son el mismo cliente; STAFF-99 es protected.
-    expect($device->protected_users_count)->toBe(1);
+    // 11223344 es el documento (managed). 10050 (codigo interno) y STAFF-99 son protected.
+    expect($device->protected_users_count)->toBe(2);
 });

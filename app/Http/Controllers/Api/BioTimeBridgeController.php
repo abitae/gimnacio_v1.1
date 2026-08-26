@@ -94,12 +94,19 @@ class BioTimeBridgeController extends Controller
 
             $leaseExpiresAt = now()->addMinutes(5);
             foreach ($commands as $command) {
-                $command->forceFill([
+                $canonical = $command->cliente instanceof Cliente
+                    ? BioTimeEmpCode::forCliente($command->cliente)
+                    : null;
+                $fill = [
                     'status' => BioTimeAccessCommand::STATUS_PROCESSING,
                     'leased_at' => now(),
                     'lease_expires_at' => $leaseExpiresAt,
                     'attempts' => (int) $command->attempts + 1,
-                ])->save();
+                ];
+                if ($canonical !== null && $canonical !== (string) $command->emp_code) {
+                    $fill['emp_code'] = $canonical;
+                }
+                $command->forceFill($fill)->save();
             }
 
             return $commands;
@@ -111,9 +118,7 @@ class BioTimeBridgeController extends Controller
                 'id' => $cmd->id,
                 'idempotency_key' => $cmd->idempotency_key,
                 'emp_code' => $cmd->emp_code,
-                'emp_code_aliases' => $cmd->cliente instanceof Cliente
-                    ? BioTimeEmpCode::aliasesForCliente($cmd->cliente)
-                    : [],
+                'emp_code_aliases' => [],
                 'cliente_id' => $cmd->cliente_id,
                 'action' => $cmd->action,
                 'desired_area_biotime_id' => $cmd->desired_area_biotime_id,

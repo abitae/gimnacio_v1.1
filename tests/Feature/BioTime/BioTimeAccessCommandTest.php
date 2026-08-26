@@ -138,12 +138,12 @@ it('creates via factory with emp_code = cliente.numero_documento', function () {
         ->and($command->emp_code)->toBe((string) $cliente->numero_documento);
 });
 
-it('exposes codigo as emp_code_aliases when it differs from the document', function () {
-    $sucursal = accessCommandSucursal('alias');
+it('rewrites stale emp_code to numero_documento when leasing commands', function () {
+    $sucursal = accessCommandSucursal('stale');
     BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
         'area_biotime_id' => 2,
     ])->save();
-    biotimeAgentSetting($sucursal, 'alias-token');
+    biotimeAgentSetting($sucursal, 'stale-token');
 
     $user = User::factory()->create();
     $cliente = Cliente::factory()->create([
@@ -152,15 +152,48 @@ it('exposes codigo as emp_code_aliases when it differs from the document', funct
         ...biotimeIdentity('87654321', '10001'),
     ]);
 
-    app(BioTimeAccessCommandService::class)->enqueue(
+    $command = app(BioTimeAccessCommandService::class)->enqueue(
+        $sucursal,
+        $cliente,
+        BioTimeAccessCommand::ACTION_ACTIVATE
+    );
+    $command->forceFill(['emp_code' => '10001'])->save();
+
+    $this->getJson('/api/biotime/commands', [
+        'Authorization' => 'Bearer stale-token',
+    ])->assertOk()
+        ->assertJsonPath('data.0.emp_code', '87654321')
+        ->assertJsonPath('data.0.emp_code_aliases', []);
+
+    expect($command->fresh()->emp_code)->toBe('87654321');
+});
+
+it('refreshes pending emp_code when enqueue is reused', function () {
+    $sucursal = accessCommandSucursal('reuse');
+    BioTimeSucursalSetting::forSucursal($sucursal->id)->forceFill([
+        'area_biotime_id' => 2,
+    ])->save();
+
+    $user = User::factory()->create();
+    $cliente = Cliente::factory()->create([
+        'sucursal_id' => $sucursal->id,
+        'created_by' => $user->id,
+        ...biotimeIdentity('11223344', '10002'),
+    ]);
+
+    $first = app(BioTimeAccessCommandService::class)->enqueue(
+        $sucursal,
+        $cliente,
+        BioTimeAccessCommand::ACTION_ACTIVATE
+    );
+    $first->forceFill(['emp_code' => '10002'])->save();
+
+    $second = app(BioTimeAccessCommandService::class)->enqueue(
         $sucursal,
         $cliente,
         BioTimeAccessCommand::ACTION_ACTIVATE
     );
 
-    $this->getJson('/api/biotime/commands', [
-        'Authorization' => 'Bearer alias-token',
-    ])->assertOk()
-        ->assertJsonPath('data.0.emp_code', '87654321')
-        ->assertJsonPath('data.0.emp_code_aliases.0', '10001');
+    expect($second->id)->toBe($first->id)
+        ->and($second->fresh()->emp_code)->toBe('11223344');
 });

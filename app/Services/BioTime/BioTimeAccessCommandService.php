@@ -61,6 +61,13 @@ class BioTimeAccessCommandService
             ->first();
 
         if ($existing instanceof BioTimeAccessCommand) {
+            $updates = ['emp_code' => $empCode];
+            if ($action === BioTimeAccessCommand::ACTION_ACTIVATE) {
+                $updates['first_name'] = (string) ($cliente->nombres ?? '');
+                $updates['last_name'] = (string) ($cliente->apellidos ?? '');
+            }
+            $existing->forceFill($updates)->save();
+
             return $existing;
         }
 
