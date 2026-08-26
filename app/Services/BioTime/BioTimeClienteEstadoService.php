@@ -131,7 +131,7 @@ class BioTimeClienteEstadoService
             'estado_cliente' => 'inactivo',
         ]);
 
-        // Siempre encolar si hay codigo + sede habilitada. El bridge hace no-op si
+        // Siempre encolar si hay documento + sede habilitada. El bridge hace no-op si
         // el empleado no existe en BioTime. No depender de BioTimeEmployee local
         // (sync a menudo queda en queue sin worker en shared hosting).
         $command = $this->tryEnqueue($updated, BioTimeAccessCommand::ACTION_DEACTIVATE);

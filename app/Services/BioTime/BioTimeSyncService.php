@@ -44,10 +44,7 @@ class BioTimeSyncService
                 ->values();
             $candidateSucursales = Cliente::query()
                 ->withoutGlobalScope('active_sucursal')
-                ->where(function ($query) use ($empCodes): void {
-                    $query->whereIn('numero_documento', $empCodes)
-                        ->orWhereIn('codigo', $empCodes);
-                })
+                ->whereIn('numero_documento', $empCodes)
                 ->distinct()
                 ->pluck('sucursal_id');
             if ($candidateSucursales->count() === 1) {
