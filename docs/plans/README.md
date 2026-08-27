@@ -24,6 +24,7 @@ Cada plan describe el estado actual, objetivos, fases, pasos accionables, criter
 | Documento | Contenido |
 | --- | --- |
 | [99-transversal-plan-mejora.md](./99-transversal-plan-mejora.md) | Agregadores compartidos, legacy, multi-sucursal, nomenclatura y criterios globales |
+| [99-css-colores-plan-mejora.md](./99-css-colores-plan-mejora.md) | Pipeline de build CSS, sistema de personalizacion de tema en runtime, eliminacion de dark mode, tokens de color de estado |
 | [08-biotime-integracion-plan.md](./08-biotime-integracion-plan.md) | Config BioTime por sedes, API commands/roster, elegibilidad por matricula, puente Python + prompts Cursor |
 
 ## Convenciones de los planes
