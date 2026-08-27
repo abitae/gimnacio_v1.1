@@ -79,6 +79,10 @@ class ClienteCommercialProfileService
 
         $matriculasConCuotas = $matriculasOperativas
             ->filter(fn (ClienteMatricula $matricula) => $matricula->usaPlanCuotas())
+            ->sortBy([
+                fn (ClienteMatricula $matricula) => in_array(strtolower((string) $matricula->estado), ['activa', 'activo'], true) ? 0 : 1,
+                fn (ClienteMatricula $matricula) => -($matricula->fecha_inicio?->timestamp ?? 0),
+            ])
             ->map(fn (ClienteMatricula $matricula) => $this->buildInstallmentMatriculaRow($matricula))
             ->values();
 
@@ -172,6 +176,7 @@ class ClienteCommercialProfileService
             ->map(function ($installment) {
                 $estado = (string) ($installment->estado ?? 'pendiente');
                 $ultimaFechaPago = $this->latestPaymentDateFromCollection($installment->pagos);
+                $descuentoTotal = round((float) collect($installment->pagos)->sum('descuento_monto'), 2);
 
                 return [
                     'id' => $installment->id,
@@ -182,6 +187,7 @@ class ClienteCommercialProfileService
                         ?? $installment->fecha_pago,
                     'monto' => round((float) $installment->monto, 2),
                     'monto_pagado' => round((float) $installment->monto_pagado_actual, 2),
+                    'descuento_total' => $descuentoTotal,
                     'saldo' => round((float) $installment->saldo_pendiente, 2),
                     'estado' => $estado,
                     'estado_label' => Str::ucfirst($estado),

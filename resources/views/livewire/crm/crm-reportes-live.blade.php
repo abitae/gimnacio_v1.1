@@ -1,4 +1,6 @@
 <div class="space-y-4">
+    <x-crm.subnav />
+
     <div>
         <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Reportes CRM</h1>
         <p class="text-xs text-zinc-600 dark:text-zinc-400">Conversión, por asesor y por canal</p>
@@ -48,6 +50,16 @@
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
         <p class="text-sm text-zinc-500">Tiempo promedio de cierre: <strong>{{ $data['tiempo_promedio_cierre_dias'] ?? '—' }}</strong> días</p>
     </div>
+    <div wire:key="conversion-funnel-{{ $from }}-{{ $to }}" class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+        <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Embudo de conversión</p>
+        <div x-data="crmBarChart(@js([
+                'labels' => ['Leads', 'Contactados', 'Convertidos', 'Ganados'],
+                'values' => [$data['total_leads'], $data['contactados'], $data['convertidos'], $data['ganados']],
+                'colors' => ['#a1a1aa', '#60a5fa', '#34d399', '#10b981'],
+            ]))" class="h-52">
+            <canvas x-ref="canvas" role="img" aria-label="Embudo de conversión: leads, contactados, convertidos y ganados"></canvas>
+        </div>
+    </div>
     @endif
     @endif
 
@@ -77,14 +89,32 @@
                     <td class="px-4 py-2 text-right">{{ number_format($row['monto_ventas'], 2) }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="7" class="px-4 py-6 text-center text-zinc-500">Sin datos en el período seleccionado.</td></tr>
+                <tr><td colspan="7"><x-empty-state message="Sin datos en el período seleccionado." /></td></tr>
                 @endforelse
             </tbody>
         </table>
+        @if(!$advisorShowAll && $this->byAdvisorDataAll->count() > $this->byAdvisorData->count())
+        <div class="p-2 border-t border-zinc-200 dark:border-zinc-700 text-center">
+            <flux:button size="xs" variant="ghost" wire:click="$set('advisorShowAll', true)">
+                Mostrar todos ({{ $this->byAdvisorDataAll->count() }})
+            </flux:button>
+        </div>
+        @endif
     </div>
     @endif
 
     @if($tab === 'channel')
+    @if($this->byChannelDataAll->isNotEmpty())
+    <div wire:key="channel-chart-{{ $from }}-{{ $to }}" class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4">
+        <p class="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">Leads por canal</p>
+        <div x-data="crmBarChart(@js([
+                'labels' => $this->byChannelDataAll->take(10)->pluck('canal')->all(),
+                'values' => $this->byChannelDataAll->take(10)->pluck('total')->all(),
+            ]))" style="height: {{ max(160, $this->byChannelDataAll->take(10)->count() * 36) }}px">
+            <canvas x-ref="canvas" role="img" aria-label="Leads por canal de origen"></canvas>
+        </div>
+    </div>
+    @endif
     <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
         <table class="w-full text-sm">
             <thead class="bg-zinc-50 dark:bg-zinc-900">
@@ -100,10 +130,17 @@
                     <td class="px-4 py-2 text-right">{{ $row['total'] }}</td>
                 </tr>
                 @empty
-                <tr><td colspan="2" class="px-4 py-6 text-center text-zinc-500">Sin datos en el período seleccionado.</td></tr>
+                <tr><td colspan="2"><x-empty-state message="Sin datos en el período seleccionado." /></td></tr>
                 @endforelse
             </tbody>
         </table>
+        @if(!$channelShowAll && $this->byChannelDataAll->count() > $this->byChannelData->count())
+        <div class="p-2 border-t border-zinc-200 dark:border-zinc-700 text-center">
+            <flux:button size="xs" variant="ghost" wire:click="$set('channelShowAll', true)">
+                Mostrar todos ({{ $this->byChannelDataAll->count() }})
+            </flux:button>
+        </div>
+        @endif
     </div>
     @endif
 </div>

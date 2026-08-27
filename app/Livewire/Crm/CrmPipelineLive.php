@@ -50,6 +50,10 @@ class CrmPipelineLive extends Component
 
     public bool $stageIsLost = false;
 
+    public bool $confirmDeleteStage = false;
+
+    public ?int $stageIdPendingDelete = null;
+
     /** @var list<int> */
     public array $collapsedStageIds = [];
 
@@ -312,12 +316,27 @@ class CrmPipelineLive extends Component
         }
     }
 
-    public function deleteStage(int $id): void
+    public function requestDeleteStage(int $id): void
     {
         $this->authorize('crm.eliminar');
-        $stage = CrmStage::find($id);
+        $this->stageIdPendingDelete = $id;
+        $this->confirmDeleteStage = true;
+    }
+
+    public function cancelDeleteStage(): void
+    {
+        $this->confirmDeleteStage = false;
+        $this->stageIdPendingDelete = null;
+    }
+
+    public function deleteStage(?int $id = null): void
+    {
+        $this->authorize('crm.eliminar');
+        $id ??= $this->stageIdPendingDelete;
+        $stage = $id ? CrmStage::find($id) : null;
         if (! $stage) {
             $this->flashToast('error', 'Etapa no encontrada');
+            $this->cancelDeleteStage();
 
             return;
         }
@@ -330,6 +349,8 @@ class CrmPipelineLive extends Component
             }
         } catch (\InvalidArgumentException $e) {
             $this->flashToast('error', $e->getMessage());
+        } finally {
+            $this->cancelDeleteStage();
         }
     }
 

@@ -823,6 +823,200 @@ it('permite registrar un pago a cuenta de una cuota desde el perfil', function (
     expect(Pago::query()->where('enrollment_installment_id', $cuota->id)->count())->toBe(1);
 });
 
+it('muestra la hora real de inscripcion en el tab membresias del perfil', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver']);
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $membresia = Membresia::factory()->create(['nombre' => 'Plan Hora', 'precio_base' => 200, 'estado' => 'activa']);
+
+    ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => '2026-01-15',
+        'fecha_inicio' => '2026-01-15',
+        'fecha_fin' => '2026-04-15',
+        'estado' => 'activa',
+        'precio_lista' => 200,
+        'descuento_monto' => 0,
+        'precio_final' => 200,
+        'modalidad_pago' => 'contado',
+        'requiere_plan_cuotas' => false,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+    ]);
+
+    $matricula = ClienteMatricula::query()->where('cliente_id', $cliente->id)->first();
+    $horaEsperada = $matricula->fechaHoraInscripcion()->format('g:i A');
+
+    Livewire::test(ClientePerfilLive::class)
+        ->call('selectCliente', $cliente->id)
+        ->call('setTab', 'membresias')
+        ->assertSee('15/01/2026 '.$horaEsperada);
+});
+
+it('ordena membresias activas primero y colapsa las no activas en cuotas pendientes', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver']);
+    $this->actingAs($user);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $membresiaActiva = Membresia::factory()->conCuotas()->create(['nombre' => 'Plan Activo Cuotas', 'precio_base' => 200, 'estado' => 'activa']);
+    $membresiaVencida = Membresia::factory()->conCuotas()->create(['nombre' => 'Plan Vencido Cuotas', 'precio_base' => 180, 'estado' => 'activa']);
+
+    $matriculaActiva = ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresiaActiva->id,
+        'fecha_matricula' => now()->subMonths(2)->toDateString(),
+        'fecha_inicio' => now()->subMonths(2)->toDateString(),
+        'fecha_fin' => now()->addMonth()->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 200,
+        'descuento_monto' => 0,
+        'precio_final' => 200,
+        'modalidad_pago' => 'cuotas',
+        'requiere_plan_cuotas' => true,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+    ]);
+
+    $matriculaVencida = ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresiaVencida->id,
+        'fecha_matricula' => now()->subYear()->toDateString(),
+        'fecha_inicio' => now()->subYear()->toDateString(),
+        'fecha_fin' => now()->subMonths(6)->toDateString(),
+        'estado' => 'vencida',
+        'precio_lista' => 180,
+        'descuento_monto' => 0,
+        'precio_final' => 180,
+        'modalidad_pago' => 'cuotas',
+        'requiere_plan_cuotas' => true,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+    ]);
+
+    $plan = EnrollmentInstallmentPlan::create([
+        'cliente_id' => $cliente->id,
+        'monto_total' => 380,
+        'numero_cuotas' => 2,
+        'monto_cuota' => 190,
+        'frecuencia' => 'mensual',
+        'fecha_inicio' => now()->toDateString(),
+    ]);
+
+    EnrollmentInstallment::create([
+        'enrollment_installment_plan_id' => $plan->id,
+        'cliente_matricula_id' => $matriculaActiva->id,
+        'numero_cuota' => 1,
+        'monto' => 100,
+        'fecha_vencimiento' => now()->addDays(3)->toDateString(),
+        'estado' => 'pendiente',
+    ]);
+
+    EnrollmentInstallment::create([
+        'enrollment_installment_plan_id' => $plan->id,
+        'cliente_matricula_id' => $matriculaVencida->id,
+        'numero_cuota' => 1,
+        'monto' => 90,
+        'fecha_vencimiento' => now()->subDays(10)->toDateString(),
+        'estado' => 'vencida',
+    ]);
+
+    $component = Livewire::test(ClientePerfilLive::class)
+        ->call('selectCliente', $cliente->id)
+        ->set('perfilFinanzasTab', 'cuotas_pendientes');
+
+    $orden = collect($component->get('matriculasConCuotas'))->pluck('plan_nombre')->all();
+    expect($orden[0])->toBe('Plan Activo Cuotas')
+        ->and($orden[1])->toBe('Plan Vencido Cuotas');
+
+    $component
+        ->assertSet('cuotasMatriculaColapsadas', [$matriculaVencida->id])
+        ->assertSee('Plan Activo Cuotas')
+        ->call('toggleCuotasMatricula', $matriculaVencida->id)
+        ->assertSet('cuotasMatriculaColapsadas', []);
+});
+
+it('registra pago de cuota con descuento desde el perfil del cliente', function () {
+    $user = User::factory()->create();
+    $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver', 'matricula_cliente.editar']);
+    $this->actingAs($user);
+
+    PaymentMethod::create([
+        'nombre' => 'Efectivo',
+        'estado' => 'activo',
+        'requiere_numero_operacion' => false,
+        'requiere_entidad' => false,
+    ]);
+
+    $cliente = Cliente::factory()->create(['created_by' => $user->id]);
+    $membresia = Membresia::factory()->conCuotas()->create(['nombre' => 'Plan Descuento Cuota', 'precio_base' => 100, 'estado' => 'activa']);
+
+    $matricula = ClienteMatricula::create([
+        'cliente_id' => $cliente->id,
+        'tipo' => 'membresia',
+        'membresia_id' => $membresia->id,
+        'fecha_matricula' => now()->toDateString(),
+        'fecha_inicio' => now()->toDateString(),
+        'fecha_fin' => now()->addDays(30)->toDateString(),
+        'estado' => 'activa',
+        'precio_lista' => 100,
+        'descuento_monto' => 0,
+        'precio_final' => 100,
+        'modalidad_pago' => 'cuotas',
+        'requiere_plan_cuotas' => true,
+        'cuota_inicial_monto' => 0,
+        'asesor_id' => $user->id,
+    ]);
+
+    $plan = EnrollmentInstallmentPlan::create([
+        'cliente_id' => $cliente->id,
+        'cliente_matricula_id' => $matricula->id,
+        'monto_total' => 100,
+        'numero_cuotas' => 1,
+        'monto_cuota' => 100,
+        'frecuencia' => 'mensual',
+        'fecha_inicio' => now()->toDateString(),
+    ]);
+
+    $cuota = EnrollmentInstallment::create([
+        'enrollment_installment_plan_id' => $plan->id,
+        'cliente_matricula_id' => $matricula->id,
+        'numero_cuota' => 1,
+        'monto' => 100,
+        'fecha_vencimiento' => now()->addDays(5)->toDateString(),
+        'estado' => 'pendiente',
+    ]);
+
+    Caja::create([
+        'usuario_id' => $user->id,
+        'saldo_inicial' => 0,
+        'fecha_apertura' => now(),
+        'estado' => 'abierta',
+    ]);
+
+    Livewire::test(ClientePerfilLive::class)
+        ->call('selectCliente', $cliente->id)
+        ->call('openRegistrarPagoCuota', $cuota->id)
+        ->set('pagoCuotaForm.descuento_monto', '15')
+        ->assertSet('pagoCuotaForm.monto', '85')
+        ->call('guardarPagoCuota')
+        ->assertHasNoErrors();
+
+    $pago = Pago::query()->where('enrollment_installment_id', $cuota->id)->firstOrFail();
+    expect((float) $pago->descuento_monto)->toBe(15.0)
+        ->and((float) $pago->monto)->toBe(85.0);
+
+    $cuota->refresh();
+    expect($cuota->estado)->toBe('pagada')
+        ->and((float) $cuota->monto_pagado)->toBe(100.0);
+});
+
 it('muestra empty state cuando no existen matriculas en cuotas', function () {
     $user = User::factory()->create();
     $user->givePermissionTo(['cliente.ver', 'matricula_cliente.ver']);

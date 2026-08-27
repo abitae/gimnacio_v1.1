@@ -23,11 +23,11 @@
         <div class="grid grid-cols-2 gap-3">
             <flux:field>
                 <flux:label>Tipo doc.</flux:label>
-                <select wire:model="tipo_documento" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                <flux:select wire:model="tipo_documento">
                     <option value="">—</option>
                     <option value="DNI">DNI</option>
                     <option value="CE">CE</option>
-                </select>
+                </flux:select>
             </flux:field>
             <flux:field>
                 <flux:label>Número doc.</flux:label>
@@ -44,21 +44,21 @@
         </flux:field>
         <flux:field>
             <flux:label>Etapa</flux:label>
-            <select wire:model="stage_id" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2" required>
+            <flux:select wire:model="stage_id" required>
                 @foreach($this->stages as $s)
                 <option value="{{ $s->id }}">{{ $s->nombre }}</option>
                 @endforeach
-            </select>
+            </flux:select>
             <flux:error name="stage_id" />
         </flux:field>
         <flux:field>
             <flux:label>Asignado a</flux:label>
-            <select wire:model="assigned_to" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+            <flux:select wire:model="assigned_to">
                 <option value="">—</option>
                 @foreach($this->users as $u)
                 <option value="{{ $u->id }}">{{ $u->name }}</option>
                 @endforeach
-            </select>
+            </flux:select>
         </flux:field>
         <flux:field>
             <flux:label>Canal origen</flux:label>

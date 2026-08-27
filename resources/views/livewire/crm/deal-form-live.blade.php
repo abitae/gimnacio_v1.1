@@ -9,12 +9,12 @@
     @if($showMarkLost)
     <div class="mt-3 p-3 rounded-lg border border-red-200 dark:border-red-800 bg-red-50/50 dark:bg-red-950/30">
         <flux:label>Motivo de pérdida <span class="text-red-500">*</span></flux:label>
-        <select wire:model="motivo_perdida_id" class="flux-input rounded-lg w-full mt-1 border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2" required>
+        <flux:select wire:model="motivo_perdida_id" class="mt-1" required>
             <option value="">Seleccionar</option>
             @foreach($this->lossReasons as $r)
             <option value="{{ $r->id }}">{{ $r->nombre }}</option>
             @endforeach
-        </select>
+        </flux:select>
         <flux:label class="mt-2">Observación</flux:label>
         <flux:textarea wire:model="observacion_perdida" rows="2" class="mt-1" />
         <div class="flex gap-2 mt-2">
@@ -26,12 +26,12 @@
     <form wire:submit="save" class="mt-4 space-y-3">
         <flux:field>
             <flux:label>Membresía sugerida</flux:label>
-            <select wire:model="membresia_id" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+            <flux:select wire:model="membresia_id">
                 <option value="">—</option>
                 @foreach($this->membresias as $m)
                 <option value="{{ $m->id }}">{{ $m->nombre }} — S/ {{ number_format($m->precio_base, 2) }}</option>
                 @endforeach
-            </select>
+            </flux:select>
         </flux:field>
         <flux:field>
             <flux:label>Precio objetivo <span class="text-red-500">*</span></flux:label>
@@ -60,12 +60,12 @@
         </flux:field>
         <flux:field>
             <flux:label>Asignado a</flux:label>
-            <select wire:model="assigned_to" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+            <flux:select wire:model="assigned_to">
                 <option value="">—</option>
                 @foreach($this->users as $u)
                 <option value="{{ $u->id }}">{{ $u->name }}</option>
                 @endforeach
-            </select>
+            </flux:select>
         </flux:field>
         <flux:field>
             <flux:label>Notas</flux:label>

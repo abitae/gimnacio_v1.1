@@ -889,6 +889,7 @@ class ClientePerfilLive extends Component
         $this->matriculasConCuotas = $commercial->matriculasConCuotas;
         $this->deudaPlanesPendiente = $commercial->deudaPlanesPendiente;
         $this->matriculasSinCronogramaCuotas = $commercial->matriculasSinCronogramaCuotas;
+        $this->initializeCuotasMatriculaColapsadas();
     }
 
     public function getTipoRegistroHistorial($record): string

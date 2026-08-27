@@ -434,6 +434,7 @@ class EnrollmentInstallmentService
             }
 
             $monto = round((float) ($data['monto'] ?? $row->saldo_pendiente), 2);
+            $descuentoMonto = round((float) ($data['descuento_monto'] ?? 0), 2);
             $cajaService = app(CajaService::class);
 
             if ($matricula->estado === 'cancelada') {
@@ -441,31 +442,51 @@ class EnrollmentInstallmentService
             }
 
             $saldoCuota = $row->saldo_pendiente;
-            if ($monto <= 0) {
-                throw new \InvalidArgumentException('El monto del pago debe ser mayor a cero.');
+            if ($descuentoMonto < 0) {
+                throw new \InvalidArgumentException('El descuento no puede ser negativo.');
             }
 
-            if ($monto > $saldoCuota) {
-                throw new \InvalidArgumentException('El monto del pago no puede ser mayor al saldo pendiente de la cuota.');
+            if ($monto < 0) {
+                throw new \InvalidArgumentException('El monto del pago no puede ser negativo.');
             }
 
-            if (! $cajaService->validarCajaAbierta(auth()->id())) {
+            $montoAplicado = round($monto + $descuentoMonto, 2);
+            if ($montoAplicado <= 0) {
+                throw new \InvalidArgumentException('El monto aplicado (efectivo + descuento) debe ser mayor a cero.');
+            }
+
+            if ($montoAplicado > $saldoCuota) {
+                throw new \InvalidArgumentException('El monto aplicado no puede ser mayor al saldo pendiente de la cuota.');
+            }
+
+            if ($monto > 0 && ! $cajaService->validarCajaAbierta(auth()->id())) {
                 throw new \InvalidArgumentException('No hay una caja abierta. Abra una caja antes de registrar el pago de cuota.');
             }
 
-            $caja = ! empty($data['caja_id'])
-                ? \App\Models\Core\Caja::findOrFail((int) $data['caja_id'])
-                : $cajaService->obtenerOCrearCajaAbierta();
-            $this->assertCajaSucursal($caja->id, (int) $matricula->sucursal_id);
+            $caja = null;
+            if ($monto > 0) {
+                $caja = ! empty($data['caja_id'])
+                    ? \App\Models\Core\Caja::findOrFail((int) $data['caja_id'])
+                    : $cajaService->obtenerOCrearCajaAbierta();
+                $this->assertCajaSucursal($caja->id, (int) $matricula->sucursal_id);
+            }
+
             $saldoPendienteActual = app(ClienteMatriculaService::class)->obtenerSaldoPendiente($matricula->id);
-            $saldoPendienteNuevo = max(0, $saldoPendienteActual - $monto);
+            $saldoPendienteNuevo = max(0, $saldoPendienteActual - $montoAplicado);
             $detalleService = app(PagoDetalleService::class);
-            $lineasPago = $detalleService->normalizar(
-                array_merge(['metodo_pago' => 'Cuota '.$row->numero_cuota], $data),
-                $monto,
-                (int) $matricula->sucursal_id,
-            );
-            $datosCabecera = $detalleService->datosCabecera($lineasPago);
+
+            $datosCabecera = $monto > 0
+                ? $detalleService->datosCabecera($detalleService->normalizar(
+                    array_merge(['metodo_pago' => 'Cuota '.$row->numero_cuota], $data),
+                    $monto,
+                    (int) $matricula->sucursal_id,
+                ))
+                : [
+                    'metodo_pago' => 'Descuento',
+                    'payment_method_id' => null,
+                    'numero_operacion' => null,
+                    'entidad_financiera' => null,
+                ];
 
             $cobro = app(CobroTicketService::class)->resolverComprobantePago([
                 'comprobante_tipo' => $data['comprobante_tipo'] ?? null,
@@ -476,6 +497,7 @@ class EnrollmentInstallmentService
                 'cliente_matricula_id' => $matricula->id,
                 'enrollment_installment_id' => $row->id,
                 'monto' => $monto,
+                'descuento_monto' => $descuentoMonto,
                 'moneda' => $data['moneda'] ?? 'PEN',
                 ...$datosCabecera,
                 'fecha_pago' => $data['fecha_pago'] ?? now(),
@@ -483,26 +505,36 @@ class EnrollmentInstallmentService
                 'saldo_pendiente' => $saldoPendienteNuevo,
                 'comprobante_tipo' => $cobro['tipo'],
                 'comprobante_numero' => $cobro['numero'],
-                'caja_id' => $caja->id,
+                'caja_id' => $caja?->id,
                 'registrado_por' => auth()->id(),
                 'sucursal_id' => $matricula->sucursal_id,
             ]);
-            $detalleService->crearDetalles($pago, $caja, $lineasPago);
+
+            if ($monto > 0 && $caja) {
+                $lineasPago = $detalleService->normalizar(
+                    array_merge(['metodo_pago' => 'Cuota '.$row->numero_cuota], $data),
+                    $monto,
+                    (int) $matricula->sucursal_id,
+                );
+                $detalleService->crearDetalles($pago, $caja, $lineasPago);
+            }
 
             $obsCaja = null;
             if ($pago->comprobante_tipo || $pago->comprobante_numero) {
                 $obsCaja = 'Comprobante: '.strtoupper((string) $pago->comprobante_tipo).' '.$pago->comprobante_numero;
             }
 
-            $cajaService->registrarIngresosPorPago(
-                $pago,
-                'Pago cuota '.$row->numero_cuota.' - '.$matricula->nombre,
-                CajaMovimiento::CATEGORIA_CUOTA,
-                CajaMovimiento::ORIGEN_ENROLLMENT_INSTALLMENTS,
-                $obsCaja,
-            );
+            if ($monto > 0 && $caja) {
+                $cajaService->registrarIngresosPorPago(
+                    $pago,
+                    'Pago cuota '.$row->numero_cuota.' - '.$matricula->nombre,
+                    CajaMovimiento::CATEGORIA_CUOTA,
+                    CajaMovimiento::ORIGEN_ENROLLMENT_INSTALLMENTS,
+                    $obsCaja,
+                );
+            }
 
-            $nuevoMontoPagado = round($row->monto_pagado_actual + $monto, 2);
+            $nuevoMontoPagado = round($row->monto_pagado_actual + $montoAplicado, 2);
             $nuevoSaldoCuota = round(max(0, (float) $row->monto - $nuevoMontoPagado), 2);
             $nuevoEstado = $nuevoSaldoCuota <= 0
                 ? 'pagada'
@@ -550,6 +582,7 @@ class EnrollmentInstallmentService
     {
         return EnrollmentInstallment::query()
             ->where('cliente_matricula_id', $clienteMatriculaId)
+            ->with('pagos')
             ->orderBy('fecha_vencimiento')
             ->orderBy('numero_cuota')
             ->orderBy('id')

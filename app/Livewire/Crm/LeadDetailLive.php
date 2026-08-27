@@ -4,9 +4,11 @@ namespace App\Livewire\Crm;
 
 use App\Livewire\Concerns\FlashesToast;
 use App\Models\Crm\CrmActivity;
+use App\Models\Crm\CrmTask;
 use App\Models\Crm\Deal;
 use App\Models\Crm\Lead;
 use App\Services\Crm\CrmActivityService;
+use App\Services\Crm\CrmTaskService;
 use App\Services\Crm\DealService;
 use App\Services\Crm\LeadService;
 use Livewire\Component;
@@ -33,17 +35,28 @@ class LeadDetailLive extends Component
 
     public $editingTaskId = null;
 
+    public bool $confirmDeleteDeal = false;
+
+    public ?int $dealIdPendingDelete = null;
+
+    public bool $confirmDeleteActivity = false;
+
+    public ?int $activityIdPendingDelete = null;
+
     protected LeadService $leadService;
 
     protected DealService $dealService;
 
     protected CrmActivityService $activityService;
 
-    public function boot(LeadService $leadService, DealService $dealService, CrmActivityService $activityService)
+    protected CrmTaskService $taskService;
+
+    public function boot(LeadService $leadService, DealService $dealService, CrmActivityService $activityService, CrmTaskService $taskService)
     {
         $this->leadService = $leadService;
         $this->dealService = $dealService;
         $this->activityService = $activityService;
+        $this->taskService = $taskService;
     }
 
     public function mount(Lead|int|string $lead): void
@@ -100,14 +113,29 @@ class LeadDetailLive extends Component
         $this->flashToast('success', 'Oportunidad guardada');
     }
 
-    public function deleteDeal(int $id)
+    public function requestDeleteDeal(int $id): void
     {
         $this->authorize('crm.eliminar');
-        $deal = Deal::find($id);
+        $this->dealIdPendingDelete = $id;
+        $this->confirmDeleteDeal = true;
+    }
+
+    public function cancelDeleteDeal(): void
+    {
+        $this->confirmDeleteDeal = false;
+        $this->dealIdPendingDelete = null;
+    }
+
+    public function deleteDeal(?int $id = null)
+    {
+        $this->authorize('crm.eliminar');
+        $id ??= $this->dealIdPendingDelete;
+        $deal = $id ? Deal::find($id) : null;
         if ($deal && $deal->lead_id === $this->leadId) {
             $this->dealService->delete($deal);
             $this->flashToast('success', 'Oportunidad eliminada');
         }
+        $this->cancelDeleteDeal();
     }
 
     public function openActivityModal(?int $activityId = null)
@@ -129,14 +157,29 @@ class LeadDetailLive extends Component
         $this->flashToast('success', 'Actividad guardada');
     }
 
-    public function deleteActivity(int $id)
+    public function requestDeleteActivity(int $id): void
     {
         $this->authorize('crm.eliminar');
-        $act = CrmActivity::find($id);
+        $this->activityIdPendingDelete = $id;
+        $this->confirmDeleteActivity = true;
+    }
+
+    public function cancelDeleteActivity(): void
+    {
+        $this->confirmDeleteActivity = false;
+        $this->activityIdPendingDelete = null;
+    }
+
+    public function deleteActivity(?int $id = null)
+    {
+        $this->authorize('crm.eliminar');
+        $id ??= $this->activityIdPendingDelete;
+        $act = $id ? CrmActivity::find($id) : null;
         if ($act && $act->lead_id === $this->leadId) {
             $this->activityService->delete($act);
             $this->flashToast('success', 'Actividad eliminada');
         }
+        $this->cancelDeleteActivity();
     }
 
     public function openTaskModal(?int $taskId = null)
@@ -156,6 +199,17 @@ class LeadDetailLive extends Component
     {
         $this->closeTaskModal();
         $this->flashToast('success', 'Tarea guardada');
+    }
+
+    public function completeTask(int $id)
+    {
+        $this->authorize('crm.editar');
+        $task = CrmTask::find($id);
+        if (! $task || $task->lead_id !== $this->leadId) {
+            return;
+        }
+        $this->taskService->complete($task);
+        $this->flashToast('success', 'Tarea marcada como hecha');
     }
 
     public function openTagsModal()

@@ -16,8 +16,11 @@ trait ManagesCuotaPagoModal
 
     public ?int $pagoCuotaInstallmentId = null;
 
+    public float $pagoCuotaSaldoPendiente = 0.0;
+
     public array $pagoCuotaForm = [
         'monto' => '',
+        'descuento_monto' => '',
         'fecha_pago' => '',
         'pagos' => [],
     ];
@@ -57,9 +60,11 @@ trait ManagesCuotaPagoModal
         }
 
         $this->pagoCuotaInstallmentId = $installmentId;
-        $monto = (string) $inst->saldo_pendiente;
+        $this->pagoCuotaSaldoPendiente = round((float) $inst->saldo_pendiente, 2);
+        $monto = (string) $this->pagoCuotaSaldoPendiente;
         $this->pagoCuotaForm = [
             'monto' => $monto,
+            'descuento_monto' => '0',
             'fecha_pago' => now()->format('Y-m-d'),
             'pagos' => [$this->nuevaLineaPagoCuota($monto, $this->metodoEfectivoIdCuota())],
         ];
@@ -70,6 +75,7 @@ trait ManagesCuotaPagoModal
     {
         $this->cuotaPagoModalAbierto = false;
         $this->pagoCuotaInstallmentId = null;
+        $this->pagoCuotaSaldoPendiente = 0.0;
     }
 
     public function agregarFormaPagoCuota(): void
@@ -98,6 +104,20 @@ trait ManagesCuotaPagoModal
         }
     }
 
+    public function updatedPagoCuotaFormDescuentoMonto($value): void
+    {
+        $descuento = max(0, round((float) $value, 2));
+        $descuento = min($descuento, $this->pagoCuotaSaldoPendiente);
+        $monto = max(0, round($this->pagoCuotaSaldoPendiente - $descuento, 2));
+
+        $this->pagoCuotaForm['descuento_monto'] = (string) $descuento;
+        $this->pagoCuotaForm['monto'] = (string) $monto;
+
+        if (count($this->pagoCuotaForm['pagos'] ?? []) === 1) {
+            $this->pagoCuotaForm['pagos'][0]['monto'] = $monto > 0 ? (string) $monto : '0';
+        }
+    }
+
     public function getPagoCuotaTotalAsignadoProperty(): float
     {
         return round((float) collect($this->pagoCuotaForm['pagos'] ?? [])->sum(fn ($linea) => (float) ($linea['monto'] ?? 0)), 2);
@@ -111,15 +131,38 @@ trait ManagesCuotaPagoModal
     public function guardarPagoCuota(): void
     {
         $this->authorize('matricula_cliente.editar');
-        $this->validate([
-            'pagoCuotaForm.monto' => 'required|numeric|min:0.01',
+
+        $monto = round((float) ($this->pagoCuotaForm['monto'] ?? 0), 2);
+        $descuento = round((float) ($this->pagoCuotaForm['descuento_monto'] ?? 0), 2);
+
+        $rules = [
+            'pagoCuotaForm.monto' => 'required|numeric|min:0',
+            'pagoCuotaForm.descuento_monto' => 'required|numeric|min:0',
             'pagoCuotaForm.fecha_pago' => 'required|date',
-            'pagoCuotaForm.pagos' => 'required|array|min:1|max:2',
-            'pagoCuotaForm.pagos.*.payment_method_id' => 'required|exists:payment_methods,id',
-            'pagoCuotaForm.pagos.*.monto' => 'required|numeric|min:0.01',
-        ], [], [
+        ];
+
+        if ($monto > 0) {
+            $rules['pagoCuotaForm.pagos'] = 'required|array|min:1|max:2';
+            $rules['pagoCuotaForm.pagos.*.payment_method_id'] = 'required|exists:payment_methods,id';
+            $rules['pagoCuotaForm.pagos.*.monto'] = 'required|numeric|min:0.01';
+        }
+
+        $this->validate($rules, [], [
             'pagoCuotaForm.monto' => 'monto',
+            'pagoCuotaForm.descuento_monto' => 'descuento',
         ]);
+
+        if (round($monto + $descuento, 2) <= 0) {
+            $this->addError('pagoCuotaForm.monto', __('El monto aplicado (efectivo + descuento) debe ser mayor a cero.'));
+
+            return;
+        }
+
+        if (round($monto + $descuento, 2) > round($this->pagoCuotaSaldoPendiente, 2)) {
+            $this->addError('pagoCuotaForm.monto', __('El monto aplicado no puede superar el saldo pendiente de la cuota.'));
+
+            return;
+        }
 
         $inst = EnrollmentInstallment::query()
             ->with('plan.cliente')
@@ -132,11 +175,17 @@ trait ManagesCuotaPagoModal
         }
 
         try {
-            $pago = app(EnrollmentInstallmentService::class)->pagarCuota($inst, [
-                'monto' => (float) $this->pagoCuotaForm['monto'],
+            $payload = [
+                'monto' => $monto,
+                'descuento_monto' => $descuento,
                 'fecha_pago' => $this->pagoCuotaForm['fecha_pago'],
-                'pagos' => $this->pagoCuotaForm['pagos'],
-            ]);
+            ];
+
+            if ($monto > 0) {
+                $payload['pagos'] = $this->pagoCuotaForm['pagos'];
+            }
+
+            $pago = app(EnrollmentInstallmentService::class)->pagarCuota($inst, $payload);
             $this->flashToast('success', __('Pago de cuota registrado.'));
             $this->closeCuotaPagoModal();
             $this->afterCuotaPagoRegistrado($pago);

@@ -1,5 +1,7 @@
 <div class="space-y-3 border border-zinc-200 rounded-lg p-3 dark:border-zinc-700">
     <div class="flex h-full w-full flex-1 flex-col gap-3">
+        <x-crm.subnav />
+
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Mensajes WhatsApp</h1>
             <p class="text-xs text-zinc-600 dark:text-zinc-400">Envía mensajes a clientes o leads por WhatsApp (CRM)</p>
@@ -58,17 +60,17 @@
             </div>
 
             <div class="flex gap-3 items-center justify-end">
-                <select wire:model.live="canalFilter" class="w-full max-w-[120px] rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                <flux:select wire:model.live="canalFilter" size="xs" class="w-auto" aria-label="Filtrar por canal">
                     <option value="">Todos</option>
                     <option value="whatsapp">WhatsApp</option>
                     <option value="email">Email</option>
                     <option value="sms">SMS</option>
-                </select>
-                <select wire:model.live="perPage" class="w-full max-w-[100px] rounded-lg border border-zinc-300 bg-white px-2 py-1.5 text-xs dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100">
+                </flux:select>
+                <flux:select wire:model.live="perPage" size="xs" class="w-auto" aria-label="Resultados por página">
                     <option value="10">10</option>
                     <option value="15">15</option>
                     <option value="25">25</option>
-                </select>
+                </flux:select>
             </div>
             <div class="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-800">
                 <table class="w-full text-sm">
@@ -89,15 +91,11 @@
                                 <td class="px-4 py-2.5 text-zinc-600 dark:text-zinc-400">{{ $m->destino }}</td>
                                 <td class="px-4 py-2.5 text-zinc-900 dark:text-zinc-100 max-w-xs truncate">{{ Str::limit($m->contenido, 50) }}</td>
                                 <td class="px-4 py-2.5">
-                                    <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium
-                                        {{ $m->estado === 'enviado' ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : '' }}
-                                        {{ $m->estado === 'fallido' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400' : '' }}
-                                        {{ $m->estado === 'pendiente' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400' : '' }}
-                                    ">{{ $m->estado }}</span>
+                                    <x-crm.status-badge :status="$m->estado" type="mensaje" />
                                 </td>
                             </tr>
                         @empty
-                            <tr><td colspan="5" class="px-4 py-8 text-center text-zinc-500 dark:text-zinc-400">No hay mensajes</td></tr>
+                            <tr><td colspan="5"><x-empty-state message="No hay mensajes" /></td></tr>
                         @endforelse
                     </tbody>
                 </table>

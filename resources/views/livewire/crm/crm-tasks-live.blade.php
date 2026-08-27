@@ -1,4 +1,6 @@
 <div class="space-y-4">
+    <x-crm.subnav />
+
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Tareas CRM</h1>
@@ -14,71 +16,69 @@
     </div>
 
     @if($view === 'my-day' && $myDay)
+    @php
+        $dayGroups = [
+            'overdue' => [
+                'label' => 'Vencidas',
+                'icon' => 'exclamation-triangle',
+                'containerClass' => 'rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 p-4',
+                'headingClass' => 'font-medium text-amber-800 dark:text-amber-200 flex items-center gap-2',
+                'dateFormat' => 'd/m H:i',
+                'actionable' => true,
+            ],
+            'today' => [
+                'label' => 'Hoy',
+                'icon' => 'calendar',
+                'containerClass' => 'rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 p-4',
+                'headingClass' => 'font-medium text-blue-800 dark:text-blue-200 flex items-center gap-2',
+                'dateFormat' => 'H:i',
+                'actionable' => true,
+            ],
+            'next_7_days' => [
+                'label' => 'Próximos 7 días',
+                'icon' => 'calendar-days',
+                'containerClass' => 'rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4',
+                'headingClass' => 'font-medium text-zinc-800 dark:text-zinc-200 flex items-center gap-2',
+                'dateFormat' => 'd/m H:i',
+                'actionable' => false,
+            ],
+        ];
+    @endphp
     <div class="grid gap-4 md:grid-cols-3">
-        <div class="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/30 p-4">
-            <h2 class="font-medium text-amber-800 dark:text-amber-200 flex items-center gap-2">
-                <flux:icon name="exclamation-triangle" class="w-5 h-5" /> Vencidas
+        @foreach($dayGroups as $key => $group)
+        <div class="{{ $group['containerClass'] }}">
+            <h2 class="{{ $group['headingClass'] }}">
+                <flux:icon name="{{ $group['icon'] }}" class="w-5 h-5" /> {{ $group['label'] }}
             </h2>
-            <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{{ $myDay['overdue']->count() }} tareas</p>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{{ $myDay[$key]->count() }} tareas</p>
             <ul class="mt-3 space-y-2 max-h-48 overflow-y-auto">
-                @forelse($myDay['overdue'] as $t)
-                <li class="flex items-center justify-between gap-2 text-sm p-2 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600">
-                    <span class="truncate">{{ $t->tipo_label }} · {{ $t->fecha_hora_programada->format('d/m H:i') }}</span>
-                    <flux:button size="xs" wire:click="completeTask({{ $t->id }})" wire:loading.attr="disabled" wire:target="completeTask">
-                        <span wire:loading.remove wire:target="completeTask">Hecha</span>
-                        <span wire:loading wire:target="completeTask">...</span>
+                @forelse($myDay[$key] as $t)
+                <li class="{{ $group['actionable'] ? 'flex items-center justify-between gap-2' : '' }} text-sm p-2 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600">
+                    <span class="truncate">{{ $t->tipo_label }} · {{ $t->fecha_hora_programada->format($group['dateFormat']) }}</span>
+                    @if($group['actionable'])
+                    <flux:button size="xs" wire:click="completeTask({{ $t->id }})" wire:loading.attr="disabled" wire:target="completeTask({{ $t->id }})">
+                        <span wire:loading.remove wire:target="completeTask({{ $t->id }})">Hecha</span>
+                        <span wire:loading wire:target="completeTask({{ $t->id }})">...</span>
                     </flux:button>
+                    @endif
                 </li>
                 @empty
                 <li class="text-xs text-zinc-500">Ninguna</li>
                 @endforelse
             </ul>
         </div>
-        <div class="rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/30 p-4">
-            <h2 class="font-medium text-blue-800 dark:text-blue-200 flex items-center gap-2">
-                <flux:icon name="calendar" class="w-5 h-5" /> Hoy
-            </h2>
-            <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{{ $myDay['today']->count() }} tareas</p>
-            <ul class="mt-3 space-y-2 max-h-48 overflow-y-auto">
-                @forelse($myDay['today'] as $t)
-                <li class="flex items-center justify-between gap-2 text-sm p-2 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600">
-                    <span class="truncate">{{ $t->tipo_label }} · {{ $t->fecha_hora_programada->format('H:i') }}</span>
-                    <flux:button size="xs" wire:click="completeTask({{ $t->id }})" wire:loading.attr="disabled" wire:target="completeTask">
-                        <span wire:loading.remove wire:target="completeTask">Hecha</span>
-                        <span wire:loading wire:target="completeTask">...</span>
-                    </flux:button>
-                </li>
-                @empty
-                <li class="text-xs text-zinc-500">Ninguna</li>
-                @endforelse
-            </ul>
-        </div>
-        <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-900/50 p-4">
-            <h2 class="font-medium text-zinc-800 dark:text-zinc-200 flex items-center gap-2">
-                <flux:icon name="calendar-days" class="w-5 h-5" /> Próximos 7 días
-            </h2>
-            <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-1">{{ $myDay['next_7_days']->count() }} tareas</p>
-            <ul class="mt-3 space-y-2 max-h-48 overflow-y-auto">
-                @forelse($myDay['next_7_days'] as $t)
-                <li class="text-sm p-2 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-600">
-                    {{ $t->tipo_label }} · {{ $t->fecha_hora_programada->format('d/m H:i') }}
-                </li>
-                @empty
-                <li class="text-xs text-zinc-500">Ninguna</li>
-                @endforelse
-            </ul>
-        </div>
+        @endforeach
     </div>
     @endif
 
     @if($view === 'list' && isset($tasks))
     <div class="flex gap-2 items-center">
-        <select wire:model.live="statusFilter" class="rounded-lg border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-1.5 text-sm">
+        <flux:select wire:model.live="statusFilter" size="sm" class="w-auto" aria-label="Filtrar por estado">
             <option value="">Todos</option>
             <option value="pending">Pendiente</option>
             <option value="done">Hecha</option>
             <option value="overdue">Vencida</option>
-        </select>
+        </flux:select>
     </div>
     <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
         <table class="w-full text-sm">
@@ -98,7 +98,7 @@
                     <td class="px-4 py-2">{{ $t->tipo_label }}</td>
                     <td class="px-4 py-2">{{ $t->fecha_hora_programada->format('d/m/Y H:i') }}</td>
                     <td class="px-4 py-2">{{ $t->prioridad_label }}</td>
-                    <td class="px-4 py-2">{{ $t->estado_label }}</td>
+                    <td class="px-4 py-2"><x-crm.status-badge :status="$t->estado" type="task" :label="$t->estado_label" /></td>
                     <td class="px-4 py-2">
                         @if($t->lead) {{ $t->lead->nombre_completo }} @elseif($t->cliente) {{ $t->cliente->nombres }} {{ $t->cliente->apellidos }} @else — @endif
                     </td>
@@ -112,7 +112,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="6" class="px-4 py-6 text-center text-zinc-500">Sin tareas</td></tr>
+                <tr><td colspan="6"><x-empty-state message="Sin tareas" /></td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -128,12 +128,12 @@
         <div class="mt-3 space-y-3">
             <flux:field>
                 <flux:label>Lead</flux:label>
-                <select wire:model.live="taskLeadId" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                <flux:select wire:model.live="taskLeadId">
                     <option value="">Sin lead</option>
                     @foreach($this->assignableLeads as $lead)
                     <option value="{{ $lead->id }}">{{ $lead->nombre_completo }} · {{ $lead->telefono }}</option>
                     @endforeach
-                </select>
+                </flux:select>
             </flux:field>
             @if($taskLeadId)
             <livewire:crm.task-form-live :lead-id="(int) $taskLeadId" :key="'task-new-lead-'.$taskLeadId" />

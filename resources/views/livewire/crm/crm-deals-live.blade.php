@@ -1,4 +1,6 @@
 <div class="space-y-4">
+    <x-crm.subnav />
+
     <div>
         <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Oportunidades (Deals)</h1>
         <p class="text-xs text-zinc-600 dark:text-zinc-400">Todas las oportunidades CRM</p>
@@ -9,16 +11,16 @@
             <flux:input icon="magnifying-glass" type="search" placeholder="Buscar por nombre, teléfono, email..."
                 wire:model.live.debounce.300ms="search" class="w-full" />
         </div>
-        <select wire:model.live="estadoFilter" class="rounded-lg border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-1.5 text-sm">
+        <flux:select wire:model.live="estadoFilter" size="sm" class="w-auto" aria-label="Filtrar por estado">
             <option value="">Todos los estados</option>
             <option value="open">Abiertas</option>
             <option value="won">Ganadas</option>
             <option value="lost">Perdidas</option>
-        </select>
-        <select wire:model.live="assignedFilter" class="rounded-lg border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-1.5 text-sm">
+        </flux:select>
+        <flux:select wire:model.live="assignedFilter" size="sm" class="w-auto" aria-label="Filtrar por asesor">
             <option value="me">Mis oportunidades</option>
             <option value="">Todos</option>
-        </select>
+        </flux:select>
     </div>
 
     <div class="rounded-lg border border-zinc-200 dark:border-zinc-700 overflow-hidden">
@@ -45,7 +47,10 @@
                     </td>
                     <td class="px-4 py-2">{{ $d->membresia?->nombre ?? '—' }}</td>
                     <td class="px-4 py-2 text-right">S/ {{ number_format($d->precio_objetivo, 2) }}</td>
-                    <td class="px-4 py-2">{{ $d->estado }}</td>
+                    <td class="px-4 py-2">
+                        <x-crm.status-badge :status="$d->estado" type="deal"
+                            :label="['open' => 'Abierta', 'won' => 'Ganada', 'lost' => 'Perdida'][$d->estado] ?? $d->estado" />
+                    </td>
                     <td class="px-4 py-2">{{ $d->assignedTo?->name ?? '—' }}</td>
                     <td class="px-4 py-2">
                         <x-ui.table-actions align="left">
@@ -79,12 +84,12 @@
         <form wire:submit="markLost" class="mt-4 space-y-3">
             <flux:field>
                 <flux:label>Motivo</flux:label>
-                <select wire:model="motivo_perdida_id" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2" required>
+                <flux:select wire:model="motivo_perdida_id" required>
                     <option value="">Seleccionar...</option>
                     @foreach($this->lossReasons as $reason)
                     <option value="{{ $reason->id }}">{{ $reason->nombre }}</option>
                     @endforeach
-                </select>
+                </flux:select>
             </flux:field>
             <flux:field>
                 <flux:label>Observación</flux:label>

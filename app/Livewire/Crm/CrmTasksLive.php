@@ -6,6 +6,7 @@ use App\Livewire\Concerns\FlashesToast;
 use App\Models\Crm\CrmTask;
 use App\Models\Crm\Lead;
 use App\Services\Crm\CrmTaskService;
+use Livewire\Attributes\Url;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -13,6 +14,7 @@ class CrmTasksLive extends Component
 {
     use FlashesToast, WithPagination;
 
+    #[Url]
     public $view = 'my-day'; // 'my-day' | 'list'
 
     public $statusFilter = '';

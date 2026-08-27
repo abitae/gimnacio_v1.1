@@ -268,7 +268,7 @@
                                                 </span>
                                             </td>
                                             <td class="px-4 py-2.5 text-xs text-zinc-600 dark:text-zinc-400">
-                                                {{ $membresia->fecha_matricula?->format('d/m/Y') ?? '-' }}
+                                                {{ $membresia->fechaHoraInscripcion()?->format('d/m/Y g:i A') ?? '-' }}
                                             </td>
                                             <td class="px-4 py-2.5 text-xs text-zinc-600 dark:text-zinc-400">
                                                 {{ $membresia->fecha_inicio->format('d/m/Y') }}

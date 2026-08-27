@@ -1,4 +1,6 @@
 <div class="space-y-4">
+    <x-crm.subnav />
+
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Leads</h1>
@@ -11,26 +13,26 @@
 
     <div class="flex flex-wrap gap-2 items-center">
         <flux:input wire:model.live.debounce.300ms="search" placeholder="Buscar..." class="min-w-[180px]" />
-        <select wire:model.live="stage_id" class="rounded-lg border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-1.5 text-sm">
+        <flux:select wire:model.live="stage_id" size="sm" class="w-auto" aria-label="Filtrar por etapa">
             <option value="">Todas las etapas</option>
             @foreach($this->stages as $s)
             <option value="{{ $s->id }}">{{ $s->nombre }}</option>
             @endforeach
-        </select>
-        <select wire:model.live="assignedFilter" class="rounded-lg border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-1.5 text-sm">
+        </flux:select>
+        <flux:select wire:model.live="assignedFilter" size="sm" class="w-auto" aria-label="Filtrar por asesor">
             <option value="">Todos</option>
             <option value="me">Mis leads</option>
             @foreach($this->users as $u)
             <option value="{{ $u->id }}">{{ $u->name }}</option>
             @endforeach
-        </select>
+        </flux:select>
         @if($this->canales->isNotEmpty())
-        <select wire:model.live="canalFilter" class="rounded-lg border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-1.5 text-sm">
+        <flux:select wire:model.live="canalFilter" size="sm" class="w-auto" aria-label="Filtrar por canal">
             <option value="">Todos los canales</option>
             @foreach($this->canales as $c)
             <option value="{{ $c }}">{{ $c }}</option>
             @endforeach
-        </select>
+        </flux:select>
         @endif
     </div>
 
@@ -64,7 +66,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="6" class="px-4 py-8 text-center text-zinc-500">No hay leads con estos filtros</td></tr>
+                <tr><td colspan="6"><x-empty-state message="No hay leads con estos filtros" /></td></tr>
                 @endforelse
             </tbody>
         </table>

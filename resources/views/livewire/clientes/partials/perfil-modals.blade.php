@@ -232,6 +232,7 @@
                         <th class="px-4 py-3">#</th>
                         <th class="px-4 py-3">{{ __('Vencimiento') }}</th>
                         <th class="px-4 py-3">{{ __('Programado') }}</th>
+                        <th class="px-4 py-3">{{ __('Descuento') }}</th>
                         <th class="px-4 py-3">{{ __('Pagado') }}</th>
                         <th class="px-4 py-3">{{ __('Saldo') }}</th>
                         <th class="px-4 py-3">{{ __('Estado') }}</th>
@@ -244,6 +245,7 @@
                             <td class="px-4 py-3">{{ $cuota->numero_cuota }}</td>
                             <td class="px-4 py-3">{{ optional($cuota->fecha_vencimiento)->format('d/m/Y') }}</td>
                             <td class="px-4 py-3">S/ {{ number_format((float) $cuota->monto, 2) }}</td>
+                            <td class="px-4 py-3 text-amber-700 dark:text-amber-400">{{ $cuota->descuento_total > 0 ? 'S/ '.number_format($cuota->descuento_total, 2) : '—' }}</td>
                             <td class="px-4 py-3">S/ {{ number_format((float) $cuota->monto_pagado_actual, 2) }}</td>
                             <td class="px-4 py-3">S/ {{ number_format((float) $cuota->saldo_pendiente, 2) }}</td>
                             <td class="px-4 py-3">{{ \App\Models\Core\EnrollmentInstallment::ESTADOS[$cuota->estado] ?? ucfirst((string) $cuota->estado) }}</td>
@@ -257,7 +259,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-zinc-500">{{ __('Sin cuotas registradas.') }}</td>
+                            <td colspan="8" class="px-4 py-8 text-center text-zinc-500">{{ __('Sin cuotas registradas.') }}</td>
                         </tr>
                     @endforelse
                 </tbody>
@@ -281,8 +283,11 @@
     <form wire:submit.prevent="guardarPagoCuota" class="space-y-3 p-4">
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago de cuota') }}</h2>
         <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. Puedes registrar un abono parcial o completar el saldo de la cuota.') }}</p>
-        <flux:input size="xs" type="number" step="0.01" wire:model="pagoCuotaForm.monto" label="{{ __('Monto') }}" required />
+        <p class="text-xs text-zinc-500">{{ __('Saldo pendiente: S/ :saldo', ['saldo' => number_format($pagoCuotaSaldoPendiente, 2)]) }}</p>
+        <flux:input size="xs" type="number" step="0.01" wire:model.live="pagoCuotaForm.descuento_monto" label="{{ __('Descuento (S/)') }}" min="0" />
+        <flux:input size="xs" type="number" step="0.01" wire:model="pagoCuotaForm.monto" label="{{ __('Monto a cobrar (S/)') }}" required />
         <flux:input size="xs" type="date" wire:model="pagoCuotaForm.fecha_pago" label="{{ __('Fecha') }}" required />
+        @if ((float) ($pagoCuotaForm['monto'] ?? 0) > 0)
         @include('livewire.shared.pago-mixto-fields', [
             'formPrefix' => 'pagoCuotaForm',
             'totalAsignado' => $this->pagoCuotaTotalAsignado,
@@ -290,6 +295,7 @@
             'agregarAction' => 'agregarFormaPagoCuota',
             'quitarAction' => 'quitarFormaPagoCuota',
         ])
+        @endif
         <div class="flex justify-end gap-2 pt-2">
             <flux:button type="button" variant="ghost" size="xs" wire:click="closeCuotaPagoModal">{{ __('Cancelar') }}</flux:button>
             <flux:button type="submit" variant="primary" size="xs">{{ __('Registrar pago') }}</flux:button>

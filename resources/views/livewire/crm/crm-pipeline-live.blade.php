@@ -1,8 +1,10 @@
 <div class="space-y-4">
+    <x-crm.subnav />
+
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Pipeline CRM</h1>
-            <p class="text-xs text-zinc-600 dark:text-zinc-400">Leads por etapa · Arrastra o mueve entre columnas</p>
+            <p class="text-xs text-zinc-600 dark:text-zinc-400">Leads por etapa · Arrastra una tarjeta a otra columna, o usa el menú ⋮ de cada lead</p>
         </div>
         <div class="flex flex-wrap items-center gap-2">
             @can('crm.editar')
@@ -51,22 +53,20 @@
             <flux:input icon="magnifying-glass" type="search" placeholder="Buscar por nombre, teléfono, email..."
                 wire:model.live.debounce.300ms="search" class="w-full" />
         </div>
-        <select wire:model.live="assignedFilter"
-            class="rounded-lg border border-zinc-300 bg-white dark:bg-zinc-800 dark:border-zinc-600 px-3 py-1.5 text-sm">
+        <flux:select wire:model.live="assignedFilter" size="sm" class="w-auto" aria-label="Filtrar por asesor">
             <option value="">Todos los asesores</option>
             <option value="me">Mis leads</option>
             @foreach($this->users as $u)
             <option value="{{ $u->id }}">{{ $u->name }}</option>
             @endforeach
-        </select>
+        </flux:select>
         @if($this->canales->isNotEmpty())
-        <select wire:model.live="canalFilter"
-            class="rounded-lg border border-zinc-300 bg-white dark:bg-zinc-800 dark:border-zinc-600 px-3 py-1.5 text-sm">
+        <flux:select wire:model.live="canalFilter" size="sm" class="w-auto" aria-label="Filtrar por canal">
             <option value="">Todos los canales</option>
             @foreach($this->canales as $c)
             <option value="{{ $c }}">{{ $c }}</option>
             @endforeach
-        </select>
+        </flux:select>
         @endif
         <div class="flex items-center gap-1 ml-auto">
             <flux:button size="xs" variant="ghost" wire:click="collapseEmptyStages" title="Minimizar etapas sin leads">
@@ -80,8 +80,9 @@
         </div>
     </div>
 
+    @php $canDragLeads = auth()->user()?->can('crm.editar') ?? false; @endphp
     <div class="overflow-x-auto pb-4">
-        <div class="flex gap-4 min-w-max">
+        <div class="flex gap-4 min-w-max" x-data="{ draggingId: null, overStageId: null }">
             @foreach($stages as $stage)
             @php
                 $totalInStage = $stage->leads_count ?? 0;
@@ -132,11 +133,22 @@
                     <a href="{{ route('crm.leads.index', ['stage_id' => $stage->id]) }}" wire:navigate class="text-zinc-700 dark:text-zinc-300 hover:underline ml-1">Ver todos</a>
                 </div>
                 @endif
-                <div class="p-2 min-h-[140px] max-h-[calc(100vh-300px)] overflow-y-auto space-y-2 flex-1">
+                <div class="p-2 min-h-[140px] max-h-[calc(100vh-300px)] overflow-y-auto space-y-2 flex-1 rounded-b-xl transition-colors"
+                    @if($canDragLeads)
+                    x-on:dragover.prevent="overStageId = {{ $stage->id }}"
+                    x-on:dragleave="overStageId = (overStageId === {{ $stage->id }} ? null : overStageId)"
+                    x-on:drop.prevent="if (draggingId) { $wire.moveToStage(draggingId, {{ $stage->id }}); } draggingId = null; overStageId = null;"
+                    :class="overStageId === {{ $stage->id }} ? 'ring-2 ring-inset ring-accent bg-accent/5' : ''"
+                    @endif>
                     @forelse($stage->leads as $lead)
                     @php $isMoving = $movingLeadId == $lead->id && $movingToStageId; @endphp
                     <div wire:key="lead-{{ $lead->id }}"
-                        class="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 shadow-sm hover:shadow transition cursor-pointer group relative {{ $isMoving ? 'opacity-70 pointer-events-none' : '' }}">
+                        @if($canDragLeads)
+                        draggable="true"
+                        x-on:dragstart="draggingId = {{ $lead->id }}; $event.dataTransfer.effectAllowed = 'move';"
+                        x-on:dragend="draggingId = null; overStageId = null;"
+                        @endif
+                        class="rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white dark:bg-zinc-800 shadow-sm hover:shadow transition cursor-pointer group relative {{ $canDragLeads ? 'active:cursor-grabbing' : '' }} {{ $isMoving ? 'opacity-70 pointer-events-none' : '' }}">
                         @if($isMoving)
                         <div class="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-zinc-800/80 rounded-lg z-10">
                             <flux:icon name="arrow-path" class="w-6 h-6 animate-spin text-zinc-500" />
@@ -185,7 +197,7 @@
                             @if($lead->tags->isNotEmpty())
                             <div class="flex flex-wrap gap-1 mt-2">
                                 @foreach($lead->tags as $tag)
-                                <span class="text-xs px-1.5 py-0.5 rounded" style="background: {{ $tag->color ?? '#e4e4e7' }}20; color: {{ $tag->color ?? '#71717a' }};">{{ $tag->nombre }}</span>
+                                <x-crm.tag-pill :color="$tag->color" :label="$tag->nombre" />
                                 @endforeach
                             </div>
                             @endif
@@ -217,6 +229,10 @@
         <livewire:crm.convert-lead-live :lead-id="$selectedLeadId" :key="'convert-'.$selectedLeadId" />
         @endif
     </flux:modal>
+
+    <x-ui.confirm-modal wire-model="confirmDeleteStage" title="Eliminar etapa"
+        message="Esta acción no se puede deshacer. Solo puedes eliminar etapas sin leads."
+        confirm-action="deleteStage" cancel-action="cancelDeleteStage" />
 
     <flux:modal name="manage-stages" wire:model="modalStages" focusable flyout variant="floating" class="md:w-lg">
         @if($modalStages)
@@ -281,8 +297,7 @@
                         <flux:button size="xs" variant="ghost" wire:click="openEditStage({{ $manageStage->id }})">Editar</flux:button>
                         @endcan
                         @can('crm.eliminar')
-                        <flux:button size="xs" variant="ghost" wire:click="deleteStage({{ $manageStage->id }})"
-                            wire:confirm="¿Eliminar esta etapa?"
+                        <flux:button size="xs" variant="ghost" wire:click="requestDeleteStage({{ $manageStage->id }})"
                             :disabled="$manageStage->leads_count > 0">Eliminar</flux:button>
                         @endcan
                     </div>

@@ -3,11 +3,11 @@
     <form wire:submit="save" class="mt-4 space-y-3">
         <flux:field>
             <flux:label>Tipo <span class="text-red-500">*</span></flux:label>
-            <select wire:model="tipo" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2" required>
+            <flux:select wire:model="tipo" required>
                 @foreach($this->tipos as $key => $label)
                 <option value="{{ $key }}">{{ $label }}</option>
                 @endforeach
-            </select>
+            </flux:select>
         </flux:field>
         <flux:field>
             <flux:label>Fecha y hora programada <span class="text-red-500">*</span></flux:label>
@@ -16,19 +16,19 @@
         </flux:field>
         <flux:field>
             <flux:label>Prioridad</flux:label>
-            <select wire:model="prioridad" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+            <flux:select wire:model="prioridad">
                 @foreach($this->prioridades as $key => $label)
                 <option value="{{ $key }}">{{ $label }}</option>
                 @endforeach
-            </select>
+            </flux:select>
         </flux:field>
         <flux:field>
             <flux:label>Asignado a</flux:label>
-            <select wire:model="assigned_to" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+            <flux:select wire:model="assigned_to">
                 @foreach($this->users as $u)
                 <option value="{{ $u->id }}">{{ $u->name }}</option>
                 @endforeach
-            </select>
+            </flux:select>
         </flux:field>
         <flux:field>
             <flux:label>Notas</flux:label>

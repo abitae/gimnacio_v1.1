@@ -22,6 +22,7 @@ class Pago extends Model
         'enrollment_installment_id',
         'client_debt_id',
         'monto',
+        'descuento_monto',
         'moneda',
         'metodo_pago',
         'payment_method_id',
@@ -41,6 +42,7 @@ class Pago extends Model
     {
         return [
             'fecha_pago' => 'datetime',
+            'descuento_monto' => 'decimal:2',
             'es_pago_parcial' => 'boolean',
             'sucursal_id' => 'integer',
         ];

@@ -149,6 +149,24 @@ it('cobra una cuota con dos formas desde el cronograma y permite abrir cualquier
         ->and(app(EnrollmentInstallmentService::class)->isFirstPayableInstallment($cuotas['segunda']->fresh()))->toBeTrue();
 });
 
+it('cobra una cuota aplicando descuento y persiste el monto condonado', function () {
+    $ctx = prepararInterfazPagoMixto('ui-descuento-cuota');
+    $cuotas = agregarCuotasInterfazPagoMixto($ctx);
+
+    Livewire::test(Schedule::class, ['cliente' => $ctx['cliente']])
+        ->call('openRegistrarPagoCuota', $cuotas['primera']->id)
+        ->set('pagoCuotaForm.descuento_monto', '10')
+        ->assertSet('pagoCuotaForm.monto', '85')
+        ->call('guardarPagoCuota')
+        ->assertHasNoErrors()
+        ->assertSet('cuotaPagoModalAbierto', false);
+
+    $pago = Pago::query()->where('enrollment_installment_id', $cuotas['primera']->id)->firstOrFail();
+    expect((float) $pago->descuento_monto)->toBe(10.0)
+        ->and((float) $pago->monto)->toBe(85.0)
+        ->and($cuotas['primera']->refresh()->estado)->toBe('pagada');
+});
+
 it('muestra botones de pago activos para todas las cuotas pendientes en perfil y cuotas vencidas', function () {
     $ctx = prepararInterfazPagoMixto('ui-prioridad');
     agregarCuotasInterfazPagoMixto($ctx);

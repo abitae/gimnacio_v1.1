@@ -1,6 +1,42 @@
 import Swal from 'sweetalert2';
+import Chart from 'chart.js/auto';
 
 window.Swal = Swal;
+window.Chart = Chart;
+
+// Gráfico de barras reutilizable (CRM Reportes y otros módulos analíticos livianos).
+document.addEventListener('alpine:init', () => {
+    Alpine.data('crmBarChart', (config) => ({
+        chart: null,
+        init() {
+            const isDark = document.documentElement.classList.contains('dark');
+            const gridColor = isDark ? '#3f3f46' : '#e4e4e7';
+            const tickColor = isDark ? '#a1a1aa' : '#52525b';
+            this.chart = new Chart(this.$refs.canvas, {
+                type: 'bar',
+                data: {
+                    labels: config.labels,
+                    datasets: [{
+                        data: config.values,
+                        backgroundColor: config.colors || '#71717a',
+                        borderRadius: 6,
+                        maxBarThickness: 32,
+                    }],
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { beginAtZero: true, ticks: { color: tickColor, precision: 0 }, grid: { color: gridColor } },
+                        y: { ticks: { color: tickColor }, grid: { display: false } },
+                    },
+                },
+            });
+        },
+    }));
+});
 
 const flashTitles = {
     success: 'Éxito',

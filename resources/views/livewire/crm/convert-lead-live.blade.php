@@ -5,10 +5,10 @@
         <div class="grid grid-cols-2 gap-3">
             <flux:field>
                 <flux:label>Tipo documento <span class="text-red-500">*</span></flux:label>
-                <select wire:model="tipo_documento" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2" required>
+                <flux:select wire:model="tipo_documento" required>
                     <option value="DNI">DNI</option>
                     <option value="CE">CE</option>
-                </select>
+                </flux:select>
             </flux:field>
             <flux:field>
                 <flux:label>Número documento <span class="text-red-500">*</span></flux:label>
@@ -46,12 +46,12 @@
         @if($activar_membresia)
         <flux:field>
             <flux:label>Membresía <span class="text-red-500">*</span></flux:label>
-            <select wire:model="membresia_id" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+            <flux:select wire:model="membresia_id">
                 <option value="">Seleccionar</option>
                 @foreach($this->membresias as $m)
                 <option value="{{ $m->id }}">{{ $m->nombre }} — S/ {{ number_format($m->precio_base, 2) }}</option>
                 @endforeach
-            </select>
+            </flux:select>
             <flux:error name="membresia_id" />
         </flux:field>
         <flux:field>

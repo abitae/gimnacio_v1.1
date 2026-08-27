@@ -4,6 +4,7 @@ namespace App\Models\Core;
 
 use App\Models\Concerns\BelongsToSucursal;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -207,5 +208,36 @@ class ClienteMatricula extends Model
         }
 
         return 'N/A';
+    }
+
+    /**
+     * Fecha y hora de inscripción para UI (fecha_matricula es DATE sin hora).
+     */
+    public function fechaHoraInscripcion(): ?Carbon
+    {
+        if (! $this->fecha_matricula) {
+            return $this->created_at;
+        }
+
+        $firstPago = $this->relationLoaded('pagos')
+            ? $this->pagos
+                ->filter(fn ($pago) => $pago?->fecha_pago)
+                ->sortBy(fn ($pago) => $pago->fecha_pago?->timestamp ?? PHP_INT_MAX)
+                ->first()
+            : $this->pagos()
+                ->whereNotNull('fecha_pago')
+                ->orderBy('fecha_pago')
+                ->orderBy('id')
+                ->first();
+
+        if ($firstPago) {
+            return $firstPago->fechaHoraPago();
+        }
+
+        if ($this->created_at) {
+            return Carbon::parse($this->fecha_matricula)->setTimeFrom($this->created_at);
+        }
+
+        return Carbon::parse($this->fecha_matricula);
     }
 }

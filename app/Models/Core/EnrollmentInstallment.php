@@ -123,4 +123,13 @@ class EnrollmentInstallment extends Model
 
         return $this->fecha_pago ? Carbon::parse($this->fecha_pago) : null;
     }
+
+    public function getDescuentoTotalAttribute(): float
+    {
+        $pagos = $this->relationLoaded('pagos')
+            ? $this->pagos
+            : $this->pagos()->get();
+
+        return round((float) $pagos->sum('descuento_monto'), 2);
+    }
 }

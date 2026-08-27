@@ -45,6 +45,9 @@ trait ManagesClienteCommercialTab
 
     public ?int $crearPlanCuotasMatriculaId = null;
 
+    /** @var list<int> IDs de matrículas con la tabla de cuotas colapsada */
+    public array $cuotasMatriculaColapsadas = [];
+
     public array $crearPlanCuotasForm = [
         'monto_total' => '',
         'numero_cuotas' => '',
@@ -423,5 +426,37 @@ trait ManagesClienteCommercialTab
         $this->deudaPlanesPendiente = 0.0;
         $this->matriculasSinCronogramaCuotas = collect([]);
         $this->matriculaCobroSeleccionada = null;
+        $this->cuotasMatriculaColapsadas = [];
+    }
+
+    public function toggleCuotasMatricula(int $matriculaId): void
+    {
+        if (in_array($matriculaId, $this->cuotasMatriculaColapsadas, true)) {
+            $this->cuotasMatriculaColapsadas = array_values(array_filter(
+                $this->cuotasMatriculaColapsadas,
+                fn (int $id) => $id !== $matriculaId
+            ));
+        } else {
+            $this->cuotasMatriculaColapsadas[] = $matriculaId;
+        }
+    }
+
+    public function isCuotasMatriculaColapsada(int $matriculaId): bool
+    {
+        return in_array($matriculaId, $this->cuotasMatriculaColapsadas, true);
+    }
+
+    protected function initializeCuotasMatriculaColapsadas(): void
+    {
+        $colapsadas = [];
+
+        foreach ($this->matriculasConCuotas ?? [] as $matriculaCuotas) {
+            $estado = strtolower((string) ($matriculaCuotas['estado_matricula'] ?? ''));
+            if (! in_array($estado, ['activa', 'activo'], true)) {
+                $colapsadas[] = (int) $matriculaCuotas['id'];
+            }
+        }
+
+        $this->cuotasMatriculaColapsadas = $colapsadas;
     }
 }

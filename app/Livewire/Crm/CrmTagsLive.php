@@ -20,6 +20,10 @@ class CrmTagsLive extends Component
 
     public $color = '#6366f1';
 
+    public bool $confirmDeleteTag = false;
+
+    public ?int $tagIdPendingDelete = null;
+
     public function mount()
     {
         $this->authorize('crm.ver');
@@ -65,14 +69,29 @@ class CrmTagsLive extends Component
         $this->flashToast('success', 'Etiqueta guardada');
     }
 
-    public function deleteTag(int $id)
+    public function requestDeleteTag(int $id): void
     {
         $this->authorize('crm.eliminar');
-        $tag = Tag::find($id);
+        $this->tagIdPendingDelete = $id;
+        $this->confirmDeleteTag = true;
+    }
+
+    public function cancelDeleteTag(): void
+    {
+        $this->confirmDeleteTag = false;
+        $this->tagIdPendingDelete = null;
+    }
+
+    public function deleteTag(?int $id = null)
+    {
+        $this->authorize('crm.eliminar');
+        $id ??= $this->tagIdPendingDelete;
+        $tag = $id ? Tag::find($id) : null;
         if ($tag) {
             $tag->delete();
             $this->flashToast('success', 'Etiqueta eliminada');
         }
+        $this->cancelDeleteTag();
     }
 
     public function closeModal()

@@ -16,6 +16,12 @@ class CrmReportesLive extends Component
 
     public $to = '';
 
+    public bool $advisorShowAll = false;
+
+    public bool $channelShowAll = false;
+
+    protected const ROWS_LIMIT = 15;
+
     protected CrmReportService $reportService;
 
     public function boot(CrmReportService $reportService)
@@ -40,22 +46,36 @@ class CrmReportesLive extends Component
         );
     }
 
-    public function getByAdvisorDataProperty()
+    public function getByAdvisorDataAllProperty()
     {
         return $this->reportService->reportByAdvisor(
             $this->from ?: null,
             $this->to ?: null,
             $this->reporteSucursalFilter(),
-        );
+        )->sortByDesc('leads_count')->values();
     }
 
-    public function getByChannelDataProperty()
+    public function getByAdvisorDataProperty()
+    {
+        $all = $this->getByAdvisorDataAllProperty();
+
+        return $this->advisorShowAll ? $all : $all->take(self::ROWS_LIMIT);
+    }
+
+    public function getByChannelDataAllProperty()
     {
         return $this->reportService->reportByChannel(
             $this->from ?: null,
             $this->to ?: null,
             $this->reporteSucursalFilter(),
-        );
+        )->sortByDesc('total')->values();
+    }
+
+    public function getByChannelDataProperty()
+    {
+        $all = $this->getByChannelDataAllProperty();
+
+        return $this->channelShowAll ? $all : $all->take(self::ROWS_LIMIT);
     }
 
     public function render()

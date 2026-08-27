@@ -3,11 +3,11 @@
     <form wire:submit="save" class="mt-4 space-y-3">
         <flux:field>
             <flux:label>Tipo <span class="text-red-500">*</span></flux:label>
-            <select wire:model="tipo" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2" required>
+            <flux:select wire:model="tipo" required>
                 @foreach($this->tipos as $key => $label)
                 <option value="{{ $key }}">{{ $label }}</option>
                 @endforeach
-            </select>
+            </flux:select>
             <flux:error name="tipo" />
         </flux:field>
         <flux:field>

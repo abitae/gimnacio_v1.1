@@ -1,4 +1,6 @@
 <div class="space-y-4">
+    <x-crm.subnav />
+
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Etiquetas CRM</h1>
@@ -24,7 +26,7 @@
                     <flux:button size="xs" variant="ghost" wire:click="openEdit({{ $tag->id }})">Editar</flux:button>
                     @endcan
                     @can('crm.eliminar')
-                    <flux:button size="xs" variant="ghost" wire:click="deleteTag({{ $tag->id }})" wire:confirm="¿Eliminar esta etiqueta?">Eliminar</flux:button>
+                    <flux:button size="xs" variant="ghost" wire:click="requestDeleteTag({{ $tag->id }})">Eliminar</flux:button>
                     @endcan
                 </div>
             </li>
@@ -61,4 +63,8 @@
             </form>
         </div>
     </flux:modal>
+
+    <x-ui.confirm-modal wire-model="confirmDeleteTag" title="Eliminar etiqueta"
+        message="Esta acción no se puede deshacer."
+        confirm-action="deleteTag" cancel-action="cancelDeleteTag" />
 </div>

@@ -68,8 +68,11 @@
         <form wire:submit.prevent="guardarPagoCuota" class="space-y-3 p-4">
             <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago de cuota') }}</h2>
             <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. Puedes registrar un abono parcial o completar el saldo de la cuota.') }}</p>
-            <flux:input size="xs" type="number" step="0.01" wire:model="pagoCuotaForm.monto" label="{{ __('Monto') }}" required />
+            <p class="text-xs text-zinc-500">{{ __('Saldo pendiente: S/ :saldo', ['saldo' => number_format($pagoCuotaSaldoPendiente, 2)]) }}</p>
+            <flux:input size="xs" type="number" step="0.01" wire:model.live="pagoCuotaForm.descuento_monto" label="{{ __('Descuento (S/)') }}" min="0" />
+            <flux:input size="xs" type="number" step="0.01" wire:model="pagoCuotaForm.monto" label="{{ __('Monto a cobrar (S/)') }}" required />
             <flux:input size="xs" type="date" wire:model="pagoCuotaForm.fecha_pago" label="{{ __('Fecha') }}" required />
+            @if ((float) ($pagoCuotaForm['monto'] ?? 0) > 0)
             @include('livewire.shared.pago-mixto-fields', [
                 'formPrefix' => 'pagoCuotaForm',
                 'totalAsignado' => $this->pagoCuotaTotalAsignado,
@@ -77,6 +80,7 @@
                 'agregarAction' => 'agregarFormaPagoCuota',
                 'quitarAction' => 'quitarFormaPagoCuota',
             ])
+            @endif
             <div class="flex justify-end gap-2 pt-2">
                 <flux:button type="button" variant="ghost" size="xs" wire:click="closeCuotaPagoModal">{{ __('Cancelar') }}</flux:button>
                 <flux:button type="submit" variant="primary" size="xs">{{ __('Registrar pago') }}</flux:button>

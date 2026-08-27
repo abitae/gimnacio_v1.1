@@ -10,7 +10,10 @@
 
     <div class="rounded-xl border border-zinc-200 dark:border-zinc-700 p-4 bg-white dark:bg-zinc-800">
         <h1 class="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{{ $campaign->nombre }}</h1>
-        <p class="text-sm text-zinc-500">{{ \App\Models\Crm\Campaign::TIPOS[$campaign->tipo] ?? $campaign->tipo }} · {{ \App\Models\Crm\Campaign::ESTADOS[$campaign->estado] ?? $campaign->estado }}</p>
+        <p class="text-sm text-zinc-500 flex items-center gap-1.5">
+            {{ \App\Models\Crm\Campaign::TIPOS[$campaign->tipo] ?? $campaign->tipo }}
+            <x-crm.status-badge :status="$campaign->estado" type="campaign" :label="\App\Models\Crm\Campaign::ESTADOS[$campaign->estado] ?? $campaign->estado" />
+        </p>
         @if($campaign->discountCoupon)
         <p class="text-sm text-zinc-600 dark:text-zinc-400 mt-2">
             Cupón vinculado:
@@ -43,29 +46,37 @@
                         @endif
                     </td>
                     <td class="px-4 py-2">
-                        <select class="rounded border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-2 py-1 text-xs"
-                            wire:model.live="targetAssignments.{{ $t->id }}">
-                            <option value="">—</option>
-                            @foreach($this->users as $u)
-                            <option value="{{ $u->id }}">{{ $u->name }}</option>
-                            @endforeach
-                        </select>
+                        <div class="flex items-center gap-1.5">
+                            <flux:select size="xs" class="w-auto" aria-label="Asignar a"
+                                wire:model.live="targetAssignments.{{ $t->id }}"
+                                wire:loading.class="opacity-50" wire:target="targetAssignments.{{ $t->id }}">
+                                <option value="">—</option>
+                                @foreach($this->users as $u)
+                                <option value="{{ $u->id }}">{{ $u->name }}</option>
+                                @endforeach
+                            </flux:select>
+                            <flux:icon name="arrow-path" wire:loading wire:target="targetAssignments.{{ $t->id }}" class="w-3.5 h-3.5 animate-spin text-zinc-400 shrink-0" />
+                        </div>
                     </td>
                     <td class="px-4 py-2">
                         @can('crm.editar')
-                        <select class="rounded border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-2 py-1 text-xs"
-                            wire:model.live="targetStatuses.{{ $t->id }}">
-                            @foreach(\App\Models\Crm\CampaignTarget::ESTADOS as $e)
-                            <option value="{{ $e }}">{{ $e }}</option>
-                            @endforeach
-                        </select>
+                        <div class="flex items-center gap-1.5">
+                            <flux:select size="xs" class="w-auto" aria-label="Estado del contacto"
+                                wire:model.live="targetStatuses.{{ $t->id }}"
+                                wire:loading.class="opacity-50" wire:target="targetStatuses.{{ $t->id }}">
+                                @foreach(\App\Models\Crm\CampaignTarget::ESTADOS as $e)
+                                <option value="{{ $e }}">{{ $e }}</option>
+                                @endforeach
+                            </flux:select>
+                            <flux:icon name="arrow-path" wire:loading wire:target="targetStatuses.{{ $t->id }}" class="w-3.5 h-3.5 animate-spin text-zinc-400 shrink-0" />
+                        </div>
                         @else
-                        {{ $t->estado }}
+                        <x-crm.status-badge :status="$t->estado" type="campaign-target" />
                         @endcan
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="4" class="px-4 py-6 text-center text-zinc-500">Sin targets. Genera desde filtros de renovación/reactivación.</td></tr>
+                <tr><td colspan="4"><x-empty-state message="Sin targets. Genera desde filtros de renovación/reactivación." /></td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -79,35 +90,35 @@
             <form wire:submit="generarTargets" class="mt-4 space-y-3">
                 <flux:field>
                     <flux:label>Tipo</flux:label>
-                    <select wire:model="filtroTipo" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                    <flux:select wire:model="filtroTipo">
                         <option value="renovacion">Renovación (por vencer)</option>
                         <option value="reactivacion">Reactivación (vencidos)</option>
-                    </select>
+                    </flux:select>
                 </flux:field>
                 <flux:field>
                     <flux:label>Días</flux:label>
                     @if($filtroTipo === 'renovacion')
-                    <select wire:model="filtroDias" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                    <flux:select wire:model="filtroDias">
                         <option value="7">7 días</option>
                         <option value="3">3 días</option>
                         <option value="1">1 día</option>
-                    </select>
+                    </flux:select>
                     @else
-                    <select wire:model="filtroDias" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                    <flux:select wire:model="filtroDias">
                         <option value="15">15 días</option>
                         <option value="30">30 días</option>
                         <option value="60">60 días</option>
-                    </select>
+                    </flux:select>
                     @endif
                 </flux:field>
                 <flux:field>
                     <flux:label>Asignar a</flux:label>
-                    <select wire:model="asignarUsuario" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                    <flux:select wire:model="asignarUsuario">
                         <option value="">Ninguno</option>
                         @foreach($this->users as $u)
                         <option value="{{ $u->id }}">{{ $u->name }}</option>
                         @endforeach
-                    </select>
+                    </flux:select>
                 </flux:field>
                 <div class="flex justify-end gap-2 pt-2">
                     <flux:button type="button" variant="ghost" wire:click="$set('modalGenerar', false)">Cancelar</flux:button>

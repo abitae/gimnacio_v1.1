@@ -13,6 +13,7 @@ Cada plan describe el estado actual, objetivos, fases, pasos accionables, criter
 | 3 | Analitica | Alta | [05-analitica-plan-mejora.md](./05-analitica-plan-mejora.md) |
 | 4 | Bienestar | Alta | [02-bienestar-plan-mejora.md](./02-bienestar-plan-mejora.md) |
 | 5 | Comercial | Alta | [03-comercial-plan-mejora.md](./03-comercial-plan-mejora.md) |
+| 5b | Comercial — UI/UX | Alta | [03-comercial-ui-ux-plan-mejora.md](./03-comercial-ui-ux-plan-mejora.md) |
 | 6 | Recursos | Media | [04-recursos-plan-mejora.md](./04-recursos-plan-mejora.md) |
 | 7 | Administracion | Media | [06-administracion-plan-mejora.md](./06-administracion-plan-mejora.md) |
 | 8 | Plataforma | Media | [07-plataforma-plan-mejora.md](./07-plataforma-plan-mejora.md) |

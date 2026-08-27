@@ -1,4 +1,6 @@
 <div class="space-y-4">
+    <x-crm.subnav />
+
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
             <h1 class="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Campañas CRM</h1>
@@ -29,7 +31,9 @@
                         <a href="{{ route('crm.campaigns.show', $c->id) }}" wire:navigate class="font-medium text-zinc-900 dark:text-zinc-100 hover:underline">{{ $c->nombre }}</a>
                     </td>
                     <td class="px-4 py-2">{{ \App\Models\Crm\Campaign::TIPOS[$c->tipo] ?? $c->tipo }}</td>
-                    <td class="px-4 py-2">{{ \App\Models\Crm\Campaign::ESTADOS[$c->estado] ?? $c->estado }}</td>
+                    <td class="px-4 py-2">
+                        <x-crm.status-badge :status="$c->estado" type="campaign" :label="\App\Models\Crm\Campaign::ESTADOS[$c->estado] ?? $c->estado" />
+                    </td>
                     <td class="px-4 py-2">{{ $c->createdBy?->name ?? '—' }}</td>
                     <td class="px-4 py-2">
                         @can('crm.editar')
@@ -38,7 +42,7 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="5" class="px-4 py-6 text-center text-zinc-500">No hay campañas</td></tr>
+                <tr><td colspan="5"><x-empty-state message="No hay campañas" /></td></tr>
                 @endforelse
             </tbody>
         </table>
@@ -55,28 +59,28 @@
                 </flux:field>
                 <flux:field>
                     <flux:label>Tipo</flux:label>
-                    <select wire:model="tipo" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                    <flux:select wire:model="tipo">
                         @foreach(\App\Models\Crm\Campaign::TIPOS as $k => $v)
                         <option value="{{ $k }}">{{ $v }}</option>
                         @endforeach
-                    </select>
+                    </flux:select>
                 </flux:field>
                 <flux:field>
                     <flux:label>Estado</flux:label>
-                    <select wire:model="estado" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                    <flux:select wire:model="estado">
                         @foreach(\App\Models\Crm\Campaign::ESTADOS as $k => $v)
                         <option value="{{ $k }}">{{ $v }}</option>
                         @endforeach
-                    </select>
+                    </flux:select>
                 </flux:field>
                 <flux:field>
                     <flux:label>Cupón promocional (opcional)</flux:label>
-                    <select wire:model="discount_coupon_id" class="flux-input rounded-lg w-full border border-zinc-300 dark:border-zinc-600 dark:bg-zinc-800 px-3 py-2">
+                    <flux:select wire:model="discount_coupon_id">
                         <option value="">Sin cupón</option>
                         @foreach($coupons as $coupon)
                         <option value="{{ $coupon->id }}">{{ $coupon->codigo }} — {{ $coupon->nombre }}</option>
                         @endforeach
-                    </select>
+                    </flux:select>
                 </flux:field>
                 <div class="flex justify-end gap-2 pt-2">
                     <flux:button type="button" variant="ghost" wire:click="closeModal">Cancelar</flux:button>

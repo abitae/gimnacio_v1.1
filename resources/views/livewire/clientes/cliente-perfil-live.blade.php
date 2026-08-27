@@ -399,8 +399,20 @@
                                                 };
                                             @endphp
                                             <div class="bg-white p-4 dark:bg-zinc-900">
+                                                @php
+                                                    $matriculaCuotasId = (int) $matriculaCuotas['id'];
+                                                    $cuotasColapsadas = $this->isCuotasMatriculaColapsada($matriculaCuotasId);
+                                                @endphp
                                                 <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
-                                                    <div class="space-y-1">
+                                                    <button
+                                                        type="button"
+                                                        wire:click="toggleCuotasMatricula({{ $matriculaCuotasId }})"
+                                                        class="flex min-w-0 flex-1 items-start gap-2 text-left"
+                                                    >
+                                                        <span class="mt-0.5 shrink-0 text-zinc-400 transition-transform {{ $cuotasColapsadas ? '' : 'rotate-90' }}">
+                                                            <flux:icon name="chevron-right" class="size-4" />
+                                                        </span>
+                                                        <div class="min-w-0 space-y-1">
                                                         <div class="flex flex-wrap items-center gap-2">
                                                             <span class="inline-flex rounded-full bg-violet-100 px-2 py-0.5 text-xs font-semibold text-violet-700 dark:bg-violet-950/40 dark:text-violet-300">
                                                                 {{ $matriculaCuotas['tipo_label'] }}
@@ -413,12 +425,14 @@
                                                         <p class="text-[11px] text-zinc-500 dark:text-zinc-400">
                                                             {{ __('Matrícula #:id · Total S/ :total · Saldo S/ :saldo', ['id' => $matriculaCuotas['id'], 'total' => number_format((float) $matriculaCuotas['precio_total'], 2), 'saldo' => number_format((float) $matriculaCuotas['saldo_total'], 2)]) }}
                                                         </p>
-                                                    </div>
+                                                        </div>
+                                                    </button>
                                                     <flux:button href="{{ route('clientes.cuotas', ['cliente' => $selectedClienteId, 'matricula' => $matriculaCuotas['id']]) }}" wire:navigate size="xs" variant="outline">
                                                         {{ __('Ver cuotas') }}
                                                     </flux:button>
                                                 </div>
 
+                                                @if (! $cuotasColapsadas)
                                                 @if ($matriculaCuotas['tiene_cronograma'] && count($matriculaCuotas['cuotas']) > 0)
                                                     <table class="min-w-full text-sm">
                                                         <thead class="sticky top-0 z-10 bg-zinc-50 dark:bg-zinc-950">
@@ -426,6 +440,7 @@
                                                                 <th class="px-4 py-3">{{ __('Cuota') }}</th>
                                                                 <th class="px-4 py-3">{{ __('Vencimiento') }}</th>
                                                                 <th class="px-4 py-3 text-right">{{ __('Programado') }}</th>
+                                                                <th class="px-4 py-3 text-right">{{ __('Descuento') }}</th>
                                                                 <th class="px-4 py-3 text-right">{{ __('Pagado') }}</th>
                                                                 <th class="px-4 py-3">{{ __('F. pago') }}</th>
                                                                 <th class="px-4 py-3 text-right">{{ __('Saldo') }}</th>
@@ -448,6 +463,7 @@
                                                                     <td class="px-4 py-3 text-zinc-900 dark:text-zinc-100">#{{ $cuota['numero_cuota'] }}</td>
                                                                     <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ optional($cuota['fecha_vencimiento'])->format('d/m/Y') ?? '—' }}</td>
                                                                     <td class="px-4 py-3 text-right text-zinc-900 dark:text-zinc-100">S/ {{ number_format((float) $cuota['monto'], 2) }}</td>
+                                                                    <td class="px-4 py-3 text-right text-amber-700 dark:text-amber-400">{{ (float) ($cuota['descuento_total'] ?? 0) > 0 ? 'S/ '.number_format((float) $cuota['descuento_total'], 2) : '—' }}</td>
                                                                     <td class="px-4 py-3 text-right text-emerald-700 dark:text-emerald-400">S/ {{ number_format((float) $cuota['monto_pagado'], 2) }}</td>
                                                                     <td class="whitespace-nowrap px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ optional($cuota['fecha_ultimo_pago'])->format('d/m/Y H:i') ?? '—' }}</td>
                                                                     <td class="px-4 py-3 text-right {{ (float) $cuota['saldo'] > 0 ? 'font-semibold text-red-600 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400' }}">S/ {{ number_format((float) $cuota['saldo'], 2) }}</td>
@@ -486,6 +502,7 @@
                                                             @endcan
                                                         @endif
                                                     </div>
+                                                @endif
                                                 @endif
                                             </div>
                                         @empty
@@ -886,7 +903,7 @@
                                     </td>
                                     <td class="px-4 py-3 font-medium text-zinc-900 dark:text-zinc-100">{{ strtoupper($planNombre) }}</td>
                                     <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ $mem->membresia->duracion_dias ?? $mem->sesiones_totales ?? '—' }}</td>
-                                    <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ optional($mem->fecha_matricula)->format('d/m/Y g:i A') ?? '—' }}</td>
+                                    <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ optional(method_exists($mem, 'fechaHoraInscripcion') ? $mem->fechaHoraInscripcion() : $mem->fecha_matricula)->format('d/m/Y g:i A') ?? '—' }}</td>
                                     <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ optional($mem->fecha_inicio)->format('d/m/Y') ?? '—' }}</td>
                                     <td class="px-4 py-3 text-zinc-600 dark:text-zinc-400">{{ optional($mem->fecha_fin)->format('d/m/Y') ?? '—' }}</td>
                                     <td class="px-4 py-3 text-right font-medium text-zinc-900 dark:text-zinc-100">{{ number_format((float) ($mem->precio_final ?? 0), 0) }}</td>

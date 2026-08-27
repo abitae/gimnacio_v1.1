@@ -14,8 +14,11 @@ class PaymentForm extends Component
 
     public EnrollmentInstallment $installment;
 
+    public float $saldoPendiente = 0.0;
+
     public array $form = [
         'monto' => '',
+        'descuento_monto' => '',
         'fecha_pago' => '',
         'pagos' => [],
         'caja_id' => null,
@@ -25,32 +28,61 @@ class PaymentForm extends Component
     {
         $this->authorize('matricula_cliente.editar');
         $this->installment = $installment->load(['plan.cliente', 'clienteMatricula.cliente']);
-        $this->form['monto'] = (string) $installment->saldo_pendiente;
+        $this->saldoPendiente = round((float) $installment->saldo_pendiente, 2);
+        $this->form['monto'] = (string) $this->saldoPendiente;
+        $this->form['descuento_monto'] = '0';
         $this->form['fecha_pago'] = now()->format('Y-m-d');
         $efectivoId = PaymentMethod::activos()->whereRaw('LOWER(nombre) = ?', ['efectivo'])->value('id')
             ?? PaymentMethod::activos()->orderBy('nombre')->value('id');
-        $this->form['pagos'] = [$this->nuevaLinea((string) $installment->saldo_pendiente, $efectivoId)];
+        $this->form['pagos'] = [$this->nuevaLinea((string) $this->saldoPendiente, $efectivoId)];
         $cajaAbierta = \App\Models\Core\Caja::where('estado', 'abierta')->first();
         $this->form['caja_id'] = $cajaAbierta?->id;
     }
 
     public function save(EnrollmentInstallmentService $service): void
     {
-        $this->validate([
-            'form.monto' => 'required|numeric|min:0.01',
+        $monto = round((float) ($this->form['monto'] ?? 0), 2);
+        $descuento = round((float) ($this->form['descuento_monto'] ?? 0), 2);
+
+        $rules = [
+            'form.monto' => 'required|numeric|min:0',
+            'form.descuento_monto' => 'required|numeric|min:0',
             'form.fecha_pago' => 'required|date',
-            'form.pagos' => 'required|array|min:1|max:2',
-            'form.pagos.*.payment_method_id' => 'required|exists:payment_methods,id',
-            'form.pagos.*.monto' => 'required|numeric|min:0.01',
-        ]);
+        ];
+
+        if ($monto > 0) {
+            $rules['form.pagos'] = 'required|array|min:1|max:2';
+            $rules['form.pagos.*.payment_method_id'] = 'required|exists:payment_methods,id';
+            $rules['form.pagos.*.monto'] = 'required|numeric|min:0.01';
+        }
+
+        $this->validate($rules);
+
+        if (round($monto + $descuento, 2) <= 0) {
+            $this->addError('form.monto', __('El monto aplicado (efectivo + descuento) debe ser mayor a cero.'));
+
+            return;
+        }
+
+        if (round($monto + $descuento, 2) > round($this->saldoPendiente, 2)) {
+            $this->addError('form.monto', __('El monto aplicado no puede superar el saldo pendiente de la cuota.'));
+
+            return;
+        }
 
         try {
-            $service->pagarCuota($this->installment, [
-                'monto' => $this->form['monto'],
+            $payload = [
+                'monto' => $monto,
+                'descuento_monto' => $descuento,
                 'fecha_pago' => $this->form['fecha_pago'],
-                'pagos' => $this->form['pagos'],
                 'caja_id' => $this->form['caja_id'],
-            ]);
+            ];
+
+            if ($monto > 0) {
+                $payload['pagos'] = $this->form['pagos'];
+            }
+
+            $service->pagarCuota($this->installment, $payload);
             $this->flashToast('success', 'Cuota registrada.');
             $this->redirectRoute('clientes.cuotas', [
                 'cliente' => $this->installment->plan->cliente_id,
@@ -90,6 +122,20 @@ class PaymentForm extends Component
     {
         if (count($this->form['pagos'] ?? []) === 1) {
             $this->form['pagos'][0]['monto'] = $value;
+        }
+    }
+
+    public function updatedFormDescuentoMonto($value): void
+    {
+        $descuento = max(0, round((float) $value, 2));
+        $descuento = min($descuento, $this->saldoPendiente);
+        $monto = max(0, round($this->saldoPendiente - $descuento, 2));
+
+        $this->form['descuento_monto'] = (string) $descuento;
+        $this->form['monto'] = (string) $monto;
+
+        if (count($this->form['pagos'] ?? []) === 1) {
+            $this->form['pagos'][0]['monto'] = $monto > 0 ? (string) $monto : '0';
         }
     }
 
