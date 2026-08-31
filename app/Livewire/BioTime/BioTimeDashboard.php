@@ -20,6 +20,8 @@ use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\BioTime\BioTimeCapacityService;
 use App\Services\SucursalContext;
+use Illuminate\Contracts\Pagination\Paginator as PaginatorContract;
+use Illuminate\Pagination\Paginator;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Gate;
 use Livewire\Component;
@@ -332,12 +334,12 @@ class BioTimeDashboard extends Component
 
     public function updatingHistoryEntity(): void
     {
-        $this->resetPage();
+        $this->resetPage('syncPage');
     }
 
     public function updatingHistoryStatus(): void
     {
-        $this->resetPage();
+        $this->resetPage('syncPage');
     }
 
     public function render()
@@ -388,11 +390,11 @@ class BioTimeDashboard extends Component
             'capacityBySucursal' => $capacityBySucursal,
             'plainTokens' => $plainTokens,
             'sucursales' => Sucursal::query()->orderBy('nombre')->get(['id', 'nombre']),
-            'areas' => $this->areasForMapping($selectedId),
-            'departments' => $this->departmentsForMapping($selectedId),
-            'devices' => $this->devicesForMapping($selectedId),
-            'logs' => $this->logs($selectedId),
-            'accessCommands' => $this->accessCommands($selectedId),
+            'areas' => $this->tab === 'mapping' ? $this->areasForMapping($selectedId) : collect(),
+            'departments' => $this->tab === 'mapping' ? $this->departmentsForMapping($selectedId) : collect(),
+            'devices' => $this->tab === 'mapping' ? $this->devicesForMapping($selectedId) : collect(),
+            'logs' => $this->tab === 'history' ? $this->logs($selectedId) : $this->emptyPage('syncPage'),
+            'accessCommands' => $this->tab === 'history' ? $this->accessCommands($selectedId) : $this->emptyPage('cmdPage'),
         ])->layout('layouts.app', ['title' => 'BioTime']);
     }
 
@@ -682,20 +684,19 @@ class BioTimeDashboard extends Component
         return $query->orderBy('alias')->limit(40)->get();
     }
 
-    private function logs(?int $sucursalId = null)
+    private function logs(?int $sucursalId = null): PaginatorContract
     {
         return BioTimeSyncLog::query()
             ->when($sucursalId, fn ($query) => $query->where('sucursal_id', $sucursalId))
-            ->when($sucursalId, function ($query) use ($sucursalId): void {
-                $query->whereIn(
-                    'batch_id',
-                    BioTimeSyncBatch::query()->where('sucursal_id', $sucursalId)->select('batch_id')
-                );
-            })
             ->when($this->historyEntity !== '', fn ($query) => $query->where('entity', $this->historyEntity))
             ->when($this->historyStatus !== '', fn ($query) => $query->where('status', $this->historyStatus))
             ->latest('processed_at')
-            ->paginate(15, pageName: 'syncPage');
+            ->simplePaginate(15, ['*'], 'syncPage');
+    }
+
+    private function emptyPage(string $pageName): PaginatorContract
+    {
+        return new Paginator([], 15, 1, ['pageName' => $pageName]);
     }
 
     private function accessCommands(?int $sucursalId = null)

@@ -545,6 +545,41 @@ it('renders operational dashboard per sucursal and dispatches reconcile', functi
     });
 });
 
+it('lists history logs by sucursal_id without scanning batches', function () {
+    $sucursalA = biotimeSucursal('logs-a');
+    $sucursalB = biotimeSucursal('logs-b', false);
+    $user = biotimeAdmin($sucursalA);
+
+    BioTimeSyncLog::query()->create([
+        'sucursal_id' => $sucursalA->id,
+        'batch_id' => (string) Str::uuid(),
+        'entity' => 'transactions',
+        'biotime_id' => 11111,
+        'status' => 'success',
+        'action' => 'upsert',
+        'payload' => ['emp_code' => 'LOG-A'],
+        'processed_at' => now(),
+    ]);
+    BioTimeSyncLog::query()->create([
+        'sucursal_id' => $sucursalB->id,
+        'batch_id' => (string) Str::uuid(),
+        'entity' => 'transactions',
+        'biotime_id' => 22222,
+        'status' => 'success',
+        'action' => 'upsert',
+        'payload' => ['emp_code' => 'LOG-B'],
+        'processed_at' => now(),
+    ]);
+
+    $this->actingAs($user);
+    session([\App\Services\SucursalContext::SUCURSAL_ID_KEY => $sucursalA->id]);
+
+    Livewire::test(BioTimeDashboard::class)
+        ->call('setTab', 'history')
+        ->assertSee('11111')
+        ->assertDontSee('22222');
+});
+
 it('links employees and transactions by numero_documento even when codigo differs', function () {
     $sucursal = biotimeSucursal('dni-link');
     $user = User::factory()->create();
