@@ -3,8 +3,8 @@
 > **Referencia:** [module-consistency-matrix.md](../architecture/module-consistency-matrix.md)  
 > **Prioridad:** Alta (orden global #1)  
 > **Inconsistencias vinculadas:** INC-01, INC-02, INC-03, INC-04, INC-05  
-> **Ultima actualizacion:** 2026-06-24  
-> **Estado implementacion:** Fase 1 y Fase 2 (parcial) + Fase 3 (parcial) ejecutadas en codigo — ver seccion «Avance de implementacion» al final.
+> **Ultima actualizacion:** 2026-08-27 (refresco de 2026-06-24)  
+> **Estado implementacion:** Fase 1 y Fase 2 (parcial) + Fase 3 (parcial) ejecutadas en codigo — ver seccion «Avance de implementacion» al final. **Nota de refresco:** `POSLive` sigue en ~1.142 LOC (paso 1.4 sin resolver); es el pendiente real de mayor prioridad de todo el sistema.
 
 ---
 
@@ -274,7 +274,7 @@ Cualquier cambio en `POSLive` impacta ventas, credito, cupones, reservas y ticke
 - [x] **1.6** Eliminado codigo muerto en `cargarItemsConSaldo`; consolidado `DailyOperationsDebtService`
 - [x] **2.1** Permiso `checking.ver` en ruta y sidebar
 - [x] **2.2** Breadcrumbs usan label **Operaciones**
-- [x] **3.1** ADR BioTime + item en grupo Operaciones
+- [x] **3.1** ADR BioTime — **corregido 2026-08-27:** la decision final NO fue moverlo al grupo Operaciones; BioTime quedo como grupo de sidebar propio, independiente. Ver `docs/architecture/adr-biotime-clasificacion.md` (actualizado).
 - [x] **3.2** Panel ultima sync BioTime en Checking; origen en asistencias recientes
 - [x] **3.3** `PosAlquilerReservaService` ya delegaba a `RentalService` (verificado)
 - [x] Reporte analitico: `ReporteCuentasPorCobrarLive` + `FinanceAnalyticsService`

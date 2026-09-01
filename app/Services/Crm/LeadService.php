@@ -4,6 +4,7 @@ namespace App\Services\Crm;
 
 use App\Models\Crm\Lead;
 use App\Models\Crm\CrmStage;
+use App\Support\Crm\CrmOwnershipScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\DB;
@@ -55,7 +56,7 @@ class LeadService
             $q->whereDate('created_at', '<=', $filters['fecha_hasta']);
         }
 
-        return $q;
+        return CrmOwnershipScope::restrictToOwner($q, 'assigned_to');
     }
 
     public function getByStages(): \Illuminate\Support\Collection
@@ -98,6 +99,7 @@ class LeadService
             if ($canal !== '') {
                 $query->where('canal_origen', $canal);
             }
+            CrmOwnershipScope::restrictToOwner($query, 'assigned_to');
         };
 
         return CrmStage::query()

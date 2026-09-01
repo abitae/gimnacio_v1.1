@@ -239,15 +239,26 @@ Referencia desde matriz maestra:
 
 ---
 
-## 11. Avance de implementación (2026-06-24)
+## 11. Avance de implementación (refresco 2026-08-27, snapshot original 2026-06-24)
 
 ### Completado
 - `docs/architecture/debt-definitions.md`
 - `docs/architecture/legacy-membresias-policy.md`
 - `docs/architecture/domain-glossary.md`
 - `LegacyMembresiaReadService`
+- Auditoría multi-sucursal (T.7/T.8): sustancialmente implementada — ver `docs/architecture/sucursal-scope-audit.md` (allowlist de `withoutGlobalScope`, `BelongsToSucursal` fail-closed, `SucursalScopedRouteBinding`, tests de aislamiento y de reportes consolidados para super admin).
+- INC-01 (nomenclatura Operaciones), INC-02 (`checking.ver`), INC-03/04 (`CustomerDebts` vs `ReporteCuentasPorCobrarLive`), INC-06 (backups sidebar), INC-07 (sidebar/centro reportes) — cerrados en código.
+- INC-05 (BioTime) — resuelto de forma distinta a la decidida en el ADR original: quedó como grupo de sidebar propio, no dentro de Operaciones. ADR actualizado.
+- INC-08 (congelamiento de planes) — parcial: extraído a `PlanFreezeService` (`app/Services/Cliente/`), aún no en una capa "comercial" formal.
 
 ### Pendiente
-- `tests/Feature/Consistency/DebtParityTest.php`
-- Migración sunset legacy masiva
-- Regla Cursor anti-saldo en Livewire
+- `tests/Feature/Consistency/DebtParityTest.php` — la carpeta `tests/Feature/Consistency/` existe pero sigue vacía; el test nunca se escribió.
+- Migración sunset legacy masiva.
+- Regla Cursor anti-saldo en Livewire.
+- INC-09 (legacy `cliente_membresias` sin indicador de origen consistente en UI) e INC-10 (permisos CRM fragmentados) — vigentes.
+- **Nuevo hallazgo (INC-11):** `AuditLog` está completamente modelado pero no se usa (`0` llamadas `AuditLog::create()` en `app/`). Ninguna capa transversal de auditoría de cambios críticos está activa hoy.
+- `POSLive` (~1.142 LOC) y `GestionNutricionalUnificadoLive` (~876 LOC) — la regla de "componente > 400 LOC requiere plan de desacople" (paso T.12) sigue sin aplicarse en la práctica para estos dos.
+
+### Nuevo (2026-08-26): iniciativa transversal de CSS/colores no cubierta anteriormente
+
+[`99-css-colores-plan-mejora.md`](./99-css-colores-plan-mejora.md) es un plan transversal adicional, fuera del alcance original de este documento: pipeline de build CSS, eliminación completa de dark mode (UI, guardas server-side y barrido de clases `dark:`), consolidación de los 4 componentes de personalización de tema en uno, y un componente de badge de estado compartido fuera de CRM (piloto: calendario de citas, que ya tenía drift de color confirmado). Se referencia aquí porque toca convenciones de nomenclatura/consistencia visual similares a las de este plan, aunque su ejecución es independiente.

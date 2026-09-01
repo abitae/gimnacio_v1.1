@@ -58,6 +58,10 @@ class PaymentForm extends Component
 
         $this->validate($rules);
 
+        if ($descuento > 0 && ! $this->puedeAplicarDescuento) {
+            $this->authorize('matricula_cliente.aplicar_descuento');
+        }
+
         if (round($monto + $descuento, 2) <= 0) {
             $this->addError('form.monto', __('El monto aplicado (efectivo + descuento) debe ser mayor a cero.'));
 
@@ -125,9 +129,14 @@ class PaymentForm extends Component
         }
     }
 
+    public function getPuedeAplicarDescuentoProperty(): bool
+    {
+        return (bool) auth()->user()?->can('matricula_cliente.aplicar_descuento');
+    }
+
     public function updatedFormDescuentoMonto($value): void
     {
-        $descuento = max(0, round((float) $value, 2));
+        $descuento = $this->puedeAplicarDescuento ? max(0, round((float) $value, 2)) : 0.0;
         $descuento = min($descuento, $this->saldoPendiente);
         $monto = max(0, round($this->saldoPendiente - $descuento, 2));
 

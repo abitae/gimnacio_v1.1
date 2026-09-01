@@ -2,8 +2,8 @@
 
 > **Referencia:** [module-consistency-matrix.md](../architecture/module-consistency-matrix.md)  
 > **Prioridad:** Alta (orden global #4)  
-> **Inconsistencias vinculadas:** INC-08  
-> **Ultima actualizacion:** 2026-06-24
+> **Inconsistencias vinculadas:** INC-08 (parcial, ver `PlanFreezeService`)  
+> **Ultima actualizacion:** 2026-08-27 (refresco de 2026-06-24 — verificado: `GestionNutricionalUnificadoLive` sigue en ~876 LOC, sin cambio; contenido de este plan sigue vigente al 100%)
 
 ---
 

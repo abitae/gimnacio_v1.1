@@ -57,6 +57,9 @@ class AppServiceProvider extends ServiceProvider
         app(\App\Support\SucursalScopedRouteBinding::class)->register();
 
         Gate::policy(\App\Models\Crm\Lead::class, \App\Policies\Crm\LeadPolicy::class);
+        Gate::policy(\App\Models\Crm\Deal::class, \App\Policies\Crm\DealPolicy::class);
+        Gate::policy(\App\Models\Crm\CrmTask::class, \App\Policies\Crm\CrmTaskPolicy::class);
+        Gate::policy(\App\Models\Crm\CrmActivity::class, \App\Policies\Crm\CrmActivityPolicy::class);
 
         RateLimiter::for('biotime-sync', function (Request $request) {
             $key = $request->bearerToken() ?: $request->header('X-BioTime-Secret') ?: $request->ip();

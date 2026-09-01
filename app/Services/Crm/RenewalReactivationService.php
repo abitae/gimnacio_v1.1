@@ -40,7 +40,7 @@ class RenewalReactivationService
     {
         $renewals = $this->getRenewals($daysAhead);
         $count = 0;
-        $userId = $this->resolveAutomationUserId($assignedTo);
+        $createdBy = $this->resolveAutomationUserId($assignedTo);
 
         foreach ($renewals as $cm) {
             $cliente = $cm->cliente;
@@ -56,14 +56,16 @@ class RenewalReactivationService
                 continue;
             }
 
+            $ownerUserId = $assignedTo ?? $cliente->asesor_crm_id ?? $createdBy;
+
             CrmTask::create([
                 'cliente_id' => $cliente->id,
                 'tipo' => 'follow_up',
                 'fecha_hora_programada' => now()->addDay(),
                 'prioridad' => $daysAhead <= 1 ? 'high' : 'medium',
                 'estado' => 'pending',
-                'assigned_to' => $userId,
-                'created_by' => $userId,
+                'assigned_to' => $ownerUserId,
+                'created_by' => $createdBy,
                 'notas' => 'Renovacion: membresia vence ' . $cm->fecha_fin->format('d/m/Y'),
             ]);
             $count++;

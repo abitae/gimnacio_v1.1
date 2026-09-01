@@ -1,10 +1,11 @@
 # Matriz y Plan Maestro de Consistencia por Modulos
 
-> **Ultima revision:** 2026-06-24  
+> **Ultima revision:** 2026-08-27 (refresco de la revision 2026-06-24 contra el codigo actual)  
 > **Fuente de navegacion:** `resources/views/components/layouts/app/sidebar.blade.php` (unica fuente; no hay config externa)  
 > **Rutas:** `routes/web.php` (monolitico, ~264 lineas)  
 > **Inventario:** ~95 componentes Livewire · ~74 servicios · ~80 modelos  
-> **Planes de mejora detallados:** [docs/plans/README.md](../plans/README.md)
+> **Planes de mejora detallados:** [docs/plans/README.md](../plans/README.md)  
+> **Nota de refresco:** el desarrollo siguio avanzando entre el 2026-06-24 y el 2026-08-20. La mayoria de las inconsistencias detectadas en junio ya se resolvieron en codigo (INC-01, 02, 03, 04, 06, 07); INC-05 se resolvio de forma distinta a la decidida en el ADR original; INC-08 quedo parcial; INC-09 e INC-10 siguen vigentes. Se agrega INC-11 (hallazgo nuevo: `AuditLog` inerte). El riesgo real que NO avanzo es la fragmentacion de `POSLive` y `GestionNutricionalUnificadoLive`.
 
 ## Objetivo
 Centralizar un analisis profundo de todos los modulos visibles desde el sidebar para alinear:
@@ -19,16 +20,17 @@ Centralizar un analisis profundo de todos los modulos visibles desde el sidebar 
 
 ## Resumen ejecutivo del estado actual
 
-| Indicador | Valor | Interpretacion |
+| Indicador | Valor (2026-08-27) | Interpretacion |
 | --- | --- | --- |
-| Grupos sidebar | 8 (+ Inicio, Perfil) | Cobertura funcional amplia; nomenclatura interna inconsistente |
-| Mega-componentes (>800 LOC) | 3 | `POSLive` (~1.202), `ClientePerfilLive` (~1.153), `GestionNutricionalUnificadoLive` (~875) |
-| Agregadores planificados | 0/3 implementados | Perfil comercial/bienestar/CRM siguen como propuesta |
-| Agregadores parciales activos | 2 | `DailyOperationsDebtService`, `ClientWellnessService` |
-| Duplicidad operativo/analitico | 1 caso critico | `CustomerDebts` compartido entre POS y reportes |
-| Rutas sin item sidebar | ~15+ | Reportes secundarios, backups, CRM reportes, cuotas, importaciones parcial |
+| Grupos sidebar | 9 (+ Inicio, Perfil) — BioTime ahora es grupo propio | Nomenclatura ya unificada (Operaciones/breadcrumbs coinciden) |
+| Mega-componentes (>800 LOC) | 3, con avance desigual | `POSLive` (~1.142, -60 vs junio), `ClientePerfilLive` (~934, -220 vs junio), `GestionNutricionalUnificadoLive` (~876, sin cambio) |
+| Agregadores planificados | 3/3 implementados | `ClienteCommercialProfileService`, `ClienteWellnessProfileService`, `ClienteCrmProfileService` ya existen en `app/Services/Cliente/` |
+| Agregadores parciales activos | 3 | `DailyOperationsDebtService`, `ClientWellnessService` (delega congelamiento a `PlanFreezeService`), `ReporteModuloService` |
+| Duplicidad operativo/analitico | Resuelta | `ReporteCuentasPorCobrarLive` (permiso `reporte.cuentas_por_cobrar`) separado de `POS\CustomerDebts` (permiso `punto_venta.ver`) |
+| Rutas sin item sidebar | Reducidas | Backups y `crm.reportes` ya tienen item; sidebar Analitica ahora genera sus items dinamicamente desde `ReporteCatalog` |
+| Auditoria (`AuditLog`) | 0 usos en `app/` | Modelo completo pero inerte — ningun cambio critico queda auditado (INC-11, hallazgo nuevo) |
 
-**Nivel de consistencia global estimado:** medio-bajo. La capa de servicios avanza en operacion diaria y reportes modulares, pero la UI concentra demasiada logica en pocos componentes y el sidebar no refleja por completo el catalogo de rutas.
+**Nivel de consistencia global estimado:** medio. La navegacion, permisos y capa de reportes avanzaron notablemente desde junio (la mayoria de inconsistencias de navegacion/permisos ya cerraron). El riesgo que persiste es puramente de tamano/acoplamiento de componentes (`POSLive`, `GestionNutricionalUnificadoLive`) y de trazabilidad (`AuditLog` sin usar).
 
 ---
 
@@ -102,31 +104,51 @@ Centralizar un analisis profundo de todos los modulos visibles desde el sidebar 
 
 ### Agregadores: planificado vs implementado
 
-| Servicio planificado | Estado | Sustituto actual |
+| Servicio planificado | Estado | Notas |
 | --- | --- | --- |
-| `ClienteCommercialProfileService` | No implementado | consultas directas en `ClientePerfilLive` + `ClienteMatriculaService` |
-| `ClienteWellnessProfileService` | No implementado | `ClientWellnessService` (parcial, mezcla dominios) |
-| `ClienteCrmProfileService` | No implementado | consultas CRM en ficha/perfil |
-| `SalesAnalyticsService` / `FinanceAnalyticsService` | No implementado | `ReporteModuloService` (~732 LOC) centraliza todo |
+| `ClienteCommercialProfileService` | **Implementado** | `app/Services/Cliente/ClienteCommercialProfileService.php` |
+| `ClienteWellnessProfileService` | **Implementado** | `app/Services/Cliente/ClienteWellnessProfileService.php` |
+| `ClienteCrmProfileService` | **Implementado** | `app/Services/Cliente/ClienteCrmProfileService.php` |
+| `SalesAnalyticsService` / `FinanceAnalyticsService` | No implementado | `ReporteModuloService` (~732 LOC) sigue centralizando todo; sigue siendo deuda pendiente |
 | `DailyOperationsDebtService` | **Implementado** | usado en checking, POS y ficha cliente |
 | `ClientDebtService` | **Implementado** | cobranza operativa en POS/creditos |
+| `PlanFreezeService` | **Implementado (nuevo)** | `app/Services/Cliente/PlanFreezeService.php`; `ClientWellnessService::freezePlan*` ahora delega aqui (INC-08 parcial) |
+| `EffectivePermissionsService` | **Implementado a medias** | `app/Services/Admin/EffectivePermissionsService.php` existe (forUser/explains) pero sin ruta ni componente Livewire que lo consuma |
 
 ---
 
 ## Registro de inconsistencias detectadas
 
+### Resueltas (verificado en codigo, 2026-08-27)
+
+| ID | Tipo | Descripcion original | Evidencia de resolucion |
+| --- | --- | --- | --- |
+| INC-01 | Nomenclatura | Sidebar dice "Operaciones"; breadcrumbs/docs dicen "Operacion diaria" | `breadcrumbs.blade.php` usa `__('Operaciones')` para `checking.*`/`cajas.*`/`pos.*`, igual que el heading del sidebar |
+| INC-02 | Permisos | `checking.index` sin middleware de permiso | Permiso `checking.ver` en `PermissionCatalog.php` y `routes/web.php` (`middleware('permission:checking.ver')`) |
+| INC-03 | Operativo/Analitico | `reportes.cuentas-por-cobrar` = `POS\CustomerDebts` | Ruta apunta a `Reportes\ReporteCuentasPorCobrarLive` con permiso propio `reporte.cuentas_por_cobrar`; `pos.cuentas-por-cobrar` operativo quedo separado con `punto_venta.ver` |
+| INC-04 | Navegacion | Cobros pendientes en Operaciones Y Cuentas por cobrar en Analitica apuntaban al mismo componente | Mismo commit que INC-03: componentes ya separados |
+| INC-06 | Navegacion | `administracion.backups.index` sin enlace sidebar | Item "Respaldos BD" agregado en grupo "Super administracion" |
+| INC-07 | Navegacion | Analitica sidebar: 5 items vs centro de reportes: 11 | Sidebar itera dinamicamente `ReporteCatalog::visibleFor()`; sincronizado por diseno con el centro de reportes (11 rutas `reportes.*`) |
+
+### Resuelta con decision distinta a la documentada
+
+| ID | Tipo | Descripcion original | Estado real |
+| --- | --- | --- | --- |
+| INC-05 | Clasificacion | BioTime en grupo Administracion; breadcrumbs en Operacion diaria | El ADR (`adr-biotime-clasificacion.md`, 2026-06-24) decidio moverlo a "Operaciones". En codigo, BioTime terminó como **grupo de sidebar propio de nivel superior** (`heading="BioTime"`), no dentro de Operaciones ni de Administracion. Ver ADR corregido. |
+
+### Parciales
+
+| ID | Tipo | Descripcion | Estado | Accion recomendada |
+| --- | --- | --- | --- | --- |
+| INC-08 | Dominio | Congelamiento de planes en `ClientWellnessService` / bienestar | `PlanFreezeService` extraido (`app/Services/Cliente/PlanFreezeService.php`); `ClientWellnessService::freezePlan*` ya delega ahi. Vive en namespace `Cliente`, no en una capa "comercial" formal compartida | Evaluar si basta como esta o se mueve a `app/Services/Comercial/` |
+
+### Vigentes (deuda técnica real, sin avance)
+
 | ID | Tipo | Descripcion | Impacto | Accion recomendada |
 | --- | --- | --- | --- | --- |
-| INC-01 | Nomenclatura | Sidebar dice "Operaciones"; breadcrumbs/docs dicen "Operacion diaria" | Confusion en documentacion y permisos | Unificar label en sidebar, breadcrumbs y docs |
-| INC-02 | Permisos | `checking.index` sin middleware de permiso | Cualquier usuario autenticado accede | Definir permiso `checking.ver` y alinear semilla |
-| INC-03 | Operativo/Analitico | `reportes.cuentas-por-cobrar` = `POS\CustomerDebts` | Permisos distintos (`reporte.ver` vs `punto_venta.ver`); misma UI transaccional | Crear `ReporteCuentasPorCobrarLive` analitico |
-| INC-04 | Navegacion | Cobros pendientes en Operaciones Y Cuentas por cobrar en Analitica apuntan al mismo componente | Duplicidad de entrada, expectativas distintas | Separar bandeja operativa de vista analitica |
-| INC-05 | Clasificacion | BioTime en grupo Administracion; breadcrumbs en Operacion diaria | Dominio mal ubicado conceptualmente | Decidir si es integracion operativa o admin de dispositivos |
-| INC-06 | Navegacion | `administracion.backups.index` sin enlace sidebar | Funcionalidad oculta para super admin | Agregar item o mover a Super administracion |
-| INC-07 | Navegacion | Analitica sidebar: 5 items vs centro de reportes: 11 | Usuario no descubre reportes completos | Ampliar sidebar o eliminar duplicados del sidebar |
-| INC-08 | Dominio | Congelamiento de planes en `ClientWellnessService` / bienestar | Frontera comercial/bienestar difusa | Extraer a servicio comercial compartido |
-| INC-09 | Legacy | `cliente_membresias` sigue en ficha, bienestar y reportes | Riesgo de calculos divergentes | Marcar origen legacy en servicios y UI |
-| INC-10 | Permisos CRM | `crm.mensajes` usa `crm_mensaje.ver` fuera del grupo `crm.ver` | Gestion de permisos fragmentada | Documentar matriz CRM unificada |
+| INC-09 | Legacy | `cliente_membresias` sigue en ficha, bienestar y reportes | Riesgo de calculos divergentes | `LegacyMembresiaReadService` ya existe como unico punto de lectura (T.5 completado); falta migrar consultas directas restantes |
+| INC-10 | Permisos CRM | `crm.mensajes` usa `crm_mensaje.ver` fuera del grupo `crm.ver` | Gestion de permisos fragmentada | Ver `03-comercial-permisos-matriz.md`; confirmado vigente en `routes/web.php` y `PermissionCatalog.php` |
+| INC-11 | Auditoria (nuevo, 2026-08-27) | Modelo `AuditLog` completo (`payload_before/after`, relacion con `User`) pero **sin un solo `AuditLog::create()` en todo `app/`** | Cambios criticos en usuarios, roles, metodos de pago y backups no quedan auditados | Instrumentar `AuditLog::create()` en los servicios/Livewire de Usuarios, Roles, PaymentMethods y `DatabaseBackupLive` |
 
 ---
 
@@ -165,29 +187,29 @@ El modulo agrupa la operacion transaccional diaria del centro:
 - `Pago -> cliente, clienteMatricula|clienteMembresia|clientDebt`
 - `ClientDebt -> cliente, venta`
 
-### Hallazgos
+### Hallazgos (refrescado 2026-08-27)
 - `DailyOperationsDebtService` ya unifica resumen de deuda para checking, POS y ficha cliente: avance positivo de consistencia.
 - `ClientDebtService` concentra la logica transaccional de cobro de deudas; separacion correcta respecto al agregador de resumen.
-- `POSLive` es hoy el componente mas grande del sistema y concentra demasiados flujos de venta.
-- Checking no tiene permiso granular; cualquier usuario autenticado con contexto de sucursal puede acceder.
-- Cobros pendientes (`pos.cuentas-por-cobrar`) comparte componente con analitica (`reportes.cuentas-por-cobrar`).
+- **INC-02 resuelto:** `checking.ver` existe y protege la ruta.
+- **INC-03/INC-04 resueltos:** `reportes.cuentas-por-cobrar` ahora usa `ReporteCuentasPorCobrarLive` (permiso `reporte.cuentas_por_cobrar`), separado de `pos.cuentas-por-cobrar` (`POS\CustomerDebts`, permiso `punto_venta.ver`).
+- `POSLive` sigue siendo el componente mas grande del sistema (~1.142 LOC, bajo desde ~1.202). Solo se extrajo un trait pequeno, `app/Livewire/POS/Concerns/ManagesPosCartTotals.php` (54 LOC). La fragmentacion real por tipo de venta (credito/reservas/cupones) **no se ha hecho**.
+- BioTime ya no vive en Administracion: es grupo de sidebar propio (ver seccion BioTime mas abajo y ADR actualizado).
 
 ### Riesgos actuales
-- Cambios en POS pueden afectar ventas, credito, reservas y cupones simultaneamente.
-- Divergencia futura entre saldos mostrados en POS, ficha cliente y reportes si no comparten agregadores.
-- BioTime (integracion de acceso biometrico) vive fuera de este grupo pero impacta checking.
+- Cambios en POS pueden afectar ventas, credito, reservas y cupones simultaneamente — este riesgo sigue intacto pese a la extraccion de `CustomerDebts` y del trait de totales.
+- Divergencia futura entre saldos mostrados en POS, ficha cliente y reportes si no comparten agregadores (mitigado en parte por `DailyOperationsDebtService`, pero `SalesAnalyticsService`/`FinanceAnalyticsService` dedicados siguen sin implementar).
 
-### Plan de mejora
-1. Fragmentar `POSLive` en sub-componentes o servicios de orquestacion por tipo de venta.
-2. Mantener `DailyOperationsDebtService` como unica fuente de resumen de deuda operativa.
-3. Reservar `CustomerDebts` exclusivamente para operacion; crear vista analitica separada.
-4. Agregar permiso `checking.ver` y alinear middleware con sidebar.
-5. Evaluar mover BioTime al grupo Operaciones o documentar como integracion transversal.
+### Plan de mejora (pendiente real)
+1. Fragmentar `POSLive` en sub-componentes o servicios de orquestacion por tipo de venta — **sigue siendo el paso 1, sin avance sustancial**.
+2. Mantener `DailyOperationsDebtService` como unica fuente de resumen de deuda operativa — cumplido, mantener como regla.
+3. ~~Reservar `CustomerDebts` exclusivamente para operacion; crear vista analitica separada~~ — **hecho** (`ReporteCuentasPorCobrarLive`).
+4. ~~Agregar permiso `checking.ver`~~ — **hecho**.
+5. ~~Evaluar mover BioTime al grupo Operaciones~~ — **resuelto de otra forma**: BioTime quedo como grupo propio, no dentro de Operaciones (ver ADR).
 
 ### Prioridad recomendada
-- Fase 1: desacoplar `POSLive` y separar reporte de cuentas por cobrar.
-- Fase 2: permisos de checking y trazabilidad de caja/ventas por sucursal.
-- Fase 3: integracion coherente BioTime ↔ checking.
+- Fase 1 (unica pendiente real): desacoplar `POSLive` por tipo de venta.
+- ~~Fase 2: permisos de checking~~ — cerrada.
+- ~~Fase 3: integracion coherente BioTime ↔ checking~~ — cerrada via ADR (grupo propio + widget en Checking).
 
 ---
 
@@ -226,35 +248,31 @@ El modulo `Clientes` agrupa:
 - `ClienteMatricula -> cliente, membresia|clase, pagos, enrollmentInstallments`
 - `Pago -> cliente, clienteMatricula|clienteMembresia|clientDebt`
 
-### Hallazgos
-- **Avance navegacion:** sidebar ya separa "Perfil de cliente" y "Listado de clientes" (Fase 3 parcialmente lograda en UI).
+### Hallazgos (refrescado 2026-08-27)
+- **Avance navegacion:** sidebar ya separa "Perfil de cliente" y "Listado de clientes" (Fase 3 lograda en UI).
 - `ClienteLive` esta bien acotado como listado CRUD y usa `ClienteService`.
-- `ClientePerfilLive` funciona como ficha 360 real, pero concentra comercial, cobranza, bienestar, reservas, fidelizacion y checking.
+- `ClientePerfilLive` bajo de ~1.153 a **~934 LOC** gracias a la extraccion de los 3 agregadores. Sigue siendo grande pero la tendencia es positiva.
 - La ficha consume `DailyOperationsDebtService` para deudas: correcto.
-- Los agregadores planificados (`ClienteCommercialProfileService`, etc.) **no estan implementados**.
-- El perfil mezcla acciones operativas de otros modulos: cobrar matriculas, cuotas, reservas, congelar planes, fidelizacion, ingreso/salida checking.
-- Trait `ManagesClienteCrudAndPhoto` (~497 LOC) indica extraccion parcial previa, pero el componente principal sigue creciendo.
+- Los 3 agregadores planificados **ya estan implementados**: `ClienteCommercialProfileService`, `ClienteWellnessProfileService`, `ClienteCrmProfileService` (`app/Services/Cliente/`).
+- El perfil aun combina reservas, checking y otras acciones operativas puntuales, pero la logica de negocio de cada dominio ya vive en su servicio agregador correspondiente.
+- Trait `ManagesClienteCrudAndPhoto` (~497 LOC) sigue como extraccion parcial previa.
 
 ### Riesgos actuales
-- La ficha del cliente puede seguir creciendo hasta convertirse en un "super modulo".
-- Si cada tab calcula estado comercial o bienestar por su cuenta, se rompe la consistencia.
-- `ClienteService::checkRelations()` confirma que `Cliente` es el nodo mas conectado del sistema.
+- La ficha aun puede seguir creciendo; sin los 3 agregadores el riesgo era mayor, ahora es moderado.
+- `ClienteService::checkRelations()` confirma que `Cliente` sigue siendo el nodo mas conectado del sistema.
 
-### Plan de mejora
-1. Mantener `ClienteLive` como modulo de listado y alta/edicion basica.
-2. Consolidar `ClientePerfilLive` como ficha 360 shell, extrayendo subdominios a servicios:
-   - `ClienteCommercialProfileService` *(pendiente)*
-   - `ClienteWellnessProfileService` *(pendiente)*
-   - `ClienteCrmProfileService` *(pendiente)*
-3. Dejar que la ficha muestre estado y accesos rapidos, pero no concentre toda la logica transaccional.
+### Plan de mejora (pendiente real)
+1. Mantener `ClienteLive` como modulo de listado y alta/edicion basica — cumplido.
+2. ~~Consolidar `ClientePerfilLive` extrayendo subdominios a servicios~~ — **hecho**: los 3 `Cliente*ProfileService` ya existen y la ficha bajo a ~934 LOC.
+3. Seguir reduciendo la ficha: mover acciones operativas puntuales (reservas, checking) a los modulos duenos, dejando solo atajos.
 4. Mover acciones de cobranza pesada hacia `Operaciones > Cobros pendientes` y dejar en ficha atajos contextuales.
-5. Separar visualmente catalogo comercial (`membresias`, `clases`, `matriculas`) del bloque de ficha — parcialmente hecho.
-6. Una sola carga de contexto por cliente via agregador, no consultas independientes por tab.
+5. Separar visualmente catalogo comercial (`membresias`, `clases`, `matriculas`) del bloque de ficha — hecho.
+6. Una sola carga de contexto por cliente via agregador, no consultas independientes por tab — logrado con los 3 agregadores.
 
 ### Prioridad recomendada
-- Fase 1: implementar agregadores de contexto y reducir consultas directas.
-- Fase 2: convertir ficha 360 en shell con tabs respaldadas por servicios especificos.
-- Fase 3: completar separacion navegacion ficha vs catalogo comercial.
+- ~~Fase 1: implementar agregadores de contexto~~ — **cerrada**.
+- Fase 2 (pendiente): terminar de convertir la ficha en shell delgado, moviendo las ultimas acciones operativas (reservas/checking) fuera del componente principal.
+- ~~Fase 3: separacion navegacion ficha vs catalogo comercial~~ — **cerrada**.
 
 ---
 
@@ -369,31 +387,31 @@ El modulo `Comercial` agrupa:
 - `Campaign -> targets, activities`
 - `DiscountCoupon -> usages`
 
-### Hallazgos
-- Modulo CRM maduro: 18 componentes Livewire con formularios dedicados.
+### Hallazgos (refrescado 2026-08-27)
+- **Nuevo:** existe un plan dedicado de UI/UX para este modulo — [`03-comercial-ui-ux-plan-mejora.md`](../plans/03-comercial-ui-ux-plan-mejora.md) (2026-08-26). Cubre drag-and-drop real del Kanban, componentes Blade compartidos (badges, tag-pills), accesibilidad de formularios y graficos en Reportes CRM. Es complementario a este documento: no toca permisos ni reglas de negocio.
+- Modulo CRM maduro: 18+ componentes Livewire con formularios dedicados; ahora incluye tambien `CrmStageService` (nuevo, sin documentar previamente).
 - `CrmPipelineLive` bien enfocado como vista Kanban.
 - `LeadService` concentra filtros, stages y asignacion.
 - Conversion lead → cliente separada en `ConvertLeadToClientService`.
-- Dos ramas: CRM relacional y activacion/promocion (mensajes, cupones, renovacion).
-- `crm.mensajes` usa permiso `crm_mensaje.ver` separado del grupo principal.
-- `crm.reportes` existe como ruta pero no aparece en sidebar.
+- **INC-10 vigente:** `crm.mensajes` sigue usando permiso `crm_mensaje.ver` separado del grupo `crm.ver` (confirmado en `routes/web.php` y `PermissionCatalog.php`). Ver matriz detallada en `03-comercial-permisos-matriz.md`.
+- **Resuelto:** `crm.reportes` ya tiene item visible en el sidebar, dentro del grupo Comercial.
 
 ### Riesgos actuales
 - Incoherencia potencial entre estado del lead, etapa del pipeline y actividad comercial real.
-- Desalineacion posible entre request, middleware y permiso en creacion/edicion de leads.
+- Permisos CRM fragmentados (INC-10) siguen dificultando administrar accesos de forma consistente.
 - Conversion lead → cliente puede perder trazabilidad si no se estandariza.
 - Cupones integrados en POS pero con trazabilidad limitada fuera de venta.
 
-### Plan de mejora
+### Plan de mejora (pendiente real)
 1. Formalizar embudo: captacion → contacto → oportunidad → conversion → renovacion.
-2. Unificar permisos CRM: ver, crear, editar, convertir, mensajeria.
+2. **Unificar permisos CRM (INC-10)** — sigue siendo el paso mas concreto y accionable de este modulo.
 3. Crear `CrmOperationalSummaryService` para KPIs consistentes.
 4. Asegurar trazabilidad completa en `ConvertLeadToClientService`.
-5. Separar en UI: CRM / Retencion / Promociones.
+5. ~~Separar en UI: CRM / Retencion / Promociones~~ — reportes CRM ya visibles; revisar si falta separar mensajes/cupones.
 6. Integrar cupones con POS/comercial de forma trazable.
 
 ### Prioridad recomendada
-- Fase 1: alinear permisos y trazabilidad de conversion.
+- Fase 1 (pendiente): unificar permisos CRM (INC-10) y trazabilidad de conversion.
 - Fase 2: consolidar retencion/reactivacion con CRM.
 - Fase 3: integrar promociones/cupones con ventas y campanas.
 
@@ -436,28 +454,27 @@ El modulo `Recursos` contiene:
 - `RentableSpace -> rates, rentals`
 - `Rental -> rentableSpace, cliente, rentalPayments`
 
-### Hallazgos
+### Hallazgos (refrescado 2026-08-27)
 - `ProductoLive` + `ProductoService` razonablemente encapsulados.
-- Inventario existe (`InventarioService`, `MovimientoInventario`) pero es delgado (~101 LOC).
+- Inventario existe (`InventarioService`, `MovimientoInventario`) pero sigue delgado (~101 LOC, sin cambios desde junio). `VentaService::registrarSalidaVenta` ya lo invoca al vender por POS.
 - Alquileres forman subdominio coherente con calendario, reservas y reporte.
-- Reservas se crean tambien desde POS (`PosAlquilerReservaService`), bienestar y ficha cliente: triple punto de entrada.
+- **Escritura de reservas ya consolidada:** POS (`PosAlquilerReservaService`), bienestar/ficha (`ClientWellnessService`) y Recursos (`Rentals/Bookings/Form`) delegan todos en `RentalService::create()`/`createBooking()`. No hay `Rental::create` directo fuera de `RentalService`. Persiste la triple **UI** de entrada, pero la fuente de escritura ya es unica.
 - Servicios externos sin la misma profundidad operativa que productos/alquileres.
 
 ### Riesgos actuales
-- POS vende productos sin capa fuerte de inventario → stock fragil.
-- Alquileres duplican logica entre cliente, bienestar, POS y recursos.
-- Tres puntos de creacion de reservas aumentan riesgo de inconsistencia.
+- POS vende productos sin capa fuerte de inventario → stock fragil (sin cambios).
+- La triple UI de entrada de reservas (aunque ya escriben al mismo servicio) sigue generando UX inconsistente entre modulos.
 
-### Plan de mejora
+### Plan de mejora (pendiente real)
 1. Dividir `Recursos` en: catalogo comercial, inventario, espacios/alquileres.
-2. Fortalecer `InventarioService` como fuente de movimientos.
+2. Fortalecer `InventarioService` como fuente de movimientos — **sin avance desde junio, sigue pendiente**.
 3. Bandeja operativa de alquileres: reservas del dia, confirmaciones, pagos pendientes.
-4. Reservas creadas principalmente desde `Recursos`; demas modulos solo atajos.
+4. ~~Reservas creadas principalmente desde `Recursos`~~ — la **escritura** ya es unica via `RentalService`; falta solo consolidar la experiencia de UI.
 5. Revisar trazabilidad comercial de `ServicioExterno`.
 
 ### Prioridad recomendada
-- Fase 1: consolidar alquileres y unificar puntos de reserva.
-- Fase 2: robustecer inventario y movimientos.
+- Fase 1 (pendiente real): robustecer `InventarioService`.
+- Fase 2: consolidar la UI de reservas sobre la escritura ya unificada.
 - Fase 3: alinear catalogos vendibles bajo experiencia unificada.
 
 ---
@@ -493,34 +510,31 @@ El modulo `Analitica` agrupa:
 ### Modelos y relaciones dominantes
 - Multi-modulo: `Venta`, `VentaItem`, `Pago`, `Cliente`, `ClienteMatricula`, `ClienteMembresia`, `Caja`, `Producto`, `ServicioExterno`, `Asistencia`, `Cita`, `EnrollmentInstallment`
 
-### Hallazgos
+### Hallazgos (refrescado 2026-08-27)
 - `ReporteModuloService` centraliza agregacion: buena base arquitectonica (~732 LOC).
 - Reportes modulares dedicados existen para la mayoria de dominios.
-- **Problema persistente:** `reportes.cuentas-por-cobrar` reutiliza `POS\CustomerDebts` con permiso `reporte.ver` en lugar de vista analitica.
-- Sidebar de Analitica muestra solo 5 items; el centro expone 11 — descubrimiento incompleto desde navegacion lateral.
-- Compatibilidad legacy `cliente_membresias` vs `cliente_matriculas` sigue presente en reportes de clientes.
+- **Resuelto:** `reportes.cuentas-por-cobrar` ya usa `ReporteCuentasPorCobrarLive` con permiso dedicado `reporte.cuentas_por_cobrar`, separado del operativo `pos.cuentas-por-cobrar` (`punto_venta.ver`).
+- **Resuelto:** el sidebar de Analitica ya genera sus items dinamicamente desde `ReporteCatalog::visibleFor()`, igual que el centro de reportes (11 rutas `reportes.*`) — ya no hay descubrimiento incompleto por diseno.
+- Nuevos traits reutilizables agregados a los componentes de reportes: `AuthorizesReportAccess` y `ScopesReporteBySucursal` (`app/Livewire/Reportes/Concerns/`) — buen ejemplo del patron shell+concerns recomendado en el plan Transversal (T.13).
+- Compatibilidad legacy `cliente_membresias` vs `cliente_matriculas` sigue presente en reportes de clientes (sin cambios; mitigado parcialmente por `LegacyMembresiaReadService`).
+- `SalesAnalyticsService` / `ClientAnalyticsService` / `FinanceAnalyticsService` / `CajaAnalyticsService` dedicados **siguen sin implementarse**; `ReporteModuloService` sigue concentrando todo.
 
 ### Riesgos actuales
-- Analitica puede devolver resultados distintos a operacion si agregan saldos por separado.
-- Reutilizar pantalla operativa mezcla permisos, filtros y expectativas de uso.
-- Usuario con solo `reporte.ver` accede a UI transaccional de cobro via reporte.
+- Analitica puede seguir devolviendo resultados distintos a operacion mientras no existan agregadores analiticos dedicados (el riesgo de fondo de este modulo no cambio, solo se corrigio el sintoma mas visible de `CustomerDebts`).
+- Compatibilidad legacy en reportes de clientes sigue siendo una fuente potencial de divergencia.
 
-### Plan de mejora
-1. Separar estrictamente `Operacion` de `Analitica`.
-2. Crear servicios agregadores dedicados:
-   - `SalesAnalyticsService`
-   - `ClientAnalyticsService`
-   - `FinanceAnalyticsService`
-   - `CajaAnalyticsService`
-3. Reemplazar `CustomerDebts` en reportes por `ReporteCuentasPorCobrarLive` analitico (solo lectura + export).
+### Plan de mejora (pendiente real)
+1. Separar estrictamente `Operacion` de `Analitica` — logrado para cuentas por cobrar; extender el mismo patron a otros reportes que aun reutilicen componentes operativos si los hay.
+2. Crear servicios agregadores dedicados (`SalesAnalyticsService`, `ClientAnalyticsService`, `FinanceAnalyticsService`, `CajaAnalyticsService`) — **sigue pendiente, sin avance**.
+3. ~~Reemplazar `CustomerDebts` en reportes por `ReporteCuentasPorCobrarLive`~~ — **hecho**.
 4. Reportes financieros deben consumir los mismos agregadores que operacion diaria.
 5. Compatibilidad legacy solo a nivel de servicio con etiquetas de origen.
-6. Alinear sidebar con centro de reportes o eliminar items redundantes del sidebar.
+6. ~~Alinear sidebar con centro de reportes~~ — **hecho** (fuente de datos compartida `ReporteCatalog`).
 
 ### Prioridad recomendada
-- Fase 1: desacoplar `CustomerDebts` del modulo analitico.
-- Fase 2: unificar agregadores de saldos, clientes y ventas con operacion.
-- Fase 3: enriquecer exportaciones y trazabilidad por sucursal.
+- ~~Fase 1: desacoplar `CustomerDebts` del modulo analitico~~ — **cerrada**.
+- Fase 2 (pendiente real): unificar agregadores de saldos, clientes y ventas con operacion via los servicios analiticos dedicados.
+- Fase 3: enriquecer exportaciones y trazabilidad por sucursal (ya hay avance via `ScopesReporteBySucursal` y `sucursal-scope-panel.blade.php`).
 
 ---
 
@@ -566,31 +580,32 @@ El modulo `Administracion` agrupa:
 - `Import`, `ImportRow`
 - `AuditLog`
 
-### Hallazgos
+### Hallazgos (refrescado 2026-08-27)
 - **Avance:** `company-branches` ya expuesto en Super administracion (antes oculto).
 - `UsuarioLive` restringe por sucursal y bloquea gestion de super admins especiales.
-- Administracion fragmentada en: seguridad, personal, integraciones, configuracion financiera, soporte tecnico.
-- BioTime clasificado en Administracion pero breadcrumbs lo ubican en Operacion diaria.
-- Backups con servicios robustos (~1.600 LOC combinados) pero sin acceso sidebar.
-- Modulo Imports (27 servicios) es critico para migracion legacy pero aislado a super admin.
+- Administracion sigue fragmentada en: seguridad, personal, integraciones, configuracion financiera, soporte tecnico (sin cambios estructurales).
+- **Resuelto de forma distinta:** BioTime ya no esta clasificado en Administracion — es su propio grupo de nivel superior en el sidebar (ver seccion BioTime). Breadcrumbs coinciden con esa clasificacion.
+- **Resuelto:** backups (`administracion.backups.index`) ya tiene item visible en "Super administracion".
+- `EffectivePermissionsService` (`app/Services/Admin/`) ya existe con la logica usuario → rol → permisos efectivos, pero **no tiene ruta ni componente Livewire** que lo exponga — el paso 2 del plan esta a medio camino, no en cero.
+- **Hallazgo nuevo (INC-11):** `AuditLog` esta completamente modelado (`payload_before/after`, relacion `User`) pero no se usa: cero llamadas `AuditLog::create()` en `app/`. Ningun cambio de usuarios, roles, metodos de pago o backups queda auditado hoy.
+- Modulo Imports (27 servicios) es critico para migracion legacy pero aislado a super admin (sin cambios).
 
 ### Riesgos actuales
-- Seguridad depende de permisos + sucursal activa + roles; UX no refleja permisos efectivos claramente.
-- Backups sin marco visible de auditoria/restauracion en navegacion.
-- BioTime mal clasificado genera confusion operativa vs administrativa.
+- Seguridad depende de permisos + sucursal activa + roles; UX no refleja permisos efectivos claramente (mitigado a medias: el servicio ya existe, falta UI).
+- **Trazabilidad nula de cambios criticos** (INC-11): si un rol o metodo de pago se modifica o un backup se restaura, no queda registro de quien lo hizo — riesgo de seguridad real que no estaba contemplado en la revision de junio.
 
-### Plan de mejora
+### Plan de mejora (pendiente real)
 1. Dividir `Administracion` en: seguridad/accesos, personal, integraciones, config financiera, soporte tecnico.
-2. Pantalla de lectura: usuario → rol → sucursales → permisos efectivos.
-3. Exponer backups en Super administracion con auditoria.
-4. Reclasificar BioTime (Operaciones vs Administracion) y alinear breadcrumbs.
+2. Exponer una pantalla (ruta + componente Livewire) para `EffectivePermissionsService`, que ya existe — falta solo la capa UI.
+3. ~~Exponer backups en Super administracion~~ — **hecho**; falta la auditoria (ver punto 6).
+4. ~~Reclasificar BioTime~~ — **hecho**, como grupo propio (no como se planteo originalmente, pero el objetivo de sacarlo de Administracion se cumplio).
 5. Auditar permisos sembrados vs middleware real.
-6. Fortalecer `AuditLog` en cambios de usuarios, roles, metodos de pago y backups.
+6. **Instrumentar `AuditLog::create()`** en cambios de usuarios, roles, metodos de pago y backups — maxima prioridad nueva de este modulo.
 
 ### Prioridad recomendada
-- Fase 1: ordenar navegacion y exponer backups; reclasificar BioTime.
-- Fase 2: pantalla permisos efectivos y config empresa/sucursales.
-- Fase 3: auditoria y administracion avanzada.
+- ~~Fase 1: ordenar navegacion y exponer backups; reclasificar BioTime~~ — **cerrada**.
+- Fase 2 (pendiente, reordenada por prioridad): activar `AuditLog` en acciones criticas (INC-11) y exponer la UI de permisos efectivos (el servicio ya existe).
+- Fase 3: administracion avanzada / auditoria de permisos sembrados.
 
 ---
 
@@ -615,13 +630,33 @@ Modulo transversal para super administradores:
 - Sidebar solo enlaza `importaciones.index`; rutas `clientes-agrupados` e `historial` son secundarias.
 
 ### Riesgos
-- Datos importados pueden coexistir con legacy activo si no se marca origen.
+- Datos importados pueden coexistir con legacy activo si no se marca origen — **sigue vigente, sin avance** (no se encontro campo `origen`/`is_imported` en modelos ni migraciones de `Imports/`).
 - Operaciones post-importacion pueden calcular estados distintos segun origen del registro.
 
-### Plan de mejora
+### Plan de mejora (sin avance desde junio)
 1. Etiquetar registros importados vs nativos en servicios agregadores.
 2. Checklist post-importacion en dashboard.
 3. Documentar mapeo legacy → modelo nuevo por entidad.
+
+---
+
+## 8. BioTime (acceso biometrico)
+
+> Modulo no cubierto como seccion propia en la revision original de esta matriz (2026-06-24), aunque el README de planes ya lo priorizaba. Se agrega ahora porque el desarrollo reciente (commits de julio-agosto) lo convirtio en uno de los modulos mas maduros del sistema.
+
+### Alcance actual
+Integracion biometrica de acceso fisico, con configuracion, sincronizacion y control de acceso por sede. Plan detallado: [`08-biotime-integracion-plan.md`](../plans/08-biotime-integracion-plan.md).
+
+### Estado
+- **Clasificacion UI (INC-05):** grupo de sidebar propio (`heading="BioTime"`), separado de Operaciones y Administracion — ver [`adr-biotime-clasificacion.md`](./adr-biotime-clasificacion.md) (actualizado).
+- **Fases 0-5 del plan de integracion:** todas marcadas como hechas (config por sede, API commands/ack/roster, elegibilidad por matricula vigente, puente Python, panel operacional, ADR aceptado).
+- **Pendiente real:** solo 2 items de checklist que requieren validacion de campo (PoC area↔dispositivo en sede piloto; runbook usado por recepcion al menos una vez) — no son deuda de codigo, son validacion operativa.
+
+### Riesgos actuales
+- Ninguno arquitectonico relevante; el riesgo restante es puramente operativo (validacion en campo por sede).
+
+### Plan de mejora
+- Sin pasos de codigo pendientes. Dar seguimiento a los 2 checklist de campo del plan 08.
 
 ---
 
@@ -652,52 +687,57 @@ Modulo transversal para super administradores:
 
 ## Roadmap global recomendado
 
-### Fase 1. Consistencia de dominio (en curso)
+> Actualizado 2026-08-27. Los items marcados `[x]` se verificaron directamente contra el codigo actual, no solo contra la intencion documentada.
+
+### Fase 1. Consistencia de dominio
 - [x] `DailyOperationsDebtService` para resumen de deuda operativa
 - [x] Separacion sidebar Perfil vs Listado de clientes
 - [x] `company-branches` en Super administracion
 - [x] Reportes modulares con `ReporteModuloService`
-- [ ] Agregadores de perfil cliente (comercial, bienestar, CRM)
-- [ ] Vista analitica de cuentas por cobrar separada de POS
-- [ ] Permiso `checking.ver`
-- [ ] Unificacion nomenclatura Operaciones / Operacion diaria
+- [x] Agregadores de perfil cliente (comercial, bienestar, CRM) — `ClienteCommercialProfileService`, `ClienteWellnessProfileService`, `ClienteCrmProfileService`
+- [x] Vista analitica de cuentas por cobrar separada de POS — `ReporteCuentasPorCobrarLive`
+- [x] Permiso `checking.ver`
+- [x] Unificacion nomenclatura Operaciones / Operacion diaria
 
 ### Fase 2. Desacople de componentes grandes
-- [ ] Fragmentar `POSLive` (~1.202 LOC)
-- [ ] Reducir `ClientePerfilLive` (~1.153 LOC) con agregadores
-- [ ] Reducir `GestionNutricionalUnificadoLive` (~875 LOC)
-- [ ] Unificar puntos de reserva de alquileres
+- [ ] Fragmentar `POSLive` (~1.142 LOC) — **unico item de esta fase sin avance real; maxima prioridad de codigo actual**
+- [x] Reducir `ClientePerfilLive` (bajo de ~1.153 a ~934 LOC) con agregadores
+- [ ] Reducir `GestionNutricionalUnificadoLive` (~876 LOC, sin cambio) — **segunda prioridad de codigo**
+- [x] Unificar puntos de **escritura** de reserva de alquileres (via `RentalService`); falta unificar la UI de entrada
 
 ### Fase 3. Navegacion y permisos
-- [ ] Reordenar sidebar por tareas reales
-- [ ] Alinear sidebar analitica con centro de reportes
-- [ ] Exponer backups; reclasificar BioTime
-- [ ] Matriz unificada permisos CRM
-- [ ] Permisos efectivos visibles en administracion
+- [x] Reordenar sidebar por tareas reales (BioTime como grupo propio, backups visibles, `crm.reportes` visible)
+- [x] Alinear sidebar analitica con centro de reportes (fuente compartida `ReporteCatalog`)
+- [x] Exponer backups
+- [x] Reclasificar BioTime (resuelto como grupo de sidebar propio, no como se planteo originalmente)
+- [ ] Matriz unificada permisos CRM (INC-10) — pendiente
+- [ ] Permisos efectivos visibles en administracion — servicio (`EffectivePermissionsService`) ya existe, falta la UI
 
 ### Fase 4. Observabilidad y reportabilidad
 - [ ] Resumen operativo por modulo
-- [ ] Servicios analiticos por dominio
-- [ ] Trazabilidad integraciones, cambios admin y procesos comerciales
+- [ ] Servicios analiticos por dominio (`SalesAnalyticsService`, `ClientAnalyticsService`, `FinanceAnalyticsService`, `CajaAnalyticsService`)
+- [ ] **Trazabilidad de cambios admin (`AuditLog` inerte, INC-11) — nuevo hallazgo, prioridad alta**
 - [ ] Etiquetado origen legacy/importado en UI y reportes
 
 ---
 
-## Orden sugerido de implementacion
-1. **Operaciones** — desacoplar POS y separar cobranza analitica (impacto transversal inmediato)
-2. **Clientes** — agregadores de ficha 360
-3. **Analitica** — eliminar dependencia de `CustomerDebts`
-4. **Bienestar** — dividir shell unificado
-5. **Comercial** — permisos y trazabilidad conversion
-6. **Recursos** — inventario y reservas unificadas
-7. **Administracion / Plataforma** — navegacion, BioTime, backups, auditoria
+## Orden sugerido de implementacion (re-priorizado 2026-08-27)
+1. **Operaciones** — fragmentar `POSLive` (unico pendiente real de este modulo; el resto de Fase 1-3 de Operaciones ya cerro)
+2. **Administracion** — instrumentar `AuditLog` en acciones criticas (INC-11, hallazgo nuevo) y exponer UI de permisos efectivos
+3. **Comercial** — unificar permisos CRM (INC-10)
+4. **Bienestar** — dividir `GestionNutricionalUnificadoLive` (sin avance desde junio)
+5. **Transversal** — escribir `DebtParityTest.php` (T.2), unica pieza pendiente de la capa de deuda
+6. **Recursos** — fortalecer `InventarioService`; consolidar UI de reservas (la escritura ya es unica)
+7. **Plataforma** — etiquetado de registros importados vs nativos
+8. **Analitica** — servicios analiticos dedicados (`SalesAnalyticsService` y afines)
 
 ---
 
 ## Criterios de exito
 - Un mismo cliente muestra el mismo estado comercial, de bienestar y de deuda en cualquier modulo.
-- Ningun reporte depende de un componente Livewire pensado para transaccion diaria.
-- Ningun componente principal supera ~400 LOC sin justificacion; orquestan servicios, no consultan modelos directamente.
-- Sidebar, breadcrumbs y documentacion usan la misma nomenclatura y reflejan el catalogo completo de rutas o derivan claramente a un hub.
-- Legacy visible solo donde aporta compatibilidad, con indicador de origen, no como fuente activa de nuevas operaciones.
-- Tres capas de deuda alineadas: resumen (`DailyOperationsDebtService`), transaccion (`ClientDebtService`), analitica (servicios dedicados).
+- Ningun reporte depende de un componente Livewire pensado para transaccion diaria — **logrado para cuentas por cobrar**.
+- Ningun componente principal supera ~400 LOC sin justificacion; orquestan servicios, no consultan modelos directamente — **pendiente en `POSLive` y `GestionNutricionalUnificadoLive`**.
+- Sidebar, breadcrumbs y documentacion usan la misma nomenclatura y reflejan el catalogo completo de rutas o derivan claramente a un hub — **logrado**.
+- Legacy visible solo donde aporta compatibilidad, con indicador de origen, no como fuente activa de nuevas operaciones — **logrado para `cliente_membresias`; pendiente para datos importados**.
+- Tres capas de deuda alineadas: resumen (`DailyOperationsDebtService`), transaccion (`ClientDebtService`), analitica (servicios dedicados) — **alineadas; falta el test de paridad (`DebtParityTest.php`)**.
+- Toda accion critica administrativa queda auditada — **no logrado (INC-11): `AuditLog` existe pero no se usa.**

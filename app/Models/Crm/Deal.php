@@ -97,4 +97,13 @@ class Deal extends Model
     {
         return $this->estado === 'lost';
     }
+
+    protected static function booted(): void
+    {
+        static::saving(function (Deal $deal) {
+            if (! $deal->lead_id && ! $deal->cliente_id) {
+                throw new \InvalidArgumentException('Un deal debe tener lead_id o cliente_id.');
+            }
+        });
+    }
 }

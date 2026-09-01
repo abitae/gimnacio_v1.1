@@ -79,6 +79,7 @@ it('stores lead origen on cliente when converting', function () {
         'telefono' => '988776655',
         'estado' => 'nuevo',
         'stage_id' => $stage->id,
+        'assigned_to' => $user->id,
         'created_by' => $user->id,
     ]);
 
@@ -91,6 +92,7 @@ it('stores lead origen on cliente when converting', function () {
     ]);
 
     expect($result['cliente']->lead_origen_id)->toBe($lead->id);
+    expect($result['cliente']->asesor_crm_id)->toBe($user->id);
     expect($result['lead']->converted_by)->toBe($user->id);
     expect($result['lead']->converted_at)->not->toBeNull();
 });

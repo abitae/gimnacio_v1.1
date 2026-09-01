@@ -104,9 +104,14 @@ trait ManagesCuotaPagoModal
         }
     }
 
+    public function getPuedeAplicarDescuentoCuotaProperty(): bool
+    {
+        return (bool) auth()->user()?->can('matricula_cliente.aplicar_descuento');
+    }
+
     public function updatedPagoCuotaFormDescuentoMonto($value): void
     {
-        $descuento = max(0, round((float) $value, 2));
+        $descuento = $this->puedeAplicarDescuentoCuota ? max(0, round((float) $value, 2)) : 0.0;
         $descuento = min($descuento, $this->pagoCuotaSaldoPendiente);
         $monto = max(0, round($this->pagoCuotaSaldoPendiente - $descuento, 2));
 
@@ -151,6 +156,10 @@ trait ManagesCuotaPagoModal
             'pagoCuotaForm.monto' => 'monto',
             'pagoCuotaForm.descuento_monto' => 'descuento',
         ]);
+
+        if ($descuento > 0 && ! $this->puedeAplicarDescuentoCuota) {
+            $this->authorize('matricula_cliente.aplicar_descuento');
+        }
 
         if (round($monto + $descuento, 2) <= 0) {
             $this->addError('pagoCuotaForm.monto', __('El monto aplicado (efectivo + descuento) debe ser mayor a cero.'));

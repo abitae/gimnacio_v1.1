@@ -3,6 +3,7 @@
 namespace App\Services\Crm;
 
 use App\Models\Crm\CrmActivity;
+use App\Support\Crm\CrmOwnershipScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -31,7 +32,7 @@ class CrmActivityService
             $q->whereDate('fecha_hora', '<=', $filters['to']);
         }
 
-        return $q->orderBy('fecha_hora', 'desc');
+        return CrmOwnershipScope::restrictActivities($q)->orderBy('fecha_hora', 'desc');
     }
 
     public function paginate(array $filters = [], int $perPage = 20): LengthAwarePaginator

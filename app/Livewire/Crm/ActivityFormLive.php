@@ -45,7 +45,12 @@ class ActivityFormLive extends Component
 
     public function save()
     {
-        $this->authorize($this->activityId ? 'crm.editar' : 'crm.crear');
+        $existing = $this->activityId ? CrmActivity::findOrFail($this->activityId) : null;
+        if ($existing) {
+            $this->authorize('update', $existing);
+        } else {
+            $this->authorize('crm.crear');
+        }
 
         $this->validate([
             'tipo' => 'required|in:call,whatsapp,visit,trial,email,note,other',
@@ -64,9 +69,8 @@ class ActivityFormLive extends Component
                 'resultado' => $this->resultado ?: null,
                 'observaciones' => $this->observaciones ?: null,
             ];
-            if ($this->activityId) {
-                $act = CrmActivity::findOrFail($this->activityId);
-                $this->activityService->update($act, $data);
+            if ($existing) {
+                $this->activityService->update($existing, $data);
             } else {
                 $this->activityService->create($data);
             }

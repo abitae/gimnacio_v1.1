@@ -9,6 +9,7 @@ Cada plan describe el estado actual, objetivos, fases, pasos accionables, criter
 | Orden | Modulo | Prioridad | Archivo |
 | --- | --- | --- | --- |
 | 1 | Operaciones (Operacion diaria) | Alta | [00-operaciones-plan-mejora.md](./00-operaciones-plan-mejora.md) |
+| 1b | Caja — integridad transaccional | Alta | [09-caja-integridad-plan-mejora.md](./09-caja-integridad-plan-mejora.md) |
 | 2 | Clientes | Alta | [01-clientes-plan-mejora.md](./01-clientes-plan-mejora.md) |
 | 3 | Analitica | Alta | [05-analitica-plan-mejora.md](./05-analitica-plan-mejora.md) |
 | 4 | Bienestar | Alta | [02-bienestar-plan-mejora.md](./02-bienestar-plan-mejora.md) |
@@ -34,11 +35,18 @@ Cada plan describe el estado actual, objetivos, fases, pasos accionables, criter
 - **Criterios de aceptacion:** condiciones verificables antes de dar el paso por cerrado.
 - **Dependencias:** modulos o pasos que deben completarse antes.
 
-## Estado global (snapshot 2026-06-24)
+## Estado global (snapshot 2026-08-27, refresco del 2026-06-24)
 
-- Agregadores perfil cliente: **implementados** (Fase 1)
-- `DailyOperationsDebtService`: implementado
-- `ReporteCuentasPorCobrarLive` / `FinanceAnalyticsService`: implementados
-- Permiso `checking.ver`: implementado
-- Servicios Wellness / PlanFreeze / RentalService unificado: **parcial**
-- Mega-componentes: desacople en progreso
+- Agregadores perfil cliente (`ClienteCommercialProfileService`, `ClienteWellnessProfileService`, `ClienteCrmProfileService`): **implementados**. `ClientePerfilLive` corrección de cifra (2026-08-27): **1.159 LOC** (volvió a crecer respecto a la medición previa de ~934; ver `01-clientes-plan-mejora.md` Fase 6 sobre causas de rendimiento/tamaño).
+- **Nuevo (2026-08-27):** revisión profunda de Caja y Clientes encontró deuda de integridad real, no solo arquitectónica — ver [`09-caja-integridad-plan-mejora.md`](./09-caja-integridad-plan-mejora.md) (condición de carrera en apertura/cierre de caja, bypass de aislamiento multi-sucursal, cierre sin permiso granular) y Fases 4-8 de [`01-clientes-plan-mejora.md`](./01-clientes-plan-mejora.md) (borrado de cliente que hoy elimina en silencio cuenta de app/fidelización/traspasos, código muerto `ClienteRequest.php`).
+- `DailyOperationsDebtService`: implementado.
+- `ReporteCuentasPorCobrarLive`: implementado y desacoplado de `POS\CustomerDebts` (permiso propio `reporte.cuentas_por_cobrar`). `FinanceAnalyticsService` y demas servicios analiticos dedicados (`SalesAnalyticsService`, `ClientAnalyticsService`, `CajaAnalyticsService`): **no implementados**, `ReporteModuloService` sigue centralizando todo.
+- Permiso `checking.ver`: implementado.
+- `PlanFreezeService` (congelamiento de planes, INC-08): extraido de `ClientWellnessService` — parcial, vive en namespace `Cliente`.
+- `RentalService` como fuente unica de **escritura** de reservas: implementado (POS, bienestar y Recursos ya delegan ahi); persiste la UI de entrada triple.
+- Integracion BioTime (`08-biotime-integracion-plan.md`): **fases 0-5 completas**; BioTime es ahora grupo de sidebar propio (no Operaciones ni Administracion). Solo quedan 2 checklist de validacion de campo.
+- Mega-componentes: `POSLive` (~1.142 LOC) y `GestionNutricionalUnificadoLive` (~876 LOC) **sin avance real** de fragmentacion — siguen siendo el mayor riesgo tecnico del sistema.
+- Permisos CRM (INC-10) y etiquetado de registros importados (Plataforma): **sin avance**.
+- Hallazgo nuevo: `AuditLog` esta modelado pero **inerte** (cero usos en `app/`) — ningun cambio critico de administracion queda auditado.
+
+Detalle completo de la verificacion en [`../architecture/module-consistency-matrix.md`](../architecture/module-consistency-matrix.md).

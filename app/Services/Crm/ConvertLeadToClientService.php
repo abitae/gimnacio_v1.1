@@ -39,6 +39,7 @@ class ConvertLeadToClientService
             if ($existingCliente) {
                 $existingCliente->update([
                     'lead_origen_id' => $existingCliente->lead_origen_id ?? $lead->id,
+                    'asesor_crm_id' => $existingCliente->asesor_crm_id ?? $lead->assigned_to,
                 ]);
                 $lead->update([
                     'cliente_id' => $existingCliente->id,
@@ -63,6 +64,7 @@ class ConvertLeadToClientService
                     'direccion' => $data['direccion'] ?? $lead->direccion ?? null,
                     'estado_cliente' => 'activo',
                     'lead_origen_id' => $lead->id,
+                    'asesor_crm_id' => $lead->assigned_to,
                     'created_by' => auth()->id(),
                 ]);
                 $lead->update([

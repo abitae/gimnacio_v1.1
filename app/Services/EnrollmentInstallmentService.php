@@ -446,6 +446,10 @@ class EnrollmentInstallmentService
                 throw new \InvalidArgumentException('El descuento no puede ser negativo.');
             }
 
+            if ($descuentoMonto > 0 && auth()->check() && ! auth()->user()->can('matricula_cliente.aplicar_descuento')) {
+                throw new \InvalidArgumentException('No tiene permiso para aplicar descuentos en el pago de cuotas.');
+            }
+
             if ($monto < 0) {
                 throw new \InvalidArgumentException('El monto del pago no puede ser negativo.');
             }

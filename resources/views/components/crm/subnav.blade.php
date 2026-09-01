@@ -1,6 +1,7 @@
 @php
     $links = [
         ['route' => 'crm.pipeline', 'label' => 'Pipeline'],
+        ['route' => 'crm.mi-cartera', 'label' => 'Mi Cartera'],
         ['route' => 'crm.leads.index', 'label' => 'Leads', 'activeAlso' => ['crm.leads.show']],
         ['route' => 'crm.tareas', 'label' => 'Tareas'],
         ['route' => 'crm.deals', 'label' => 'Oportunidades'],

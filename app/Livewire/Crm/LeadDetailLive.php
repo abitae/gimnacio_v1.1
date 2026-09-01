@@ -61,8 +61,9 @@ class LeadDetailLive extends Component
 
     public function mount(Lead|int|string $lead): void
     {
-        $this->authorize('crm.ver');
-        $this->leadId = (int) ($lead instanceof Lead ? $lead->getKey() : $lead);
+        $leadModel = $lead instanceof Lead ? $lead : Lead::findOrFail($lead);
+        $this->authorize('view', $leadModel);
+        $this->leadId = $leadModel->getKey();
     }
 
     public function getLeadProperty(): ?Lead
@@ -115,7 +116,8 @@ class LeadDetailLive extends Component
 
     public function requestDeleteDeal(int $id): void
     {
-        $this->authorize('crm.eliminar');
+        $deal = Deal::findOrFail($id);
+        $this->authorize('delete', $deal);
         $this->dealIdPendingDelete = $id;
         $this->confirmDeleteDeal = true;
     }
@@ -128,10 +130,10 @@ class LeadDetailLive extends Component
 
     public function deleteDeal(?int $id = null)
     {
-        $this->authorize('crm.eliminar');
         $id ??= $this->dealIdPendingDelete;
         $deal = $id ? Deal::find($id) : null;
         if ($deal && $deal->lead_id === $this->leadId) {
+            $this->authorize('delete', $deal);
             $this->dealService->delete($deal);
             $this->flashToast('success', 'Oportunidad eliminada');
         }
@@ -159,7 +161,8 @@ class LeadDetailLive extends Component
 
     public function requestDeleteActivity(int $id): void
     {
-        $this->authorize('crm.eliminar');
+        $act = CrmActivity::findOrFail($id);
+        $this->authorize('delete', $act);
         $this->activityIdPendingDelete = $id;
         $this->confirmDeleteActivity = true;
     }
@@ -172,10 +175,10 @@ class LeadDetailLive extends Component
 
     public function deleteActivity(?int $id = null)
     {
-        $this->authorize('crm.eliminar');
         $id ??= $this->activityIdPendingDelete;
         $act = $id ? CrmActivity::find($id) : null;
         if ($act && $act->lead_id === $this->leadId) {
+            $this->authorize('delete', $act);
             $this->activityService->delete($act);
             $this->flashToast('success', 'Actividad eliminada');
         }
@@ -203,18 +206,21 @@ class LeadDetailLive extends Component
 
     public function completeTask(int $id)
     {
-        $this->authorize('crm.editar');
         $task = CrmTask::find($id);
         if (! $task || $task->lead_id !== $this->leadId) {
             return;
         }
+        $this->authorize('update', $task);
         $this->taskService->complete($task);
         $this->flashToast('success', 'Tarea marcada como hecha');
     }
 
     public function openTagsModal()
     {
-        $this->authorize('crm.editar');
+        $lead = $this->getLeadProperty();
+        if ($lead) {
+            $this->authorize('update', $lead);
+        }
         $this->modalTags = true;
     }
 

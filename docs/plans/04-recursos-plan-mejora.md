@@ -2,7 +2,7 @@
 
 > **Referencia:** [module-consistency-matrix.md](../architecture/module-consistency-matrix.md)  
 > **Prioridad:** Media (orden global #6)  
-> **Ultima actualizacion:** 2026-06-24
+> **Ultima actualizacion:** 2026-08-27 (refresco de 2026-06-24)
 
 ---
 
@@ -250,5 +250,5 @@ Stock fragil en POS; reservas duplicadas entre modulos.
 - Sidebar: Catálogo vs Alquileres
 
 ### Pendiente
-- `InventarioService` ampliado + venta POS descuenta stock
-- `RentableSpaceService` consolidación tarifas
+- `InventarioService` ampliado — **precision 2026-08-27:** `VentaService::registrarSalidaVenta` ya invoca `InventarioService` al vender productos por POS (no es "cero integracion" como sugeria la version anterior); lo que falta es robustecer la API (`registerAdjustment`, `getLowStockProducts`, validacion de stock insuficiente) y no simplemente conectar POS a inventario desde cero.
+- `RentableSpaceService` consolidación tarifas.

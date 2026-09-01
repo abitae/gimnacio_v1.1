@@ -45,6 +45,7 @@ class Cliente extends Model
         'created_by',
         'updated_by',
         'trainer_user_id',
+        'asesor_crm_id',
         'sucursal_id',
     ];
 
@@ -59,6 +60,7 @@ class Cliente extends Model
             'consentimientos' => 'array',
             'created_by' => 'integer',
             'updated_by' => 'integer',
+            'asesor_crm_id' => 'integer',
             'sucursal_id' => 'integer',
         ];
     }
@@ -204,6 +206,16 @@ class Cliente extends Model
     public function crmTasks(): HasMany
     {
         return $this->hasMany(\App\Models\Crm\CrmTask::class, 'cliente_id');
+    }
+
+    public function crmDeals(): HasMany
+    {
+        return $this->hasMany(\App\Models\Crm\Deal::class, 'cliente_id');
+    }
+
+    public function asesorCrm(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'asesor_crm_id');
     }
 
     public function clientRoutines(): HasMany

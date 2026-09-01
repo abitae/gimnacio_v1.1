@@ -8,6 +8,7 @@ use App\Models\System\Empresa;
 use App\Models\System\Sucursal;
 use App\Models\User;
 use App\Services\ClienteService;
+use App\Services\SucursalContext;
 
 it('persists the full cliente contract including personal and emergency fields', function () {
     $user = User::factory()->create();
@@ -24,6 +25,7 @@ it('persists the full cliente contract including personal and emergency fields',
         'estado' => 'activa',
         'es_principal' => true,
     ]);
+    app(SucursalContext::class)->activate($sucursal);
 
     $cliente = app(ClienteService::class)->create([
         'sucursal_id' => $sucursal->id,

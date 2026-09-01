@@ -284,7 +284,14 @@
         <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Registrar pago de cuota') }}</h2>
         <p class="text-xs text-zinc-500">{{ __('Requiere caja abierta. Puedes registrar un abono parcial o completar el saldo de la cuota.') }}</p>
         <p class="text-xs text-zinc-500">{{ __('Saldo pendiente: S/ :saldo', ['saldo' => number_format($pagoCuotaSaldoPendiente, 2)]) }}</p>
+        @can('matricula_cliente.aplicar_descuento')
         <flux:input size="xs" type="number" step="0.01" wire:model.live="pagoCuotaForm.descuento_monto" label="{{ __('Descuento (S/)') }}" min="0" />
+        @else
+        <div>
+            <flux:input size="xs" type="number" step="0.01" value="0" label="{{ __('Descuento (S/)') }}" min="0" disabled />
+            <p class="mt-1 text-xs text-zinc-500">{{ __('Requiere permiso especial para aplicar descuentos.') }}</p>
+        </div>
+        @endcan
         <flux:input size="xs" type="number" step="0.01" wire:model="pagoCuotaForm.monto" label="{{ __('Monto a cobrar (S/)') }}" required />
         <flux:input size="xs" type="date" wire:model="pagoCuotaForm.fecha_pago" label="{{ __('Fecha') }}" required />
         @if ((float) ($pagoCuotaForm['monto'] ?? 0) > 0)
@@ -508,3 +515,54 @@
         @endif
     </div>
 </flux:modal>
+
+<flux:modal name="crm-activity-perfil-modal" wire:model="modalCrmActivity" focusable flyout variant="floating" class="md:w-lg">
+    @if ($modalCrmActivity && $selectedClienteId)
+        <livewire:crm.activity-form-live :cliente-id="$selectedClienteId" :activity-id="$editingCrmActivityId" :key="'perfil-crm-activity-'.$selectedClienteId.'-'.($editingCrmActivityId ?? 'new')" />
+    @endif
+</flux:modal>
+
+<flux:modal name="crm-task-perfil-modal" wire:model="modalCrmTask" focusable flyout variant="floating" class="md:w-lg">
+    @if ($modalCrmTask && $selectedClienteId)
+        <livewire:crm.task-form-live :cliente-id="$selectedClienteId" :task-id="$editingCrmTaskId" :key="'perfil-crm-task-'.$selectedClienteId.'-'.($editingCrmTaskId ?? 'new')" />
+    @endif
+</flux:modal>
+
+<flux:modal name="crm-deal-perfil-modal" wire:model="modalCrmDeal" focusable flyout variant="floating" class="md:w-lg">
+    @if ($modalCrmDeal && $selectedClienteId)
+        <livewire:crm.deal-form-live :cliente-id="$selectedClienteId" :deal-id="$editingCrmDealId" :key="'perfil-crm-deal-'.$selectedClienteId.'-'.($editingCrmDealId ?? 'new')" />
+    @endif
+</flux:modal>
+
+<flux:modal name="crm-tags-perfil-modal" wire:model="modalCrmTags" focusable flyout variant="floating" class="md:w-lg">
+    @if ($modalCrmTags && $selectedClienteId)
+        <livewire:crm.tag-picker-live entity-type="cliente" :cliente-id="$selectedClienteId" :key="'perfil-crm-tags-'.$selectedClienteId" />
+    @endif
+</flux:modal>
+
+<flux:modal name="crm-reasignar-perfil-modal" wire:model="modalCrmReasignar" focusable flyout variant="floating" class="md:w-md">
+    @if ($modalCrmReasignar)
+        <div class="space-y-4 p-1">
+            <h2 class="text-base font-semibold text-zinc-900 dark:text-zinc-100">{{ __('Reasignar asesor CRM') }}</h2>
+            <flux:select wire:model="crmReasignarNuevoAsesorId" label="{{ __('Nuevo asesor') }}">
+                <option value="">{{ __('Sin asignar') }}</option>
+                @foreach (\App\Models\User::orderBy('name')->get(['id', 'name']) as $u)
+                    <option value="{{ $u->id }}">{{ $u->name }}</option>
+                @endforeach
+            </flux:select>
+            <div class="flex justify-end gap-2">
+                <flux:button type="button" variant="ghost" wire:click="closeCrmReasignarModal">{{ __('Cancelar') }}</flux:button>
+                <flux:button type="button" variant="primary" wire:click="crmReasignar">{{ __('Guardar') }}</flux:button>
+            </div>
+        </div>
+    @endif
+</flux:modal>
+
+@script
+<script>
+    Livewire.on('activity-saved', () => { $wire.crmActivitySaved(); });
+    Livewire.on('task-saved', () => { $wire.crmTaskSaved(); });
+    Livewire.on('deal-saved', () => { $wire.crmDealSaved(); });
+    Livewire.on('tags-saved', () => { $wire.crmTagsSaved(); });
+</script>
+@endscript

@@ -1,9 +1,9 @@
 # Plan de mejora: Comercial (CRM y promociones)
 
 > **Referencia:** [module-consistency-matrix.md](../architecture/module-consistency-matrix.md)  
-> **Prioridad:** Alta (orden global #5)  
-> **Inconsistencias vinculadas:** INC-10  
-> **Ultima actualizacion:** 2026-06-24
+> **Prioridad:** Alta (orden global #5; #3 en el re-priorizado 2026-08-27)  
+> **Inconsistencias vinculadas:** INC-10 (vigente — la matriz de permisos esta documentada pero NO aplicada en codigo)  
+> **Ultima actualizacion:** 2026-08-27 (refresco de 2026-06-24)
 
 ---
 
@@ -16,10 +16,10 @@ Pipeline CRM, leads, tareas, oportunidades, campanas, etiquetas, renovacion/reac
 
 | Elemento | Situacion |
 | --- | --- |
-| Componentes Livewire CRM | 18; modulo maduro |
+| Componentes Livewire CRM | 18+; modulo maduro; nuevo `CrmStageService` (sin documentar previamente) |
 | `ConvertLeadToClientService` | Separado; trazabilidad mejorable |
-| Permisos | `crm.ver` vs `crm_mensaje.ver` fragmentados |
-| `crm.reportes` | Ruta sin sidebar |
+| Permisos | **INC-10 vigente:** `crm.ver` vs `crm_mensaje.ver` siguen fragmentados en `routes/web.php` y `PermissionCatalog.php` — la matriz propuesta (`03-comercial-permisos-matriz.md`) esta documentada pero no aplicada |
+| `crm.reportes` | **Resuelto:** ya tiene item en sidebar (grupo Comercial) |
 | Cupones | Integrados en POS; trazabilidad limitada fuera venta |
 
 ### Riesgo principal
@@ -241,15 +241,16 @@ Estados de lead, pipeline y conversion pueden divergir; permisos CRM no siguen u
 
 ---
 
-## 7. Avance de implementación (2026-06-24)
+## 7. Avance de implementación (refresco 2026-08-27, snapshot original 2026-06-24)
 
-### Completado (Fase 1 parcial)
-- Matriz permisos: `docs/plans/03-comercial-permisos-matriz.md`
-- `CrmOperationalSummaryService` (KPIs pipeline)
-- `ConvertLeadToClientService`: actividad CRM al convertir
-- Sidebar: bloques CRM / Retención / Promociones + reportes CRM
+### Completado
+- Matriz permisos **documentada**: `docs/plans/03-comercial-permisos-matriz.md` (propuesta, aun no aplicada al codigo — ver Pendiente).
+- `CrmOperationalSummaryService` (KPIs pipeline).
+- `ConvertLeadToClientService`: actividad CRM al convertir.
+- Sidebar: `crm.reportes` visible en grupo Comercial (verificado en `sidebar.blade.php`).
 
-### Pendiente
-- Policies y tests autorización por rol
-- Transiciones pipeline validadas en servicio
-- Cupones trazables en campañas
+### Pendiente (confirmado vigente en el código actual)
+- **INC-10: aplicar la matriz de permisos al código** — `crm_mensaje.ver` sigue separado de `crm.ver` en `routes/web.php` y `PermissionCatalog.php`. Este es el paso mas concreto y de mayor impacto pendiente del módulo.
+- Policies y tests autorización por rol.
+- Transiciones pipeline validadas en servicio.
+- Cupones trazables en campañas.

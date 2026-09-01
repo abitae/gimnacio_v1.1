@@ -301,6 +301,7 @@ Route::middleware(['auth', 'sucursal.context'])->group(function () {
     // CRM
     Route::prefix('crm')->name('crm.')->middleware('permission:crm.ver')->group(function () {
         Route::get('pipeline', \App\Livewire\Crm\CrmPipelineLive::class)->name('pipeline');
+        Route::get('mi-cartera', \App\Livewire\Crm\MiCarteraCrmLive::class)->name('mi-cartera');
         Route::get('leads', \App\Livewire\Crm\LeadsListLive::class)->name('leads.index');
         Route::get('leads/{lead}', \App\Livewire\Crm\LeadDetailLive::class)->name('leads.show');
         Route::get('tareas', \App\Livewire\Crm\CrmTasksLive::class)->name('tareas');

@@ -118,6 +118,24 @@ class ClientePerfilLive extends Component
     /** @var array<string, mixed> */
     public array $crmSummary = [];
 
+    public bool $modalCrmActivity = false;
+
+    public ?int $editingCrmActivityId = null;
+
+    public bool $modalCrmTask = false;
+
+    public ?int $editingCrmTaskId = null;
+
+    public bool $modalCrmDeal = false;
+
+    public ?int $editingCrmDealId = null;
+
+    public bool $modalCrmTags = false;
+
+    public bool $modalCrmReasignar = false;
+
+    public string $crmReasignarNuevoAsesorId = '';
+
     public bool $mostrarModalTicketPago = false;
 
     public ?int $pagoTicketPreviewId = null;
@@ -169,6 +187,8 @@ class ClientePerfilLive extends Component
 
     protected ClienteProfileContextService $profileContextService;
 
+    protected \App\Services\Cliente\ClienteCrmPortfolioService $crmPortfolioService;
+
     public function boot(
         AsistenciaService $asistenciaService,
         ClienteService $clienteService,
@@ -176,7 +196,8 @@ class ClientePerfilLive extends Component
         ClienteMatriculaService $matriculaService,
         ClientWellnessService $clientWellnessService,
         EnrollmentInstallmentService $enrollmentInstallmentService,
-        ClienteProfileContextService $profileContextService
+        ClienteProfileContextService $profileContextService,
+        \App\Services\Cliente\ClienteCrmPortfolioService $crmPortfolioService
     ): void {
         $this->asistenciaService = $asistenciaService;
         $this->clienteService = $clienteService;
@@ -185,6 +206,7 @@ class ClientePerfilLive extends Component
         $this->clientWellnessService = $clientWellnessService;
         $this->enrollmentInstallmentService = $enrollmentInstallmentService;
         $this->profileContextService = $profileContextService;
+        $this->crmPortfolioService = $crmPortfolioService;
     }
 
     public function mount(?Cliente $cliente = null): void
@@ -875,6 +897,12 @@ class ClientePerfilLive extends Component
             'openTasksCount' => $context->crm->openTasksCount,
             'lastActivity' => $context->crm->lastActivity,
             'linkedLead' => $context->crm->linkedLead,
+            'asesorCrmId' => $context->crm->asesorCrmId,
+            'asesorCrmNombre' => $context->crm->asesorCrmNombre,
+            'openDealsCount' => $context->crm->openDealsCount,
+            'recentActivities' => $context->crm->recentActivities,
+            'pendingTasks' => $context->crm->pendingTasks,
+            'openDeals' => $context->crm->openDeals,
         ];
     }
 
@@ -923,6 +951,11 @@ class ClientePerfilLive extends Component
         $this->commercialTabDataLoaded = false;
         $this->usesLegacyMembresiasHistory = false;
         $this->crmSummary = [];
+        $this->modalCrmActivity = false;
+        $this->modalCrmTask = false;
+        $this->modalCrmDeal = false;
+        $this->modalCrmTags = false;
+        $this->modalCrmReasignar = false;
         $this->resetPerfilData();
     }
 
@@ -995,6 +1028,110 @@ class ClientePerfilLive extends Component
             'mensaje' => '',
         ];
         $this->resetValidation();
+    }
+
+    public function openCrmActivityModal(?int $activityId = null): void
+    {
+        $this->authorize('crm.crear');
+        $this->editingCrmActivityId = $activityId;
+        $this->modalCrmActivity = true;
+    }
+
+    public function closeCrmActivityModal(): void
+    {
+        $this->modalCrmActivity = false;
+        $this->editingCrmActivityId = null;
+    }
+
+    public function crmActivitySaved(): void
+    {
+        $this->closeCrmActivityModal();
+        $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+        $this->flashToast('success', 'Actividad CRM guardada');
+    }
+
+    public function openCrmTaskModal(?int $taskId = null): void
+    {
+        $this->authorize('crm.crear');
+        $this->editingCrmTaskId = $taskId;
+        $this->modalCrmTask = true;
+    }
+
+    public function closeCrmTaskModal(): void
+    {
+        $this->modalCrmTask = false;
+        $this->editingCrmTaskId = null;
+    }
+
+    public function crmTaskSaved(): void
+    {
+        $this->closeCrmTaskModal();
+        $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+        $this->flashToast('success', 'Tarea CRM guardada');
+    }
+
+    public function openCrmDealModal(?int $dealId = null): void
+    {
+        $this->authorize('crm.crear');
+        $this->editingCrmDealId = $dealId;
+        $this->modalCrmDeal = true;
+    }
+
+    public function closeCrmDealModal(): void
+    {
+        $this->modalCrmDeal = false;
+        $this->editingCrmDealId = null;
+    }
+
+    public function crmDealSaved(): void
+    {
+        $this->closeCrmDealModal();
+        $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+        $this->flashToast('success', 'Oportunidad CRM guardada');
+    }
+
+    public function openCrmTagsModal(): void
+    {
+        $this->modalCrmTags = true;
+    }
+
+    public function closeCrmTagsModal(): void
+    {
+        $this->modalCrmTags = false;
+    }
+
+    public function crmTagsSaved(): void
+    {
+        $this->closeCrmTagsModal();
+        $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+        $this->flashToast('success', 'Etiquetas actualizadas');
+    }
+
+    public function openCrmReasignarModal(): void
+    {
+        $this->authorize('crm.reasignar');
+        $this->crmReasignarNuevoAsesorId = $this->crmSummary['asesorCrmId'] ?? '' ? (string) $this->crmSummary['asesorCrmId'] : '';
+        $this->modalCrmReasignar = true;
+    }
+
+    public function closeCrmReasignarModal(): void
+    {
+        $this->modalCrmReasignar = false;
+    }
+
+    public function crmReasignar(): void
+    {
+        $this->authorize('crm.reasignar');
+        if (! $this->selectedCliente) {
+            return;
+        }
+        $this->crmPortfolioService->reassign(
+            $this->selectedCliente,
+            $this->crmReasignarNuevoAsesorId !== '' ? (int) $this->crmReasignarNuevoAsesorId : null
+        );
+        $this->closeCrmReasignarModal();
+        $this->refreshSelectedClienteContext((int) $this->selectedClienteId);
+        $this->flashToast('success', 'Asesor CRM reasignado');
     }
 
     public function save(): void

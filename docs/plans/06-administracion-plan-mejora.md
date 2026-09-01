@@ -1,9 +1,9 @@
 # Plan de mejora: Administracion
 
 > **Referencia:** [module-consistency-matrix.md](../architecture/module-consistency-matrix.md)  
-> **Prioridad:** Media (orden global #7)  
-> **Inconsistencias vinculadas:** INC-05, INC-06  
-> **Ultima actualizacion:** 2026-06-24
+> **Prioridad:** Alta (re-priorizado 2026-08-27 por INC-11; orden global #2)  
+> **Inconsistencias vinculadas:** INC-05 (resuelto, ver nota), INC-06 (resuelto), INC-11 (nuevo, vigente)  
+> **Ultima actualizacion:** 2026-08-27 (refresco de 2026-06-24)
 
 ---
 
@@ -17,13 +17,14 @@ Empleados, asistencia personal, BioTime, metodos de pago, usuarios, roles. Relac
 | Elemento | Situacion |
 | --- | --- |
 | `UsuarioLive` | Restriccion sucursal OK |
-| BioTime | En Administracion; breadcrumbs en Operacion |
-| Backups | Ruta activa; sin item sidebar |
-| Fragmentacion | Seguridad, personal, integraciones, config financiera mezclados |
-| `AuditLog` | Modelo existe; uso limitado |
+| BioTime | **Resuelto:** grupo de sidebar propio (no Operaciones ni Administracion) — ver ADR actualizado |
+| Backups | **Resuelto:** item visible en Super administracion |
+| Fragmentacion | Seguridad, personal, integraciones, config financiera siguen mezclados |
+| `AuditLog` | Modelo completo; **0 usos reales en `app/`** — no "uso limitado", es inerte (INC-11) |
+| `EffectivePermissionsService` | Implementado (`forUser`/`explains`); sin ruta/UI que lo consuma |
 
 ### Riesgo principal
-Permisos efectivos no visibles; backups y BioTime mal ubicados en UX.
+Ningun cambio critico de administracion (usuarios, roles, metodos de pago, backups) queda auditado hoy — `AuditLog` esta modelado pero inerte. Segundo riesgo: permisos efectivos calculados pero no visibles (falta solo la UI, el servicio ya existe).
 
 ### Fuente de verdad objetivo
 `users`, `roles`, `payment_methods`, `employees`, `employee_attendances`, `biotime_*`, `audit_logs`
@@ -217,15 +218,15 @@ Permisos efectivos no visibles; backups y BioTime mal ubicados en UX.
 
 ---
 
-## 7. Avance de implementación (2026-06-24)
+## 7. Avance de implementación (refresco 2026-08-27, snapshot original 2026-06-24)
 
-### Completado (Fase 1 parcial)
-- ADR BioTime (`docs/architecture/adr-biotime-clasificacion.md`)
-- Sidebar backups en Super administración (INC-06)
-- Subgrupos: Personal / Configuración / Seguridad
-- `EffectivePermissionsService`
+### Completado
+- ADR BioTime (`docs/architecture/adr-biotime-clasificacion.md`) — **actualizado 2026-08-27**: la decisión final implementada no fue la Opción A (grupo Operaciones) sino un grupo de sidebar propio para BioTime.
+- Sidebar backups en Super administración (INC-06).
+- Subgrupos: Personal / Configuración / Seguridad.
+- `EffectivePermissionsService` (`app/Services/Admin/`) — implementado, con `forUser()`/`explains()`.
 
-### Pendiente
-- UI permisos efectivos en UsuarioLive
-- `permissions:audit` artisan
-- AuditLog ampliado
+### Pendiente (confirmado vigente en el código actual)
+- UI permisos efectivos en UsuarioLive (o página dedicada) — el servicio ya existe, solo falta exponerlo.
+- `permissions:audit` artisan.
+- **AuditLog sin instrumentar (INC-11):** no es "ampliación", es activación desde cero — cero llamadas `AuditLog::create()` en todo `app/`. Máxima prioridad de este módulo.

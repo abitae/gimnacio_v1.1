@@ -665,9 +665,8 @@ class ClienteService
         $validated = $this->validate($data, $id);
 
         return DB::transaction(function () use ($cliente, $validated) {
-            if (array_key_exists('codigo', $validated)) {
-                $validated['codigo'] = $this->normalizeCodigo($validated['codigo']);
-            }
+            // Código asignado solo por el sistema al crear; no se acepta modificación manual (ver create()).
+            unset($validated['codigo']);
             $validated['updated_by'] = auth()->id();
             $validated['sucursal_id'] = $cliente->sucursal_id;
             $cliente->update($validated);
@@ -789,6 +788,8 @@ class ClienteService
             'created_by' => ['nullable', 'exists:users,id'],
             'updated_by' => ['nullable', 'exists:users,id'],
             'trainer_user_id' => ['nullable', 'exists:users,id'],
+            'asesor_crm_id' => ['nullable', 'exists:users,id'],
+            'lead_origen_id' => ['nullable', 'exists:crm_leads,id'],
             'sucursal_id' => ['nullable', 'exists:sucursales,id'],
         ];
 

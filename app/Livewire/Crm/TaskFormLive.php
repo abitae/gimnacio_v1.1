@@ -48,7 +48,12 @@ class TaskFormLive extends Component
 
     public function save()
     {
-        $this->authorize($this->taskId ? 'crm.editar' : 'crm.crear');
+        $existing = $this->taskId ? CrmTask::findOrFail($this->taskId) : null;
+        if ($existing) {
+            $this->authorize('update', $existing);
+        } else {
+            $this->authorize('crm.crear');
+        }
 
         $this->validate([
             'tipo' => 'required|in:call,whatsapp,schedule_visit,send_promo,follow_up,other',
@@ -68,9 +73,8 @@ class TaskFormLive extends Component
                 'notas' => $this->notas ?: null,
                 'assigned_to' => $this->assigned_to ? (int) $this->assigned_to : auth()->id(),
             ];
-            if ($this->taskId) {
-                $task = CrmTask::findOrFail($this->taskId);
-                $this->taskService->update($task, $data);
+            if ($existing) {
+                $this->taskService->update($existing, $data);
             } else {
                 $this->taskService->create($data);
             }

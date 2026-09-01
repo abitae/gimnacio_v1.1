@@ -9,7 +9,12 @@
     <form wire:submit.prevent="save" class="space-y-4">
         <flux:field>
             <flux:label>{{ __('Descuento (S/)') }}</flux:label>
+            @can('matricula_cliente.aplicar_descuento')
             <flux:input type="number" step="0.01" min="0" wire:model.live="form.descuento_monto" />
+            @else
+            <flux:input type="number" step="0.01" min="0" value="0" disabled />
+            <p class="mt-1 text-xs text-zinc-500">{{ __('Requiere permiso especial para aplicar descuentos.') }}</p>
+            @endcan
         </flux:field>
         <flux:field>
             <flux:label>{{ __('Monto a cobrar (S/)') }}</flux:label>

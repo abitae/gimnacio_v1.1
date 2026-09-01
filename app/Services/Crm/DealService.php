@@ -4,8 +4,10 @@ namespace App\Services\Crm;
 
 use App\Models\Crm\Deal;
 use App\Models\Crm\LossReason;
+use App\Support\Crm\CrmOwnershipScope;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use InvalidArgumentException;
 
 class DealService
 {
@@ -53,7 +55,7 @@ class DealService
             });
         }
 
-        return $q->orderBy('updated_at', 'desc');
+        return CrmOwnershipScope::restrictToOwner($q, 'assigned_to')->orderBy('updated_at', 'desc');
     }
 
     public function paginate(array $filters = [], int $perPage = 20): LengthAwarePaginator
@@ -68,6 +70,9 @@ class DealService
 
     public function create(array $data): Deal
     {
+        if (empty($data['lead_id']) && empty($data['cliente_id'])) {
+            throw new InvalidArgumentException('Un deal requiere lead_id o cliente_id.');
+        }
         $data['created_by'] = $data['created_by'] ?? auth()->id();
         $data['estado'] = $data['estado'] ?? 'open';
         return Deal::create($data);
@@ -91,10 +96,11 @@ class DealService
             $this->leadService->syncLeadStageFromDealOutcome($lead, 'won');
         }
 
-        if ($lead) {
+        if ($lead || $deal->cliente_id) {
             $this->crmActivityService->create([
-                'lead_id' => $lead->id,
+                'lead_id' => $lead?->id,
                 'cliente_id' => $deal->cliente_id,
+                'deal_id' => $deal->id,
                 'tipo' => 'note',
                 'observaciones' => 'Oportunidad marcada como ganada.',
                 'fecha_hora' => now(),
@@ -118,9 +124,11 @@ class DealService
             $this->leadService->syncLeadStageFromDealOutcome($lead, 'lost');
         }
 
-        if ($lead) {
+        if ($lead || $deal->cliente_id) {
             $this->crmActivityService->create([
-                'lead_id' => $lead->id,
+                'lead_id' => $lead?->id,
+                'cliente_id' => $deal->cliente_id,
+                'deal_id' => $deal->id,
                 'tipo' => 'note',
                 'observaciones' => 'Oportunidad marcada como perdida.',
                 'fecha_hora' => now(),

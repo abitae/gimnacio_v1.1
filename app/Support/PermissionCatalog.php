@@ -144,9 +144,21 @@ final class PermissionCatalog
                 'group' => 'Cajas',
                 'descripcion' => 'Registrar movimientos manuales y cruces de caja.',
             ],
+            'matricula_cliente.aplicar_descuento' => [
+                'group' => 'Matrículas',
+                'descripcion' => 'Aplicar descuento al cobrar una cuota financiada.',
+            ],
             'crm.convertir' => [
                 'group' => 'CRM',
                 'descripcion' => 'Convertir leads a clientes.',
+            ],
+            'crm.ver_todos' => [
+                'group' => 'CRM',
+                'descripcion' => 'Ver y gestionar la cartera CRM de todos los vendedores (no solo la propia).',
+            ],
+            'crm.reasignar' => [
+                'group' => 'CRM',
+                'descripcion' => 'Reasignar el asesor/vendedor responsable de un lead, deal o cliente en el CRM.',
             ],
             'crm_mensaje.enviar' => [
                 'group' => 'CRM mensajes',

@@ -14,7 +14,8 @@ class DealFormLive extends Component
     use FlashesToast;
 
     public ?int $dealId = null;
-    public int $leadId;
+    public ?int $leadId = null;
+    public ?int $clienteId = null;
     public $membresia_id = '';
     public $precio_objetivo = '';
     public $descuento_sugerido = '0';
@@ -36,9 +37,10 @@ class DealFormLive extends Component
         $this->dealService = $dealService;
     }
 
-    public function mount(int $leadId, ?int $dealId = null)
+    public function mount(?int $leadId = null, ?int $clienteId = null, ?int $dealId = null)
     {
         $this->leadId = $leadId;
+        $this->clienteId = $clienteId;
         $this->dealId = $dealId;
         if ($dealId) {
             $deal = $this->dealService->find($dealId);
@@ -60,15 +62,25 @@ class DealFormLive extends Component
 
     public function save()
     {
-        $this->authorize($this->dealId ? 'crm.editar' : 'crm.crear');
+        $existing = $this->dealId ? Deal::findOrFail($this->dealId) : null;
+        if ($existing) {
+            $this->authorize('update', $existing);
+        } else {
+            $this->authorize('crm.crear');
+        }
 
         $this->validate([
             'precio_objetivo' => 'required|numeric|min:0',
             'probabilidad' => 'nullable|integer|min:0|max:100',
         ]);
+        if (!$this->leadId && !$this->clienteId) {
+            $this->flashToast('error', 'Debe indicar lead o cliente');
+            return;
+        }
         try {
             $data = [
                 'lead_id' => $this->leadId,
+                'cliente_id' => $this->clienteId,
                 'membresia_id' => $this->membresia_id ? (int) $this->membresia_id : null,
                 'precio_objetivo' => (float) $this->precio_objetivo,
                 'descuento_sugerido' => (float) ($this->descuento_sugerido ?: 0),
@@ -79,9 +91,8 @@ class DealFormLive extends Component
                 'notas' => $this->notas ?: null,
                 'assigned_to' => $this->assigned_to ? (int) $this->assigned_to : null,
             ];
-            if ($this->dealId) {
-                $deal = Deal::findOrFail($this->dealId);
-                $this->dealService->update($deal, $data);
+            if ($existing) {
+                $this->dealService->update($existing, $data);
             } else {
                 $this->dealService->create($data);
             }
@@ -93,20 +104,20 @@ class DealFormLive extends Component
 
     public function markWon()
     {
-        $this->authorize('crm.editar');
         if (!$this->dealId) {
             return;
         }
         $deal = Deal::findOrFail($this->dealId);
+        $this->authorize('update', $deal);
         $this->dealService->markWon($deal);
         $this->dispatch('deal-saved');
     }
 
     public function markLost()
     {
-        $this->authorize('crm.editar');
         $this->validate(['motivo_perdida_id' => 'required|exists:loss_reasons,id']);
         $deal = Deal::findOrFail($this->dealId);
+        $this->authorize('update', $deal);
         $this->dealService->markLost($deal, (int) $this->motivo_perdida_id, $this->observacion_perdida ?: null);
         $this->showMarkLost = false;
         $this->dispatch('deal-saved');

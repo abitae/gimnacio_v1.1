@@ -18,9 +18,12 @@ beforeEach(function () {
 });
 
 it('opens cash box from livewire component', function () {
-    $user = User::factory()->create();
+    $sucursal = biotimeSucursal('caja-live-abrir');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
     $user->givePermissionTo(['caja.ver', 'caja.crear']);
     $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
 
     Livewire::test(CajaLive::class)
         ->set('formApertura.saldo_inicial', '150.00')
@@ -35,12 +38,16 @@ it('opens cash box from livewire component', function () {
 });
 
 it('closes cash box from livewire component', function () {
-    $user = User::factory()->create();
+    $sucursal = biotimeSucursal('caja-live-cerrar');
+    $user = User::factory()->create(['default_sucursal_id' => $sucursal->id]);
+    $user->sucursales()->attach($sucursal->id);
     $user->givePermissionTo(['caja.ver', 'caja.crear', 'caja.cerrar']);
     $this->actingAs($user);
+    app(SucursalContext::class)->activate($sucursal);
 
     $caja = Caja::create([
         'usuario_id' => $user->id,
+        'sucursal_id' => $sucursal->id,
         'saldo_inicial' => 100,
         'fecha_apertura' => now(),
         'estado' => 'abierta',

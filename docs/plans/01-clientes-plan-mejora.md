@@ -2,8 +2,8 @@
 
 > **Referencia:** [module-consistency-matrix.md](../architecture/module-consistency-matrix.md)  
 > **Prioridad:** Alta (orden global #2)  
-> **Inconsistencias vinculadas:** INC-08, INC-09  
-> **Ultima actualizacion:** 2026-06-24
+> **Inconsistencias vinculadas:** INC-08 (parcial), INC-09 (vigente)  
+> **Ultima actualizacion:** 2026-08-27 (refresco de 2026-06-24) · **2026-08-27 (2):** agregadas Fases 4-8 sobre integridad referencial, seguridad y rendimiento tras revisión profunda de código — ver abajo. Corrección de cifra: `ClientePerfilLive` está en **1159 LOC** (no ~934 como se estimó antes; el componente creció desde la última medición).
 
 ---
 
@@ -258,6 +258,7 @@ La ficha 360 concentra comercial, cobranza, bienestar, reservas, fidelizacion y 
 | Bienestar | Wellness summary; congelamiento fuera de wellness |
 | Comercial | CRM summary, lead vinculado |
 | Analitica | Mismos totales comerciales en reportes |
+| Recursos | Reservas como atajo, no logica duplicada |
 
 ---
 
@@ -292,7 +293,119 @@ La ficha 360 concentra comercial, cobranza, bienestar, reservas, fidelizacion y 
 ### Pendiente
 
 - Traits `ManagesClienteWellnessTab`, `ManagesClienteCrmTab`, `ManagesClienteFidelizacionTab`.
-- `ClientePerfilLive` aún >400 LOC (shell + traits pendientes de extraer).
+- `ClientePerfilLive` aún >400 LOC (shell + traits pendientes de extraer) — **actualización 2026-08-27: el componente ahora está en 1159 LOC, más que la medición anterior (~934); ver Fase 6 abajo sobre las causas.**
 - Tests feature de paridad saldos con Operaciones (requiere DB test funcional).
 - Tests Livewire modales de cobro.
-| Recursos | Reservas como atajo, no logica duplicada |
+
+---
+
+## 8. Fases nuevas (2026-08-27): integridad referencial, seguridad y rendimiento
+
+> Origen: revisión profunda de código (no solo arquitectura/consistencia) solicitada específicamente para el módulo Clientes. Estas fases **complementan** las Fases 1-3 de arriba (desacople de `ClientePerfilLive`); no las reemplazan. Verificado directamente en código: `ClienteService.php:846-886` (`checkRelations`), migraciones de `client_debts`, `crm_mensajes` (`onDelete('restrict')`), `cliente_app_accounts`, `cliente_fidelizacion_mensajes`, `cliente_plan_traspasos` (`cascadeOnDelete()`).
+>
+> **Decisión de producto ya tomada por el usuario:** al eliminar un cliente con cuenta de app, mensajes de fidelización o traspasos de plan asociados, el borrado debe **bloquearse** — igual criterio que las 16 relaciones ya protegidas hoy. Hoy esos 3 casos se borran **en silencio** (bug real, no comportamiento documentado).
+>
+> **Fuera de alcance por decisión del usuario:** encriptar `datos_salud`/`datos_emergencia`/`consentimientos` (columnas `json` en `clientes`) y los campos de `health_records`. Es un hallazgo real (esos datos hoy no están cifrados) pero requiere una migración de columnas más invasiva (`json`→`text`, ventana de transición) que queda fuera de este ciclo — solo se deja documentado aquí, sin fase de implementación.
+
+### Fase 4 — Integridad referencial en borrado de clientes
+
+**Objetivo de fase:** que `checkRelations()` cubra todas las relaciones con impacto real en el borrado, bloqueando de forma consistente.
+
+#### Paso 4.1 — Completar `checkRelations()`
+
+- **Archivos:** `app/Services/ClienteService.php` (líneas 846-886).
+- **Tareas:**
+  1. Agregar `$cliente->clientDebts()->exists()` y `$cliente->crmMensajes()->exists()` al bloque de chequeo — son las dos omisiones con FK `restrict` (`client_debts.cliente_id`, `crm_mensajes.cliente_id`), las más urgentes porque hoy producen `QueryException` cruda al usuario en vez de un mensaje amigable.
+  2. Agregar `clienteAppAccount`, `clientePlanTraspaso`, `clienteFidelizacionMensajes` al mismo chequeo (FK `cascadeOnDelete` — hoy se borran en silencio). Verificar/crear los métodos de relación correspondientes en `Cliente.php` si falta alguno.
+  3. Mantener el mismo mensaje de excepción amigable ya usado ("No se puede eliminar el cliente porque tiene historial u operaciones asociadas..."), extendiendo la lista de condiciones.
+- **Criterios de aceptación:**
+  - Intentar borrar un cliente con una deuda (`ClientDebt`) o mensaje CRM asociado da el mismo mensaje amigable que las demás relaciones, nunca una excepción SQL cruda.
+  - Intentar borrar un cliente con cuenta de app / mensajes de fidelización / traspasos de plan ahora también se bloquea (cambio de comportamiento intencional, ya decidido).
+
+#### Paso 4.2 — Tests de regresión
+
+- **Archivos:** `tests/Feature/Services/ClienteServiceTest.php`.
+- **Tareas:** un test por cada relación antes omitida (`ClientDebt`, `CrmMensaje`, `ClienteAppAccount`, `ClientePlanTraspaso`, `ClienteFidelizacionMensaje`), verificando que el borrado se bloquea con mensaje amigable y no con `QueryException`.
+
+---
+
+### Fase 5 — Limpieza de validación de documento
+
+**Objetivo de fase:** una sola fuente de verdad para la validación de DNI/CE y unicidad.
+
+#### Paso 5.1 — Eliminar `ClienteRequest.php`
+
+- **Archivos:** `app/Http/Requests/ClienteRequest.php` (eliminar).
+- **Contexto:** es un `FormRequest` confirmado como código muerto (grep solo encuentra su propia autorreferencia, ninguna ruta ni controlador lo usa) que además contradice la validación real: valida unicidad de documento sin filtrar por sucursal y sin regex de formato DNI/CE, mientras que `ClienteService::validate()` (líneas 733-763) sí exige DNI=8 dígitos exactos, CE=9-20 alfanumérico, y unicidad por `sucursal_id`.
+- **Criterios de aceptación:** suite de tests completa sigue en verde tras la eliminación (confirma que era código muerto).
+
+#### Paso 5.2 — Documentar `ClienteService::validate()` como única fuente de verdad
+
+- **Archivos:** `app/Services/ClienteService.php` (docblock).
+- **Tareas:** dejar explícito en el código que es el único validador de documento; si en el futuro se necesita un FormRequest (ej. API pública), debe delegar a esta lógica, no reimplementarla en paralelo.
+- **Criterios de aceptación:** ningún cambio funcional, solo blindaje documental.
+
+#### Paso 5.3 — Documentar la decisión sobre duplicado cross-sucursal
+
+- **Tareas:** dejar constancia en este plan de que `ClienteCrossSucursalAlertService::findMatches()` es intencionalmente informativo (no bloquea un mismo DNI en dos sucursales) — es una decisión de negocio conocida (permite que un mismo cliente se inscriba legítimamente en dos sedes de la misma cadena), no una omisión.
+
+---
+
+### Fase 6 — Rendimiento en apertura de ficha
+
+**Objetivo de fase:** reducir queries redundantes al abrir `ClientePerfilLive` sin cambiar los datos mostrados.
+
+#### Paso 6.1 — Eliminar `find()` duplicado del cliente
+
+- **Archivos:** `ClientePerfilLive.php` (`selectCliente`), `app/Services/Cliente/ClienteProfileContextService.php` (`build()`).
+- **Tareas:** pasar la instancia de `Cliente` ya cargada a `build()` en vez de que el servicio la vuelva a buscar por id.
+- **Criterios de aceptación:** reducción medible de queries (`assertQueryCount` o `DB::listen` antes/después).
+
+#### Paso 6.2 — Reutilizar resultado de matrículas entre resumen y tab comercial
+
+- **Archivos:** `app/Services/Cliente/ClienteCommercialProfileService.php`, trait `ManagesClienteCommercialTab`.
+- **Tareas:** cachear (request-scoped, mismo patrón que `ClienteProfileContextService`) el resultado de matrículas con relaciones anidadas, para que `resolveCommercialSummary(withHistory:false)` (usado para deuda) y `loadCommercialTabData()→loadCommercialHistory(withHistory:true)` no repitan la consulta completa.
+- **Criterios de aceptación:** conteo de queries al abrir una ficha de cliente baja del ~20-30 actual a un número documentado menor, sin cambiar los datos mostrados.
+- **Riesgo:** el cache request-scoped debe invalidarse tras cualquier escritura (pago, cuota, matrícula) dentro del mismo request para no mostrar datos obsoletos entre tabs.
+- **Dependencias:** Paso 6.1.
+
+---
+
+### Fase 7 — Higiene de archivo de fotos
+
+#### Paso 7.1 — Reordenar borrado/reemplazo de foto
+
+- **Archivos:** trait `ManagesClienteCrudAndPhoto` (líneas ~303-305).
+- **Tareas:** mover el borrado del archivo anterior a después de confirmar que `update()` fue exitoso (o envolver en try/catch que revierta el archivo nuevo si `update()` falla).
+- **Criterios de aceptación:** test que simule fallo de `update()` y verifique que la foto anterior sigue existiendo.
+
+#### Paso 7.2 — Job de limpieza de fotos temporales huérfanas
+
+- **Archivos nuevos:** comando/job programado que borre archivos en `clientes/fotos/temp` más antiguos que N días sin cliente asociado.
+- **Criterios de aceptación:** job idempotente, no borra archivos recientes en uso.
+
+---
+
+### Fase 8 — Cobertura de tests faltante (transversal, cierre)
+
+- **Archivos nuevos:** `tests/Feature/Livewire/ClienteLiveTest.php` (hoy no existe ningún test del listado principal, pese a que `ClientePerfilLiveTest.php` tiene 34 casos).
+- **Tareas:** tests de `saveCliente`/`uploadClientePhoto`/`deleteCliente` vía Livewire, formato DNI/CE, duplicado por sucursal.
+- **Criterios de aceptación:** cobertura Livewire del listado equivalente a la ya existente para el perfil.
+
+---
+
+## 9. Riesgos y mitigaciones (fases 4-8)
+
+| Riesgo | Mitigacion |
+| --- | --- |
+| Bloquear borrado por relaciones `cascade` (Fase 4) cambia comportamiento actual visible | Ya es decisión tomada por el usuario; comunicar en el changelog del módulo que ahora se debe inactivar en vez de eliminar en esos casos |
+| Eliminar `ClienteRequest.php` rompe algo no detectado por grep | Correr suite completa de tests tras la eliminación antes de confirmar el paso cerrado |
+| Cache request-scoped de matrículas (Fase 6) queda desactualizado entre tabs si algo muta el estado a mitad de sesión | Invalidar el cache tras cualquier escritura (pago, cuota, matrícula) dentro del mismo request |
+
+## 10. Criterios de cierre (fases 4-8)
+
+- [ ] `checkRelations()` cubre las 21 relaciones (16 actuales + 5 nuevas: `ClientDebt`, `CrmMensaje`, `ClienteAppAccount`, `ClientePlanTraspaso`, `ClienteFidelizacionMensaje`).
+- [ ] `ClienteRequest.php` eliminado, suite en verde.
+- [ ] Reducción medible de queries al abrir ficha de cliente.
+- [ ] Foto anterior no se pierde ante fallo de `update()`.
+- [ ] Tests nuevos: listado `ClienteLive`, CRUD completo, formato de documento, duplicado por sucursal, las 5 relaciones nuevas en `checkRelations()`.

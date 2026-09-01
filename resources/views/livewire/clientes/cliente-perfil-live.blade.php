@@ -353,7 +353,7 @@
                             @endcan
                         @endcan
                         @can('crm.ver')
-                            <flux:button href="{{ route('crm.clientes.etiquetas', $selectedCliente->id) }}" wire:navigate variant="outline" size="xs"
+                            <flux:button type="button" wire:click="openCrmTagsModal" variant="outline" size="xs"
                                 icon="tag" class="border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-900 dark:bg-sky-950/30 dark:text-sky-300">
                                 {{ __('Etiquetas CRM') }}
                                 @if (($crmSummary['tagsCount'] ?? 0) > 0)
@@ -813,6 +813,79 @@
                         </div>
                     </div>
                 </div>
+
+                @can('crm.ver')
+                    <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+                        <div class="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 pb-2 dark:border-zinc-700">
+                            <div>
+                                <h3 class="text-sm font-bold text-zinc-900 dark:text-zinc-50">{{ __('Seguimiento CRM') }}</h3>
+                                <p class="text-xs text-zinc-500 dark:text-zinc-400">
+                                    {{ __('Asesor:') }} {{ $crmSummary['asesorCrmNombre'] ?? __('Sin asignar') }}
+                                </p>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-1">
+                                @can('crm.reasignar')
+                                    <flux:button type="button" icon="user" variant="ghost" size="xs" wire:click="openCrmReasignarModal" class="text-sky-600 dark:text-sky-400">
+                                        {{ __('Reasignar') }}
+                                    </flux:button>
+                                @endcan
+                                @can('crm.crear')
+                                    <flux:button type="button" icon="phone" variant="ghost" size="xs" wire:click="openCrmActivityModal" class="text-sky-600 dark:text-sky-400">
+                                        {{ __('Actividad') }}
+                                    </flux:button>
+                                    <flux:button type="button" icon="clock" variant="ghost" size="xs" wire:click="openCrmTaskModal" class="text-sky-600 dark:text-sky-400">
+                                        {{ __('Tarea') }}
+                                    </flux:button>
+                                    <flux:button type="button" icon="currency-dollar" variant="ghost" size="xs" wire:click="openCrmDealModal" class="text-sky-600 dark:text-sky-400">
+                                        {{ __('Oportunidad') }}
+                                    </flux:button>
+                                @endcan
+                            </div>
+                        </div>
+
+                        <div class="grid gap-3 sm:grid-cols-3">
+                            <div>
+                                <h4 class="mb-1 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">{{ __('Próximas tareas') }}</h4>
+                                <div class="space-y-1.5">
+                                    @forelse ($crmSummary['pendingTasks'] ?? [] as $task)
+                                        <div class="rounded-lg bg-zinc-50 p-2 text-xs dark:bg-zinc-950/50">
+                                            <p class="font-medium text-zinc-800 dark:text-zinc-200">{{ $task['tipo_label'] }}</p>
+                                            <p class="text-zinc-500 dark:text-zinc-400">{{ \Illuminate\Support\Carbon::parse($task['fecha_hora_programada'])->format('d/m/Y H:i') }}</p>
+                                        </div>
+                                    @empty
+                                        <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Sin tareas pendientes.') }}</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="mb-1 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">{{ __('Últimas actividades') }}</h4>
+                                <div class="space-y-1.5">
+                                    @forelse ($crmSummary['recentActivities'] ?? [] as $activity)
+                                        <div class="rounded-lg bg-zinc-50 p-2 text-xs dark:bg-zinc-950/50">
+                                            <p class="font-medium text-zinc-800 dark:text-zinc-200">{{ $activity['tipo_label'] }}</p>
+                                            <p class="text-zinc-500 dark:text-zinc-400">{{ \Illuminate\Support\Carbon::parse($activity['fecha_hora'])->format('d/m/Y H:i') }}</p>
+                                        </div>
+                                    @empty
+                                        <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Sin actividades registradas.') }}</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="mb-1 text-xs font-semibold uppercase text-zinc-500 dark:text-zinc-400">{{ __('Oportunidades abiertas') }}</h4>
+                                <div class="space-y-1.5">
+                                    @forelse ($crmSummary['openDeals'] ?? [] as $deal)
+                                        <div class="rounded-lg bg-zinc-50 p-2 text-xs dark:bg-zinc-950/50">
+                                            <p class="font-medium text-zinc-800 dark:text-zinc-200">{{ $deal['membresia_nombre'] ?? __('Sin membresía') }}</p>
+                                            <p class="text-zinc-500 dark:text-zinc-400">S/ {{ number_format((float) $deal['precio_objetivo'], 2) }}</p>
+                                        </div>
+                                    @empty
+                                        <p class="text-xs text-zinc-500 dark:text-zinc-400">{{ __('Sin oportunidades abiertas.') }}</p>
+                                    @endforelse
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endcan
 
                 @if (collect($selectedCliente->health_summary ?? [])->filter()->isNotEmpty())
                     <div class="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
